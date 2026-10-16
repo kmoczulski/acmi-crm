@@ -22,6 +22,8 @@ than buy HubSpot, Attio or Pipedrive.
 | Email (phase 2) | Per-user Gmail API via Google sign-in, replacing the shared app password |
 | Granola (phase 3) | Granola API if the plan has one; otherwise a daily scheduled Claude task pushes meetings in |
 | Land search (phase 4) | **Built 2026-10-14.** Texas Triangle (suburban/rural counties, not the big metros) + Charles Co. MD. Parcels are a local copy (state publishes once a year); utilities, flood, wetlands, HUBZone, EPA are live per parcel |
+| Address | **hub.acmigroup.com** (chosen 2026-10-14); needs a DNS record, the Cloud Run domain mapping, and the URL added to the OAuth client + `DJANGO_ALLOWED_HOSTS` / `CSRF_TRUSTED_ORIGINS` |
+| Go-live | In progress 2026-10-14: gcloud + gh signed in; project is under the acmigroup.com org but **billing is off** (no billing account; budget doc `docs/ACMI_CRM_Hosting_Budget.docx` written for team approval, ~$30-45/mo). Prod edits made (WhiteNoise, Dockerfile, cloudbuild.yaml, cron endpoint also syncs calendar), 114 tests pass; git initialized, **nothing committed or pushed yet** |
 | Attio | Used as a design reference only (trial workspace `acmi-properties`). Copy behaviour, never code |
 
 ## Phases
@@ -342,6 +344,162 @@ for email tagging; a project with a campus is hung off that campus project autom
   `/land/views.json`, `/land/views/save/`, `/land/views/<id>/delete/` (owner-only changes). Lists form hides "land".
 - 114 tests.
 
+## Built 2026-10-14 (late night): MEIH land pipeline imported from the shared drive
+
+- Source: `G:/Shared drives/1 ACMI Properties/1 Projects/MD/MEIH/01. Land Acquisition` (Aug 2026 "Maryland Land"
+  deck, Land Research 2026.07.10, Greer land list, Assemblage 22 review, Outside-the-Gate sheet, deal folders).
+  Read only; nothing written to the drive.
+- `data/imports/meih_land_sites.json` (gitignored) holds 28 sites with their Charles County SDAT accounts, status and
+  notes; `manage.py import_land_sites <json>` creates/updates them by name (re-runnable) under campus MEIH.
+  `crm/land/parcels.ensure_parcels` fetches any account from the county service, any size (105 parcels; many under
+  20 ac). `normalize_account` turns 906022677 / 06022677 / 7043589 / 09-003134 into 10-digit SDAT ids.
+- Statuses: 4390 Indian Head Hwy (ETC) under contract; LOI/negotiating: Lake Acton (PSA agreed 10/14, Phase I 15.33 +
+  Phase II 47.86 ac of CRIP's 5 parcels), Livingston Rd airport land, Lewis Place, Rosewick, Billingsley WCD
+  (Assemblage 22, 10 parcels), Outside the Gate (8 tiny parcels), 12 Dogwood, Berry/Tara, Garner (stale? not in Aug
+  deck); review: Ray Dr, PSM Pomfret Rd, Hughesville; outreach: Copart/Fox Tail, Rockhill (Prince George's, no
+  shape: PG parcels not loaded), Civista, DeMarr IG, Rosewick East, Bardon, Pavlo, Howard/Santay; dropped: the passes.
+  Parcels in those sites got map status Pursue / Watch / Pass (only where unreviewed; no companies or tasks made).
+- GGCAL's Land Research ids were re-platted (now 0906360616–23). Hughesville's Lieberman file says 09-00544, matched to
+  0909005455: confirm. Newburg folder has only a map (no site made).
+- Map: new "Saved sites & assemblages" layer (outlines by status, click to open); `/land/sites.geojson`.
+- Charles loader now skips shapes without an account ("NO ID", e.g. an 11,475 ac private right-of-way).
+- **Shared-shape records merged (fixed 2026-10-14):** some Texas appraisal files give several property ids the same
+  polygon and GIS_AREA (Hays "HAY HILL HAY LLC": 11 ids on one 3,654.87 ac shape, legal acres 0–3,236). The Texas
+  loader now spots kept records with the same shape (rounded bounds + area, `_shape_sig`) and stores ONE parcel:
+  key = the id with team work on it, else the largest legal area; mapped acres = the shape's; deed acres = that id's;
+  legal_desc ends "[same shape as prop ids …; also owned by …]". Owner totals count a shared shape once per owner.
+  The other ids are pruned like any vanished parcel (never ones with status/notes/landowner/site/QD plan). Re-loaded
+  all six TX counties: Hays 4,150 -> 2,915 parcels (1,235 ids merged), Blanco 1; no two parcels share a shape now.
+  Searching a merged-away prop id finds the parcel via legal_desc. Backup: `backups/db-2026-10-14-before-shared-shape-merge.sqlite3`.
+  Loader also now closes the shapefile reader (temp dirs were left behind on Windows) and prune keeps QD plans.
+- **Known data issue (not fixed):** a few Caldwell/Guadalupe parcels are unique shapes whose mapped acres dwarf their
+  deed acres (Caldwell 51626 MARTINEZ TERESA ESTATE 4,727 ac mapped vs 126 deed; 51677/51711 WELLS EVELYN; Guadalupe
+  167688 FREUDIGER 5,674 vs 198, 167685 VERDEJA "8.34% UDI"). Not shared shapes, so the merge doesn't touch them;
+  likely oversized/undivided-interest polygons in the CAD file. Treat mapped acres there with suspicion.
+- 119 tests.
+
+## Built 2026-10-14/15 (overnight): incentives, Sites page + deal timelines, quick site planner
+
+- **Incentive programs** (`crm/land/incentives.py`, one registry): Opportunity Zones (HUD), OZ 2.0 eligible tracts,
+  NMTC tracts (CDFI 2025), HUBZones (map; card check stays live SBA), Foreign-Trade Zones (points + service areas),
+  MD: Priority Funding Areas (statewide, mdgeodata), Enterprise Zones (+ admin contacts), Sustainable Communities,
+  RISE zones, Charles Development Districts; TX Enterprise Zones (Governor's office, 2020 block groups). Each has a
+  short what / how-we'd-use-it / source / official link: Layers menu "Incentives & programs" (ⓘ), map popups and a
+  parcel-card "Incentive programs" section (live check `incentives`). Score: up to +5 (OZ 3, NMTC 2, EZ 2, FTZ
+  covering the county 1, SC 1, RISE 1); PFA stays in the entitlement score. Links checked 2026-10-14; Maryland
+  pages had moved (now planning.maryland.gov/Pages/OurProducts/pfaMap.aspx, commerce .../enterprise-zone-tax-credit-ez,
+  dhcd .../neighborhood-revitalization/sustainable-communities). BRAC zones skipped (none near Charles).
+- **FEMA renumbered NFHL** (Flood Hazard Zones 28 → 35) mid-session: `sources.fema_flood_layer_id()` now finds it by
+  name (cached 6 h); the map layer uses the same id. ArcGIS bbox queries now send a JSON envelope (FEMA rejects the
+  "x,y,x,y" form).
+- **Sites page** (`/land/sites/`, sidebar Land search › Sites): campus → project groups sorted by deal stage
+  (`LandSite.STATUS_ORDER`: acquired, contract, LOI, outreach, review, prospect, dropped), totals, owners, zoning,
+  best score, flags; **Deal timelines** chart (dots per milestone, bar to today). Projects page and the map's site
+  picker sort by status too.
+- **Site page** (`/land/sites/<id>/manage/`): edit name/status/campus/project/notes, milestone dates
+  (`LandSite.MILESTONES`: identified, contacted, LOI sent/signed, PSA sent/signed, feasibility end, approvals,
+  closed; later milestones move the status forward, never back; dropped stays dropped), stage track with days
+  between steps, parcels (remove), activity log (`LandSiteEvent`: status, milestone, edit, note). Groundwork for the
+  Contract negotiations module.
+- MEIH dates seeded from file names (e.g. Livingston LOI 1/23 → signed 5/6 → PSA draft 7/31; ETC PSA 6/22; Lake Acton
+  LOI 4/7–4/10, PSA draft 5/18). `import_land_sites` is now non-destructive: existing sites only gain missing parcels
+  and dates; `--overwrite` replaces. Garner marked Dropped (seller passed, Kellen). Public owners are a warning, not a
+  deal-killer (counties sell land).
+- **Quick site planner** (`crm/land/siteplan.py`, `/land/siteplan/`, map toolbar "Site plan" drawer): zone picker
+  ("As zoned now" or "Rezone to …"), editable setbacks / FAR / impervious / coverage / height, building program
+  (warehouse, manufacturing, flex/R&D, office, lab/energetics: count or target SF, depth, stories), parking either
+  stalls per 1,000 sf (typical market ratios, editable) or the Charles code formula (1 / 300 sf office + 1 / employee
+  at max shift; office % and staff per 1,000 sf editable), optional floodplain + wetland exclusion (live FEMA/NWI),
+  auto layout in rows (buildings + truck court/parking bands, 60 ft between buildings) stopping at the zone's FAR /
+  coverage / ISR, yield summary; plans save on the site or parcel (`site_plan`).
+  Charles standards transcribed from Ch. 297 Figs. VI-1/2/5/6/10, VII-4 and parking Fig. XX-1 (Supp 15, Jul 2025;
+  PDFs from eCode360). Texas parcels default to an editable "no zoning" set. Examples: Billingsley (Assemblage 22)
+  as WCD ≈ 1.7M sf (8% ISR binds) vs rezoned IG ≈ 11.2M sf with flood/wetlands kept clear; Lewis Place WCD 216K sf
+  vs IG 2.6M sf.
+- Third-party tools Kellen listed (TestFit, Forma, InQI, mnml, Aino, ARCHITEChTURES) are paid products without open
+  feeds; the planner above is our own TestFit-style screen. Not built: drag-to-edit buildings, financial pro forma
+  in the planner, bufferyards between zones (Fig. XXII) and road-corridor buffers (Fig. X-1).
+- 128 tests.
+
+## Built 2026-10-15: site archive, per-parcel deal tracking
+
+- **Archive:** dropped sites leave the campus/project groups and sit in a collapsed Archive at the bottom of the
+  Sites page (date dropped, why), the Projects page (per campus) and the map's Saved sites picker.
+- **Per-parcel deals** (`SiteParcelDeal`, `crm/land/tracker.py`): every parcel in a site has its own status,
+  milestone dates and notes; edit from the site page grid (dialog, "apply to all parcels of this owner" on by
+  default; dates move a parcel's status forward, never back; logged as `parcel` events). Single-owner sites copy
+  the site's status/dates into their parcels; multi-owner parcels start at Under review.
+- **Global tracker** on the site page: acres-by-stage bar, secured acres (contract + acquired), furthest / slowest
+  parcel, a hint when the site status is ahead of its slowest parcel (an assemblage is only as far along as the last
+  owner), and the owner-grouped parcel × milestone grid with first–last dates per milestone. Sites page shows a
+  mini progress bar for multi-owner sites and small per-parcel dots on the Deal timelines chart.
+- Seeded from the files (import JSON `parcel_deals`, non-destructive): Outside the Gate (Wamsley LOI/term sheet,
+  Kroc LOI → PSA 8/21, Focus On LOI → PSA 7/24, Infinite Design outreach), Billingsley (Wald, Walton, Filiaggi LOIs
+  9/28; other 7 parcels under review), Berry/Tara (Chestnut + Tara Jenkins negotiating, 5 contacting).
+- **Site page mini map** (`/land/sites/<pk>/manage/`, under the stage track): pan/zoom, base map switch, Fit to
+  site, the full layers list (incl. incentive programs) — no tools. Parcels colored by their per-parcel deal stage,
+  yellow dashed outline around the whole site. Base + layer picks remembered per browser (`site-map:*`).
+  Layer factories now live in `crm/static/crm/land_layers.js` (`window.LandLayers`), shared with land search —
+  add new overlays there (and to `LABELS`) so both maps get them.
+- 132 tests.
+
+## Built 2026-10-15: exclude and trim parcels in a site
+
+- **Exclude** (site page Parcels table): the parcel stays on the site, greyed, with its deal history, but counts for
+  nothing — acres, outline, Saved sites layer, QD, site plan, tracker rollup. Include brings it back. Saving the
+  site from the map keeps excluded parcels (the map only selects included ones; `_site_json` lists `excluded`).
+- **Trim** (`SiteParcelDeal.portion` GeoJSON + `portion_acres` + `portion_cuts`; `crm/land/trim.py`; endpoint
+  `land/sites/<pk>/trim/`): "✂ Trim" on a parcel row or the map popup puts the mini map in cut mode — click along
+  the trail/creek/road (start and end outside the parcel; lines are stretched 60 m past the end clicks), double-click
+  to finish, more lines cut again. Pieces touching the rest of the site are kept by default (green); click a piece
+  to flip it; Save portion / Whole parcel / Cancel. Portion acres are scaled to the tax-roll acreage. Everything
+  that measures a site (`trim.site_geometry`, `trim.site_acres`, `SiteParcelDeal.acres`) uses the portion.
+- For Billingsley: Kellen draws the trail cut on Cottrell Adam (0906035698) himself; verified with a test line, then
+  reset (site back to 813.4 ac).
+- 140 tests (incl. the Huntsville session's).
+
+## Built 2026-10-15: Huntsville, AL counties (from Initial Land Research Overview - 2026.07.09.pdf)
+
+- **Counties:** Limestone (01083), Madison (01089), Morgan (01103), region "North Alabama (Huntsville)".
+  `load_parcels Limestone_AL Madison_AL Morgan_AL` (bare "Limestone" / "Madison" are still the Texas counties;
+  `region_for(name, state)` is now state-aware). ~4 min for all three; live ArcGIS services, no download.
+- **Sources:** Limestone and Morgan from the City of Huntsville's `Boundaries/CombinedParcels` (layers 7, 10). The
+  county's own Limestone layer leaves out Huntsville-annexed land (the whole Greenbrier / I-565 corridor), so don't
+  switch back. Madison from the City of Madison's copy (has acres and values). Parcel keys are digits only.
+- **Zoning:** City of Huntsville `Zoning/ZoningDistricts/5` stamped on every parcel (covers its annexed Limestone
+  land: PI, CIP, AIP...). Codes → buckets in `score.HUNTSVILLE_CODES` (M, M2, HM, AC, DS left unmapped: names not
+  confirmed). Decatur, Athens, Madison city and the towns publish no zoning service (Decatur only via MapGeo), so
+  those parcels show their city from Census TIGER places (`town_al` layer). Unincorporated AL = "No zoning" (+5,
+  with the annexation-for-utilities caveat from the PDF).
+- **Land use:** Alabama assessment class (1 utility, 2 commercial/other, 3 farm/forest/homes) → TX-style codes.
+- `load_land_layers --region north_al` refreshes one region only (others kept). Electric providers and
+  substations now include AL/TN (TVA distributors). Map: Huntsville zoning in the Zoning layer, AL parcel lines,
+  AL city limits.
+- Checked against the PDF: the top tracts line up (9000 Greenbrier Pkwy PI 578 ac, 27341 Old Hwy 20 PI 518,
+  Powell Rd PI, 2522 County Line Rd PI 422, 7049 Greenbrier Pkwy CIP). 84 industrial-zoned tracts of 100+ ac.
+- No site-plan standards for Huntsville codes yet (planner falls back to generic setbacks).
+
+## Built 2026-10-15: client land searches (Assignments) and the guest view
+
+For land-search engagements (Elbit 26 Defense, Niron). Modeled on the Word reports and `Site_Assessment_Elbit_2026.09.17.xlsm`
+in the shared drive (Tenancy > Elbit 26 Defense > Site Assessment).
+
+- `Assignment` = one client search; `AssignmentSite` = a saved `LandSite` inside it plus its diligence report (JSON).
+  Migration 0029. Logic in `crm/land/assignments.py` (report structure, ranking, guest lookup), views in
+  `crm/land/assignment_views.py`. Nav: Development > Land search > Client searches.
+- Report = ten rated categories (Low Risk / Moderate / Elevated / N/A), executive summary, priority actions, overview
+  (prefilled from parcel data), net acreage, utilities gap table, permit matrix, critical dates, ROM to pad-ready,
+  44-item master checklist. Edit page: `/land/assignments/<id>/sites/<entry>/edit/`.
+- Ranking is the workbook's rule: Elevated sorts last, then fewest Moderates, then fewer deadline-critical Moderates,
+  then ROM net of "Yes" incentive-eligible lines (lower first), then acreage headroom over the program floor. Staff can pin a
+  site to a position. The guest page states the rule and says it is judgement, not a calculation.
+- Guest view: `/g/<token>/` (ranking + comparative matrix) and `/g/<token>/<entry>/` (report). No login; `/g/` is in
+  `PUBLIC_PREFIXES`. Token is `secrets.token_urlsafe(24)`; link can be switched off, expired, or regenerated; each site has a
+  "show to client" flag; responses are `noindex`/`no-store`. Guests never see owner names, site notes, deal status/milestones or
+  the buy-box score (tests assert this). Only entries of that assignment are reachable.
+- Not built: Word/PDF export (print-to-PDF works from the guest page), passcode on the link, per-client branding, a
+  "refresh from CRM" button (overview fields left blank fall back to live CRM data automatically).
+
 ## Backlog
 
 1. AI summaries: need an Anthropic API key in .env (console.anthropic.com).
@@ -357,3 +515,179 @@ for email tagging; a project with a campus is hung off that campus project autom
 
 - Attio trial is syncing Kellen's mailbox and calendar. He may want it turned off.
 - Confirm what "the project" Kellen created is, and get its ID or URL.
+
+## Built 2026-10-16: Fayetteville, NC (Cumberland County)
+
+- **County:** Cumberland (37051), region "Fayetteville, NC". `load_parcels Cumberland_NC` (~2 min; live service).
+  Aliases "fayetteville" / "cumberland nc". Loaded locally: 3,082 tracts of 20+ ac, 406 inside city limits.
+  Fort Liberty also touches Hoke (093), Harnett (085) and Moore (125): not added yet.
+- **Source:** NC OneMap statewide parcels (`NC1Map_Parcels/FeatureServer/1`), filtered by the new per-county
+  `base_where` config key (`counties.in_county` scopes the count, big-parcel and ensure_parcels queries). Adding
+  another NC county is one more `COUNTIES` entry with a different `cntyname`.
+- **Gotchas:** the layer's `gisacres` is junk (square degrees); acres come from `recareano`, falling back to
+  `Shape__Area`/43,560. ~10% of parcels have no PIN: they're keyed `OID<objectid>` (not stable across reloads).
+  No tax-roll year is exposed (`tax_year` blank).
+- **Zoning:** none yet. No public Fayetteville / Cumberland zoning service found (the city and county GIS hosts I
+  tried don't answer), so parcels show "town" inside Census city limits (`town_nc` layer, region `fayetteville_nc`)
+  and no zoning elsewhere. NC is not in `NO_COUNTY_ZONING` since NC counties do zone.
+- `load_land_layers --region fayetteville_nc` refreshes this region only. Substations now include NC.
+- **Added same day:** Hoke (37093), Harnett (37085), Moore (37125) via `_nc_county()`: `load_parcels Hoke_NC Harnett_NC Moore_NC`
+  (bare "Moore" is still the Texas county). Region layers now span the four counties.
+
+## Built 2026-10-16: Arizona I-10 corridor (Maricopa, Pinal) and Greene County, IN
+
+For three listings (Western Land Co. Wintersburg Rd & I-10, Tonopah = Maricopa; Land Advisors Barnes Farm, Casa
+Grande and I-10/I-8 Business Park, Eloy = Pinal) plus Greene County, IN (NSWC Crane).
+
+- **Maricopa (04013):** County Assessor service (`gis.mcassessor.maricopa.gov/.../Parcels/MapServer/0`): owner,
+  mailing address, full cash value, use code. 1.76M parcels, so owner totals count only parcels of 1+ acre
+  (`count_where`; `total_parcels` = that count, 164k). Acres = `LAND_SIZE`/43,560. `CITY_ZONING` is almost always
+  "CONTACT LOCAL JURISDICTION", so no zoning overlay. PUC → land use only checked on the first digits (see
+  `_az_land_use`). Loaded: 11,268 tracts.
+- **Pinal (04021):** county's own service (`gismaps.pinalcountyaz.gov/webapps/...Parcels_Webservice`) did not
+  resolve, so this uses ADWR's copy (`azwatermaps.azwater.gov/.../General/Parcels/MapServer/11`): owner, APN, acres,
+  site address only (no mailing address or values). Parcels with no APN (State Trust / BLM / tribal) are skipped.
+  Loaded: 7,377 tracts. Swap the URL + `_pinal_fields` if the county service comes back.
+- **APNs:** keys are letters+digits without dashes ('506-45-029H' → `50645029H`); `normalize_account` handles AZ.
+- Brochure parcels found: Wintersburg 50645028 (160 ac), 029H (49), 029J (50) = 313 Wintersburg LLC (029Q/R/S under
+  20 ac, not loaded); Barnes 50326020E (141.5), 020F (180) = Barnes Vernon Lester (020D under 20 ac).
+- **Greene, IN (18055):** IndianaMap statewide layer (`gisdata.in.gov/.../Parcel_Boundaries_of_Indiana_Current`)
+  filtered by `county_fips`. It has NO owner names, acreage or values: acres come from the geometry, owner / value
+  stay blank. Needs a county source (WTHGIS viewer `greenein.wthgis.com` has no REST service). 4,545 tracts.
+  DLGF class → land use is by hundreds digit (mostly blank for Greene).
+- Regions `central_az`, `crane_in`; `load_land_layers --region central_az|crane_in`. Zoning: none for any of these.
+
+### Owner-data status (2026-10-16)
+
+| County | Owner | Mailing | Source note |
+|---|---|---|---|
+| Cumberland, Harnett, Moore NC; Maricopa AZ | 98-99% | 96-99% | county assessor data, fine |
+| Pinal AZ | 87% | 24% | ADWR layer enriched from the Casa Grande mirror of the assessor roll (`PINAL_ENRICH`, covers Casa Grande / Eloy / Coolidge only: owners, mailing, land value). The rest of Pinal (east side) has owner only where ADWR has it. County's own host `gismaps.pinalcountyaz.gov` is dead (DNS). |
+| Hoke NC | 0% | 0% | NC OneMap's Hoke records have the owner and mailing fields blank (the county withholds them); no open Hoke service found |
+| Greene IN | 0% | 0% | IndianaMap carries no owner data; county viewer `greenein.wthgis.com` has no REST service |
+
+- Loader now supports `enrich` in a county config: a second service whose records fill blanks and add parcels the base
+  layer lacks; owner totals use the enriched owners (`parcels._enrichment_records`).
+- Hoke / Greene / east Pinal owner data needs the assessor's bulk file or a paid parcel dataset (Regrid, Dynamo Spatial,
+  Land Records); a file could be joined by parcel number with a small `enrich`-style loader.
+
+### load_owners: join an owner file onto loaded parcels (2026-10-16)
+
+`manage.py load_owners <County_ST> <file> [--map field=Column ...] [--commit]` (code: `crm/land/owners.py`).
+Dry run by default (prints columns used, match rate, samples). Reads .csv / .xlsx / HTML-table .xls (what older
+viewers like WTHGIS export) / .json / .geojson. Recognises Regrid's names (`parcelnumb`, `owner`, `mailadd`,
+`mail_city`, `mail_state2`, `mail_zip`, `parval`, `ll_gisacre`...) and common assessor headers; use `--map` otherwise.
+Matches by parcel number ignoring punctuation / leading zeros against each parcel's key, prop_id and geo_id. Blanks
+never overwrite; fills owner, mailing, values, owner portfolio totals; re-scores. `load_parcels` now keeps owner data
+a file added (blank service values don't wipe it). Needed for Hoke NC, Greene IN, east Pinal AZ.
+Greene IN's viewer (`greenein.wthgis.com`) has no REST API, only search + an Excel export button.
+- **Greene IN owners solved (2026-10-16):** the WTHGIS viewer's Index > Parcels2 pages the whole county table
+  (26,550 parcels: owner, mailing + property address, acreage, assessment class, via `tgis/index.ashx?action=getFtrs`).
+  `scripts/fetch_greene_in_owners.py` pulls it politely (~130 requests) into `data/land/raw/greene_in_owners.csv`;
+  then `load_owners Greene_IN <csv> --commit`. 4,494 / 4,545 parcels matched (99%). No land/improvement values in that
+  table (Parcels1 has a few). Re-run both commands to refresh. Other WTHGIS counties work the same way (change host/dsid).
+- **Hoke NC owners solved (2026-10-16):** Hoke now loads from the county's own service
+  (`maps.hokecounty.org/server/rest/services/Parcels/MapServer/0`: owner, mailing, acres, `COST_TOTAL` as value);
+  NC OneMap's Hoke records have owner/mail blank. 1,307 of 1,333 parcels have owners (98%). `TWN_PIN` = same
+  12-digit number as NC OneMap, so keys are unchanged. No land-use class in that layer.
+- Remaining gap: east Pinal AZ (owner only where ADWR has it; mailing only in the Casa Grande-mirror area).
+
+- **Pinal AZ fixed (2026-10-16):** found the county's current host `gis.pinal.gov/mapping/rest/services`
+  (via the Assessor viewer's web map on ArcGIS Online; `gismaps.pinalcountyaz.gov` is dead). Pinal now loads from
+  `TaxParcels/MapServer/3` (owner, mailing, use class, land value, acres: 100% owners and mailing for the 6,492
+  tracts) and stamps the county zoning layer (`Zoning_2010/MapServer/0`, numeric coded values translated through
+  `value_labels`; CI-B/CI-1/CI-2/I-1..3 = industrial, city names = "town", see `score.PINAL_CODES`). The ADWR copy and
+  the Casa Grande mirror enrichment were removed. `stamp()` gained `value_labels` for coded-value layers.
+- Owner coverage now: every county we added is 98-100% except none; the `load_owners` file loader stays for any future
+  county whose public service lacks owners.
+
+## Built 2026-10-16: Arizona sites for Dave's ACA request + site briefs
+
+Dave Dowell (Oct 15, "FW: ACMI Overview Materials + Arizona Sites") asked Kellen for a brief, high-level dive with an
+aerial on three ACA sites, to say which look interesting (ACA wants 2 or fewer): Wintersburg & I-10 (Tonopah, Maricopa),
+Barnes Farm (Casa Grande, Pinal), I-10 | I-8 Business Park / Petersen Park (Eloy, Pinal).
+
+- **Saved sites** (Land > Sites): the three, built from the brochure APNs. Small parcels under the 20 ac load cutoff are
+  pulled in with `ensure_parcels` (e.g. `ensure_parcels('Maricopa AZ', ['506-45-029H', ...])`). Eloy holds only the Petersen
+  Eloy 501 core (502 ac); the rest of the 1,173 ac is other owners' adjoining parcels, listed in the site notes
+  (core + Royal Estates + Jericho + Sonntag + TES Farms is about 1,179 ac): confirm with the ALTA survey, then add them.
+- **Zoning added:** Maricopa County (`gis.maricopa.gov .../PlanNet/MapServer/11`, unincorporated land), City of Casa
+  Grande (`rogue.casagrandeaz.gov .../Planning/Zoning`) and City of Eloy (Eloy's ArcGIS org `EloyZoning_view_Public`).
+  Pinal parcels that the county layer hands to a city ("CASA GRANDE", "ELOY") take the city's own code: `stamp()` now
+  supports `refines` / `when_value` overlays. Buckets in `score.py` (`PINAL_CODES`, `ZONING_CODES["04013"]`). `"I-2 / CR"`
+  style codes use the part before " / ".
+- **Findings:** Wintersburg IND-3 (98%), Barnes I-2, both match ACA. Eloy does NOT: its public map has the Petersen core as
+  R1-6 / OSR / C-2 (ACA/brochure say I-2); I-1 on Royal Estates and Jericho; I-2 only on City of Eloy's 160 ac. FEMA
+  zone A (approximate) covers all of the Eloy core and about half of Wintersburg.
+- **AZ utilities** (`lookup.py`): water / sewer = ACC-certified private companies from the county layers (Maricopa
+  PlanNet 48 / 50, Pinal `Water_Providers` / `Sewer_Providers`) plus distance to Eloy's water and sewer mains; electric =
+  HIFLD with irrigation districts and federal marketers split out, and Pinal's own Electrical District layer. City and
+  district service areas aren't published, so "no company mapped" means city / district / well.
+- **Site briefs:** `crm/land/briefs.py` + `brief_views.py`. `/land/sites/<id>/brief/` is a one-page letter brief (aerial with
+  the outline, 5-mile context map, owners, zoning by authority, power / roads / utilities, flood, flags, still-to-verify,
+  broker notes); `/land/briefs/?ids=1,2,3` (Sites page > "Compare & print briefs") adds a comparison cover page ranked by
+  red flags, cautions, usable acres. Print / save as PDF from the browser. Live checks run on first view (about a minute);
+  "Re-run live checks" refreshes. Aerials: Esri World Imagery rendered server-side with Pillow (`/land/sites/<id>/aerial.jpg`,
+  `?mode=context`), with the required Esri attribution.
+- Not done: county zoning for Hoke/Harnett/Moore/Greene, utility service areas for cities, price (never in the roll).
+
+### Brief maps and logo (2026-10-16, later)
+- Brief aerials now switch on FEMA's own NFHL flood layer (transparent export, retried; FEMA's fill is 30% opacity so
+  `_strengthen_flood` raises it to about 50%: cyan = Zone A/AE, orange = shaded Zone X) and Esri's road symbols / names /
+  places on both the tight and context maps, with an on-image legend. The site is outline-only when flood shows.
+  `sources.fema_flood_layer_id()` no longer caches a failed lookup (fallback 28; FEMA flips between 28 and 35).
+- **Logo rule:** every report carries the ACMI Properties logo. Include `crm/partials/report_logo.html`
+  (`crm/static/crm/logo_blue.png`, a recolor of the white sidebar `logo.png`). On: site briefs / comparison, DD reports
+  (`dd_report.html`, internal + client share pages), pipeline and weekly reports. Add it to any new report template.
+- **Notes & definitions page:** `briefs.definitions()` builds a glossary (FEMA 100-year floodplain, Zone A / AE / X, floodway,
+  LOMR / LOMA, net usable acres, NWI wetlands, buy-box score, zoning, distances, utility providers, assessed value, the
+  incentive programs found, HUBZone, imagery) limited to terms that appear. It follows the single brief and ends the
+  multi-site package (`partials/brief_notes.html`). Add a term in `FLOOD_NOTES` / `GENERAL_NOTES`.
+- **Save as PDF vs Print are separate buttons** on `/land/sites/<id>/brief/` and `/land/briefs/`. "Save as PDF" (`?format=pdf`)
+  downloads a PDF made on the server: the page is rendered standalone (`land_briefs_pdf.html`, aerials and logo embedded as
+  data URIs so no login is needed) and printed by headless Chrome / Edge (`briefs.html_to_pdf`; finds the browser via
+  `ACMI_CHROME`, PATH or the usual install folders). The Dockerfile now installs `chromium`: rebuild the image before
+  relying on it in production. First PDF for a package takes about 2 minutes (FEMA / Esri aerials, cached for an hour);
+  later ones take seconds. Without a browser it redirects back with a message and the Print button still works.
+
+### Small parcels and assembling (2026-10-16)
+- **Why parcels were missing:** Pinal's assessor gives land with no parcel number the placeholder "NAP" (new splits, state /
+  federal / tribal land, rights-of-way). They shared one key, got merged and dropped; the 20 ac cutoff hid the small ones.
+  `_pinal_key` now keys each as `NAP<objectid>` (not stable if the county republishes).
+- **Load everything in a window:** `counties.PINAL_FULL_WINDOWS` / `MARICOPA_FULL_WINDOWS` (west, south, east, north). Every
+  parcel of any size inside is loaded (`cfg["full_windows"]`, `in_windows`); the 20 ac cutoff applies elsewhere (all of
+  Maricopa's 1.76M parcels isn't practical). Add a window, then `load_parcels <County>`.
+- **Map:** the Min acres filter no longer defaults to 50. In Assemble mode the map ignores the acres / score / $ per acre /
+  status filters so every stored parcel in view has an outline and can be clicked, and clicking land that isn't stored yet
+  (needs zoom 14+) looks the parcel up live, stores it and adds it (`land_views.assemble_point`, `_store_parcel_at`).
+- **Petersen Park fixed:** the site now holds the 19 Petersen Arizona Land & Entitlement Fund LLC parcels at the I-10 / Hwy 84
+  interchange near Shedd Rd (667 ac, zoned I-2 on Eloy's map, matching the brochure). The earlier Petersen Eloy 501 LLC parcels
+  (south Eloy, near Battaglia Dr) were the wrong tract. About 507 ac of the brochure's 1,173.72 is other owners / NAP tracts
+  (listed in the site notes); no exact combination found, confirm with the ALTA survey.
+- **Land search filter:** states and regions fold (caret), the choice is remembered in the browser (`land:folded`), and a
+  folded row shows how many counties are ticked.
+
+### Zoning reference, flyer details, methodology (2026-10-16, later)
+- **Zoning code reference:** `crm/land/zoning_ref/*.json` (Maricopa County, Casa Grande, Eloy, Pinal County, Charles County
+  MD, Huntsville AL), loaded by `crm/land/zoning_ref.py`. Each district has purpose, permitted uses, conditional uses,
+  standards, code section and source; unknown fields are null and print as "not captured". Eloy and Maricopa were read from
+  the official code (American Legal; the county's PDF). Casa Grande, Charles County, Huntsville and Pinal came from the
+  Zoneomics third-party mirror, so they carry a "check source" tag and have gaps (Casa Grande's B-1..I-2 use columns, Charles
+  County's table of permissible uses, Huntsville LI / HI / RA, Pinal MH-435). Briefs print the districts on a site
+  ("Zoning districts on these sites"); the parcel card has a "What <code> allows" fold-out. Counties with no zoning layer
+  (Texas, the NC counties, Greene IN) say so instead of showing a district.
+  To add a jurisdiction: add its JSON, map its overlay authority in `AUTHORITY_FILES`. Check the mirror-sourced ones against
+  the official code before relying on them for a decision.
+- **Flyer facts:** `LandSite.listing` (migration 0030) holds the broker flyer's price, taxes, contacts, utilities, drive times,
+  nearby employers, documents and a "claims against the app" table; each brief's second page prints it with a parcel table
+  (APN, owner, acres, zoning). The three Arizona sites are loaded from the Land Advisors / Western Land flyers.
+- **Buy-box methodology** is on the notes page, built from the scorer's own constants (`score.methodology()`); keep it in
+  step with `score.screen()`.
+- Multi-parcel deal-killers print one line per kind (`briefs._summarise_killers`). Export names:
+  `ACMI_Site_Brief_<Site_Name_Words>_YYYY.MM.DD.pdf`.
+- **Flyer details are editable on the site page** (Site page > "Listing details", or "Edit listing details" on the brief):
+  `/land/sites/<id>/listing/`, `crm/land/listing.py`. Location, size, price, taxes, zoning claim, flyer parcel numbers,
+  concept plan, utilities (electric, water, sewer, natural gas, telecom, irrigation + custom rows), access, highlights,
+  market, nearby employers, documents, brokers, drive times, and a flyer-claims table (confirmed / partly confirmed /
+  differs / note / not checked). Anything left blank prints as N/A on the brief's second page. PDFs are made from the
+  app's Save as PDF button; none are kept in the repo.
