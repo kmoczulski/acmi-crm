@@ -5,6 +5,12 @@ requests==2.34.2
 anthropic==1.13.0
 pypdf==6.20.1
 python-docx==1.2.0
+# Land search (parcel geometry, map projections, shapefiles, report images)
+shapely==2.2.0
+pyproj==3.8.0
+pyshp==3.1.6
+numpy==2.5.4
+pillow==12.3.0
 # Production (Cloud Run + Cloud SQL)
 psycopg[binary]==3.2.9
 gunicorn==23.0.0
