@@ -1,0 +1,30 @@
+{% load static socialaccount %}<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sign in · ACMI CRM</title>
+  <link rel="stylesheet" href="{% static 'crm/app.css' %}?v={{ ASSET_VERSION }}">
+</head>
+<body>
+<div class="login">
+  <div class="login-logo"><img src="{% static 'crm/logo.png' %}" alt="ACMI Properties"></div>
+  <h1>Sign in to the CRM</h1>
+  {% if GOOGLE_SIGNIN_ENABLED %}
+    <a class="btn btn-primary" href="{% provider_login_url 'google' %}{% if redirect_field_value %}?next={{ redirect_field_value|urlencode }}{% endif %}">Sign in with Google</a>
+    <p class="muted" style="font-size:12px;margin-bottom:0">Use your acmigroup.com account.</p>
+  {% endif %}
+  {% if LOCAL_LOGIN_ENABLED %}
+    {% if GOOGLE_SIGNIN_ENABLED %}<hr>{% endif %}
+    <form method="post" action="{% url 'account_login' %}">{% csrf_token %}
+      {% if form.non_field_errors %}<ul class="errorlist">{% for e in form.non_field_errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+      <input name="login" placeholder="Username" autocomplete="username" required autofocus>
+      <input name="password" type="password" placeholder="Password" autocomplete="current-password" required>
+      {% if redirect_field_value %}<input type="hidden" name="{{ redirect_field_name }}" value="{{ redirect_field_value }}">{% endif %}
+      <button class="btn">Sign in</button>
+    </form>
+  {% endif %}
+  {% if not GOOGLE_SIGNIN_ENABLED and not LOCAL_LOGIN_ENABLED %}<p class="muted">Sign-in is not configured.</p>{% endif %}
+</div>
+</body>
+</html>

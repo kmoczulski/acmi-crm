@@ -1,0 +1,13 @@
+.venv/
+.git/
+.env
+__pycache__/
+*.pyc
+*.sqlite3
+backups/
+logs/
+media/
+data/imports/
+data/land/
+staticfiles/
+.claude/

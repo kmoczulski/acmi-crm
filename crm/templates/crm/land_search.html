@@ -1,0 +1,1138 @@
+{% extends "crm/base.html" %}
+{% load humanize crm_tags %}
+{% block title %}Land search · ACMI CRM{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<div class="land">
+  <div class="land-toolbar" id="toolbar">
+      <span class="tb-title" title="{{ totals.parcels|intcomma }} parcels of 20+ ac · {{ totals.pursue }} pursue · {{ totals.watch }} watch">Land search</span>
+      <button type="button" class="tb-btn on" id="tb-filters" data-tool-key="filters" title="Show or hide the filters and results panel">☰ Filters</button>
+      <div class="map-search" data-tool-key="search">
+        <input id="place" placeholder="Search owner, address, ID, or lat, lon">
+        <div id="place-results" class="map-search-results" hidden></div>
+      </div>
+      <span class="tb-sep"></span>
+      <select id="basemap" class="tb-select" data-tool-key="basemap" title="Base map">
+        <option value="satellite">Satellite</option><option value="streets">Streets</option><option value="topo">Topo</option>
+      </select>
+      <details class="tb-menu" data-tool-key="layers"><summary class="tb-btn">Layers ▾</summary>
+        <div class="tb-pop ml-panel">
+          <div class="ml-h">Parcels</div>
+          <label><input type="checkbox" data-layer="scored" checked> Screened parcels (20+ ac)</label>
+          <label><input type="checkbox" data-layer="lines" checked> All parcel lines <span class="muted">(zoom in)</span></label>
+          <div class="ml-h">Power &amp; energy</div>
+          <label><input type="checkbox" data-layer="transmission"> Transmission lines</label>
+          <label><input type="checkbox" data-layer="substations"> Substations</label>
+          <label><input type="checkbox" data-layer="electric"> Electric provider areas</label>
+          <label><input type="checkbox" data-layer="gas"> Natural gas pipelines</label>
+          <div class="ml-h">Water &amp; sewer</div>
+          <label><input type="checkbox" data-layer="water"> Water service areas</label>
+          <label><input type="checkbox" data-layer="sewer"> Sewer service areas</label>
+          <label><input type="checkbox" data-layer="waterlines"> Water &amp; sewer lines (TX)</label>
+          <div class="ml-h">Site constraints</div>
+          <label><input type="checkbox" data-layer="flood"> FEMA flood zones</label>
+          <label><input type="checkbox" data-layer="wetlands"> Wetlands, streams, ponds</label>
+          <label><input type="checkbox" data-layer="zoning"> Zoning (Charles Co.)</label>
+          <label><input type="checkbox" data-layer="critical"> Bay Critical Area (Charles Co.)</label>
+          <div class="ml-h">Access &amp; demand</div>
+          <label><input type="checkbox" data-layer="rail"> Rail</label>
+          <label><input type="checkbox" data-layer="military"> Military installations</label>
+          <label><input type="checkbox" data-layer="navy"> Navy zones (Charles Co.)</label>
+          <label><input type="checkbox" data-layer="cities"> City / town limits</label>
+        </div>
+      </details>
+      <span class="tb-sep"></span>
+      <select id="site-pick" class="tb-select" data-tool-key="sites" title="Saved prospective sites"><option value="">Saved sites…</option></select>
+      <button type="button" id="assemble" class="tb-btn" data-tool-key="assemble" title="Click parcels to add them to an assemblage (or Ctrl/Shift-click any time)">Assemble</button>
+      <button type="button" id="tb-measure" class="tb-btn" data-tool-key="measure" title="Measure distance or area">Measure</button>
+      <button type="button" id="tb-drive" class="tb-btn" data-tool-key="drive" title="Drive times and drive-time maps">Drive time</button>
+      <button type="button" id="tb-qd" class="tb-btn" data-tool-key="qd" title="QD arc site plan">QD plan</button>
+      <button type="button" id="locate" class="tb-btn" data-tool-key="locate" title="Show my location">◎</button>
+      <span class="tb-spacer"></span>
+      <details class="tb-menu tb-right" id="views-menu"><summary class="tb-btn">Views ▾</summary>
+        <div class="tb-pop views-pop">
+          <div class="ml-h">My views</div>
+          <div id="views-list" class="views-list"><span class="muted">Loading…</span></div>
+          <div class="ml-h">Save what you see now</div>
+          <form id="view-form" class="view-form" autocomplete="off">
+            <input name="name" placeholder="View name, e.g. Charles Co. industrial" required>
+            <label><input type="checkbox" name="is_default"> Open this view by default</label>
+            <label><input type="checkbox" name="shared"> Share with the team</label>
+            <button class="btn btn-small btn-primary">Save view</button>
+          </form>
+          <p class="muted lc-small">A view keeps the map position, base map, layers, filters, the tools shown and the panels open.</p>
+        </div>
+      </details>
+      <details class="tb-menu tb-right" id="tools-menu"><summary class="tb-btn" title="Choose which tools are shown">⚙ Tools</summary>
+        <div class="tb-pop">
+          <div class="ml-h">Show in the toolbar</div>
+          <label><input type="checkbox" data-show="filters" checked> Filters &amp; results panel</label>
+          <label><input type="checkbox" data-show="search" checked> Search</label>
+          <label><input type="checkbox" data-show="basemap" checked> Base map</label>
+          <label><input type="checkbox" data-show="layers" checked> Layers</label>
+          <label><input type="checkbox" data-show="sites" checked> Saved sites</label>
+          <label><input type="checkbox" data-show="assemble" checked> Assemble</label>
+          <label><input type="checkbox" data-show="measure" checked> Measure</label>
+          <label><input type="checkbox" data-show="drive" checked> Drive time</label>
+          <label><input type="checkbox" data-show="qd" checked> QD plan</label>
+          <label><input type="checkbox" data-show="locate" checked> My location</label>
+          <label><input type="checkbox" data-show="legend" checked> Map legend</label>
+          <button type="button" class="btn btn-small" id="tools-reset">Show all</button>
+        </div>
+      </details>
+    </div>
+
+  <aside class="land-side">
+    <div class="land-side-head muted lc-small">{{ totals.parcels|intcomma }} parcels of 20+ ac · {{ totals.pursue }} pursue · {{ totals.watch }} watch</div>
+    <form id="filters" class="land-filters" autocomplete="off">
+      <div class="lf-row"><input name="q" placeholder="Owner, address or property ID" value="{{ request.GET.q }}"></div>
+      <details class="lf-group" open><summary>Where</summary>
+        <div class="lf-tree">{% regroup counties by state_name as states %}{% for st in states %}
+          <div class="lf-state" data-group>
+            <label class="lf-l1"><input type="checkbox" data-group-toggle> {{ st.grouper }}</label>
+            <a href="#" data-zoom-group title="Zoom to {{ st.grouper }}">⤢</a>
+            {% regroup st.list by region as regions %}{% for rg in regions %}
+            <div class="lf-region" data-group>
+              <label class="lf-l2"><input type="checkbox" data-group-toggle> {{ rg.grouper|default:"Other" }}</label>
+              <a href="#" data-zoom-group title="Zoom to region">⤢</a>
+              {% for c in rg.list %}
+              <div class="lf-county"><label><input type="checkbox" name="county" value="{{ c.fips }}"> {{ c.name }} <span class="muted">{{ c.n|intcomma }}</span></label>
+                <a href="#" data-zoom-county="{{ c.fips }}" title="Zoom to county">⤢</a></div>{% endfor %}
+            </div>{% endfor %}
+          </div>{% endfor %}
+        </div>
+        <div class="muted lc-small">None ticked = every county</div>
+      </details>
+      <div class="lf-grid">
+        <label>Min acres<input name="min_acres" type="number" min="0" step="10" value="{{ request.GET.min_acres|default:'50' }}"></label>
+        <label>Max acres<input name="max_acres" type="number" min="0" step="10" value="{{ request.GET.max_acres }}"></label>
+        <label>Min score<input name="min_score" type="number" min="0" max="100" step="5" value="{{ request.GET.min_score }}"></label>
+        <label>Max $/acre<input name="max_ppa" type="number" min="0" step="1000" value="{{ request.GET.max_ppa }}"></label>
+      </div>
+      <details class="lf-group"><summary>Zoning</summary>
+        <div class="lf-checks">{% for value, label in zoning_classes %}
+          <label><input type="checkbox" name="zoning" value="{{ value }}"> {{ label }} <span class="muted">{{ zoning_counts|get_item:value|default:"" }}</span></label>{% endfor %}
+        </div>
+        <div class="muted lc-small">Zoning maps: Charles Co. so far. Texas counties have no zoning outside city limits.</div>
+      </details>
+      <details class="lf-group"><summary>Land use (tax roll)</summary>
+        <div class="lf-checks">
+          <label><input type="checkbox" name="use" value="industrial"> Industrial</label>
+          <label><input type="checkbox" name="use" value="ag"> Farm, ranch, rural</label>
+          <label><input type="checkbox" name="use" value="commercial"> Commercial / vacant</label>
+        </div>
+      </details>
+      <details class="lf-group"><summary>Infrastructure within</summary>
+        <div class="lf-grid">
+          <label>Power line (mi)<select name="transmission_mi"><option value="">Any</option><option>1</option><option>3</option><option>5</option></select></label>
+          <label>Highway (mi)<select name="highway_mi"><option value="">Any</option><option>1</option><option>3</option><option>5</option></select></label>
+          <label>Rail (mi)<select name="rail_mi"><option value="">Any</option><option>1</option><option>3</option><option>5</option></select></label>
+        </div>
+      </details>
+      <div class="lf-checks">
+        <label><input type="checkbox" name="unincorporated" value="1"> Outside city/town limits</label>
+        <label><input type="checkbox" name="out_of_state" value="1"> Out-of-state owner</label>
+        <label><input type="checkbox" name="no_killers" value="1"> Hide deal-killers</label>
+      </div>
+      <label class="lf-status">Status
+        <select name="status">
+          <option value="open">All but Pass</option><option value="new">Not reviewed</option>
+          <option value="pursue">Pursue</option><option value="watch">Watch</option><option value="pass">Pass</option><option value="all">All</option>
+        </select>
+      </label>
+    </form>
+    <div class="land-count"><span id="count">Loading…</span> <a id="export" class="lc-small" href="{% url 'crm:land_export' %}">Export CSV</a></div>
+    <ol id="results" class="land-results"></ol>
+  </aside>
+
+  <section class="land-work">
+    <div class="land-stage">
+      <div class="land-map-wrap" id="map-wrap">
+        <div id="map"></div>
+        <div id="tools" class="tools-panel" hidden>
+          <div class="tools-tabs">
+            <button type="button" data-tool="distance" class="on">Distance</button>
+            <button type="button" data-tool="area">Area</button>
+            <button type="button" data-tool="drive">Drive time</button>
+            <button type="button" class="tools-close btn-link" title="Close">✕</button>
+          </div>
+          <div data-pane="distance">
+            <label>Units <select id="dist-unit"><option value="mi">Miles</option><option value="ft">Feet</option><option value="yd">Yards</option><option value="km">Kilometres</option><option value="m">Metres</option></select></label>
+            <p class="muted lc-small">Click points on the map to draw a line.</p>
+          </div>
+          <div data-pane="area" hidden>
+            <label>Units <select id="area-unit"><option value="ac">Acres</option><option value="sqft">Square feet</option><option value="sqmi">Square miles</option><option value="ha">Hectares</option><option value="sqm">Square metres</option></select></label>
+            <p class="muted lc-small">Click 3 or more points to outline an area.</p>
+          </div>
+          <div data-pane="drive" hidden>
+            <div class="tools-seg">
+              <label><input type="radio" name="drive-mode" value="route" checked> Route A ⇄ B</label>
+              <label><input type="radio" name="drive-mode" value="heat"> Drive-time map</label>
+            </div>
+            <div data-drive="route"><p class="muted lc-small">Click the start, then the destination. Times both ways.</p></div>
+            <div data-drive="heat" hidden>
+              <label>Bands (minutes) <input id="heat-minutes" value="15,30,45,60"></label>
+              <div class="tools-seg">
+                <label><input type="radio" name="heat-dir" value="from" checked> Driving from the point</label>
+                <label><input type="radio" name="heat-dir" value="to"> Driving to the point</label>
+              </div>
+              <p class="muted lc-small">Click a point on the map, or use the open parcel.</p>
+            </div>
+            <button type="button" id="use-parcel" class="btn btn-small" hidden>Use the open parcel</button>
+          </div>
+          <div id="tool-result" class="tool-result"></div>
+          <div class="tools-actions"><button type="button" id="tool-undo" class="btn btn-small">Undo point</button> <button type="button" id="tool-clear" class="btn btn-small">Clear</button></div>
+        </div>
+        <div id="asm" class="asm-bar" hidden>
+          <div class="asm-main">
+            <b id="asm-title">Assemblage</b>
+            <span id="asm-stats" class="muted"></span>
+          </div>
+          <div class="asm-owners muted lc-small" id="asm-owners"></div>
+          <div class="asm-actions">
+            <button type="button" class="btn btn-small" id="asm-qd">QD plan on this</button>
+            <button type="button" class="btn btn-small btn-primary" id="asm-save">Save as site…</button>
+            <button type="button" class="btn btn-small" id="asm-clear">Clear</button>
+          </div>
+        </div>
+        <div id="legend" class="map-legend" data-tool-key="legend">
+          <span><i class="lg h"></i>70+</span><span><i class="lg m"></i>50-69</span><span><i class="lg l"></i>&lt;50</span>
+          <span><i class="lg k"></i>Deal-killer</span><span><i class="lg p"></i>Pursue</span><span><i class="lg w"></i>Watch</span>
+        </div>
+      </div>
+      <aside id="card" class="land-card-wrap" hidden></aside>
+    </div>
+
+    <div id="qd" class="qd-drawer" hidden>
+      <div class="qd-grip" title="Drag to resize"></div>
+      <div class="qd-head">
+        <b>QD site plan</b>
+        <span class="muted lc-small" id="qd-parcel">No parcel open: arcs are checked against nothing</span>
+        <span class="spacer"></span>
+        <label class="lc-small"><input type="checkbox" data-arc="ibd" checked> IBD</label>
+        <label class="lc-small"><input type="checkbox" data-arc="ptrd" checked> PTRD</label>
+        <label class="lc-small"><input type="checkbox" data-arc="ild"> ILD</label>
+        <label class="lc-small"><input type="checkbox" data-arc="imd"> IMD</label>
+        <button type="button" class="btn btn-small" id="qd-add-mag">+ Magazine</button>
+        <button type="button" class="btn btn-small" id="qd-add-ops">+ Operating bldg</button>
+        <button type="button" class="btn btn-small btn-primary" id="qd-fit">Auto-fit to parcel</button>
+        <button type="button" class="btn btn-small" id="qd-save">Save to parcel</button>
+        <button type="button" class="btn btn-small" id="qd-clear">Clear</button>
+        <button type="button" class="btn-link" id="qd-close" title="Hide the QD plan">✕</button>
+      </div>
+      <div class="qd-body">
+        <div class="qd-table-wrap">
+          <table class="qd-table">
+            <thead><tr>
+              <th>Building</th><th>Type</th><th>Bldg SF</th><th>Hazard div.</th><th>NEWQD (lb)</th><th>PES</th><th>Barr.</th><th>MCE (lb)</th><th>IMD K</th>
+              <th class="num">IMD</th><th class="num">ILD</th><th class="num">PTRD</th><th class="num">IBD</th><th class="num">IBD ac</th><th>Status</th><th></th>
+            </tr></thead>
+            <tbody id="qd-rows"><tr><td colspan="16" class="muted">Add a magazine or operating building. Drag the pins on the map to move them.</td></tr></tbody>
+          </table>
+        </div>
+        <div class="qd-summary" id="qd-summary"></div>
+      </div>
+    </div>
+
+    <dialog id="site-dialog" class="site-dialog">
+      <form method="dialog" id="site-form">
+        <h3>Save prospective site</h3>
+        <label>Name<input name="name" required placeholder="e.g. Pomfret – Middletown Rd assemblage"></label>
+        <label>Campus<select name="campus"><option value="">None</option></select></label>
+        <label>Project<select name="project"><option value="">None</option></select></label>
+        <label>Status<select name="status"></select></label>
+        <label>Notes<textarea name="notes" rows="3"></textarea></label>
+        <p class="muted lc-small" id="site-summary"></p>
+        <div class="site-dialog-actions">
+          <button type="button" class="btn btn-danger btn-small" id="site-delete" hidden>Delete site</button>
+          <span class="spacer"></span>
+          <button value="cancel" formnovalidate class="btn">Cancel</button>
+          <button value="save" class="btn btn-primary">Save</button>
+        </div>
+      </form>
+    </dialog>
+  </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/esri-leaflet@3.0.12/dist/esri-leaflet.js"></script>
+<script>
+(function () {
+  const URLS = {
+    parcels: "{% url 'crm:land_parcels_json' %}",
+    search: "{% url 'crm:land_search_json' %}",
+    identify: "{% url 'crm:land_identify' %}",
+    exportCsv: "{% url 'crm:land_export' %}",
+    card: id => "{% url 'crm:land_parcel_card' 0 %}".replace('/0/', '/' + id + '/'),
+    shape: id => "{% url 'crm:land_parcel_geojson' 0 %}".replace('/0/', '/' + id + '/'),
+    route: "{% url 'crm:land_drive_route' %}",
+    isochrone: "{% url 'crm:land_drive_isochrone' %}",
+    views: "{% url 'crm:land_views' %}",
+    viewSave: "{% url 'crm:land_view_save' %}",
+    viewDelete: id => "{% url 'crm:land_view_delete' 0 %}".replace('/0/', '/' + id + '/'),
+  };
+  const COUNTY_BOUNDS = {{ county_bounds|safe }};
+  const FOCUS = {% if focus %}{id: {{ focus.pk }}, lat: {{ focus.lat }}, lon: {{ focus.lon }}}{% else %}null{% endif %};
+  const PUCT = 'https://services6.arcgis.com/N6Lzvtb46cpxThhu/arcgis/rest/services/';
+  const CHARLES = 'https://services7.arcgis.com/3BMWkdyrt45RNCrq/arcgis/rest/services/';
+  const NTAD = 'https://services.arcgis.com/xOi1kZaI0eWDREZv/arcgis/rest/services/';
+
+  // ---- Map and base maps -------------------------------------------------
+  const map = L.map('map', {zoomControl: true, preferCanvas: true});
+  const bases = {
+    satellite: L.layerGroup([
+      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {maxZoom: 19, attribution: 'Imagery © Esri, Maxar, Earthstar'}),
+      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {maxZoom: 19}),
+      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}', {maxZoom: 19, opacity: .7}),
+    ]),
+    streets: L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom: 19, attribution: '© OpenStreetMap contributors'}),
+    topo: L.tileLayer('https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/tile/{z}/{y}/{x}', {maxZoom: 16, attribution: 'USGS'}),
+  };
+  let base = null;
+  const basemapSel = document.getElementById('basemap');
+  function setBase(name) {
+    if (base) map.removeLayer(base);
+    base = bases[name] || bases.satellite;
+    base.addTo(map);
+    try { localStorage.setItem('land:base', name); } catch (e) {}
+  }
+  try { basemapSel.value = localStorage.getItem('land:base') || 'satellite'; } catch (e) {}
+  setBase(basemapSel.value);
+  basemapSel.addEventListener('change', () => setBase(basemapSel.value));
+
+  // ---- Overlay layers (live from the source agencies) ----------------------
+  const popup = fields => layer => {
+    const p = layer.feature.properties;
+    return fields.map(([k, label]) => p[k] != null && String(p[k]).trim() ? `<b>${label}</b> ${p[k]}` : '').filter(Boolean).join('<br>') || 'No details';
+  };
+  const voltColor = v => /500|735|345/.test(v || '') ? '#d7191c' : /220|230|287/.test(v || '') ? '#fdae61' : '#ffd92f';
+  const OVERLAYS = {
+    lines: () => L.layerGroup([
+      L.esri.dynamicMapLayer({url: '{{ "https://feature.geographic.texas.gov/arcgis/rest/services/Parcels/stratmap_land_parcels_48_most_recent/MapServer" }}', minZoom: 14, opacity: .8}),
+      L.esri.featureLayer({url: CHARLES + 'Tax_Parcels/FeatureServer/0', minZoom: 15, fields: ['FID'], interactive: false,
+        style: () => ({color: '#ffffff', weight: 1, fill: false, opacity: .8})}),
+    ]),
+    transmission: () => L.esri.featureLayer({url: 'https://services1.arcgis.com/Hp6G80Pky0om7QvQ/arcgis/rest/services/Electric_Power_Transmission_Lines/FeatureServer/0',
+      minZoom: 8, simplifyFactor: .5, precision: 5, style: f => ({color: voltColor(f.properties.VOLT_CLASS), weight: 3})})
+      .bindPopup(popup([['VOLT_CLASS', 'kV'], ['OWNER', 'Owner'], ['SUB_1', 'From'], ['SUB_2', 'To']])),
+    substations: () => L.esri.featureLayer({url: 'https://services.arcgis.com/XG15cJAlne2vxtgt/arcgis/rest/services/Electric_Substations/FeatureServer/0',
+      minZoom: 9, pointToLayer: (f, ll) => L.circleMarker(ll, {radius: 6, color: '#111', weight: 1.5, fillColor: '#ffd92f', fillOpacity: 1})})
+      .bindPopup(popup([['NAME', 'Substation'], ['MAX_VOLTAG', 'Max kV'], ['MIN_VOLTAG', 'Min kV'], ['LINES', 'Lines']])),
+    electric: () => L.layerGroup([
+      ...[['IOU/FeatureServer/300', '#e7298a'], ['COOP_DIST/FeatureServer/310', '#66a61e'], ['MUNI/FeatureServer/320', '#7570b3']].map(([path, color]) =>
+        L.esri.featureLayer({url: PUCT + path, simplifyFactor: .8, precision: 4, style: () => ({color, weight: 1.5, fillOpacity: .08})})
+          .bindPopup(popup([['COMPANY_NAME', 'Electric'], ['COMPANY_TYPE', 'Type'], ['MAIN_PHONE', 'Phone'], ['COMPANY_WEBSITE', 'Web']]))),
+      L.esri.featureLayer({url: 'https://services6.arcgis.com/BAJNi3EgCdtQ1BCG/arcgis/rest/services/Electric_Retail_Service_Territories/FeatureServer/0',
+        where: "STATE IN ('MD','VA','DC')", simplifyFactor: .8, precision: 4, style: () => ({color: '#66a61e', weight: 1.5, fillOpacity: .06})})
+        .bindPopup(popup([['NAME', 'Electric'], ['TYPE', 'Type'], ['CNTRL_AREA', 'Grid']])),
+    ]),
+    gas: () => L.esri.featureLayer({url: 'https://services2.arcgis.com/FiaPA4ga0iQKduv3/arcgis/rest/services/Natural_Gas_Interstate_and_Intrastate_Pipelines_1/FeatureServer/0',
+      minZoom: 8, style: () => ({color: '#a6761d', weight: 2.5, dashArray: '6 4'})}).bindPopup(popup([['Operator', 'Operator'], ['TYPEPIPE', 'Type']])),
+    water: () => L.layerGroup([
+      L.esri.featureLayer({url: PUCT + 'Water_CCN_Service_Areas/FeatureServer/210', minZoom: 9, simplifyFactor: .5, precision: 5,
+        style: () => ({color: '#1f78b4', weight: 1, fillOpacity: .15})}).bindPopup(popup([['UTILITY', 'Water'], ['DBA_NAME', 'DBA'], ['CCN_NO', 'CCN']])),
+      L.esri.featureLayer({url: CHARLES + 'Water_and_Sewer_Category_Designations/FeatureServer/1', minZoom: 9,
+        style: f => ({color: '#1f78b4', weight: 1, fillOpacity: /^W[123]/.test(f.properties.Category || '') ? .25 : .05})}).bindPopup(popup([['Category', 'Water category']])),
+    ]),
+    sewer: () => L.layerGroup([
+      L.esri.featureLayer({url: PUCT + 'Sewer_CCN_Service_Areas/FeatureServer/230', minZoom: 9, simplifyFactor: .5, precision: 5,
+        style: () => ({color: '#6a3d9a', weight: 1, fillOpacity: .15})}).bindPopup(popup([['UTILITY', 'Sewer'], ['DBA_NAME', 'DBA'], ['CCN_NO', 'CCN']])),
+      L.esri.featureLayer({url: CHARLES + 'Water_and_Sewer_Category_Designations/FeatureServer/0', minZoom: 9,
+        style: f => ({color: '#6a3d9a', weight: 1, fillOpacity: /^S[123]/.test(f.properties.Category || '') ? .25 : .05})}).bindPopup(popup([['Category', 'Sewer category']])),
+    ]),
+    waterlines: () => L.layerGroup([
+      L.esri.featureLayer({url: PUCT + 'Water_CCN_Facility_Lines/FeatureServer/200', minZoom: 12, style: () => ({color: '#33a0ff', weight: 2})}).bindPopup(popup([['UTILITY', 'Water line'], ['FACILITY', 'Facility']])),
+      L.esri.featureLayer({url: PUCT + 'Sewer_CCN_Facility_Lines/FeatureServer/220', minZoom: 12, style: () => ({color: '#b15928', weight: 2})}).bindPopup(popup([['UTILITY', 'Sewer line'], ['FACILITY', 'Facility']])),
+    ]),
+    flood: () => L.esri.dynamicMapLayer({url: 'https://hazards.fema.gov/arcgis/rest/services/public/NFHL/MapServer', layers: [28], opacity: .5, minZoom: 11}),
+    wetlands: () => L.esri.dynamicMapLayer({url: 'https://fwspublicservices.wim.usgs.gov/wetlandsmapservice/rest/services/Wetlands/MapServer', layers: [0],
+      layerDefs: {0: "WETLAND_TYPE NOT IN ('Lake', 'Estuarine and Marine Deepwater', 'Estuarine and Marine Wetland')"}, opacity: .6, minZoom: 12}),
+    zoning: () => L.esri.featureLayer({url: CHARLES + 'Zoning/FeatureServer/0', minZoom: 10,
+      style: f => { const g = (f.properties.GENZONE || '').toLowerCase();
+        const c = g.includes('industr') ? '#8e44ad' : g.includes('commerc') ? '#e74c3c' : g.includes('resid') ? '#f1c40f' : '#27ae60';
+        return {color: c, weight: 1, fillOpacity: .22}; }}).bindPopup(popup([['ZONING', 'Zone'], ['ZONE', 'Name'], ['GENZONE', 'General']])),
+    critical: () => L.esri.featureLayer({url: CHARLES + 'Charles_County_Chesapeake_Bay_Critical_Area_/FeatureServer/2', minZoom: 9,
+      style: f => ({color: '#00838f', weight: 1, fillOpacity: f.properties.Designation === 'RCA' ? .3 : .12})}).bindPopup(popup([['Designation', 'Critical Area']])),
+    rail: () => L.esri.featureLayer({url: NTAD + 'NTAD_North_American_Rail_Network_Lines/FeatureServer/0', where: "NET IN ('M','I','O','S','Y')", minZoom: 9,
+      style: () => ({color: '#222', weight: 2.5, dashArray: '8 3'})}).bindPopup(popup([['RROWNER1', 'Railroad'], ['SUBDIV', 'Subdivision'], ['TRACKS', 'Tracks']])),
+    military: () => L.esri.featureLayer({url: NTAD + 'NTAD_Military_Bases/FeatureServer/0', style: () => ({color: '#b30000', weight: 2, fillOpacity: .12})})
+      .bindPopup(popup([['siteName', 'Installation'], ['siteReportingComponent', 'Branch'], ['featureDescription', 'Type']])),
+    navy: () => L.layerGroup([
+      L.esri.featureLayer({url: CHARLES + 'Military_Awareness_Zone/FeatureServer/0', style: () => ({color: '#b30000', weight: 2, dashArray: '4 4', fillOpacity: .05})}).bindPopup(() => 'Military Awareness Zone'),
+      L.esri.featureLayer({url: CHARLES + 'Navy_Noise_Contours/FeatureServer/0', style: () => ({color: '#ff7f00', weight: 1, fillOpacity: .1})}).bindPopup(popup([['Descrip', 'Navy noise']])),
+    ]),
+    cities: () => L.layerGroup([
+      L.esri.dynamicMapLayer({url: 'https://feature.geographic.texas.gov/arcgis/rest/services/City_Boundaries/Texas_City_Boundaries/MapServer', opacity: .5}),
+      L.esri.featureLayer({url: CHARLES + 'Incorporated_Towns/FeatureServer/0', where: "Inc_Muni <> 'Unincorporated'", style: () => ({color: '#ff00ff', weight: 2, fillOpacity: .05})}).bindPopup(popup([['Inc_Muni', 'Town']])),
+    ]),
+  };
+  const active = {};
+  function toggleOverlay(key, on) {
+    if (key === 'scored') { on ? scored.addTo(map) : map.removeLayer(scored); return; }
+    if (on) { active[key] = active[key] || OVERLAYS[key](); active[key].addTo(map); }
+    else if (active[key]) map.removeLayer(active[key]);
+  }
+
+  // ---- Screened parcels ------------------------------------------------
+  const COLORS = {h: '#1aa34a', m: '#f0a500', l: '#9aa3ad', k: '#d7301f', pursue: '#1e6bff', watch: '#9b59ff', pass: '#5b6470'};
+  const colorFor = p => p.status === 'pursue' ? COLORS.pursue : p.status === 'watch' ? COLORS.watch : p.status === 'pass' ? COLORS.pass
+    : p.killer ? COLORS.k : p.score >= 70 ? COLORS.h : p.score >= 50 ? COLORS.m : COLORS.l;
+  const scored = L.geoJSON(null, {
+    style: f => ({color: colorFor(f.properties), weight: f.properties.status ? 3 : 2, fillColor: colorFor(f.properties),
+      fillOpacity: f.properties.status === 'pass' ? .05 : .22}),
+    pointToLayer: (f, ll) => L.circleMarker(ll, {radius: Math.max(4, Math.min(11, Math.sqrt(f.properties.acres) / 2.2)),
+      color: '#fff', weight: 1, fillColor: colorFor(f.properties), fillOpacity: .9}),
+    onEachFeature: (f, layer) => {
+      layer.bindTooltip(`<b>${f.properties.score}</b> · ${f.properties.acres.toLocaleString()} ac · ${escapeHtml(f.properties.owner || '')}`, {sticky: true});
+      layer.on('click', e => {
+        L.DomEvent.stopPropagation(e);
+        if (measuring) return addMeasurePoint(e.latlng);
+        const oe = e.originalEvent || {};
+        if (ASM.mode || oe.ctrlKey || oe.shiftKey || oe.metaKey) asmToggle(f.properties.id); else openCard(f.properties.id);
+      });
+    },
+  });
+
+  const form = document.getElementById('filters');
+  const countEl = document.getElementById('count');
+  const results = document.getElementById('results');
+  const exportLink = document.getElementById('export');
+  function filterParams() {
+    const params = new URLSearchParams();
+    for (const [k, v] of new FormData(form)) if (v !== '') params.append(k, v);
+    return params;
+  }
+  let loadTimer = null, loadSeq = 0;
+  function scheduleLoad() { clearTimeout(loadTimer); loadTimer = setTimeout(load, 250); }
+  async function load() {
+    const params = filterParams();
+    history.replaceState(null, '', '?' + params.toString() + (openId ? '&parcel=' + openId : ''));
+    exportLink.href = URLS.exportCsv + '?' + params.toString();
+    const b = map.getBounds();
+    params.set('bbox', [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()].map(v => v.toFixed(5)).join(','));
+    params.set('zoom', map.getZoom());
+    const seq = ++loadSeq;
+    countEl.textContent = 'Loading…';
+    const resp = await fetch(URLS.parcels + '?' + params.toString());
+    if (seq !== loadSeq) return;
+    const data = await resp.json();
+    scored.clearLayers();
+    scored.addData(data);
+    countEl.textContent = `${data.total.toLocaleString()} parcels in view` + (data.truncated ? ` (top ${data.features.length.toLocaleString()} drawn)` : '');
+    results.innerHTML = data.list.map(p => `
+      <li data-id="${p.id}"${p.id === openId ? ' class="on"' : ''}>
+        <span class="lr-score" style="background:${colorFor(p)}">${p.score}</span>
+        <div><b>${p.acres.toLocaleString()} ac</b> · ${escapeHtml(p.owner || 'Unknown owner')}
+          <div class="muted lc-small">${escapeHtml(p.county)}${p.city ? ' · ' + escapeHtml(p.city) : ''}${p.use ? ' · ' + escapeHtml(p.use) : ''}${p.ppa ? ' · $' + p.ppa.toLocaleString() + '/ac' : ''}${p.status ? ' · <b>' + p.status + '</b>' : ''}</div></div>
+      </li>`).join('') || '<li class="muted">Nothing matches in this view. Zoom out or loosen the filters.</li>';
+  }
+  results.addEventListener('click', e => {
+    const li = e.target.closest('li[data-id]');
+    if (li) openCard(+li.dataset.id, true);
+  });
+  form.addEventListener('input', e => { if (e.target.name === 'q') scheduleLoad(); });
+  form.addEventListener('change', scheduleLoad);
+  form.addEventListener('submit', e => { e.preventDefault(); load(); });
+  map.on('moveend', scheduleLoad);
+  document.querySelectorAll('[data-zoom-county]').forEach(a => a.addEventListener('click', e => {
+    e.preventDefault(); map.fitBounds(COUNTY_BOUNDS[a.dataset.zoomCounty]);
+  }));
+  // State / region rows: tick or zoom to every county inside.
+  const groupCounties = g => [...g.querySelectorAll('input[name=county]')];
+  document.querySelectorAll('[data-zoom-group]').forEach(a => a.addEventListener('click', e => {
+    e.preventDefault();
+    const b = groupCounties(a.closest('[data-group]')).map(i => COUNTY_BOUNDS[i.value]).flat();
+    if (b.length) map.fitBounds(L.latLngBounds(b));
+  }));
+  document.querySelectorAll('[data-group-toggle]').forEach(t => t.addEventListener('change', () => {
+    groupCounties(t.closest('[data-group]')).forEach(i => { i.checked = t.checked; });
+  }));
+  function syncGroups() {
+    document.querySelectorAll('[data-group]').forEach(g => {
+      const boxes = groupCounties(g), on = boxes.filter(i => i.checked).length;
+      const t = g.querySelector(':scope > label [data-group-toggle]');
+      t.checked = on === boxes.length && on > 0; t.indeterminate = on > 0 && on < boxes.length;
+    });
+  }
+  form.addEventListener('change', syncGroups);
+
+  // Restore filters from the address bar.
+  const qs = new URLSearchParams(location.search);
+  for (const el of form.elements) {
+    if (!el.name || !qs.has(el.name)) continue;
+    if (el.type === 'checkbox') el.checked = qs.getAll(el.name).includes(el.value);
+    else el.value = qs.get(el.name);
+  }
+
+  syncGroups();
+
+  function viewPad() { return {padding: [30, 30]}; }
+
+  // ---- Parcel card ------------------------------------------------------
+  const cardEl = document.getElementById('card');
+  let openId = null, highlight = null;
+  function csrf() { return document.cookie.split('; ').find(c => c.startsWith('csrftoken='))?.split('=')[1]; }
+  // Keep the map usable: on narrow screens, opening the card folds the filters panel away.
+  function makeRoomForCard() {
+    const wrap = document.getElementById('map-wrap');
+    if (wrap.offsetWidth < 480 && !landEl.classList.contains('side-closed')) setSide(false);
+  }
+  async function showCard(html) {
+    cardEl.innerHTML = html;
+    cardEl.hidden = false;
+    makeRoomForCard();
+    const card = cardEl.querySelector('.land-card');
+    const auto = card?.dataset.autocheck;
+    if (auto) {
+      const resp = await fetch(auto, {method: 'POST', headers: {'X-CSRFToken': csrf()}});
+      if (resp.ok && cardEl.querySelector('.land-card') === card) showCard(await resp.text());
+    }
+  }
+  async function openCard(id, fly) {
+    openId = id;
+    results.querySelectorAll('li').forEach(li => li.classList.toggle('on', +li.dataset.id === id));
+    cardEl.hidden = false;
+    cardEl.innerHTML = '<div class="land-card"><p class="muted">Loading…</p></div>';
+    const [html, shape] = await Promise.all([
+      fetch(URLS.card(id)).then(r => r.text()),
+      fetch(URLS.shape(id)).then(r => r.json()),
+    ]);
+    drawHighlight(shape);
+    if (fly) map.fitBounds(highlight.getBounds(), {maxZoom: 16, ...viewPad()});
+    showCard(html);
+    history.replaceState(null, '', '?' + filterParams().toString() + '&parcel=' + id);
+  }
+  function drawHighlight(geojson) {
+    if (highlight) map.removeLayer(highlight);
+    highlight = L.geoJSON(geojson, {style: {color: '#00e5ff', weight: 4, fill: false}, interactive: false}).addTo(map);
+  }
+  cardEl.addEventListener('click', e => {
+    if (e.target.closest('.lc-close')) {
+      cardEl.hidden = true; openId = null;
+      if (highlight) map.removeLayer(highlight);
+      history.replaceState(null, '', '?' + filterParams().toString());
+      return;
+    }
+    const owner = e.target.closest('[data-owner-search]');
+    if (owner) { e.preventDefault(); form.q.value = owner.dataset.ownerSearch; form.status.value = 'all'; load(); return; }
+    const asmT = e.target.closest('[data-asm-toggle]');
+    if (asmT) { e.preventDefault(); asmToggle(+asmT.dataset.asmToggle).then(() => { asmT.textContent = ASM.ids.includes(+asmT.dataset.asmToggle) ? '− Remove from assemblage' : '+ Add to assemblage'; }); return; }
+    const copy = e.target.closest('[data-copy-link]');
+    if (copy) { e.preventDefault(); navigator.clipboard?.writeText(copy.dataset.copyLink); copy.textContent = 'Copied'; }
+  });
+  cardEl.addEventListener('submit', async e => {
+    const f = e.target.closest('form[data-card-form]');
+    if (!f) return;
+    e.preventDefault();
+    const body = new FormData(f);
+    if (e.submitter?.name) body.set(e.submitter.name, e.submitter.value);
+    f.querySelectorAll('button').forEach(b => b.disabled = true);
+    const resp = await fetch(f.action, {method: 'POST', body, headers: {'X-CSRFToken': csrf()}});
+    const html = await resp.text();
+    await showCard(html);
+    const saved = cardEl.querySelector('.land-card[data-parcel]');
+    if (saved) {
+      openId = +saved.dataset.parcel;
+      fetch(URLS.shape(openId)).then(r => r.json()).then(drawHighlight);
+    }
+    scheduleLoad();
+  });
+
+  // Click anywhere else on the map: look up that parcel live (any size), unless measuring.
+  map.on('click', async e => {
+    if (measuring) return addMeasurePoint(e.latlng);
+    if (ASM.mode) return;
+    if (map.getZoom() < 13) return;
+    cardEl.hidden = false;
+    cardEl.innerHTML = '<div class="land-card"><p class="muted">Looking up this parcel…</p></div>';
+    const resp = await fetch(`${URLS.identify}?lat=${e.latlng.lat.toFixed(6)}&lon=${e.latlng.lng.toFixed(6)}`);
+    await showCard(await resp.text());
+    const card = cardEl.querySelector('.land-card');
+    if (card?.dataset.parcel) {
+      openId = +card.dataset.parcel;
+      fetch(URLS.shape(openId)).then(r => r.json()).then(drawHighlight);
+    } else if (card?.dataset.liveGeometry) {
+      try { drawHighlight(JSON.parse(card.dataset.liveGeometry)); } catch (err) {}
+    }
+  });
+
+  // ---- Search box: our parcels, coordinates, then addresses (Esri geocoder) ----
+  const place = document.getElementById('place'), placeOut = document.getElementById('place-results');
+  let searchTimer = null;
+  place.addEventListener('input', () => { clearTimeout(searchTimer); searchTimer = setTimeout(runSearch, 300); });
+  place.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); placeOut.querySelector('[data-lat]')?.click(); } });
+  async function runSearch() {
+    const q = place.value.trim();
+    if (q.length < 2) { placeOut.hidden = true; return; }
+    const ll = q.match(/^\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*$/);
+    let rows = [];
+    if (ll) rows.push({label: `Go to ${ll[1]}, ${ll[2]}`, lat: +ll[1], lon: +ll[2]});
+    const [ours, geo] = await Promise.all([
+      fetch(URLS.search + '?q=' + encodeURIComponent(q)).then(r => r.json()).catch(() => ({results: []})),
+      ll ? Promise.resolve({candidates: []}) : fetch('https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/findAddressCandidates?f=json&maxLocations=4&countryCode=USA&SingleLine=' + encodeURIComponent(q)).then(r => r.json()).catch(() => ({candidates: []})),
+    ]);
+    rows = rows.concat(ours.results.map(p => ({label: `<b>${p.acres.toLocaleString()} ac</b> · ${escapeHtml(p.owner)} <span class="muted">${escapeHtml(p.county)} · score ${p.score}</span>`, lat: p.lat, lon: p.lon, id: p.id})));
+    rows = rows.concat((geo.candidates || []).filter(c => c.score > 80).map(c => ({label: '📍 ' + escapeHtml(c.address), lat: c.location.y, lon: c.location.x})));
+    placeOut.innerHTML = rows.map(r => `<div data-lat="${r.lat}" data-lon="${r.lon}"${r.id ? ` data-id="${r.id}"` : ''}>${r.label}</div>`).join('') || '<div class="muted">No matches</div>';
+    placeOut.hidden = false;
+  }
+  placeOut.addEventListener('click', e => {
+    const row = e.target.closest('[data-lat]');
+    if (!row) return;
+    placeOut.hidden = true;
+    if (row.dataset.id) openCard(+row.dataset.id, true);
+    else map.setView([+row.dataset.lat, +row.dataset.lon], 16);
+  });
+  document.addEventListener('click', e => { if (!e.target.closest('.map-search')) placeOut.hidden = true; });
+
+  // ---- Tools: distance, area, drive times ---------------------------------------
+  const tools = document.getElementById('tools'), toolOut = document.getElementById('tool-result');
+  let measuring = false, tool = 'distance', mPoints = [];
+  const mLayer = L.layerGroup().addTo(map), driveLayer = L.layerGroup().addTo(map);
+  const DIST = {mi: [1609.344, 'mi', 2], ft: [0.3048, 'ft', 0], yd: [0.9144, 'yd', 0], km: [1000, 'km', 2], m: [1, 'm', 0]};
+  const AREA = {ac: [4046.8564, 'acres', 1], sqft: [0.09290304, 'sq ft', 0], sqmi: [2589988.11, 'sq mi', 3], ha: [10000, 'ha', 2], sqm: [1, 'sq m', 0]};
+  const fmt = (v, [div, label, dp]) => (v / div).toLocaleString(undefined, {minimumFractionDigits: dp, maximumFractionDigits: dp}) + ' ' + label;
+  const driveMode = () => document.querySelector('[name=drive-mode]:checked').value;
+  const HEAT = ['#1a9850', '#91cf60', '#fee08b', '#fc8d59', '#d73027'];
+  function openTools(open, which) {
+    measuring = open;
+    tools.hidden = !open;
+    if (open && which) tools.querySelector(`[data-tool="${which}"]`).click();
+    document.getElementById('tb-measure').classList.toggle('on', open && tool !== 'drive');
+    document.getElementById('tb-drive').classList.toggle('on', open && tool === 'drive');
+    map.getContainer().style.cursor = open ? 'crosshair' : '';
+    document.getElementById('use-parcel').hidden = !openId;
+    if (!open) clearTool(true);
+  }
+  function clearTool(all) {
+    mPoints = [];
+    mLayer.clearLayers();
+    toolOut.innerHTML = "";
+    if (all) driveLayer.clearLayers();
+  }
+  document.getElementById('tb-measure').addEventListener('click', () =>
+    openTools(tools.hidden || tool === 'drive', tool === 'drive' ? 'distance' : null));
+  document.getElementById('tb-drive').addEventListener('click', () => openTools(tools.hidden || tool !== 'drive', 'drive'));
+  tools.querySelector('.tools-close').addEventListener('click', () => openTools(false));
+  tools.querySelectorAll('[data-tool]').forEach(b => b.addEventListener('click', () => {
+    tool = b.dataset.tool;
+    tools.querySelectorAll('[data-tool]').forEach(x => x.classList.toggle('on', x === b));
+    tools.querySelectorAll('[data-pane]').forEach(p => { p.hidden = p.dataset.pane !== tool; });
+    document.getElementById('tool-undo').hidden = tool === 'drive';
+    document.getElementById('tb-measure').classList.toggle('on', !tools.hidden && tool !== 'drive');
+    document.getElementById('tb-drive').classList.toggle('on', !tools.hidden && tool === 'drive');
+    clearTool(true);
+  }));
+  tools.querySelectorAll('[name=drive-mode]').forEach(r => r.addEventListener('change', () => {
+    tools.querySelectorAll('[data-drive]').forEach(p => { p.hidden = p.dataset.drive !== driveMode(); });
+    clearTool(true);
+  }));
+  ['dist-unit', 'area-unit'].forEach(id => document.getElementById(id).addEventListener('change', drawMeasure));
+  document.getElementById('tool-undo').addEventListener('click', () => { mPoints.pop(); drawMeasure(); });
+  document.getElementById('tool-clear').addEventListener('click', () => clearTool(true));
+  document.getElementById('use-parcel').addEventListener('click', () => {
+    const c = cardEl.querySelector('.land-card');
+    if (c) addMeasurePoint(L.latLng(+c.dataset.lat, +c.dataset.lon));
+  });
+
+  function addMeasurePoint(ll) {
+    if (tool === 'drive') return drivePoint(ll);
+    mPoints.push(ll);
+    drawMeasure();
+  }
+  function drawMeasure() {
+    mLayer.clearLayers();
+    if (tool === 'drive') return;
+    mPoints.forEach(p => L.circleMarker(p, {radius: 4, color: '#ff00ff', fillOpacity: 1}).addTo(mLayer));
+    if (!mPoints.length) { toolOut.innerHTML = ""; return; }
+    let meters = 0;
+    for (let i = 1; i < mPoints.length; i++) meters += map.distance(mPoints[i - 1], mPoints[i]);
+    if (tool === 'distance') {
+      L.polyline(mPoints, {color: '#ff00ff', weight: 3}).addTo(mLayer);
+      const unit = DIST[document.getElementById('dist-unit').value];
+      const last = mPoints.length > 1 ? map.distance(mPoints[mPoints.length - 2], mPoints[mPoints.length - 1]) : 0;
+      let html = '<b>' + fmt(meters, unit) + '</b>';
+      if (mPoints.length > 2) html += '<div class="muted lc-small">last segment ' + fmt(last, unit) + '</div>';
+      toolOut.innerHTML = html;
+      return;
+    }
+    L.polygon(mPoints, {color: '#ff00ff', weight: 2, fillOpacity: 0.18}).addTo(mLayer);
+    if (mPoints.length < 3) { toolOut.innerHTML = '<span class="muted">Add at least 3 points</span>'; return; }
+    const ring = mPoints.concat([mPoints[0]]);
+    let perim = 0;
+    for (let i = 1; i < ring.length; i++) perim += map.distance(ring[i - 1], ring[i]);
+    const unitKey = document.getElementById('area-unit').value;
+    const metric = unitKey === 'ha' || unitKey === 'sqm';
+    const perimUnit = metric ? (perim > 1000 ? DIST.km : DIST.m) : (perim > 1609 ? DIST.mi : DIST.ft);
+    toolOut.innerHTML = '<b>' + fmt(sphericalArea(mPoints), AREA[unitKey]) + '</b><div class="muted lc-small">perimeter ' + fmt(perim, perimUnit) + '</div>';
+  }
+  function sphericalArea(pts) {
+    const R = 6378137, rad = d => d * Math.PI / 180;
+    let total = 0;
+    for (let i = 0; i < pts.length; i++) {
+      const a = pts[i], b = pts[(i + 1) % pts.length];
+      total += rad(b.lng - a.lng) * (2 + Math.sin(rad(a.lat)) + Math.sin(rad(b.lat)));
+    }
+    return Math.abs(total * R * R / 2);
+  }
+  const pt = ll => ll.lat.toFixed(6) + ',' + ll.lng.toFixed(6);
+  const mins = m => m >= 60 ? Math.floor(m / 60) + ' h ' + Math.round(m % 60) + ' min' : Math.round(m) + ' min';
+  const pad = () => viewPad();
+  async function drivePoint(ll) {
+    if (driveMode() === 'heat') {
+      driveLayer.clearLayers();
+      L.circleMarker(ll, {radius: 6, color: '#fff', weight: 2, fillColor: '#111', fillOpacity: 1}).addTo(driveLayer);
+      toolOut.innerHTML = '<span class="muted">Working out drive times…</span>';
+      const dir = document.querySelector('[name=heat-dir]:checked').value;
+      const minutes = document.getElementById('heat-minutes').value.replace(/[^0-9,]/g, '');
+      const data = await fetch(URLS.isochrone + '?at=' + pt(ll) + '&minutes=' + minutes + '&direction=' + dir).then(r => r.json());
+      if (data.error) { toolOut.innerHTML = '<span class="overdue">' + escapeHtml(data.error) + '</span>'; return; }
+      const bands = data.features.map(f => f.properties.minutes).sort((a, b) => a - b);
+      const color = m => HEAT[Math.min(HEAT.length - 1, Math.round(bands.indexOf(m) * (HEAT.length - 1) / Math.max(1, bands.length - 1)))];
+      const layer = L.geoJSON(data, {
+        style: f => ({color: color(f.properties.minutes), weight: 1.5, fillColor: color(f.properties.minutes), fillOpacity: 0.28}),
+        onEachFeature: (f, l) => l.bindTooltip('Within ' + f.properties.minutes + ' min', {sticky: true}),
+      }).addTo(driveLayer);
+      layer.bringToBack();
+      map.fitBounds(layer.getBounds(), pad());
+      toolOut.innerHTML = '<div class="heat-legend">' + bands.map(m => '<span><i style="background:' + color(m) + '"></i>' + m + ' min</span>').join('') + '</div>'
+        + '<div class="muted lc-small">Driving ' + (dir === 'to' ? 'to' : 'from') + ' the point, free-flow (no live traffic).</div>';
+      return;
+    }
+    if (mPoints.length >= 2) mPoints = [];
+    mPoints.push(ll);
+    driveLayer.clearLayers();
+    mPoints.forEach((p, i) => L.marker(p, {icon: L.divIcon({className: 'drive-pin', html: i ? 'B' : 'A', iconSize: [22, 22]})}).addTo(driveLayer));
+    if (mPoints.length < 2) { toolOut.innerHTML = '<span class="muted">Now click the destination.</span>'; return; }
+    toolOut.innerHTML = '<span class="muted">Routing…</span>';
+    const data = await fetch(URLS.route + '?a=' + pt(mPoints[0]) + '&b=' + pt(mPoints[1])).then(r => r.json());
+    if (data.error) { toolOut.innerHTML = '<span class="overdue">' + escapeHtml(data.error) + '</span>'; return; }
+    L.geoJSON(data.back.path, {style: {color: '#ff7f00', weight: 4, opacity: 0.7, dashArray: '6 6'}}).addTo(driveLayer);
+    const there = L.geoJSON(data.there.path, {style: {color: '#1e6bff', weight: 5}}).addTo(driveLayer);
+    map.fitBounds(there.getBounds(), pad());
+    const row = (label, d, c) => '<div><i class="route-swatch" style="background:' + c + '"></i><b>' + label + '</b> ' + mins(d.minutes) + ' · ' + d.miles + ' mi' + (d.toll ? ' · toll' : '') + '</div>';
+    toolOut.innerHTML = row('A → B', data.there, '#1e6bff') + row('B → A', data.back, '#ff7f00') + '<div class="muted lc-small">Free-flow times on OpenStreetMap roads.</div>';
+  }
+
+  // ---- Assemblages and saved sites ----------------------------------------------
+  // Ctrl/Shift-click parcels (or "Assemble" mode, or the card's button) to build an assemblage.
+  const ASM = {ids: [], siteId: null, mode: false, layer: L.layerGroup().addTo(map), shapes: {}, bar: document.getElementById('asm'), meta: null};
+  const asmBtn = document.getElementById('assemble');
+  asmBtn.addEventListener('click', () => { ASM.mode = !ASM.mode; asmBtn.classList.toggle('on', ASM.mode); });
+  async function asmShape(id) {
+    if (!ASM.shapes[id]) ASM.shapes[id] = await fetch(URLS.shape(id)).then(r => r.json());
+    return ASM.shapes[id];
+  }
+  async function asmToggle(id) {
+    const i = ASM.ids.indexOf(id);
+    if (i >= 0) ASM.ids.splice(i, 1); else ASM.ids.push(id);
+    await asmRefresh();
+  }
+  async function asmRefresh() {
+    ASM.layer.clearLayers();
+    if (!ASM.ids.length) { ASM.bar.hidden = true; ASM.siteId = null; siteSel.value = ''; qdLabel(); return; }
+    const shapes = await Promise.all(ASM.ids.map(asmShape));
+    shapes.forEach(s => L.geoJSON(s, {style: {color: '#00e5ff', weight: 3, fillColor: '#00e5ff', fillOpacity: 0.25}, interactive: false}).addTo(ASM.layer));
+    const d = await fetch("{% url 'crm:land_assemblage' %}?ids=" + ASM.ids.join(',')).then(r => r.json());
+    ASM.meta = d;
+    const site = ASM.siteId ? SITES.list.find(s => s.id === ASM.siteId) : null;
+    document.getElementById('asm-title').textContent = site ? site.name : 'Assemblage';
+    document.getElementById('asm-stats').textContent = `${d.ids.length} parcel${d.ids.length === 1 ? '' : 's'} · ${d.acres.toLocaleString()} ac · ${d.owners.length} owner${d.owners.length === 1 ? '' : 's'}`
+      + (d.contiguous ? ' · contiguous' : d.ids.length > 1 ? ' · not contiguous' : '') + (d.market_value ? ` · $${Math.round(d.market_value).toLocaleString()} appraised` : '')
+      + (site ? ` · ${site.home} · ${site.status_label}` : '');
+    document.getElementById('asm-owners').textContent = d.owners.slice(0, 6).map(o => `${o.owner} (${o.acres.toLocaleString()} ac${o.n > 1 ? ', ' + o.n + ' parcels' : ''})`).join(' · ') + (d.owners.length > 6 ? ` · +${d.owners.length - 6} more` : '');
+    ASM.bar.hidden = false;
+    qdLabel();
+  }
+  document.getElementById('asm-clear').addEventListener('click', () => { ASM.ids = []; ASM.siteId = null; asmRefresh(); });
+  document.getElementById('asm-qd').addEventListener('click', () => { qdOpen(true); if (QD.buildings.length) qdCalc('calc'); });
+
+  // Saved sites: picker in the toolbar, save/edit dialog.
+  const SITES = {list: [], choices: null};
+  const siteSel = document.getElementById('site-pick');
+  async function sitesLoad() {
+    const d = await fetch("{% url 'crm:land_sites' %}").then(r => r.json());
+    SITES.list = d.sites; SITES.choices = d;
+    const groups = {};
+    d.sites.forEach(s => (groups[s.home] = groups[s.home] || []).push(s));
+    siteSel.innerHTML = '<option value="">Saved sites…</option>' + Object.entries(groups).map(([home, list]) =>
+      `<optgroup label="${escapeHtml(home)}">${list.map(s => `<option value="${s.id}">${escapeHtml(s.name)} · ${s.acres.toLocaleString()} ac</option>`).join('')}</optgroup>`).join('');
+    if (ASM.siteId) siteSel.value = ASM.siteId;
+  }
+  async function siteOpen(id, fly) {
+    const s = await fetch("{% url 'crm:land_site' 0 %}".replace('/0/', '/' + id + '/')).then(r => r.json());
+    ASM.siteId = s.id; ASM.ids = s.parcels.slice(); siteSel.value = s.id;
+    await asmRefresh();
+    if (fly && s.geometry) map.fitBounds(L.geoJSON(s.geometry).getBounds(), viewPad());
+    if (s.qd_design && s.qd_design.buildings && s.qd_design.buildings.length) {
+      QD.buildings = s.qd_design.buildings; qdOpen(true); qdCalc('calc');
+    }
+    history.replaceState(null, '', '?' + filterParams().toString() + '&site=' + s.id);
+  }
+  siteSel.addEventListener('change', () => { if (siteSel.value) siteOpen(+siteSel.value, true); else { ASM.ids = []; asmRefresh(); } });
+
+  const dlg = document.getElementById('site-dialog'), siteForm = document.getElementById('site-form');
+  function fillSelect(sel, items, value) {
+    sel.innerHTML = '<option value="">None</option>' + items.map(i => `<option value="${i.id}"${String(i.id) === String(value || '') ? ' selected' : ''}>${escapeHtml(i.label)}</option>`).join('');
+  }
+  function filterProjects() {
+    const c = siteForm.campus.value, keep = siteForm.project.value;
+    fillSelect(siteForm.project, SITES.choices.projects.filter(p => !c || String(p.campus) === c), keep);
+  }
+  siteForm.campus.addEventListener('change', filterProjects);
+  document.getElementById('asm-save').addEventListener('click', async () => {
+    if (!SITES.choices) await sitesLoad();
+    const site = ASM.siteId ? SITES.list.find(s => s.id === ASM.siteId) : null;
+    siteForm.name.value = site ? site.name : '';
+    fillSelect(siteForm.campus, SITES.choices.campuses, site && site.campus);
+    fillSelect(siteForm.project, SITES.choices.projects, site && site.project);
+    filterProjects();
+    siteForm.status.innerHTML = SITES.choices.statuses.map(([v, l]) => `<option value="${v}"${site && site.status === v ? ' selected' : ''}>${l}</option>`).join('');
+    siteForm.notes.value = site ? site.notes : '';
+    document.getElementById('site-summary').textContent = document.getElementById('asm-stats').textContent;
+    document.getElementById('site-delete').hidden = !site;
+    dlg.showModal();
+  });
+  dlg.addEventListener('close', async () => {
+    if (dlg.returnValue !== 'save') return;
+    const body = JSON.stringify({id: ASM.siteId, name: siteForm.name.value, campus: siteForm.campus.value, project: siteForm.project.value,
+      status: siteForm.status.value, notes: siteForm.notes.value, parcels: ASM.ids});
+    const d = await fetch("{% url 'crm:land_site_save' %}", {method: 'POST', body, headers: {'X-CSRFToken': csrf(), 'Content-Type': 'application/json'}}).then(r => r.json());
+    if (d.error) { alert(d.error); return; }
+    ASM.siteId = d.id;
+    await sitesLoad();
+    asmRefresh();
+  });
+  document.getElementById('site-delete').addEventListener('click', async () => {
+    if (!ASM.siteId || !confirm('Delete this saved site? The parcels stay in land search.')) return;
+    await fetch("{% url 'crm:land_site_delete' 0 %}".replace('/0/', '/' + ASM.siteId + '/'), {method: 'POST', headers: {'X-CSRFToken': csrf()}});
+    dlg.close('cancel'); ASM.ids = []; ASM.siteId = null; await sitesLoad(); asmRefresh();
+  });
+  sitesLoad().then(() => { const sid = +(qs.get('site') || 0); if (sid) siteOpen(sid, true); });
+
+  // ---- QD site plan (bottom drawer) ------------------------------------------------
+  const QD = {
+    el: document.getElementById('qd'), btn: document.getElementById('tb-qd'), rows: document.getElementById('qd-rows'),
+    summary: document.getElementById('qd-summary'), buildings: [], layer: L.layerGroup().addTo(map), seq: 0, loadedFor: null,
+    target: null, boundary: null,
+  };
+  const HDS = ['HD 1.1', 'HD 1.2.1', 'HD 1.2.2', 'HD 1.2.3', 'HD 1.3', 'HD 1.4'];
+  const PES = ['Open (no structure)', 'Aboveground structure', 'ECM Front', 'ECM Side', 'ECM Rear'];
+  const ARC = {ibd: ['#e31a1c', 'IBD'], ptrd: ['#ff7f00', 'PTRD'], ild: ['#ffd92f', 'ILD'], imd: ['#1f78b4', 'IMD']};
+  const ft = v => v ? Math.round(v).toLocaleString() : '–';
+  function qdOpen(open) {
+    QD.el.hidden = !open;
+    QD.btn.classList.toggle('on', open);
+    if (open) qdLoadSaved();
+    if (typeof remember === 'function') remember();
+  }
+  QD.btn.addEventListener('click', () => qdOpen(QD.el.hidden));
+  document.getElementById('qd-close').addEventListener('click', () => qdOpen(false));
+  // Drag the top edge to make the drawer taller or shorter.
+  (function () {
+    const grip = QD.el.querySelector('.qd-grip');
+    let startY = 0, startH = 0;
+    const move = e => { QD.el.style.height = Math.max(120, Math.min(window.innerHeight * 0.7, startH + startY - e.clientY)) + 'px'; };
+    const up = () => { document.removeEventListener('mousemove', move); document.removeEventListener('mouseup', up); remember(); };
+    grip.addEventListener('mousedown', e => { e.preventDefault(); startY = e.clientY; startH = QD.el.offsetHeight;
+      document.addEventListener('mousemove', move); document.addEventListener('mouseup', up); });
+  })();
+
+  function qdAdd(kind) {
+    const n = QD.buildings.filter(b => b.kind === kind).length + 1;
+    const c = cardEl.querySelector('.land-card[data-parcel]');
+    const at = c ? L.latLng(+c.dataset.lat, +c.dataset.lon) : map.getCenter();
+    const jitter = QD.buildings.length * 0.0015;
+    QD.buildings.push(kind === 'magazine'
+      ? {name: 'Magazine ' + n, kind, sqft: 1000, hd: 'HD 1.1', newqd: 10000, pes: 'ECM Front', barricaded: false, mce: 0, k: 6, lat: at.lat + jitter, lon: at.lng + jitter}
+      : {name: 'Operating ' + n, kind, sqft: 10000, hd: 'HD 1.1', newqd: 500, pes: 'Aboveground structure', barricaded: true, mce: 0, k: 11, lat: at.lat - jitter, lon: at.lng + jitter});
+    qdCalc('calc');
+  }
+  document.getElementById('qd-add-mag').addEventListener('click', () => qdAdd('magazine'));
+  document.getElementById('qd-add-ops').addEventListener('click', () => qdAdd('operating'));
+  document.getElementById('qd-fit').addEventListener('click', () => {
+    if (!openId && !QD.target && !ASM.ids.length) { alert('Open a parcel or build an assemblage first, then auto-fit.'); return; }
+    if (!QD.buildings.length) { alert('Add at least one building.'); return; }
+    qdCalc('fit');
+  });
+  document.getElementById('qd-save').addEventListener('click', () => {
+    if (!(openId || QD.target) && !ASM.siteId) { alert('Open a parcel, or save the assemblage as a site, to keep the plan.'); return; }
+    qdCalc('save');
+  });
+  document.getElementById('qd-clear').addEventListener('click', () => { QD.buildings = []; QD.layer.clearLayers(); qdRender(null); });
+  QD.el.querySelectorAll('[data-arc]').forEach(i => i.addEventListener('change', qdDraw));
+
+  async function qdCalc(action) {
+    const seq = ++QD.seq;
+    if (openId) QD.target = openId;
+    const body = JSON.stringify({parcel: QD.target, parcels: ASM.ids, site: ASM.siteId, action,
+      buildings: QD.buildings.map(({dist, result, shapes, ...b}) => b)});
+    const resp = await fetch("{% url 'crm:land_qd' %}", {method: 'POST', body, headers: {'X-CSRFToken': csrf(), 'Content-Type': 'application/json'}});
+    if (!resp.ok && resp.status >= 500) { QD.summary.innerHTML = '<span class="overdue">The QD check failed on the server.</span>'; return; }
+    const data = await resp.json();
+    if (seq !== QD.seq) return;
+    if (data.error) { QD.summary.innerHTML = '<span class="overdue">' + escapeHtml(data.error) + '</span>'; return; }
+    QD.buildings = data.buildings;
+    QD.boundary = data.boundary;
+    qdRender(data.summary);
+    qdDraw();
+    if (action === 'fit' && QD.buildings.length) {
+      const layers = QD.layer.getLayers().filter(l => l.getBounds);
+      const b = layers.length ? layers.reduce((acc, l) => acc.extend(l.getBounds()), L.latLngBounds(layers[0].getBounds()))
+        : L.latLngBounds(QD.buildings.map(x => [x.lat, x.lon]));
+      map.fitBounds(b, viewPad());
+    }
+    const savedTo = ASM.ids.length ? (ASM.siteId ? 'the saved site' : null) : (QD.target ? 'the parcel' : null);
+    if (action === 'save' || action === 'fit') QD.summary.insertAdjacentHTML('beforeend', savedTo
+      ? `<div class="muted lc-small">Saved to ${savedTo}.</div>` : '<div class="muted lc-small">Not saved: save the assemblage as a site to keep this plan.</div>');
+  }
+
+  function qdRender(summary) {
+    if (!QD.buildings.length) {
+      QD.rows.innerHTML = '<tr><td colspan="16" class="muted">Add a magazine or operating building. Drag the pins on the map to move them.</td></tr>';
+      QD.summary.innerHTML = '';
+      return;
+    }
+    const opt = (list, v) => list.map(x => `<option${x === v ? ' selected' : ''}>${x}</option>`).join('');
+    QD.rows.innerHTML = QD.buildings.map((b, i) => {
+      const d = b.dist || {}, r = b.result || {};
+      const status = !b.result ? '' : r.conflicts.length ? `<span class="pill pill-bad" title="${r.conflicts.map(c => 'Needs ' + c.need_ft + ' ft from ' + escapeHtml(QD.buildings[c.with].name) + ', has ' + c.have_ft).join('; ')}">Too close</span>`
+        : !r.inside ? '<span class="pill pill-bad">Off parcel</span>'
+        : r.off_site_acres >= 1 ? `<span class="pill pill-mid" title="IBD arc crosses the parcel line">${r.off_site_acres} ac off-site</span>`
+        : '<span class="pill pill-good">Clear</span>';
+      return `<tr data-i="${i}">
+        <td><input data-f="name" value="${escapeHtml(b.name || '')}" size="11"></td>
+        <td><select data-f="kind"><option value="magazine"${b.kind === 'magazine' ? ' selected' : ''}>Magazine</option><option value="operating"${b.kind === 'operating' ? ' selected' : ''}>Operating</option></select></td>
+        <td><input data-f="sqft" type="number" min="0" step="500" value="${b.sqft || 0}" style="width:80px"></td>
+        <td><select data-f="hd">${opt(HDS, b.hd)}</select></td>
+        <td><input data-f="newqd" type="number" min="0" step="100" value="${b.newqd || 0}" style="width:90px"></td>
+        <td><select data-f="pes"${b.hd === 'HD 1.1' ? '' : ' disabled'}>${opt(PES, b.pes)}</select></td>
+        <td><input data-f="barricaded" type="checkbox"${b.barricaded ? ' checked' : ''}${b.hd === 'HD 1.1' ? '' : ' disabled'}></td>
+        <td><input data-f="mce" type="number" min="0" value="${b.mce || 0}" style="width:70px"${['HD 1.2.1', 'HD 1.2.3'].includes(b.hd) ? '' : ' disabled'}></td>
+        <td><input data-f="k" type="number" min="1" max="50" step="0.25" value="${b.k || 11}" style="width:56px"${b.hd === 'HD 1.1' ? '' : ' disabled'}></td>
+        <td class="num">${ft(d.imd)}</td><td class="num">${ft(d.ild)}</td><td class="num">${ft(d.ptrd)}</td><td class="num"><b>${ft(d.ibd)}</b></td>
+        <td class="num">${d.ibd_acres ?? '–'}</td><td>${status}</td>
+        <td><button type="button" class="btn-link" data-del title="Remove">✕</button></td></tr>`;
+    }).join('');
+    if (!summary) { QD.summary.innerHTML = ''; return; }
+    const rows = [['IBD arcs (combined)', summary.arc_acres + ' ac']];
+    if (summary.parcel_acres != null) rows.push(['Parcel', summary.parcel_acres + ' ac'], ['Encumbered on site', `${summary.encumbered_acres} ac (${summary.encumbered_pct}%)`],
+      ['Free of arcs', summary.unencumbered_acres + ' ac'], ['Arc area off the parcel', summary.off_site_acres + ' ac']);
+    QD.summary.innerHTML = `<div class="qd-verdict ${summary.all_clear ? 'ok' : 'bad'}">${summary.all_clear ? 'Layout clears: arcs on site, spacing OK' : 'Layout has problems: see Status'}</div>`
+      + rows.map(([k, v]) => `<div class="qd-kv"><span>${k}</span><b>${v}</b></div>`).join('')
+      + `<div class="muted lc-small">${escapeHtml((QD.buildings[0].dist || {}).governing || '')}</div>`
+      + '<div class="muted lc-small">Screening per DoD 6055.09-M V3.E3 (QD CALCS v20). 360° arcs; ECM arcs are really directional. Not a DDESB submission.</div>';
+  }
+
+  QD.rows.addEventListener('change', e => {
+    const tr = e.target.closest('tr[data-i]'); if (!tr) return;
+    const b = QD.buildings[+tr.dataset.i], f = e.target.dataset.f;
+    if (!f) return;
+    b[f] = e.target.type === 'checkbox' ? e.target.checked : e.target.type === 'number' ? +e.target.value : e.target.value;
+    qdCalc('calc');
+  });
+  QD.rows.addEventListener('click', e => {
+    if (!e.target.closest('[data-del]')) return;
+    QD.buildings.splice(+e.target.closest('tr').dataset.i, 1);
+    qdCalc('calc');
+  });
+
+  function qdDraw() {
+    QD.layer.clearLayers();
+    if (QD.boundary) L.geoJSON(QD.boundary, {style: {color: '#ffff00', weight: 3, fill: false}, interactive: false}).addTo(QD.layer);
+    const show = Object.fromEntries([...QD.el.querySelectorAll('[data-arc]')].map(i => [i.dataset.arc, i.checked]));
+    QD.buildings.forEach((b, i) => {
+      const d = b.dist || {}, shapes = b.shapes || {};
+      ['ibd', 'ptrd', 'ild', 'imd'].forEach(k => {
+        if (!show[k] || !shapes[k]) return;
+        const color = ARC[k][0];
+        L.geoJSON(shapes[k], {style: {color, weight: k === 'ibd' ? 2.5 : 1.5, dashArray: k === 'ibd' ? '10 6' : '4 4',
+          fillOpacity: k === 'ibd' ? 0.07 : 0.02}, interactive: false}).addTo(QD.layer);
+      });
+      if (shapes.footprint) L.geoJSON(shapes.footprint, {style: {color: '#fff', weight: 1.5, fillColor: '#e8a07a', fillOpacity: 0.85}, interactive: false}).addTo(QD.layer);
+      const bad = b.result && (b.result.conflicts.length || !b.result.inside || b.result.off_site_acres >= 1);
+      const m = L.marker([b.lat, b.lon], {draggable: true, icon: L.divIcon({className: 'qd-pin' + (bad ? ' bad' : ''),
+        html: '<span>' + escapeHtml(b.name || ('#' + (i + 1))) + '</span>', iconSize: null})}).addTo(QD.layer);
+      m.bindTooltip(`${escapeHtml(b.name)}: IBD ${ft(d.ibd)} ft · PTRD ${ft(d.ptrd)} ft · ILD ${ft(d.ild)} ft · IMD ${ft(d.imd)} ft`);
+      m.on('dragend', () => { const ll = m.getLatLng(); b.lat = ll.lat; b.lon = ll.lng; qdCalc('calc'); });
+    });
+  }
+
+  function qdLabel() {
+    const el = document.getElementById('qd-parcel');
+    if (!el) return;
+    el.textContent = ASM.ids.length ? `Checking against the ${ASM.siteId ? 'saved site' : 'assemblage'} (${ASM.ids.length} parcel${ASM.ids.length === 1 ? '' : 's'})`
+      : (openId || QD.target) ? 'Checking against the parcel outlined in yellow' : 'No parcel open: arcs are checked against nothing';
+  }
+  async function qdLoadSaved() {
+    qdLabel();
+    if (!openId || ASM.ids.length || QD.loadedFor === openId) return;
+    QD.loadedFor = openId;
+    const saved = await fetch("{% url 'crm:land_qd_design' 0 %}".replace('/0/', '/' + openId + '/')).then(r => r.json());
+    if (saved.buildings && saved.buildings.length && (!QD.buildings.length || confirm('Load the QD plan saved on this parcel?'))) {
+      QD.buildings = saved.buildings;
+    }
+    if (QD.buildings.length) qdCalc('calc');
+  }
+
+  // ---- Workspace: panels, tool switches, saved views --------------------------------
+  const landEl = document.querySelector('.land');
+  // The map's box changes when panels open or close: keep Leaflet's size in step.
+  new ResizeObserver(() => map.invalidateSize({pan: false})).observe(document.getElementById('map-wrap'));
+
+  const TOOL_KEYS = ['filters', 'search', 'basemap', 'layers', 'sites', 'assemble', 'measure', 'drive', 'qd', 'locate', 'legend'];
+  const shown = Object.fromEntries(TOOL_KEYS.map(k => [k, true]));
+  function applyTools(next) {
+    Object.assign(shown, next || {});
+    TOOL_KEYS.forEach(k => {
+      document.querySelectorAll(`[data-tool-key="${k}"]`).forEach(el => { el.hidden = !shown[k]; });
+      const box = document.querySelector(`[data-show="${k}"]`);
+      if (box) box.checked = shown[k];
+    });
+    // A tool switched off also closes what it opened.
+    if (!shown.filters) setSide(false);
+    if (!shown.qd && !QD.el.hidden) qdOpen(false);
+    if (!shown.measure && !shown.drive && !tools.hidden) openTools(false);
+    if (!shown.assemble && ASM.mode) document.getElementById('assemble').click();
+    remember();
+  }
+  document.querySelectorAll('[data-show]').forEach(box => box.addEventListener('change', () => applyTools({[box.dataset.show]: box.checked})));
+  document.getElementById('tools-reset').addEventListener('click', () => applyTools(Object.fromEntries(TOOL_KEYS.map(k => [k, true]))));
+
+  // Filters & results panel.
+  const sideBtn = document.getElementById('tb-filters');
+  function setSide(open) {
+    landEl.classList.toggle('side-closed', !open);
+    sideBtn.classList.toggle('on', open);
+    remember();
+  }
+  sideBtn.addEventListener('click', () => setSide(landEl.classList.contains('side-closed')));
+
+  // Menus in the toolbar: only one open at a time; a click elsewhere closes them.
+  const menus = [...document.querySelectorAll('.tb-menu')];
+  menus.forEach(m => m.addEventListener('toggle', () => { if (m.open) menus.forEach(o => { if (o !== m) o.open = false; }); }));
+  document.addEventListener('click', e => { if (!e.target.closest('.tb-menu')) menus.forEach(m => { m.open = false; }); });
+
+  // Current state, for saved views and for reopening the page where you left it.
+  function currentState() {
+    const c = map.getCenter();
+    return {
+      center: [+c.lat.toFixed(5), +c.lng.toFixed(5)], zoom: map.getZoom(), base: basemapSel.value,
+      layers: [...document.querySelectorAll('[data-layer]:checked')].map(i => i.dataset.layer),
+      filters: filterParams().toString(), tools: {...shown}, side: !landEl.classList.contains('side-closed'),
+      qd: !QD.el.hidden, qdHeight: QD.el.style.height || '',
+    };
+  }
+  let rememberTimer = null;
+  function remember() {
+    clearTimeout(rememberTimer);
+    rememberTimer = setTimeout(() => { try { localStorage.setItem('land:state', JSON.stringify(currentState())); } catch (e) {} }, 400);
+  }
+  map.on('moveend', remember);
+  form.addEventListener('change', remember);
+  basemapSel.addEventListener('change', remember);
+  document.querySelectorAll('[data-layer]').forEach(i => i.addEventListener('change', remember));
+
+  function setFilters(query) {
+    const q = new URLSearchParams(query || '');
+    for (const el of form.elements) {
+      if (!el.name) continue;
+      if (el.type === 'checkbox') el.checked = q.getAll(el.name).includes(el.value);
+      else if (el.tagName === 'SELECT') el.value = q.get(el.name) ?? (el.name === 'status' ? 'open' : '');
+      else el.value = q.get(el.name) ?? '';
+    }
+    syncGroups();
+  }
+  function applyState(st, {moveMap = true} = {}) {
+    if (!st) return;
+    if (st.base) { basemapSel.value = st.base; setBase(st.base); }
+    if (Array.isArray(st.layers)) document.querySelectorAll('[data-layer]').forEach(i => {
+      const on = st.layers.includes(i.dataset.layer);
+      if (i.checked !== on) { i.checked = on; toggleOverlay(i.dataset.layer, on); }
+    });
+    if (st.filters !== undefined) setFilters(st.filters);
+    if (st.qdHeight) QD.el.style.height = st.qdHeight;
+    applyTools(st.tools);
+    setSide(st.side !== false && shown.filters);
+    qdOpen(!!st.qd && shown.qd);
+    if (moveMap && st.center) map.setView(st.center, st.zoom || 10);
+    scheduleLoad();
+  }
+
+  // Saved views (per user; shared ones from teammates are listed too).
+  const VIEWS = {list: []};
+  const viewsList = document.getElementById('views-list');
+  async function viewsLoad() {
+    const d = await fetch(URLS.views).then(r => r.json());
+    VIEWS.list = d.views;
+    const mine = d.views.filter(v => v.mine), team = d.views.filter(v => !v.mine);
+    const row = v => `<div class="view-row" data-view="${v.id}">
+        <a href="#" data-apply>${escapeHtml(v.name)}</a>${v.is_default ? ' <span class="tag">default</span>' : ''}${v.shared && v.mine ? ' <span class="muted lc-small">shared</span>' : ''}
+        ${v.mine ? `<span class="view-actions"><a href="#" data-update title="Save what you see now into this view">update</a>
+          ${v.is_default ? '' : '<a href="#" data-default>make default</a>'}<a href="#" data-del title="Delete">✕</a></span>` : `<span class="muted lc-small">${escapeHtml(v.owner)}</span>`}
+      </div>`;
+    viewsList.innerHTML = (mine.map(row).join('') || '<span class="muted lc-small">None yet.</span>')
+      + (team.length ? '<div class="ml-h">Shared by the team</div>' + team.map(row).join('') : '');
+    return d.views;
+  }
+  async function viewPost(url, body) {
+    return fetch(url, {method: 'POST', body: JSON.stringify(body || {}), headers: {'X-CSRFToken': csrf(), 'Content-Type': 'application/json'}}).then(r => r.json());
+  }
+  viewsList.addEventListener('click', async e => {
+    const rowEl = e.target.closest('[data-view]');
+    if (!rowEl) return;
+    e.preventDefault();
+    const v = VIEWS.list.find(x => x.id === +rowEl.dataset.view);
+    if (e.target.closest('[data-apply]')) { applyState(v.state); document.getElementById('views-menu').open = false; }
+    else if (e.target.closest('[data-update]')) { await viewPost(URLS.viewSave, {id: v.id, state: currentState()}); await viewsLoad(); }
+    else if (e.target.closest('[data-default]')) { await viewPost(URLS.viewSave, {id: v.id, is_default: true}); await viewsLoad(); }
+    else if (e.target.closest('[data-del]') && confirm(`Delete the view "${v.name}"?`)) {
+      await viewPost(URLS.viewDelete(v.id)); await viewsLoad();
+    }
+  });
+  document.getElementById('view-form').addEventListener('submit', async e => {
+    e.preventDefault();
+    const f = e.target;
+    const d = await viewPost(URLS.viewSave, {name: f.name.value, state: currentState(), shared: f.shared.checked, is_default: f.is_default.checked});
+    if (d.error) { alert(d.error); return; }
+    f.reset();
+    viewsLoad();
+  });
+
+  // ---- Locate me ----------------------------------------------------------------
+  let me = null;
+  document.getElementById('locate').addEventListener('click', () => map.locate({setView: true, maxZoom: 16}));
+  map.on('locationfound', e => { if (me) map.removeLayer(me); me = L.circleMarker(e.latlng, {radius: 8, color: '#fff', weight: 2, fillColor: '#1e6bff', fillOpacity: 1}).addTo(map); });
+  map.on('locationerror', () => alert('Location not available.'));
+
+  function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c])); }
+
+  // ---- Start --------------------------------------------------------------------
+  document.querySelectorAll('[data-layer]').forEach(i => i.addEventListener('change', () => toggleOverlay(i.dataset.layer, i.checked)));
+  const all = Object.values(COUNTY_BOUNDS);
+  const parcelId = +(qs.get('parcel') || 0) || (FOCUS && FOCUS.id);
+  const linked = [...qs.keys()].some(k => k !== 'parcel' && k !== 'site');
+  function homeView() {
+    if (FOCUS) return map.setView([FOCUS.lat, FOCUS.lon], 15);
+    if (!all.length) return map.setView([30.0, -97.9], 9);
+    const tx = all.filter(b => b[0][1] < -90);
+    map.fitBounds(L.latLngBounds((tx.length ? tx : all).flat()));
+  }
+  let last = null;
+  try { last = JSON.parse(localStorage.getItem('land:state') || 'null'); } catch (e) {}
+  homeView();
+  document.querySelectorAll('[data-layer]').forEach(i => { if (i.checked) toggleOverlay(i.dataset.layer, true); });
+  if (!document.querySelector('[data-layer="scored"]').checked) map.removeLayer(scored);
+  viewsLoad().then(views => {
+    const def = views.find(v => v.is_default);
+    if (linked) applyState({...(def ? def.state : last || {}), filters: qs.toString()}, {moveMap: !FOCUS && !parcelId});
+    else if (def) applyState(def.state, {moveMap: !FOCUS && !parcelId});
+    else if (last) applyState(last, {moveMap: !FOCUS && !parcelId});
+    else { applyTools(); load(); }
+  });
+  if (parcelId) openCard(parcelId, false);
+})();
+</script>
+{% endblock %}

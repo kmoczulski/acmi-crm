@@ -1,0 +1,12 @@
+{% load crm_tags %}
+<li>
+  <form method="post" action="{% url 'crm:task_toggle' t.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><input type="checkbox" {% if t.done %}checked{% endif %} onchange="this.form.submit()" title="Toggle done"></form>
+  <div style="flex:1">
+    <a class="{% if t.done %}done{% endif %}" href="{{ t.get_absolute_url }}">{{ t.title }}</a>{% if t.repeat %} <span class="muted" title="{{ t.get_repeat_display }}">↻</span>{% endif %}{% if t.n_comments %} <span class="muted">💬 {{ t.n_comments }}</span>{% endif %}
+    <div class="muted" style="font-size:12px">
+      {% if t.due_date %}<span class="{% if t.is_overdue %}overdue{% endif %}">Due {{ t.due_date|date:"M j" }}</span> · {% endif %}
+      {% with r=t.record %}{% if r %}<a href="{{ r.get_absolute_url }}">{{ r }}</a> · {% endif %}{% endwith %}
+      {{ t.assignee|username|default:"Unassigned" }}
+    </div>
+  </div>
+</li>

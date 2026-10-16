@@ -1,0 +1,16 @@
+# Cloud Build trigger on the GitHub repo's main branch: build, push, migrate, deploy.
+# Substitutions (set on the trigger): _REGION, _SERVICE, _SQL_INSTANCE (project:region:name)
+substitutions:
+  _REGION: us-central1
+  _SERVICE: acmi-crm
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args: ["build", "-t", "${_REGION}-docker.pkg.dev/$PROJECT_ID/acmi/${_SERVICE}:$SHORT_SHA", "."]
+  - name: gcr.io/cloud-builders/docker
+    args: ["push", "${_REGION}-docker.pkg.dev/$PROJECT_ID/acmi/${_SERVICE}:$SHORT_SHA"]
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args: ["run", "deploy", "${_SERVICE}", "--image=${_REGION}-docker.pkg.dev/$PROJECT_ID/acmi/${_SERVICE}:$SHORT_SHA",
+           "--region=${_REGION}", "--add-cloudsql-instances=${_SQL_INSTANCE}"]
+images:
+  - "${_REGION}-docker.pkg.dev/$PROJECT_ID/acmi/${_SERVICE}:$SHORT_SHA"

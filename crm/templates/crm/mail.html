@@ -1,0 +1,134 @@
+{% extends "crm/base.html" %}
+{% load crm_tags %}
+{% block title %}Mail · ACMI CRM{% endblock %}
+{% block content %}
+<div class="page-head"><h1>Mail</h1></div>
+
+<div class="grid-2">
+  <div class="panel">
+    <h3>My mailbox</h3>
+    {% if mailbox %}
+      <p style="margin-top:0"><strong>{{ mailbox.email }}</strong>
+        {% if mailbox.last_error %}<span class="pill pill-bad">Error</span>{% elif mailbox.last_synced_at %}<span class="pill pill-good">Connected</span>{% else %}<span class="pill">Not synced yet</span>{% endif %}</p>
+      <p class="muted" style="font-size:13px">
+        Last sync: {{ mailbox.last_synced_at|date:"M j, g:i a"|default:"never" }} ·
+        {{ mailbox.messages_seen }} messages read ·
+        {% if mailbox.backfill_done %}caught up{% else %}first sync in progress (last {{ mailbox.backfill_days }} days){% endif %}
+      </p>
+      {% if mailbox.last_error %}<p class="overdue" style="font-size:13px">{{ mailbox.last_error }}</p>{% endif %}
+      {% if not has_password %}
+        <div class="panel" style="background:var(--warn-bg);border-color:#f0d9a6">
+          <strong>One step left: add your Gmail app password.</strong>
+          <ol style="font-size:13px;padding-left:18px;margin:6px 0 0">
+            <li>Use the app password your send scripts already use, or make a new one at
+              <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener">myaccount.google.com/apppasswords</a>.</li>
+            <li>Open the file <code>.env</code> in the ACMI_CRM folder (create it if missing) and add the line<br>
+              <code>{{ env_var }}=your16letterpassword</code></li>
+            <li>Stop the app (Ctrl+C) and start it again so it picks up the file.</li>
+          </ol>
+        </div>
+      {% else %}
+        <form method="post" action="{% url 'crm:mailbox_sync_now' %}">{% csrf_token %}
+          <button class="btn-primary">Sync now</button>
+          <span class="muted" style="font-size:12px">Reads up to 500 messages per click{% if not mailbox.backfill_done %}; the first sync takes several clicks or one <code>sync_mail --all-backlog</code> run{% endif %}.</span>
+        </form>
+      {% endif %}
+      <details style="margin-top:12px"><summary class="muted">Change address or history window</summary>
+        {% include "crm/partials/mailbox_form.html" %}
+      </details>
+    {% else %}
+      <p class="muted" style="margin-top:0">Connect your Gmail so emails with prospects show up on their timelines automatically.</p>
+      {% include "crm/partials/mailbox_form.html" %}
+    {% endif %}
+  </div>
+
+  <div class="panel">
+    <h3>Team mailboxes</h3>
+    {% for mb in mailboxes %}
+      <div style="display:flex;justify-content:space-between;border-bottom:1px solid var(--line);padding:4px 0">
+        <span>{{ mb.user|username }} <span class="muted">{{ mb.email }}</span></span>
+        <span class="muted" style="font-size:12px">{% if mb.last_error %}<span class="overdue">error</span>{% else %}{{ mb.last_synced_at|date:"M j, g:i a"|default:"never synced" }}{% endif %}</span>
+      </div>
+    {% empty %}<p class="muted">No one has connected yet.</p>{% endfor %}
+    <p class="muted" style="font-size:12px">Only emails with outside contacts are logged. Mail between ACMI addresses, newsletters and protected addresses never is.</p>
+  </div>
+</div>
+
+<div class="panel">
+  <h3>New domains to review ({{ queue|length }})</h3>
+  <p class="muted" style="font-size:13px;margin-top:0">Emails with people at domains no company owns yet. Create a company (or attach the domain to an existing one) and the waiting emails land on its timeline. Ignore vendors, law firms and the like. Protect anything that should never be stored.</p>
+  {% if queue %}
+  <form method="post" action="{% url 'crm:review_bulk' %}" id="bulk-form" class="inline-form" style="margin-bottom:8px">{% csrf_token %}
+    <label style="display:flex;gap:4px;align-items:center"><input type="checkbox" id="select-all"> Select all</label>
+    <span class="muted" id="selected-count">0 selected</span>
+    <button class="btn-small" name="action" value="ignore">Ignore selected</button>
+    <button class="btn-small" name="action" value="protect" onclick="return confirm('Never store mail with the selected domains?')">Protect selected</button>
+    <button class="btn-small btn-primary" name="action" value="create" onclick="return confirm('Create a company for each selected domain, using the suggested names?')">Add selected as companies</button>
+  </form>
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th></th><th>Domain</th><th>Ignore / protect</th><th>Emails</th><th>People</th><th>Recent subjects</th><th>Add as company</th></tr></thead>
+    <tbody>
+    {% for g in queue %}
+      <tr>
+        <td><input type="checkbox" class="pick" name="domains" value="{{ g.domain }}" form="bulk-form"></td>
+        <td><strong>{{ g.domain }}</strong><div class="muted" style="font-size:12px">last {{ g.last|date:"M j" }}</div></td>
+        <td>
+          <form method="post" action="{% url 'crm:review_dismiss' %}" class="inline-form" style="flex-wrap:nowrap">{% csrf_token %}
+            <input type="hidden" name="domain" value="{{ g.domain }}">
+            <button class="btn-small" name="kind" value="ignore" title="Don't create a company; still log mail with people already in the CRM">Ignore</button>
+            <button class="btn-small" name="kind" value="protect" title="Never store mail with this domain">Protect</button>
+          </form>
+        </td>
+        <td>{{ g.count }}<div class="muted" style="font-size:12px">{{ g.sent }} sent · {{ g.received }} in</div></td>
+        <td class="wrap" style="font-size:12px;min-width:160px;max-width:220px">{% for addr, name in g.addresses.items %}{% if forloop.counter <= 3 %}{% if name %}{{ name }}<br>{% endif %}<span class="muted">{{ addr }}</span><br>{% elif forloop.last %}<span class="muted">+{{ forloop.counter|add:"-3" }} more</span>{% endif %}{% endfor %}</td>
+        <td class="wrap" style="font-size:12px;min-width:180px;max-width:240px">{% for s in g.subjects %}{{ s|truncatechars:60 }}<br>{% endfor %}</td>
+        <td>
+          <form method="post" action="{% url 'crm:review_approve' %}" style="display:grid;gap:4px;min-width:170px">{% csrf_token %}
+            <input type="hidden" name="domain" value="{{ g.domain }}">
+            <input name="name" placeholder="{{ g.suggested_name }}" title="Leave blank to use {{ g.suggested_name }}">
+            <input name="existing" list="company-names" placeholder="…or existing company">
+            <button class="btn-small btn-primary">Add</button>
+          </form>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  <datalist id="company-names"></datalist>
+  {% else %}<p class="muted">Nothing waiting.</p>{% endif %}
+</div>
+
+<div class="panel">
+  <h3>Filters</h3>
+  <form method="post" action="{% url 'crm:filter_add' %}" class="inline-form">{% csrf_token %}
+    <input name="pattern" placeholder="address@domain.com or domain.com" size="28" required>
+    <select name="kind">{% for v, l in filter_kinds %}<option value="{{ v }}" {% if v == 'ignore' %}selected{% endif %}>{{ l }}</option>{% endfor %}</select>
+    <input name="note" placeholder="Note (optional)" size="20">
+    <button class="btn-small">Add filter</button>
+  </form>
+  <table class="data" style="margin-top:10px">
+    {% for f in filters %}
+      <tr><td>{{ f.pattern }}</td><td>{{ f.get_kind_display }}</td><td class="muted">{{ f.note }}</td>
+      <td><form method="post" action="{% url 'crm:filter_delete' f.pk %}">{% csrf_token %}<button class="btn-small">Remove</button></form></td></tr>
+    {% empty %}<tr><td class="muted">No filters. ACMI's own domains are always excluded.</td></tr>{% endfor %}
+  </table>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+  const picks = [...document.querySelectorAll('.pick')];
+  const counter = document.getElementById('selected-count');
+  const refresh = () => { if (counter) counter.textContent = picks.filter(p => p.checked).length + ' selected'; };
+  picks.forEach(p => p.addEventListener('change', refresh));
+  document.getElementById('select-all')?.addEventListener('change', e => { picks.forEach(p => p.checked = e.target.checked); refresh(); });
+</script>
+<script>
+  // Fill the "existing company" suggestions lazily from the companies table.
+  const dl = document.getElementById('company-names');
+  if (dl) {
+    fetch('{% url "crm:company_names" %}').then(r => r.json()).then(names => {
+      dl.innerHTML = names.map(n => `<option value="${n.replace(/"/g, '&quot;')}">`).join('');
+    });
+  }
+</script>
+{% endblock %}

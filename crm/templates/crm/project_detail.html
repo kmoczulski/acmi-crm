@@ -1,0 +1,54 @@
+{% extends "crm/base.html" %}
+{% load crm_tags %}
+{% block title %}{{ project.name }} · ACMI CRM{% endblock %}
+{% block content %}
+<div class="record-head">
+  <h1>{{ project.name }}</h1>
+  {% if project.parent %}<a class="chip chip-project" href="{{ project.parent.get_absolute_url }}">{{ project.parent.name }}</a>{% endif %}
+  {% if project.address %}<span class="muted">{{ project.address }}</span>{% endif %}
+  <div class="record-nav"><a href="{% url 'crm:project_list' %}">All projects</a></div>
+</div>
+<div class="record">
+  <aside>
+    <div class="panel">
+      <h3>Details <button type="button" class="btn btn-small" style="float:right" onclick="document.getElementById('edit-dialog').showModal()">Edit</button></h3>
+      <dl class="details">
+        {% if project.campus %}<dt>Campus</dt><dd>{{ project.campus.name }}</dd>{% endif %}
+        {% if project.address %}<dt>Address</dt><dd>{{ project.address }}</dd>{% endif %}
+        <dt>Keywords</dt><dd>{% for k in project.keywords %}<span class="tag">{{ k }}</span> {% empty %}<span class="muted">none: nothing will be tagged</span>{% endfor %}</dd>
+        {% with sites=project.sites.all %}{% if sites %}<dt>Sites</dt><dd>{% for s in sites %}<a class="chip chip-project" href="{{ s.get_absolute_url }}">{{ s.name }}</a>{% endfor %}</dd>{% endif %}{% endwith %}
+        {% if project.description %}<dt>Notes</dt><dd>{{ project.description|linebreaksbr }}</dd>{% endif %}
+      </dl>
+      {% include "crm/partials/edit_dialog.html" %}
+    </div>
+    <div class="panel">
+      <h3>Companies involved ({{ companies|length }})</h3>
+      {% for c in companies %}
+        <div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--line);font-size:13px">
+          <a href="{{ c.get_absolute_url }}">{{ c.name }}</a><span class="muted">{{ c.n }} · {{ c.last|date:"M j" }}</span>
+        </div>
+      {% empty %}<p class="muted" style="margin:0">None yet.</p>{% endfor %}
+    </div>
+  </aside>
+  <section>
+    <div class="panel">
+      <h3>Correspondence</h3>
+      <ul class="timeline">{% for a in page %}
+        <li>
+          <span class="icon">{{ a.kind|kind_icon }}</span>
+          <div>
+            <div>{{ a.summary }}{% if a.outcome %} {{ a.outcome|pill:"response" }}{% endif %}</div>
+            <div class="meta">{% context_chip a %}{% if a.company %}<a href="{{ a.company.get_absolute_url }}">{{ a.company.name }}</a> · {% endif %}{% conversation a %}</div>
+          </div>
+          <span class="when">{{ a.occurred_at|date:"M j, Y" }}</span>
+        </li>
+      {% empty %}<li><span></span><span class="muted">No tagged correspondence yet.</span></li>{% endfor %}</ul>
+      {% if page.has_other_pages %}<div class="pager">
+        {% if page.has_previous %}<a href="?page={{ page.previous_page_number }}">‹ Newer</a>{% endif %}
+        <span>Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
+        {% if page.has_next %}<a href="?page={{ page.next_page_number }}">Older ›</a>{% endif %}
+      </div>{% endif %}
+    </div>
+  </section>
+</div>
+{% endblock %}

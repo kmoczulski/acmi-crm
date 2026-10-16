@@ -1,0 +1,144 @@
+{% load static %}<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}ACMI CRM{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'crm/app.css' %}?v={{ ASSET_VERSION }}">
+</head>
+<body>
+<div class="shell">
+  <nav class="sidebar">
+    <a class="brand" href="{% url 'crm:home' %}">{% if LOGO %}<img src="{% static LOGO %}?v={{ ASSET_VERSION }}" alt="ACMI Properties">{% else %}ACMI CRM{% endif %}</a>
+    {% with p=request.path %}
+    <a href="{% url 'crm:notification_list' %}" class="nav-bell {% if '/notifications/' in p %}active{% endif %}">🔔 Notifications{% if unread_notifications %} <span class="tag tag-alert">{{ unread_notifications }}</span>{% endif %}</a>
+    <a href="{% url 'crm:home' %}" class="nav-top {% if p == '/' %}active{% endif %}">Dashboard</a>
+
+    <details class="nav-sec" data-key="crm" open>
+      <summary>CRM</summary>
+      <details class="nav-sub" data-key="companies">
+        <summary><a href="{% url 'crm:company_list' %}" class="nav-1 {% if '/companies/' in p and 'duplicates' not in p %}active{% endif %}">Companies</a></summary>
+        <a href="{% url 'crm:duplicates' %}" class="nav-2 {% if 'duplicates' in p %}active{% endif %}">Possible duplicates</a>
+      </details>
+      <a href="{% url 'crm:person_list' %}" class="nav-1 {% if '/people/' in p %}active{% endif %}">People</a>
+      <details class="nav-sub" data-key="opportunities">
+        <summary><a href="{% url 'crm:opportunity_board' %}" class="nav-1 {% if '/opportunities/' in p %}active{% endif %}">Opportunities</a></summary>
+        <a href="{% url 'crm:pipeline_report' %}" class="nav-2 {% if '/reports/pipeline' in p %}active{% endif %}">Investor report</a>
+      </details>
+      <a href="{% url 'crm:meeting_list' %}" class="nav-1 {% if '/meetings/' in p %}active{% endif %}">Meetings</a>
+      <a href="{% url 'crm:task_list' %}" class="nav-1 {% if '/tasks/' in p %}active{% endif %}">Tasks{% if my_due_count %} <span class="tag">{{ my_due_count }}</span>{% endif %}</a>
+      <a href="{% url 'crm:list_index' %}" class="nav-1 {% if '/lists/' in p %}active{% endif %}">Lists</a>
+      <a href="{% url 'crm:project_list' %}" class="nav-1 {% if '/projects/' in p %}active{% endif %}">Projects</a>
+    </details>
+
+    <details class="nav-sec" data-key="outreach" open>
+      <summary>Outreach</summary>
+      <details class="nav-sub" data-key="sendqueue">
+        <summary><a href="{% url 'crm:outreach_home' %}" class="nav-1 {% if p == '/outreach/' or '/batches/' in p or p == '/outreach/settings/' %}active{% endif %}">Send queue</a></summary>
+        <a href="{% url 'crm:template_list' %}" class="nav-2 {% if '/outreach/templates' in p %}active{% endif %}">Templates</a>
+        <a href="{% url 'crm:weekly_report' %}" class="nav-2 {% if '/reports/weekly' in p %}active{% endif %}">Weekly report</a>
+      </details>
+      <a href="{% url 'crm:news_home' %}" class="nav-1 {% if '/news/' in p %}active{% endif %}">News review{% if news_open_count %} <span class="tag">{{ news_open_count }}</span>{% endif %}</a>
+      <a href="{% url 'crm:mail' %}" class="nav-1 {% if '/mail/' in p %}active{% endif %}">Mail review{% if mail_queue_count %} <span class="tag">{{ mail_queue_count }}</span>{% endif %}</a>
+    </details>
+
+    <details class="nav-sec" data-key="development" open>
+      <summary>Development</summary>
+      <a href="{% url 'crm:land_search' %}" class="nav-1 {% if '/land/' in p %}active{% endif %}">Land search</a>
+      <span class="nav-1 nav-planned" title="Separate tool for contract negotiations">Contract negotiations</span>
+    </details>
+
+    {% if user.is_staff %}
+    <details class="nav-sec" data-key="settings">
+      <summary>Settings</summary>
+      <a href="/admin/" class="nav-1">Admin</a>
+    </details>
+    {% endif %}
+    {% endwith %}
+    <div class="user">
+      {{ user.get_full_name|default:user.username }}<br>
+      <form method="post" action="{% url 'account_logout' %}" style="display:inline">{% csrf_token %}<button class="btn-link" style="color:#fff;font-size:12px">Sign out</button></form>
+    </div>
+  </nav>
+  <main>
+    {% if messages %}<ul class="messages">{% for m in messages %}<li class="{{ m.tags }}">{{ m }}</li>{% endfor %}</ul>{% endif %}
+    {% block content %}{% endblock %}
+  </main>
+</div>
+<script>
+  (function () {
+    document.querySelectorAll('.sidebar details[data-key]').forEach(d => {
+      let saved = null;
+      try { saved = localStorage.getItem('nav:' + d.dataset.key); } catch (e) {}
+      if (saved !== null) d.open = saved === '1';
+      if (d.querySelector('.active')) d.open = true;
+      d.addEventListener('toggle', () => { try { localStorage.setItem('nav:' + d.dataset.key, d.open ? '1' : '0'); } catch (e) {} });
+    });
+  })();
+  // Long lists (.clist[data-limit]) show the first N items with "Show N more" / "Show less".
+  document.querySelectorAll('.clist[data-limit]').forEach(list => {
+    const limit = +list.dataset.limit || 10;
+    const items = [...list.children].filter(el => !el.matches('p.muted, li.muted'));
+    if (items.length <= limit) return;
+    const extra = items.slice(limit);
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'btn btn-small clist-more';
+    const label = open => open ? 'Show less' : `Show ${extra.length} more`;
+    const set = open => { extra.forEach(el => { el.hidden = !open; }); btn.textContent = label(open); list.dataset.open = open ? '1' : ''; };
+    btn.addEventListener('click', () => set(!list.dataset.open));
+    const holder = document.createElement(list.tagName === 'UL' ? 'li' : 'div');
+    holder.className = 'clist-holder';
+    holder.appendChild(btn);
+    list.appendChild(holder);
+    set(false);
+  });
+  // POST helper for drag-and-drop boards.
+  function csrfPost(url, data) {
+    const token = document.cookie.split('; ').find(c => c.startsWith('csrftoken='))?.split('=')[1];
+    return fetch(url, {method: 'POST', headers: {'X-CSRFToken': token}, body: new URLSearchParams(data)});
+  }
+</script>
+<script>
+  // Fit score: show the chosen score's definition; click the chosen chip again to clear it.
+  (function () {
+    const box = document.getElementById('id_fit_score');
+    if (!box) return;
+    const defs = (box.querySelector('input')?.dataset.definitions || '').split('|');
+    const out = document.createElement('div');
+    out.className = 'fit-definition';
+    box.after(out);
+    const show = () => {
+      const c = box.querySelector('input:checked');
+      out.textContent = c ? c.value + ' · ' + defs[c.value - 1] : 'Not scored. Hover a number for its meaning.';
+    };
+    box.querySelectorAll('input').forEach((i, n) => {
+      i.closest('label').title = defs[n];
+      i.addEventListener('click', e => {
+        if (i.dataset.was === '1') { i.checked = false; i.dataset.was = ''; }
+        else { box.querySelectorAll('input').forEach(x => x.dataset.was = ''); i.dataset.was = '1'; }
+        show();
+      });
+      if (i.checked) i.dataset.was = '1';
+    });
+    show();
+  })();
+  // Campus: ACMI campuses can combine; "Own campus" and "None" stand alone.
+  (function () {
+    const box = document.getElementById('id_campus_choice');
+    if (!box) return;
+    const solo = v => v === 'own' || v === 'none';
+    box.querySelectorAll('input').forEach(i => i.addEventListener('change', () => {
+      if (!i.checked) return;
+      box.querySelectorAll('input').forEach(o => {
+        if (o !== i && (solo(i.value) || solo(o.value))) o.checked = false;
+      });
+    }));
+  })();
+</script>
+<script>
+  document.querySelectorAll('dialog[data-open-on-load]').forEach(d => d.showModal());
+</script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

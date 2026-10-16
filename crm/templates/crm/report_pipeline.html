@@ -1,0 +1,44 @@
+{% extends "crm/base.html" %}
+{% load crm_tags humanize %}
+{% block title %}Pipeline report · ACMI CRM{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>ACMI Properties pipeline <span class="muted" style="font-weight:400;font-size:14px">as of {{ as_of|date:"F j, Y" }}</span></h1>
+  <span class="spacer"></span>
+  <span class="no-print">
+    {% if show_all %}<a class="btn" href="?">Investor deals only</a>{% else %}<a class="btn" href="?all=1">Show every deal</a>{% endif %}
+    <a class="btn" href="{% url 'crm:pipeline_report_xlsx' %}{% if show_all %}?all=1{% endif %}">Download Excel</a>
+    <button class="btn btn-primary" onclick="window.print()">Print / PDF</button>
+  </span>
+</div>
+<p class="muted no-print" style="margin-top:-8px">{% if show_all %}Every deal in the CRM.{% else %}Deals ticked “On investor report”. Tick it on a deal's Edit form to add it here.{% endif %}</p>
+
+{% for s in sections %}
+<div class="panel">
+  <h3>{{ s.title }} <span style="float:right;text-transform:none;letter-spacing:0">{{ s.rows|length }} tenant{{ s.rows|length|pluralize }} · {{ s.sf|intcomma }} sf · {{ s.cost|money|default:"$0" }}{% if s.weighted %} · weighted {{ s.weighted|money }}{% endif %}</span></h3>
+  <div class="table-wrap"><table class="data compact">
+    <thead><tr><th>Site</th><th>Deal type</th><th>Stage</th><th>Tenant</th><th>Asset type</th><th class="num">Acres</th><th class="num">Size (sf)</th><th class="num">Project cost</th><th class="num">$ PSF</th><th class="num">Win %</th><th>Owner</th><th>Target close</th><th>Next step / notes</th></tr></thead>
+    <tbody>{% for o in s.rows %}
+      <tr><td>{{ o.site_label }}</td><td>{{ o.get_deal_type_display }}</td><td><span class="stage">{{ o.get_stage_display }}</span></td>
+        <td><a href="{{ o.get_absolute_url }}">{{ o.company.name }}</a></td><td>{{ o.get_asset_type_display }}</td>
+        <td class="num">{{ o.acreage_need|default_if_none:""|floatformat:"-2"|intcomma }}</td><td class="num">{{ o.sq_ft_need|default_if_none:""|intcomma }}</td>
+        <td class="num">{% if o.value %}${{ o.value|floatformat:0|intcomma }}{% else %}TBD{% endif %}</td>
+        <td class="num">{% if o.cost_psf %}${{ o.cost_psf|floatformat:0|intcomma }}{% endif %}</td><td class="num">{{ o.win_probability }}%</td>
+        <td>{{ o.owner|username }}</td><td>{{ o.target_close|date:"n/j/Y" }}</td><td style="max-width:320px">{{ o.next_step|default:o.timeline }}</td></tr>
+    {% empty %}<tr><td colspan="13" class="muted">None.</td></tr>{% endfor %}</tbody>
+  </table></div>
+</div>
+{% endfor %}
+
+<div class="panel">
+  <h3>Development sites</h3>
+  <table class="data compact">
+    <thead><tr><th>Site</th><th class="num">Acres</th><th class="num">Tenants</th><th class="num">Total sf</th><th class="num">Project cost</th><th class="num">Weighted</th><th class="num">Avg $ PSF</th></tr></thead>
+    <tbody>{% for r in sites %}
+      <tr><td>{{ r.site }}{% if r.campus %} <span class="muted">{{ r.campus.name }}</span>{% endif %}</td><td class="num">{% if r.acres %}{{ r.acres|floatformat:"-2"|intcomma }}{% endif %}</td><td class="num">{{ r.tenants }}</td>
+        <td class="num">{{ r.sf|intcomma }}</td><td class="num">${{ r.cost|floatformat:0|intcomma }}</td><td class="num">${{ r.weighted|floatformat:0|intcomma }}</td>
+        <td class="num">{% if r.psf %}${{ r.psf|floatformat:0|intcomma }}{% endif %}</td></tr>
+    {% endfor %}</tbody>
+  </table>
+</div>
+{% endblock %}

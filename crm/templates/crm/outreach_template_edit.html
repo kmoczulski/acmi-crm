@@ -1,0 +1,19 @@
+{% extends "crm/base.html" %}
+{% block title %}{% if template %}{{ template.template_id }}{% else %}New template{% endif %} · Outreach{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>{% if template %}{{ template.template_id }} · {{ template.name }}{% else %}New template{% endif %}</h1>
+  <span class="spacer"></span>
+  <a class="btn" href="{% url 'crm:template_list' %}">All templates</a>
+</div>
+<div class="grid-2">
+  <div class="panel"><form method="post" class="fields">{% csrf_token %}{{ form.as_p }}<button class="btn-primary">Save</button></form></div>
+  <div class="panel">
+    <h3>Preview{% if preview %} for {{ preview.person }}{% endif %}</h3>
+    {% if preview %}
+      <p style="margin-top:0"><strong>Subject:</strong> {{ preview.subject }}</p>
+      <iframe sandbox srcdoc="{{ preview.html }}" style="width:100%;height:520px;border:1px solid var(--line);border-radius:6px;background:#fff"></iframe>
+    {% else %}<p class="muted">Save the template to see a preview.</p>{% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,51 @@
+{% extends "crm/base.html" %}
+{% load crm_tags socialaccount %}
+{% block title %}Meetings · ACMI CRM{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Meetings</h1>
+  <a class="btn" href="{% qs_set month=prev|date:'Y-m' open='' %}">‹</a>
+  <strong style="min-width:130px;text-align:center">{{ first|date:"F Y" }}</strong>
+  <a class="btn" href="{% qs_set month=next|date:'Y-m' open='' %}">›</a>
+  <a class="btn" href="{% qs_set month='' open='' %}">Today</a>
+  <span class="spacer"></span>
+  <a class="btn {% if who == 'all' %}btn-primary{% endif %}" href="{% qs_set who='' %}">Everyone</a>
+  <a class="btn {% if who == 'me' %}btn-primary{% endif %}" href="{% qs_set who='me' %}">Mine</a>
+  <a class="btn {% if who == 'outside' %}btn-primary{% endif %}" href="{% qs_set who='outside' %}">With companies</a>
+</div>
+
+<div class="cal-connect">
+  {% if not google_ready %}
+    <span class="muted">Google Calendar is not set up (GOOGLE_CLIENT_ID missing).</span>
+  {% elif calendar_connected %}
+    <span>📅 Your Google Calendar is connected{% if calendar_state.last_synced_at %} · synced {{ calendar_state.last_synced_at|ago }}{% endif %}.</span>
+    {% if calendar_state.last_error %}<span class="overdue">{{ calendar_state.last_error }}</span>
+      <a class="btn btn-small" href="{% provider_login_url 'google' process='connect' auth_params='prompt=consent' next=request.path %}">Reconnect</a>{% endif %}
+    <form method="post" action="{% url 'crm:calendar_sync_now' %}" style="display:inline">{% csrf_token %}<button class="btn btn-small">Sync now</button></form>
+  {% else %}
+    <span>Connect your Google Calendar so your meetings show up here and on company timelines automatically.</span>
+    <a class="btn btn-small btn-primary" href="{% provider_login_url 'google' process='connect' auth_params='prompt=consent' next=request.path %}">Connect Google Calendar</a>
+  {% endif %}
+</div>
+
+<div class="cal">
+  <div class="cal-head">{% for d in "SMTWTFS" %}<div>{% cycle "Sun" "Mon" "Tue" "Wed" "Thu" "Fri" "Sat" %}</div>{% endfor %}</div>
+  {% for week in weeks %}
+  <div class="cal-week">
+    {% for day in week %}
+    <div class="cal-day {% if day.other %}other{% endif %} {% if day.today %}today{% endif %}">
+      <div class="cal-date">{{ day.date.day }}</div>
+      {% for m in day.meetings %}
+        <button type="button" class="cal-event {% if m.companies.all %}ext{% endif %} {% if m.summary %}notes{% endif %}" data-id="{{ m.pk }}"
+                title="{{ m.title }}">{{ m.start|time:"g:i" }} {{ m.title|truncatechars:34 }}</button>
+      {% endfor %}
+    </div>
+    {% endfor %}
+  </div>
+  {% endfor %}
+</div>
+<p class="muted" style="font-size:12px"><span class="cal-event ext" style="display:inline-block">blue</span> = with an outside company ·
+  <span class="cal-event notes" style="display:inline-block">📝</span> = has Granola notes. Click a meeting for the summary and action items.</p>
+
+{% include "crm/partials/meeting_dialog.html" %}
+{% endblock %}

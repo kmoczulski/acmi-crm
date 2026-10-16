@@ -1,0 +1,47 @@
+{# Inline styles only: this same markup is emailed. #}
+<div style="font-family: Arial, sans-serif; color: #1d2330; font-size: 14px;">
+  <div style="background:#1f3a5f;color:#fff;padding:14px 18px;border-radius:6px">
+    <div style="font-size:18px;font-weight:bold">WEEKLY OUTREACH REPORT</div>
+    <div style="font-size:13px;opacity:.85">{{ r.start|date:"M j" }} – {{ r.end|date:"M j, Y" }}{% if r.campaigns %} · {{ r.campaigns|join:", " }}{% endif %}</div>
+  </div>
+  <table style="width:100%;border-collapse:separate;border-spacing:8px;margin:8px -8px">
+    <tr>
+      <td style="background:#f6f7f9;border-radius:6px;padding:10px"><div style="font-size:11px;color:#6b7280">EMAILS SENT</div><div style="font-size:22px;font-weight:bold">{{ r.emails }}</div></td>
+      <td style="background:#f6f7f9;border-radius:6px;padding:10px"><div style="font-size:11px;color:#6b7280">COMPANIES</div><div style="font-size:22px;font-weight:bold">{{ r.companies }}</div></td>
+      {% for t in r.tiers %}<td style="background:#f6f7f9;border-radius:6px;padding:10px"><div style="font-size:11px;color:#6b7280">{{ t.tier|upper }}</div><div style="font-size:22px;font-weight:bold">{{ t.emails }}</div><div style="font-size:11px;color:#6b7280">{{ t.companies }} companies</div></td>{% endfor %}
+      <td style="background:#f6f7f9;border-radius:6px;padding:10px"><div style="font-size:11px;color:#6b7280">POSITIVE RESPONSE RATE</div><div style="font-size:22px;font-weight:bold">{{ r.response_rate }}%</div></td>
+    </tr>
+  </table>
+
+  <h3 style="font-size:13px;color:#6b7280;margin:16px 0 6px">RESPONSE SUMMARY (people emailed this week)</h3>
+  <table style="width:100%;border-collapse:collapse;font-size:13px">
+    <tr style="background:#fafbfc"><th style="text-align:left;padding:5px 8px;border-bottom:1px solid #e3e6eb">Status</th><th style="text-align:right;padding:5px 8px;border-bottom:1px solid #e3e6eb">Total</th><th style="text-align:right;padding:5px 8px;border-bottom:1px solid #e3e6eb">High</th><th style="text-align:right;padding:5px 8px;border-bottom:1px solid #e3e6eb">Mid</th><th style="text-align:right;padding:5px 8px;border-bottom:1px solid #e3e6eb">Low</th></tr>
+    {% for s in r.summary %}<tr><td style="padding:5px 8px;border-bottom:1px solid #eef0f3">{{ s.status }}</td><td style="text-align:right;padding:5px 8px;border-bottom:1px solid #eef0f3">{{ s.total }}</td><td style="text-align:right;padding:5px 8px;border-bottom:1px solid #eef0f3">{{ s.high }}</td><td style="text-align:right;padding:5px 8px;border-bottom:1px solid #eef0f3">{{ s.mid }}</td><td style="text-align:right;padding:5px 8px;border-bottom:1px solid #eef0f3">{{ s.low }}</td></tr>
+    {% empty %}<tr><td style="padding:5px 8px;color:#6b7280">No outreach emails this week.</td></tr>{% endfor %}
+  </table>
+
+  {% if r.positive_replies %}
+  <h3 style="font-size:13px;color:#6b7280;margin:16px 0 6px">POSITIVE REPLIES THIS WEEK</h3>
+  <table style="width:100%;border-collapse:collapse;font-size:13px">
+    {% for a in r.positive_replies %}<tr><td style="padding:5px 8px;border-bottom:1px solid #eef0f3">{{ a.occurred_at|date:"M j" }}</td><td style="padding:5px 8px;border-bottom:1px solid #eef0f3"><strong>{{ a.person }}</strong>{% if a.company %} · {{ a.company.name }}{% endif %}</td><td style="padding:5px 8px;border-bottom:1px solid #eef0f3">{% for p in a.projects.all %}{{ p.name }}{% if not forloop.last %} · {% endif %}{% empty %}{% if a.context == 'prospecting' %}Prospecting{% endif %}{% endfor %}</td><td style="padding:5px 8px;border-bottom:1px solid #eef0f3;color:#6b7280">{{ a.summary|cut:"Reply from "|truncatechars:70 }}</td></tr>{% endfor %}
+  </table>
+  {% endif %}
+
+  {% if r.respondents %}
+  <h3 style="font-size:13px;color:#6b7280;margin:16px 0 6px">RESPONDENTS (from this week's outreach)</h3>
+  <table style="width:100%;border-collapse:collapse;font-size:13px">
+    <tr style="background:#fafbfc"><th style="text-align:left;padding:5px 8px">Company</th><th style="text-align:left;padding:5px 8px">Contacts</th><th style="text-align:left;padding:5px 8px">Priority</th><th style="text-align:left;padding:5px 8px">Status</th></tr>
+    {% for x in r.respondents %}<tr><td style="padding:5px 8px;border-bottom:1px solid #eef0f3">{{ x.name }}</td><td style="padding:5px 8px;border-bottom:1px solid #eef0f3">{% for p in x.people %}{{ p }}{% if not forloop.last %}, {% endif %}{% endfor %}</td><td style="padding:5px 8px;border-bottom:1px solid #eef0f3">{{ x.tier }}</td><td style="padding:5px 8px;border-bottom:1px solid #eef0f3">{{ x.status }}</td></tr>{% endfor %}
+  </table>
+  {% endif %}
+
+  {% for tier, rows in r.company_rows %}{% if rows %}
+  <h3 style="font-size:13px;color:#6b7280;margin:16px 0 6px">{{ tier|upper }} PRIORITY COMPANIES ({{ rows|length }})</h3>
+  <table style="width:100%;border-collapse:collapse;font-size:13px">
+    <tr style="background:#fafbfc"><th style="text-align:left;padding:5px 8px">Company</th><th style="text-align:left;padding:5px 8px">Sector</th><th style="text-align:right;padding:5px 8px">Contacts</th><th style="text-align:right;padding:5px 8px">Emails</th><th style="text-align:left;padding:5px 8px">Status</th></tr>
+    {% for row in rows %}<tr><td style="padding:4px 8px;border-bottom:1px solid #eef0f3">{{ row.company.name }}</td><td style="padding:4px 8px;border-bottom:1px solid #eef0f3">{{ row.company.sector }}</td><td style="text-align:right;padding:4px 8px;border-bottom:1px solid #eef0f3">{{ row.people }}</td><td style="text-align:right;padding:4px 8px;border-bottom:1px solid #eef0f3">{{ row.emails }}</td><td style="padding:4px 8px;border-bottom:1px solid #eef0f3">{{ row.status }}</td></tr>{% endfor %}
+  </table>
+  {% endif %}{% endfor %}
+
+  <p style="font-size:12px;color:#6b7280;margin-top:16px">{{ r.new_companies }} new compan{{ r.new_companies|pluralize:"y,ies" }} added to the CRM this week{% if r.news_scans %} · news review: {% for s in r.news_scans %}{{ s }}{% if not forloop.last %}, {% endif %}{% endfor %}{% endif %}. Generated by the ACMI CRM.</p>
+</div>

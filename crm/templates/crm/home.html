@@ -1,0 +1,170 @@
+{% extends "crm/base.html" %}
+{% load crm_tags humanize %}
+{% block content %}
+<div class="page-head"><h1>Good {% now "A" as ampm %}{% if ampm == "AM" %}morning{% else %}afternoon{% endif %}, {{ user.first_name|default:user.username }}</h1>
+  <span class="spacer"></span>
+  <a class="btn" href="{% url 'crm:pipeline_report' %}">Investor pipeline report</a>
+</div>
+
+<div class="cards">
+  <a class="card" href="{% url 'crm:opportunity_board' %}"><div class="label">Open pipeline</div><div class="value">{{ summary.open_total|money|default:"$0" }}</div>
+    <div class="sub">{{ summary.open_count }} deal{{ summary.open_count|pluralize }}{% if summary.unpriced %} · {{ summary.unpriced }} not priced{% endif %}</div></a>
+  <a class="card" href="{% url 'crm:opportunity_board' %}"><div class="label">Weighted pipeline</div><div class="value">{{ summary.weighted_total|money|default:"$0" }}</div>
+    <div class="sub">Value × stage probability</div></a>
+  <a class="card" href="{% url 'crm:opportunity_board' %}?stage=signed"><div class="label">Signed</div><div class="value">{{ summary.signed_total|money|default:"$0" }}</div>
+    <div class="sub">{{ summary.signed_count }} lease{{ summary.signed_count|pluralize }} / DMA{{ summary.signed_count|pluralize }}</div></a>
+  <a class="card" href="{% url 'crm:opportunity_board' %}?risk=1"><div class="label">Need attention</div><div class="value">{{ at_risk_count }}</div>
+    <div class="sub">No next step, overdue or gone quiet</div></a>
+  {% for c in summary.by_campus %}
+  <a class="card" href="{% url 'crm:opportunity_board' %}{% if c.label != 'Other / TBD' %}?campus={{ c.label }}{% else %}?campus=none{% endif %}"><div class="label">{{ c.label }}</div><div class="value">{{ c.total|money|default:"—" }}</div>
+    <div class="sub">{{ c.count }} deal{{ c.count|pluralize }}{% if c.sf %} · {{ c.sf|intcomma }} sf{% endif %}</div></a>
+  {% endfor %}
+</div>
+
+<div class="panel week-panel">
+  <h3>
+    {% if week.offset == 0 %}This week{% elif week.offset == 1 %}Next week{% elif week.offset == -1 %}Last week{% else %}Week of {{ week.monday|date:"M j" }}{% endif %}
+    <span class="muted" style="text-transform:none;letter-spacing:0;font-weight:400">· {{ week.monday|date:"M j" }} – {{ week.sunday|date:"M j" }} · {{ week.count }} meeting{{ week.count|pluralize }}</span>
+    <span class="week-nav">
+      <a class="btn btn-small" href="{% qs_set week=week.offset|add:'-1' %}" title="Previous week">‹</a>
+      {% if week.offset != 0 %}<a class="btn btn-small" href="{% qs_set week='' %}">Today</a>{% endif %}
+      <a class="btn btn-small" href="{% qs_set week=week.offset|add:'1' %}" title="Next week">›</a>
+      <a class="btn btn-small {% if not week.everyone %}btn-primary{% endif %}" href="{% qs_set cal='' %}">Mine</a>
+      <a class="btn btn-small {% if week.everyone %}btn-primary{% endif %}" href="{% qs_set cal='all' %}">Everyone</a>
+      <a class="btn btn-small" href="{% url 'crm:meeting_list' %}">Month</a>
+    </span>
+  </h3>
+  <div class="week-grid" style="grid-template-columns: repeat({{ week.days|length }}, minmax(0, 1fr))">
+    {% for d in week.days %}
+    <div class="week-day {% if d.today %}today{% endif %} {% if d.past %}past{% endif %}">
+      <div class="week-date"><span>{{ d.date|date:"D" }}</span> <strong>{{ d.date|date:"j" }}</strong></div>
+      {% for m in d.meetings %}
+        <button type="button" class="cal-event week-event {% if m.companies.all %}ext{% endif %}" data-id="{{ m.pk }}" title="{{ m.title }}">
+          <span class="week-time">{{ m.start|time:"g:i A" }}</span>
+          <span class="week-title">{% if m.summary %}📝 {% endif %}{{ m.title }}</span>
+          {% for c in m.companies.all|slice:":2" %}<span class="week-co">{{ c.name }}</span>{% endfor %}
+        </button>
+      {% empty %}<div class="muted week-empty">—</div>{% endfor %}
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% include "crm/partials/meeting_dialog.html" %}
+
+<div class="grid-2">
+  <div>
+    <div class="panel">
+      <h3>My day</h3>
+      <div class="subhead">Replies waiting on us <span class="muted">({{ day.replies|length }})</span></div>
+<div class="clist" data-limit="10">
+      {% for r in day.replies %}
+        <div class="row-line">
+          <span><a href="{{ r.company.get_absolute_url }}?tab=activity">{{ r.company.name }}</a>{% if r.person %} · {{ r.person }}{% endif %}
+            {% if r.gist %}<span class="muted"> “{{ r.gist }}”</span>{% endif %}</span>
+          <span class="muted" style="white-space:nowrap">{{ r.occurred_at|date:"M j" }}</span>
+        </div>
+      {% empty %}<p class="muted" style="margin:4px 0">All caught up.</p>{% endfor %}
+      </div>
+      <div class="subhead">My tasks</div>
+      <ul class="tasklist clist" data-limit="10">
+        {% for t in overdue %}{% include "crm/partials/task_row.html" %}{% endfor %}
+        {% for t in upcoming %}{% include "crm/partials/task_row.html" %}{% endfor %}
+        {% if not overdue and not upcoming %}<li class="muted">Nothing due.</li>{% endif %}
+      </ul>
+      <div class="subhead">My deals that need a next step <span class="muted">({{ day.deals|length }} of {{ day.deal_count }})</span></div>
+<div class="clist" data-limit="10">
+      {% for r in day.deals %}
+        <div class="row-line"><span><a href="{{ r.opp.get_absolute_url }}">{{ r.opp.name }}</a> <span class="stage">{{ r.opp.get_stage_display }}</span></span>
+          <span class="muted" style="font-size:12px">{{ r.reasons|join:" · " }}</span></div>
+      {% empty %}<p class="muted" style="margin:4px 0">Every deal you own has a next step.</p>{% endfor %}
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>Recent positive responses</h3>
+<div class="clist" data-limit="10">
+      {% for r in replies %}
+        <div style="padding:7px 0;border-bottom:1px solid var(--line)">
+          <div style="display:flex;justify-content:space-between;gap:8px">
+            <span><a href="{{ r.person.get_absolute_url }}">{{ r.person }}</a>{% if r.company %} · <a class="muted" href="{{ r.company.get_absolute_url }}">{{ r.company.name }}</a>{% endif %}</span>
+            <span class="muted" style="white-space:nowrap">{{ r.occurred_at|date:"M j" }}</span>
+          </div>
+          <div style="margin-top:3px">{% context_chip r %}</div>
+          {% if r.gist %}<div style="font-size:13px;margin-top:2px">“{{ r.gist }}”</div>{% endif %}
+          <div class="muted" style="font-size:12px">Re: {{ r.summary|cut:"Reply from "|truncatechars:70 }}{% with t=r.team_members.all %}{% if t %} · to {% for u in t %}{{ u|username }}{% if not forloop.last %}, {% endif %}{% endfor %}{% endif %}{% endwith %}</div>
+        </div>
+      {% empty %}<p class="muted">None yet.</p>{% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <div class="panel">
+      <h3>Pipeline by stage <a href="{% url 'crm:opportunity_board' %}" style="float:right;text-transform:none;letter-spacing:0">Board</a></h3>
+      <table class="data compact">
+        <thead><tr><th>Stage</th><th class="num">Deals</th><th class="num">Value</th><th class="num">Win %</th><th class="num">Weighted</th></tr></thead>
+        <tbody>{% for s in summary.by_stage %}{% if s.count %}
+          <tr><td><a href="{% url 'crm:opportunity_board' %}?stage={{ s.value }}">{{ s.label }}</a></td><td class="num">{{ s.count }}</td>
+            <td class="num">{{ s.total|money }}</td><td class="num">{{ s.probability }}%</td><td class="num">{{ s.weighted|money }}</td></tr>
+        {% endif %}{% endfor %}</tbody>
+      </table>
+    </div>
+
+    <div class="panel">
+      <h3>Deals that need attention <a href="{% url 'crm:opportunity_board' %}?risk=1" style="float:right;text-transform:none;letter-spacing:0">All {{ at_risk_count }}</a></h3>
+<div class="clist" data-limit="10">
+      {% for r in at_risk %}
+        <div class="row-line"><span><a href="{{ r.opp.get_absolute_url }}">{{ r.opp.name }}</a> <span class="stage">{{ r.opp.get_stage_display }}</span>{% if r.opp.value %} <span class="muted">{{ r.opp.value|money }}</span>{% endif %}</span>
+          <span class="muted" style="font-size:12px;text-align:right">{{ r.reasons|join:" · " }}{% if r.opp.owner %} · {{ r.opp.owner|username }}{% endif %}</span></div>
+      {% empty %}<p class="muted" style="margin:0">Nothing stalled.</p>{% endfor %}
+      </div>
+    </div>
+
+    {% if suggestions %}
+    <div class="panel">
+      <h3>Possible deals found in email</h3>
+      {% include "crm/partials/deal_suggestions.html" %}
+    </div>
+    {% endif %}
+
+    <div class="panel">
+      <h3>This week in the pipeline</h3>
+<div class="clist" data-limit="10">
+      {% for m in changes.moves %}
+        <div class="row-line"><span><a href="{{ m.opp.get_absolute_url }}">{{ m.opp.name }}</a>: {{ m.old_value|default:"—" }} → <strong>{{ m.new_value }}</strong></span>
+          <span class="muted">{{ m.changed_at|date:"M j" }}{% if m.changed_by %} · {{ m.changed_by|username }}{% endif %}</span></div>
+      {% endfor %}
+      {% for o in changes.new %}
+        <div class="row-line"><span>New: <a href="{{ o.get_absolute_url }}">{{ o.name }}</a></span><span class="muted">{{ o.created_at|date:"M j" }}</span></div>
+      {% endfor %}
+      </div>
+      {% if not changes.moves and not changes.new %}<p class="muted" style="margin:0">No stage changes in the last 7 days.</p>{% endif %}
+    </div>
+
+    <div class="panel" id="recent">
+      <h3>Recent activity <span class="muted" style="text-transform:none;letter-spacing:0;font-weight:400">· last {{ activity_days }} days · {{ recent|length }} item{{ recent|length|pluralize }}</span></h3>
+      <ul class="timeline clist" data-limit="10">
+        {% for a in recent %}
+        <li>
+          <span class="icon">{{ a.kind|kind_icon }}</span>
+          <div>{% context_chip a %}{{ a.summary|truncatechars:110 }} {% if a.outcome %}{{ a.outcome|pill:"response" }}{% endif %}
+            <div class="meta">{% if a.company %}<a href="{{ a.company.get_absolute_url }}">{{ a.company.name }}</a>{% endif %}{% if a.person %} · {{ a.person }}{% endif %}</div></div>
+          <span class="when">{{ a.occurred_at|date:"M j" }}</span>
+        </li>
+        {% empty %}<li><span></span><span class="muted">Nothing in the last {{ activity_days }} days.</span></li>{% endfor %}
+      </ul>
+      <div style="text-align:center;margin-top:8px">
+        <a class="btn btn-small" href="{% qs_set days=activity_days|add:7 %}#recent">Show 7 more days</a>
+        {% if activity_days > 7 %}<a class="btn btn-small" href="{% qs_set days='' %}#recent">Back to last 7 days</a>{% endif %}
+      </div>
+    </div>
+
+    <details class="panel">
+      <summary class="muted" style="cursor:pointer;font-size:13px;text-transform:uppercase;letter-spacing:.04em">Outreach funnel (companies by stage)</summary>
+      <div class="cards" style="margin:10px 0 0">
+        {% for value, label, n in stage_counts %}<a class="card" href="{% url 'crm:company_list' %}?status={{ value }}"><div class="label">{{ label }}</div><div class="value">{{ n|intcomma }}</div></a>{% endfor %}
+      </div>
+    </details>
+  </div>
+</div>
+{% endblock %}

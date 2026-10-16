@@ -1,0 +1,12 @@
+<form method="post" action="{% url 'crm:mailbox_setup' %}" class="inline-form" style="margin-top:8px">{% csrf_token %}
+  <input type="email" name="email" value="{{ mailbox.email|default:default_email }}" placeholder="you@acmigroup.com" required size="26">
+  <label class="muted" style="font-size:12px">History
+    <select name="backfill_days">
+      <option value="90" {% if mailbox.backfill_days == 90 %}selected{% endif %}>90 days</option>
+      <option value="180" {% if mailbox.backfill_days == 180 %}selected{% endif %}>6 months</option>
+      <option value="365" {% if not mailbox or mailbox.backfill_days == 365 %}selected{% endif %}>1 year</option>
+      <option value="730" {% if mailbox.backfill_days == 730 %}selected{% endif %}>2 years</option>
+    </select>
+  </label>
+  <button class="btn-small">{% if mailbox %}Save{% else %}Connect mailbox{% endif %}</button>
+</form>

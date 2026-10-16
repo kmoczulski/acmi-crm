@@ -1,0 +1,16 @@
+{# Pop-up for any .cal-event[data-id] on the page: Granola summary, action items, attendees. #}
+<dialog id="meeting-dialog" class="meeting-dialog"><div id="meeting-body">Loading…</div></dialog>
+<script>
+  (function () {
+    const dlg = document.getElementById('meeting-dialog'), body = document.getElementById('meeting-body');
+    async function openMeeting(id) {
+      body.innerHTML = 'Loading…';
+      dlg.showModal();
+      const r = await fetch(`/meetings/${id}/panel/`);
+      body.innerHTML = await r.text();
+    }
+    document.querySelectorAll('.cal-event[data-id]').forEach(b => b.addEventListener('click', () => openMeeting(b.dataset.id)));
+    dlg.addEventListener('click', e => { if (e.target === dlg || e.target.closest('[data-close]')) dlg.close(); });
+    {% if open_id %}openMeeting('{{ open_id|escapejs }}');{% endif %}
+  })();
+</script>

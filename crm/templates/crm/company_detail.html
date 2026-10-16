@@ -1,0 +1,114 @@
+{% extends "crm/base.html" %}
+{% load crm_tags humanize %}
+{% block title %}{{ company.name }} · ACMI CRM{% endblock %}
+{% block content %}
+<div class="record-head">
+  <h1>{{ company.name }}</h1>
+  <span class="stage stage-{{ company.status }}">{{ company.get_status_display }}</span>
+  {{ company.priority|pill }}
+  {% for f in company.flags %}<span class="tag">{{ f }}</span>{% endfor %}
+  {% url 'crm:company_list' as back_url %}
+  {% include "crm/partials/record_nav.html" with detail_url="crm:company_detail" back_url=back_url %}
+</div>
+
+<div class="record">
+  <aside>
+    <div class="panel">
+      <h3>Details <button type="button" class="btn btn-small" style="float:right" onclick="document.getElementById('edit-dialog').showModal()">Edit</button></h3>
+      {% include "crm/partials/company_details.html" %}
+      {% include "crm/partials/edit_dialog.html" with title="company" %}
+      <details style="margin-top:10px"><summary class="muted" style="font-size:12px;cursor:pointer">Merge another company into this one</summary>
+        <form method="post" action="{% url 'crm:company_merge_into' company.pk %}" class="inline-form" style="margin-top:6px"
+              onsubmit="return confirm('Merge that company into {{ company.name|escapejs }}? Its people, emails and documents move here and it is deleted.')">{% csrf_token %}
+          <input name="other" list="merge-company-names" placeholder="Company name" required style="flex:1">
+          <button class="btn-small">Merge</button>
+        </form>
+        <datalist id="merge-company-names">{% for n in merge_candidates %}<option value="{{ n }}">{% endfor %}</datalist>
+      </details>
+      <details class="danger-zone"><summary>Delete this company</summary>
+        <form method="post" action="{% url 'crm:company_delete' company.pk %}" style="margin-top:8px"
+              onsubmit="return confirm('Delete {{ company.name|escapejs }} and its whole timeline, tasks, notes and opportunities? This cannot be undone.')">{% csrf_token %}
+          <label class="muted" style="font-size:12px;display:block;margin-bottom:6px"><input type="checkbox" name="people" value="delete"> Also delete its {{ people|length }} people</label>
+          <button class="btn-small btn-danger">Delete company</button>
+        </form>
+      </details>
+    </div>
+    {% include "crm/partials/record_side.html" %}
+  </aside>
+
+  <section>
+    <nav class="tabs">
+      {% with base=request.path %}
+      <a href="{% qs_set tab='' bg='' tpage='' %}" class="{% if tab == 'overview' %}active{% endif %}">Overview</a>
+      <a href="{% qs_set tab='activity' %}" class="{% if tab == 'activity' %}active{% endif %}">Activity</a>
+      <a href="{% qs_set tab='people' %}" class="{% if tab == 'people' %}active{% endif %}">People ({{ people|length }})</a>
+      <a href="{% qs_set tab='opportunities' %}" class="{% if tab == 'opportunities' %}active{% endif %}">Opportunities ({{ opportunities|length }})</a>
+      {% endwith %}
+    </nav>
+
+    {% if tab == 'overview' %}
+      <div class="cards">
+        <div class="card"><div class="label">Stage</div><div class="value">{{ company.get_status_display }}</div></div>
+        <div class="card"><div class="label">Owner</div><div class="value">{{ company.owner|username|default:"—" }}</div></div>
+        <div class="card"><div class="label">Last touch</div>
+          <div class="value">{% if company.last_interaction_at %}{{ company.days_since_touch }} days ago{% else %}Never{% endif %}</div>
+          <div class="sub">{{ company.touch_count }} outreach email{{ company.touch_count|pluralize }}{% if company.last_response %} · {{ company.last_response }}{% endif %}</div></div>
+        <div class="card"><div class="label">Who knows them</div><div class="value">{{ company.strongest_connection_user|username|default:"—" }}</div>
+          {% if company.connection_strength %}<div class="sub">{{ company.connection_strength }} connection{% if team|length > 1 %} · {{ team|length }} teammates in touch{% endif %}</div>{% endif %}</div>
+        <div class="card"><div class="label">Next meeting</div><div class="value">{{ company.next_interaction_at|date:"M j"|default:"—" }}</div></div>
+        <div class="card"><div class="label">Fit score</div><div class="value">{% if company.fit_score %}{{ company.fit_score }} / 5{% else %}—{% endif %}</div>
+          {% if company.fit_score %}<div class="sub">{{ fit_definition }}</div>{% endif %}</div>
+        <div class="card"><div class="label">Projects</div><div class="value" style="font-size:14px">{% for p, n in company_projects %}<a class="chip chip-project" href="{{ p.get_absolute_url }}" title="{{ n }} emails">{{ p.name }}</a>{% empty %}—{% endfor %}</div></div>
+        <div class="card"><div class="label">Campus interest</div><div class="value">{{ company.campus_label|default:"—" }}</div></div>
+        <div class="card"><div class="label">Open tasks</div><div class="value">{{ open_tasks|length }}</div>
+          {% with t=open_tasks.0 %}{% if t %}<div class="sub {% if t.is_overdue %}overdue{% endif %}">Next: {{ t.title|truncatechars:30 }}{% if t.due_date %} · {{ t.due_date|date:"M j" }}{% endif %}</div>{% endif %}{% endwith %}</div>
+        <div class="card"><div class="label">Latest news trigger</div>
+          {% if latest_news %}<div class="sub" style="color:var(--text)">{% if latest_news.url %}<a href="{{ latest_news.url }}" target="_blank" rel="noopener">{{ latest_news.summary|truncatechars:70 }}</a>{% else %}{{ latest_news.summary|truncatechars:70 }}{% endif %}</div>
+          <div class="sub">{{ latest_news.occurred_at|date:"M j, Y" }}{% if latest_news.outcome %} · {{ latest_news.outcome }}{% endif %}</div>{% else %}<div class="value">—</div>{% endif %}</div>
+      </div>
+
+      {% include "crm/partials/ai_summary.html" %}
+      <div class="panel">
+        <h3>Recent activity <a href="{% qs_set tab='activity' %}" style="float:right;text-transform:none;letter-spacing:0">View all</a></h3>
+        <ul class="timeline">{% for a in recent_activity %}{% include "crm/partials/timeline_item.html" %}{% empty %}<li><span></span><span class="muted">No activity yet.</span></li>{% endfor %}</ul>
+      </div>
+      {% if meetings %}
+      <div class="panel">
+        <h3>Meetings <a href="{% url 'crm:meeting_list' %}?who=outside" style="float:right;text-transform:none;letter-spacing:0">Calendar</a></h3>
+        {% for m in meetings %}
+          <div class="row-line"><span><a href="{{ m.get_absolute_url }}">{{ m.title }}</a>{% if m.summary %} 📝{% endif %}{% if m.action_items %} <span class="muted">{{ m.action_items|length }} action item{{ m.action_items|length|pluralize }}</span>{% endif %}</span>
+            <span class="muted">{{ m.start|date:"M j, Y" }}</span></div>
+        {% endfor %}
+      </div>
+      {% endif %}
+      {% include "crm/partials/tasks_notes.html" %}
+      {% include "crm/partials/comments.html" %}
+
+    {% elif tab == 'activity' %}
+      <div class="panel">{% include "crm/partials/timeline.html" %}</div>
+
+    {% elif tab == 'people' %}
+      <div class="page-head"><span class="spacer"></span><a class="btn" href="{% url 'crm:person_create' %}?company={{ company.pk }}">Add person</a></div>
+      <div class="table-wrap"><table class="data">
+        <thead><tr><th>Name</th><th>Title</th><th>Email</th><th>Priority</th><th>Touches</th><th>Last touch</th><th>Last response</th></tr></thead>
+        <tbody>{% for p in people %}
+          <tr><td><a href="{{ p.get_absolute_url }}">{{ p }}</a>{% if p.is_excluded %} <span class="pill pill-bad">Excluded</span>{% endif %}</td><td>{{ p.title }}</td><td>{{ p.email|default:"" }}</td>
+          <td>{{ p.priority|pill }}</td><td>{{ p.touch_count }}</td><td>{{ p.last_interaction_at|ago }}</td><td>{{ p.last_response|pill:"response" }}</td></tr>
+        {% empty %}<tr><td colspan="7" class="muted">No people yet.</td></tr>{% endfor %}</tbody>
+      </table></div>
+
+    {% elif tab == 'opportunities' %}
+      <div class="page-head"><span class="spacer"></span><a class="btn" href="{% url 'crm:opportunity_create' %}?company={{ company.pk }}">New opportunity</a></div>
+      <div class="table-wrap"><table class="data">
+        <thead><tr><th>Name</th><th>Site</th><th>Stage</th><th>Owner</th><th>Sq ft</th><th>Acres</th><th>Project cost</th><th>Next step</th></tr></thead>
+        <tbody>{% for o in opportunities %}
+          <tr><td><a href="{{ o.get_absolute_url }}">{{ o.name }}</a></td><td>{{ o.site_label }}</td><td><span class="stage">{{ o.get_stage_display }}</span></td>
+          <td>{{ o.owner|username }}</td><td>{{ o.sq_ft_need|default_if_none:""|intcomma }}</td><td>{{ o.acreage_need|default_if_none:""|floatformat:"-2" }}</td><td>{{ o.value|money }}</td><td>{{ o.next_step|truncatechars:50 }}</td></tr>
+        {% empty %}<tr><td colspan="8" class="muted">No opportunities yet.</td></tr>{% endfor %}</tbody>
+      </table></div>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}
+{% block scripts %}
+{% endblock %}
