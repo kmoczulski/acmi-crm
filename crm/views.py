@@ -248,24 +248,31 @@ def project_list(request):
 
     def stats(p):
         acts = p.activities.all()
+        mine = [s for s in sites if s.project_id == p.pk]
         return {"project": p, "emails": acts.count(), "companies": acts.values("company").distinct().count(),
                 "last": acts.order_by("-occurred_at").values_list("occurred_at", flat=True).first(),
-                "sites": [s for s in sites if s.project_id == p.pk]}
+                "sites": [s for s in mine if s.status != "dropped"],
+                "archived": [s for s in mine if s.status == "dropped"]}
 
-    sites = list(LandSite.objects.select_related("campus", "project").prefetch_related("parcels"))
+    sites = LandSite.by_status(LandSite.objects.select_related("campus", "project").prefetch_related("parcels"))
     projects = list(Project.objects.select_related("parent", "campus"))
     groups, used = [], set()
     for campus in Campus.objects.all():
         home = next((p for p in projects if p.campus_id == campus.pk and p.parent_id is None), None)
         children = [p for p in projects if p is not home and (p.campus_id == campus.pk or (home and p.parent_id == home.pk))]
         used.update(p.pk for p in children + ([home] if home else []))
+        campus_sites = [s for s in sites if s.campus_id == campus.pk and not s.project_id
+                        or (s.project_id and s.project_id == (home.pk if home else None))]
+        children_stats = [stats(p) for p in children]
         groups.append({
-            "campus": campus, "home": stats(home) if home else None, "projects": [stats(p) for p in children],
-            "sites": [s for s in sites if s.campus_id == campus.pk and not s.project_id
-                      or (s.project_id and s.project_id == (home.pk if home else None))],
+            "campus": campus, "home": stats(home) if home else None, "projects": children_stats,
+            "sites": [s for s in campus_sites if s.status != "dropped"],
+            # Archive: every dropped site in the campus, its projects included.
+            "archived": [s for s in campus_sites if s.status == "dropped"]
+                        + [s for r in children_stats for s in r["archived"]],
         })
     other = [stats(p) for p in projects if p.pk not in used]
-    loose_sites = [s for s in sites if not s.campus_id and not s.project_id]
+    loose_sites = [s for s in sites if not s.campus_id and not s.project_id and s.status != "dropped"]
     return render(request, "crm/project_list.html", {
         "groups": groups, "other": other, "loose_sites": loose_sites, "form": form, "campus_form": campus_form})
 

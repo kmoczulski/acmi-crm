@@ -223,6 +223,9 @@ details.checks label { display: flex !important; flex-direction: row !important;
 }
 .stack-form select, .stack-form input:not([type=file]):not([type=checkbox]) { width: 100%; margin-bottom: 6px; }
 
+.report-logo { display: block; height: auto; margin: 0 0 12px; }
+@media print { .report-logo { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+
 /* Sidebar tree */
 .sidebar { overflow-y: auto; display: flex; flex-direction: column; }
 .sidebar .user { position: static; margin-top: auto; padding: 14px 8px 0; }
@@ -385,6 +388,11 @@ main:has(.land) { padding: 0; }
 .lf-tree a { color: var(--muted); margin-left: 4px; }
 .lf-tree label { display: inline; }
 .lf-l1 { font-weight: 600; }
+.lf-caret { all: unset; cursor: pointer; display: inline-block; width: 16px; height: 16px; line-height: 16px; text-align: center; color: #4a5563; font-size: 14px; vertical-align: middle; }
+.lf-caret::before { content: "▾"; }
+.lf-caret.shut::before { content: "▸"; }
+.lf-caret:focus-visible { outline: 2px solid #1e6bff; border-radius: 3px; }
+.lf-kids[hidden] { display: none; }
 .lf-region { margin-left: 14px; }
 .lf-l2 { font-weight: 500; }
 .lf-county { margin-left: 18px; }
@@ -444,7 +452,7 @@ main:has(.land) { padding: 0; }
 .land.side-closed { grid-template-columns: 0 minmax(0, 1fr); }
 .land.side-closed .land-side { visibility: hidden; border: 0; }
 .land-side { grid-row: 2; }
-.land-work { grid-row: 2; display: grid; grid-template-rows: minmax(0, 1fr) auto; min-width: 0; min-height: 0; }
+.land-work { grid-row: 2; display: grid; grid-template-rows: minmax(0, 1fr) auto auto; min-width: 0; min-height: 0; }
 .land-toolbar { grid-column: 1 / -1; display: flex; align-items: center; gap: 4px; padding: 6px 10px; background: var(--panel);
   border-bottom: 1px solid var(--line); flex-wrap: wrap; position: relative; z-index: 1000; }
 .tb-title { font-weight: 700; font-size: 15px; margin-right: 6px; cursor: default; }
@@ -469,6 +477,7 @@ main:has(.land) { padding: 0; }
 .map-search-results { position: absolute; top: 34px; left: 0; right: 0; background: #fff; border: 1px solid var(--line); border-radius: var(--radius);
   box-shadow: 0 4px 12px rgba(0,0,0,.2); max-height: 360px; overflow-y: auto; z-index: 1001; }
 .views-pop { width: 300px; }
+[data-tool-key="layers"] .tb-pop { width: 320px; }
 .view-row { display: flex; align-items: center; gap: 6px; padding: 3px 0; flex-wrap: wrap; }
 .view-actions { margin-left: auto; display: flex; gap: 8px; font-size: 12px; }
 .view-actions a { color: var(--muted); }
@@ -496,3 +505,176 @@ main:has(.land) { padding: 0; }
   .land-stage { grid-template-columns: 1fr; grid-template-rows: minmax(0, 1fr) auto; }
   .land-card-wrap { width: auto; max-width: none; max-height: 50vh; border-left: 0; border-top: 1px solid var(--line); }
 }
+.site-row { padding: 2px 0; }
+.pill.site-acquired, .pill.site-contract { background: #e3ecff; color: #1e4fbf; }
+.pill.site-loi { background: #def6fb; color: #00788f; }
+.pill.site-outreach { background: var(--warn-bg); color: var(--warn); }
+.pill.site-review { background: #efe6ff; color: #6b3fc0; }
+.pill.site-dropped { background: #eef0f3; color: var(--muted); }
+.inline-filter select { margin-left: 4px; }
+.sites-table td { vertical-align: top; }
+/* Active-site tables: fixed columns so every campus / project group lines up top to bottom */
+.sites-active { table-layout: fixed; width: 100%; }
+.sites-active th:nth-child(1) { width: 128px; }
+.sites-active .pill { white-space: normal; display: inline-block; max-width: 100%; }
+.sites-active th:nth-child(2) { width: 22%; }
+.sites-active th:nth-child(3) { width: 78px; }
+.sites-active th:nth-child(4) { width: 66px; }
+.sites-active th:nth-child(5) { width: 17%; }
+.sites-active th:nth-child(6) { width: 8%; }
+.sites-active th:nth-child(7) { width: 78px; }
+.sites-active th:nth-child(8) { width: 12%; }
+.sites-active td { overflow-wrap: anywhere; }
+.note-clamp { display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden; }
+.sites-active .deal-day { margin-top: 4px; font-size: 11px; color: var(--muted); }
+.sites-table .num, .sites-table th.num { text-align: right; }
+.sites-table .sites-note { max-width: 380px; color: var(--text); }
+.ml-prog { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 4px; }
+.ml-prog > label { flex: 1; }
+.ml-info { font-size: 13px; color: var(--muted); }
+.ml-about { flex-basis: 100%; font-size: 12px; background: #f6f7f9; border-radius: var(--radius); padding: 6px 8px; margin: 2px 0 4px;
+  display: flex; flex-direction: column; gap: 3px; }
+.ml-swatch { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
+.pop-note { font-size: 12px; color: #444; margin: 4px 0; max-width: 300px; }
+.lc-program { padding: 6px 0; border-top: 1px solid #f0f2f5; display: flex; flex-direction: column; gap: 2px; }
+.lc-program:first-of-type { border-top: 0; }
+
+/* Land site page: deal timeline */
+.stage-track { list-style: none; margin: 4px 0 0; padding: 0; display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); }
+.stage-track li { position: relative; text-align: center; padding: 22px 4px 0; font-size: 12px; }
+.stage-track li::before { content: ""; position: absolute; top: 9px; left: 0; right: 0; height: 3px; background: var(--line); }
+.stage-track li:first-child::before { left: 50%; }
+.stage-track li:last-child::before { right: 50%; }
+.stage-track li.done::before { background: var(--accent); }
+.stage-track .dot { position: absolute; top: 3px; left: 50%; transform: translateX(-50%); width: 15px; height: 15px; border-radius: 50%;
+  background: #fff; border: 3px solid var(--line); }
+.stage-track li.done .dot { background: var(--accent); border-color: var(--accent); }
+.st-label { font-weight: 600; }
+.st-date { color: var(--muted); }
+.st-gap { color: var(--accent); font-size: 11px; font-weight: 600; margin-top: 2px; }
+.st-prev { color: var(--muted); font-size: 11px; }
+.deal-clock { margin: 0 0 12px; font-size: 13px; }
+.deal-clock b { font-size: 15px; }
+.milestone-form label { display: grid; grid-template-columns: 1fr 150px 40px; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 13px; }
+.note-add { display: flex; gap: 6px; margin-bottom: 10px; }
+.note-add input { flex: 1; }
+.site-events { list-style: none; margin: 0; padding: 0; max-height: 520px; overflow-y: auto; }
+.site-events li { padding: 6px 0; border-top: 1px solid #f0f2f5; font-size: 13px; }
+.site-events li.ev-status div { font-weight: 600; }
+.site-events li.ev-milestone div { color: var(--accent); }
+@media (max-width: 900px) { .stage-track { grid-template-columns: repeat(3, 1fr); row-gap: 14px; } }
+
+/* Sites page: deal timelines */
+.gantt { position: relative; font-size: 12px; }
+.gantt-axis { position: relative; height: 18px; margin-left: 300px; color: var(--muted); }
+.gantt-axis span { position: absolute; transform: translateX(-2px); white-space: nowrap; }
+.gantt-row { display: grid; grid-template-columns: 300px 1fr; align-items: center; min-height: 26px; border-top: 1px solid #f0f2f5; }
+.gantt-name { display: flex; align-items: center; gap: 6px; min-width: 0; padding-right: 8px; }
+.gantt-name .pill { flex: none; }
+.gantt-title { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gantt-days { flex: none; min-width: 44px; text-align: right; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; }
+.gantt-track { position: relative; height: 26px; }
+.gantt-tick { position: absolute; top: 0; bottom: 0; width: 1px; background: #f0f2f5; }
+.gantt-today { position: absolute; top: 0; bottom: 0; width: 2px; background: #e53935; opacity: .6; }
+.gantt-bar { position: absolute; top: 10px; height: 6px; border-radius: 3px; background: #cfd8e3; }
+.gantt-bar.site-loi { background: #9fe3ef; } .gantt-bar.site-contract, .gantt-bar.site-acquired { background: #a9c3ff; }
+.gantt-bar.site-outreach { background: #ffe0a3; } .gantt-bar.site-review { background: #dccbff; }
+.gantt-pt { position: absolute; top: 7px; width: 12px; height: 12px; margin-left: -6px; border-radius: 50%; border: 2px solid #fff;
+  box-shadow: 0 0 0 1px rgba(0,0,0,.15); background: #9aa3ad; display: inline-block; }
+.gantt-legend .gantt-pt { position: static; margin: 0 4px 0 0; vertical-align: -2px; }
+.ms-identified, .ms-contacted { background: #9aa3ad !important; }
+.ms-loi_sent { background: #00b8d9 !important; } .ms-loi_signed { background: #00788f !important; }
+.ms-psa_sent { background: #7c4dff !important; } .ms-psa_signed { background: #1e4fbf !important; }
+.ms-feasibility_end, .ms-approvals, .ms-closed { background: #1aa34a !important; }
+.gantt-legend { display: flex; flex-wrap: wrap; gap: 14px; margin: 10px 0 0 300px; }
+.gantt-today-key { display: inline-block; width: 2px; height: 12px; background: #e53935; margin-right: 4px; vertical-align: -2px; }
+@media (max-width: 900px) { .gantt-row { grid-template-columns: 150px 1fr; } .gantt-axis, .gantt-legend { margin-left: 150px; } }
+
+/* Site plan drawer */
+.sp-drawer { height: 320px; }
+.sp-body { flex: 1; display: grid; grid-template-columns: 300px minmax(0, 1fr) 280px; min-height: 0; }
+.sp-col { padding: 6px 12px; overflow-y: auto; min-height: 0; font-size: 13px; }
+.sp-col + .sp-col { border-left: 1px solid var(--line); }
+.sp-zone label { display: flex; flex-direction: column; gap: 2px; font-size: 12px; color: var(--muted); }
+.sp-zone select { width: 100%; }
+.sp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 8px; margin: 6px 0; }
+.sp-grid input { width: 100%; }
+.sp-table input[type=number] { width: 72px; }
+.sp-table select { max-width: 180px; }
+.sp-mode { float: right; text-transform: none; letter-spacing: 0; font-weight: 400; }
+.sp-mode label { margin-left: 8px; }
+@media (max-width: 1100px) { .sp-body { grid-template-columns: 1fr; } .sp-col + .sp-col { border-left: 0; border-top: 1px solid var(--line); } }
+details.archive > summary { cursor: pointer; padding: 2px 0; }
+details.archive[open] > summary { margin-bottom: 8px; }
+details.archive { background: #fafbfc; }
+.archive-list > summary { cursor: pointer; }
+.archive-list { background: #fafbfc; }
+
+/* Assemblage tracker */
+.acq-bar { display: flex; height: 16px; border-radius: 8px; overflow: hidden; background: #eef0f3; margin: 6px 0; }
+.acq-seg { display: block; height: 100%; }
+.acq-seg.site-acquired, .acq-key.site-acquired { background: #1e4fbf; } .acq-seg.site-contract, .acq-key.site-contract { background: #3a7bd5; }
+.acq-seg.site-loi, .acq-key.site-loi { background: #00a5c2; } .acq-seg.site-outreach, .acq-key.site-outreach { background: #f0a500; }
+.acq-seg.site-review, .acq-key.site-review { background: #9b6dff; } .acq-seg.site-prospect, .acq-key.site-prospect { background: #9aa3ad; }
+.acq-seg.site-dropped, .acq-key.site-dropped { background: #d5d9df; }
+.acq-legend, .acq-stats { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-bottom: 6px; }
+.acq-key { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
+.acq-hint { background: var(--warn-bg); color: var(--warn); padding: 6px 10px; border-radius: var(--radius); }
+.deal-grid th.ms-col, .deal-grid td.ms-col { text-align: center; padding-left: 4px; padding-right: 4px; }
+.deal-grid td.ms-done { color: var(--accent); font-weight: 600; }
+.deal-grid .owner-row td { background: #f6f7f9; }
+.deal-grid .deal-note { max-width: 220px; }
+.deal-dates { display: grid; grid-template-columns: 1fr 1fr; gap: 0 10px; }
+.sites-progress { display: flex; width: 120px; height: 8px; border-radius: 4px; overflow: hidden; background: #eef0f3; margin-top: 4px; }
+.gantt-pt.gantt-sub { width: 7px; height: 7px; margin-left: -3.5px; top: 9.5px; border-width: 1px; opacity: .8; }
+.gantt-legend .gantt-pt.gantt-sub { width: 8px; height: 8px; }
+
+/* Site page mini map */
+.site-map-panel { padding: 10px 12px; position: relative; }
+.site-map-head { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; flex-wrap: wrap; }
+.site-map-head h3 { margin: 0; }
+.site-map-head .spacer { flex: 1; }
+.site-map-head a.tb-btn { text-decoration: none; }
+#site-map { height: 380px; border-radius: var(--radius); background: #dfe3e8; }
+.site-map-panel .tb-menu { position: relative; }
+.site-map-panel .tb-pop { position: absolute; top: 36px; right: 0; left: auto; z-index: 1000; background: #fff; border: 1px solid var(--line);
+  border-radius: 8px; box-shadow: 0 6px 20px rgba(0,0,0,.18); padding: 8px 12px; width: 280px; display: flex; flex-direction: column;
+  gap: 3px; font-size: 13px; max-height: 340px; overflow-y: auto; }
+.site-map-panel .tb-menu > summary { list-style: none; }
+.site-map-panel .tb-menu > summary::-webkit-details-marker { display: none; }
+.site-map-legend { position: absolute; left: 22px; bottom: 18px; z-index: 800; }
+
+/* Sites page stage filter */
+.stage-filter { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 4px 0 12px; }
+.stage-filter-label { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin-right: 2px; }
+.stage-chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px; border: 1px solid var(--line); border-radius: 999px;
+  background: #fff; color: var(--text); font-size: 13px; text-decoration: none; }
+.stage-chip:hover { text-decoration: none; border-color: #9aa3ad; }
+.stage-chip b { font-weight: 600; color: var(--muted); }
+.stage-chip.on { background: #1e2a3a; border-color: #1e2a3a; color: #fff; }
+.stage-chip.on b { color: #cfd6df; }
+.stage-chip.empty { opacity: .55; }
+.stage-chip-archive { color: var(--muted); }
+
+/* Site parcels: excluded / trimmed, and the trim bar on the mini map */
+.row-excluded td { color: var(--muted); background: #f6f7f9; }
+.row-excluded td a { color: var(--muted); }
+.pill-excluded { background: #eceff3; color: #6b7480; border: 1px dashed #b8c0ca; }
+.parcel-actions { white-space: nowrap; }
+.parcel-actions form { display: inline; margin-left: 6px; }
+.acq-key.key-excluded { background: rgba(154,163,173,.25); border: 1px dashed #9aa3ad; }
+.acq-key.key-cutaway { background: rgba(255,255,255,.4); border: 1px dashed #6b7480; }
+.trim-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 8px; padding: 8px 10px; margin-bottom: 8px;
+  background: #fff7ed; border: 1px solid #fdba74; border-radius: var(--radius); }
+.trim-bar #trim-msg { color: #7c3a0a; }
+.site-map-panel.trimming #site-map { cursor: crosshair; outline: 2px solid #ff7a00; }
+.trim-bar .btn-primary:disabled { opacity: .45; cursor: not-allowed; }
+.trim-bar[hidden] { display: none; }
+
+/* Zoning code detail on the parcel card */
+.zd-card summary { cursor: pointer; font-size: 12px; color: #1e6bff; }
+.zd-card .zd { border: 0; padding: 4px 0; font-size: 12px; }
+.zd-card .zd-p, .zd-card .zd-ul li { font-size: 12px; }
+.zd-card .zd-ul { margin: 2px 0 4px 16px; padding: 0; list-style: disc; }
+.zd-card .zd-h { font-size: 10.5px; text-transform: uppercase; letter-spacing: .05em; color: #6b7480; margin-top: 6px; }
+.zd-card .zd-t { width: 100%; border-collapse: collapse; } .zd-card .zd-t th { text-align: left; width: 72px; color: #6b7480; font-weight: 600; vertical-align: top; }

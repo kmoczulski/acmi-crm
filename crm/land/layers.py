@@ -26,13 +26,21 @@ def to_albers(geom):
 
 
 def load_layers(layers=None, regions=None, log=print):
-    """Replace the stored features of each layer with a fresh copy for every region. Returns {layer: count}."""
+    """Replace the stored features of each layer with a fresh copy for every region. Returns {layer: count}.
+
+    regions: only refresh these regions (the other regions' features stay); layers limited to other regions
+    are skipped."""
+    from django.db.models import Q
+
     counts = {}
     for key in layers or STORED_LAYERS:
         spec = STORED_LAYERS[key]
+        todo = [r for r in regions if r in (spec.get("regions") or REGIONS)] if regions else (spec.get("regions") or REGIONS)
+        if not todo:
+            continue
         fields = [spec["name"], *spec["fields"]]
         features = []
-        for region in regions or spec.get("regions") or REGIONS:
+        for region in todo:
             features += arcgis_query(spec["url"], where=spec["where"], fields=fields, bbox=REGIONS[region],
                                      simplify=spec["simplify"] or None)
         rows = []
@@ -49,7 +57,14 @@ def load_layers(layers=None, regions=None, log=print):
                 attrs={k: props.get(k) for k in spec["fields"] if props.get(k) not in (None, "")},
                 geometry=json.dumps(mapping(geom)), min_lon=minx, min_lat=miny, max_lon=maxx, max_lat=maxy,
             ))
-        LandFeature.objects.filter(layer=key).delete()
+        stale = LandFeature.objects.filter(layer=key)
+        if regions:
+            inside = Q()
+            for r in todo:
+                w, so, e, n = REGIONS[r]
+                inside |= Q(max_lon__gte=w, min_lon__lte=e, max_lat__gte=so, min_lat__lte=n)
+            stale = stale.filter(inside)
+        stale.delete()
         LandFeature.objects.bulk_create(rows, batch_size=500)
         counts[key] = len(rows)
         log(f"{spec['label']}: {len(rows)}")

@@ -2,6 +2,7 @@
 {% load crm_tags humanize %}
 {% block title %}Pipeline report · ACMI CRM{% endblock %}
 {% block content %}
+{% include "crm/partials/report_logo.html" %}
 <div class="page-head">
   <h1>ACMI Properties pipeline <span class="muted" style="font-weight:400;font-size:14px">as of {{ as_of|date:"F j, Y" }}</span></h1>
   <span class="spacer"></span>

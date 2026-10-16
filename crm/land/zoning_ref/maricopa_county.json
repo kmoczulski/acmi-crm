@@ -1,0 +1,713 @@
+{
+ "jurisdiction": "Maricopa County, AZ (unincorporated)",
+ "code_name": "Maricopa County Zoning Ordinance (MCZO)",
+ "edition": "Reformatted edition, footer 'December 10, 2025' (cover: 'Reformatted 2001 and 2025, Latest Revision 2025'); section numbers are the new Chapter 4-7 numbering (Sec. 401, 501-506, 601, 603, 702). The task states a reorganized ordinance took effect Jan 9, 2026; the effective date was not verified from this file.",
+ "code_url": "https://www.maricopa.gov/DocumentCenter/View/4785/Maricopa-County-Zoning-Ordinance-PDF (current official); local copy used: webfetch-1792176698708-xkbc3d.pdf",
+ "retrieved": "2026-10-16",
+ "caveats": [
+  "'POD' in the use table means permitted subject to Plan of Development approval; 'S' = Special Use Permit; '*' = additional conditions. 'By right' in this file means P or POD.",
+  "Use-table column assignment (which district a P/S/POD belongs to) was reconstructed from PDF text x-coordinates; IND-1/2/3 mappings are consistent but spot-check visually, especially C-S and R-5 columns.",
+  "Energetics/explosives manufacturing is not addressed as a named use; the Warehousing definition excludes storage of explosive, corrosive or noxious materials, and Sec. 706 treats explosives facilities as incompatible near military airports.",
+  "Codes with no MCZO definition: IND-2p, IND-3p, AD-1, AD-2, AD-3.",
+  "Sec. 401.3.3 and Sec. 501/502 disagree on R-4 dwelling-unit density (1,000 vs 2,000 sq ft per unit).",
+  "Parcels may also be subject to Chapter 7 overlays (PAD, UPD, Military Airport Sec. 706) and case-specific conditions not in the ordinance.",
+  "Not legal advice; confirm with Maricopa County Planning & Development."
+ ],
+ "districts": [
+  {
+   "code": "RU-190",
+   "name": "Rural-190 Rural Zoning District",
+   "purpose": "Conserves farms and open land, steers orderly growth in rural areas, and avoids small-lot subdivision where public water, sewer and services are not available.",
+   "standards": {
+    "min_lot_size": "190,000 sq ft",
+    "max_height": "35 ft",
+    "setbacks": "Front 60 ft; street side 30 ft; interior side 30 ft; rear 60 ft. Accessory structures: interior side/rear 3 ft",
+    "lot_coverage": "10%",
+    "other": "Min lot width 300 ft. Rear/side yard accessory coverage max 30%. No electrical power to a parcel without an established primary use (zoning inspector discretion). Rural-190 is the default zoning for lands not previously zoned (Sec. 403)."
+   },
+   "section": "Ch. 4 Sec. 401.1.1; Ch. 5 Sec. 501.1.1, 502; Ch. 6 Sec. 601",
+   "notes": "Complete.",
+   "source": "Local file webfetch-1792176698708-xkbc3d.pdf (MCZO, footer 'December 10, 2025'), PDF pp.63-64 (Sec.401); p.68 (Sec.501); p.70 (Sec.502 table); pp.84-102 (Sec.601 use table)",
+   "category": "rural-agricultural",
+   "permitted_uses": [
+    "Single-family dwelling, one per lot of record (incl. short-term rental, Art. 602.2)",
+    "Farms (permitted in RU districts only) and farm animals/horse corrals",
+    "Detached accessory dwelling unit",
+    "Home daycare up to 4 children",
+    "Churches, K-12 schools, parks, public facilities, public utilities, non-commercial golf courses, forests/wildlife reservations",
+    "Gardens and community gardens",
+    "Home occupations (Art. 603.9)"
+   ],
+   "conditional_uses": [
+    "Special Use Permit (S): agricultural chemicals storage/mixing/sale, industrial agriculturally oriented operations, cotton gins, farm-animal clinics, guest ranches/B&B/resorts/hotels, RV parks, public riding and boarding stables, recreational open-air facilities, billboards, outdoor storage, experimental/proving grounds, earth products development, cottage industry not meeting 603.9, private emergency-service stations, special event venues, large assemblages of people, plant nurseries, commercial storage of vehicles, airports"
+   ]
+  },
+  {
+   "code": "RU-70",
+   "name": "Rural-70 Rural Zoning District",
+   "purpose": "Conserves farms and open land, steers orderly growth in rural areas, and avoids small-lot subdivision where public water, sewer and services are not available.",
+   "standards": {
+    "min_lot_size": "70,000 sq ft",
+    "max_height": "35 ft",
+    "setbacks": "Front 60 ft; street side 30 ft; interior side 30 ft; rear 60 ft. Accessory structures: interior side/rear 3 ft",
+    "lot_coverage": "15%",
+    "other": "Min lot width 250 ft. Rear/side yard accessory coverage max 30%. No electrical power to a parcel without an established primary use (zoning inspector discretion). Rural-190 is the default zoning for lands not previously zoned (Sec. 403)."
+   },
+   "section": "Ch. 4 Sec. 401.1.2; Ch. 5 Sec. 501.1.1, 502; Ch. 6 Sec. 601",
+   "notes": "Complete.",
+   "source": "Local file webfetch-1792176698708-xkbc3d.pdf (MCZO, footer 'December 10, 2025'), PDF pp.63-64 (Sec.401); p.68 (Sec.501); p.70 (Sec.502 table); pp.84-102 (Sec.601 use table)",
+   "category": "rural-agricultural",
+   "permitted_uses": [
+    "Single-family dwelling, one per lot of record (incl. short-term rental, Art. 602.2)",
+    "Farms (permitted in RU districts only) and farm animals/horse corrals",
+    "Detached accessory dwelling unit",
+    "Home daycare up to 4 children",
+    "Churches, K-12 schools, parks, public facilities, public utilities, non-commercial golf courses, forests/wildlife reservations",
+    "Gardens and community gardens",
+    "Home occupations (Art. 603.9)"
+   ],
+   "conditional_uses": [
+    "Special Use Permit (S): agricultural chemicals storage/mixing/sale, industrial agriculturally oriented operations, cotton gins, farm-animal clinics, guest ranches/B&B/resorts/hotels, RV parks, public riding and boarding stables, recreational open-air facilities, billboards, outdoor storage, experimental/proving grounds, earth products development, cottage industry not meeting 603.9, private emergency-service stations, special event venues, large assemblages of people, plant nurseries, commercial storage of vehicles, airports"
+   ]
+  },
+  {
+   "code": "RU-43",
+   "name": "Rural-43 Rural Zoning District",
+   "purpose": "Conserves farms and open land, steers orderly growth in rural areas, and avoids small-lot subdivision where public water, sewer and services are not available.",
+   "standards": {
+    "min_lot_size": "43,560 sq ft (1 acre)",
+    "max_height": "35 ft",
+    "setbacks": "Front 40 ft; street side 20 ft; interior side 20 ft; rear 40 ft. Accessory structures: interior side/rear 3 ft",
+    "lot_coverage": "25%",
+    "other": "Min lot width 145 ft. Rear/side yard accessory coverage max 30%. No electrical power to a parcel without an established primary use (zoning inspector discretion). Rural-190 is the default zoning for lands not previously zoned (Sec. 403)."
+   },
+   "section": "Ch. 4 Sec. 401.1.3; Ch. 5 Sec. 501.1.1, 502; Ch. 6 Sec. 601",
+   "notes": "Complete.",
+   "source": "Local file webfetch-1792176698708-xkbc3d.pdf (MCZO, footer 'December 10, 2025'), PDF pp.63-64 (Sec.401); p.68 (Sec.501); p.70 (Sec.502 table); pp.84-102 (Sec.601 use table)",
+   "category": "rural-agricultural",
+   "permitted_uses": [
+    "Single-family dwelling, one per lot of record (incl. short-term rental, Art. 602.2)",
+    "Farms (permitted in RU districts only) and farm animals/horse corrals",
+    "Detached accessory dwelling unit",
+    "Home daycare up to 4 children",
+    "Churches, K-12 schools, parks, public facilities, public utilities, non-commercial golf courses, forests/wildlife reservations",
+    "Gardens and community gardens",
+    "Home occupations (Art. 603.9)"
+   ],
+   "conditional_uses": [
+    "Special Use Permit (S): agricultural chemicals storage/mixing/sale, industrial agriculturally oriented operations, cotton gins, farm-animal clinics, guest ranches/B&B/resorts/hotels, RV parks, public riding and boarding stables, recreational open-air facilities, billboards, outdoor storage, experimental/proving grounds, earth products development, cottage industry not meeting 603.9, private emergency-service stations, special event venues, large assemblages of people, plant nurseries, commercial storage of vehicles, airports"
+   ]
+  },
+  {
+   "code": "R1-35",
+   "name": "R1-35 Single-Family Residential Zoning District",
+   "purpose": "Protects and encourages single-family residential development on lots at least the stated minimum size, given existing land use and utility availability.",
+   "standards": {
+    "min_lot_size": "35,000 sq ft",
+    "max_height": "35 ft",
+    "setbacks": "Front 40 ft; street side 20 ft; interior side 20 ft; rear 40 ft. Accessory: interior side/rear 3 ft",
+    "lot_coverage": "30%",
+    "other": "Min lot width 145 ft. Accessory rear/side yard coverage max 30%."
+   },
+   "section": "Ch. 4 Sec. 401.2.1; Ch. 5 Sec. 501.2.1, 502; Ch. 6 Sec. 601",
+   "notes": "Complete.",
+   "source": "Local file webfetch-1792176698708-xkbc3d.pdf (MCZO, footer 'December 10, 2025'), PDF pp.63-64; p.68; p.70; pp.84-102",
+   "category": "residential",
+   "permitted_uses": [
+    "Single-family dwelling, one per lot of record (Art. 602.2)",
+    "Detached accessory dwelling unit",
+    "Home daycare up to 4 children",
+    "Churches, K-12 schools, parks, playgrounds, public facilities, public utilities, non-commercial golf courses",
+    "Community residences (Sec. 907)",
+    "Home occupations (Art. 603.9)"
+   ],
+   "conditional_uses": [
+    "Special Use Permit (S): cottage industry not meeting 603.9, private emergency-service stations, recreational open-air facilities, public riding/boarding stables, special event venues, large assemblages of people, guest ranches/hotels, agricultural chemicals, outdoor storage, billboards"
+   ]
+  },
+  {
+   "code": "R1-18",
+   "name": "R1-18 Single-Family Residential Zoning District",
+   "purpose": "Protects and encourages single-family residential development on lots at least the stated minimum size, given existing land use and utility availability.",
+   "standards": {
+    "min_lot_size": "18,000 sq ft",
+    "max_height": "35 ft",
+    "setbacks": "Front 10 (18 to garage face) ft; street side 10 ft; interior side 10 ft; rear 30 ft. Accessory: interior side/rear 3 ft",
+    "lot_coverage": "35%",
+    "other": "Min lot width 120 ft. Accessory rear/side yard coverage max 30%."
+   },
+   "section": "Ch. 4 Sec. 401.2.2; Ch. 5 Sec. 501.2.1, 502; Ch. 6 Sec. 601",
+   "notes": "Complete.",
+   "source": "Local file webfetch-1792176698708-xkbc3d.pdf (MCZO, footer 'December 10, 2025'), PDF pp.63-64; p.68; p.70; pp.84-102",
+   "category": "residential",
+   "permitted_uses": [
+    "Single-family dwelling, one per lot of record (Art. 602.2)",
+    "Detached accessory dwelling unit",
+    "Home daycare up to 4 children",
+    "Churches, K-12 schools, parks, playgrounds, public facilities, public utilities, non-commercial golf courses",
+    "Community residences (Sec. 907)",
+    "Home occupations (Art. 603.9)"
+   ],
+   "conditional_uses": [
+    "Special Use Permit (S): cottage industry not meeting 603.9, private emergency-service stations, recreational open-air facilities, public riding/boarding stables, special event venues, large assemblages of people, guest ranches/hotels, agricultural chemicals, outdoor storage, billboards"
+   ]
+  },
+  {
+   "code": "R1-10",
+   "name": "R1-10 Single-Family Residential Zoning District",
+   "purpose": "Protects and encourages single-family residential development on lots at least the stated minimum size, given existing land use and utility availability.",
+   "standards": {
+    "min_lot_size": "10,000 sq ft",
+    "max_height": "35 ft",
+    "setbacks": "Front 10 (18 to garage face) ft; street side 10 ft; interior side 7 ft; rear 25 ft. Accessory: interior side/rear 3 ft",
+    "lot_coverage": "40%",
+    "other": "Min lot width 80 ft. Accessory rear/side yard coverage max 30%."
+   },
+   "section": "Ch. 4 Sec. 401.2.3; Ch. 5 Sec. 501.2.1, 502; Ch. 6 Sec. 601",
+   "notes": "Complete.",
+   "source": "Local file webfetch-1792176698708-xkbc3d.pdf (MCZO, footer 'December 10, 2025'), PDF pp.63-64; p.68; p.70; pp.84-102",
+   "category": "residential",
+   "permitted_uses": [
+    "Single-family dwelling, one per lot of record (Art. 602.2)",
+    "Detached accessory dwelling unit",
+    "Home daycare up to 4 children",
+    "Churches, K-12 schools, parks, playgrounds, public facilities, public utilities, non-commercial golf courses",
+    "Community residences (Sec. 907)",
+    "Home occupations (Art. 603.9)"
+   ],
+   "conditional_uses": [
+    "Special Use Permit (S): cottage industry not meeting 603.9, private emergency-service stations, recreational open-air facilities, public riding/boarding stables, special event venues, large assemblages of people, guest ranches/hotels, agricultural chemicals, outdoor storage, billboards"
+   ]
+  },
+  {
+   "code": "R1-8",
+   "name": "R1-8 Single-Family Residential Zoning District",
+   "purpose": "Protects and encourages single-family residential development on lots at least the stated minimum size, given existing land use and utility availability.",
+   "standards": {
+    "min_lot_size": "8,000 sq ft",
+    "max_height": "35 ft",
+    "setbacks": "Front 10 (18 to garage face) ft; street side 10 ft; interior side 7 ft; rear 25 ft. Accessory: interior side/rear 3 ft",
+    "lot_coverage": "45%",
+    "other": "Min lot width 80 ft. Accessory rear/side yard coverage max 30%."
+   },
+   "section": "Ch. 4 Sec. 401.2.4; Ch. 5 Sec. 501.2.1, 502; Ch. 6 Sec. 601",
+   "notes": "Complete.",
+   "source": "Local file webfetch-1792176698708-xkbc3d.pdf (MCZO, footer 'December 10, 2025'), PDF pp.63-64; p.68; p.70; pp.84-102",
+   "category": "residential",
+   "permitted_uses": [
+    "Single-family dwelling, one per lot of record (Art. 602.2)",
+    "Detached accessory dwelling unit",
+    "Home daycare up to 4 children",
+    "Churches, K-12 schools, parks, playgrounds, public facilities, public utilities, non-commercial golf courses",
+    "Community residences (Sec. 907)",
+    "Home occupations (Art. 603.9)"
+   ],
+   "conditional_uses": [
+    "Special Use Permit (S): cottage industry not meeting 603.9, private emergency-service stations, recreational open-air facilities, public riding/boarding stables, special event venues, large assemblages of people, guest ranches/hotels, agricultural chemicals, outdoor storage, billboards"
+   ]
+  },
+  {
+   "code": "R1-7",
+   "name": "R1-7 Single-Family Residential Zoning District",
+   "purpose": "Protects and encourages single-family residential development on lots at least the stated minimum size, given existing land use and utility availability.",
+   "standards": {
+    "min_lot_size": "7,000 sq ft",
+    "max_height": "35 ft",
+    "setbacks": "Front 10 (18 to garage face) ft; street side 10 ft; interior side 5 ft; rear 25 ft. Accessory: interior side/rear 3 ft",
+    "lot_coverage": "45%",
+    "other": "Min lot width 70 ft. Accessory rear/side yard coverage max 30%."
+   },
+   "section": "Ch. 4 Sec. 401.2.5; Ch. 5 Sec. 501.2.1, 502; Ch. 6 Sec. 601",
+   "notes": "Complete.",
+   "source": "Local file webfetch-1792176698708-xkbc3d.pdf (MCZO, footer 'December 10, 2025'), PDF pp.63-64; p.68; p.70; pp.84-102",
+   "category": "residential",
+   "permitted_uses": [
+    "Single-family dwelling, one per lot of record (Art. 602.2)",
+    "Detached accessory dwelling unit",
+    "Home daycare up to 4 children",
+    "Churches, K-12 schools, parks, playgrounds, public facilities, public utilities, non-commercial golf courses",
+    "Community residences (Sec. 907)",
+    "Home occupations (Art. 603.9)"
+   ],
+   "conditional_uses": [
+    "Special Use Permit (S): cottage industry not meeting 603.9, private emergency-service stations, recreational open-air facilities, public riding/boarding stables, special event venues, large assemblages of people, guest ranches/hotels, agricultural chemicals, outdoor storage, billboards"
+   ]
+  },
+  {
+   "code": "R1-6",
+   "name": "R1-6 Single-Family Residential Zoning District",
+   "purpose": "Protects and encourages single-family residential development on lots at least the stated minimum size, given existing land use and utility availability.",
+   "standards": {
+    "min_lot_size": "6,000 sq ft",
+    "max_height": "35 ft",
+    "setbacks": "Front 10 (18 to garage face) ft; street side 10 ft; interior side 5 ft; rear 25 ft. Accessory: interior side/rear 3 ft",
+    "lot_coverage": "50%",
+    "other": "Min lot width 60 ft. Accessory rear/side yard coverage max 30%."
+   },
+   "section": "Ch. 4 Sec. 401.2.6; Ch. 5 Sec. 501.2.1, 502; Ch. 6 Sec. 601",
+   "notes": "Complete.",
+   "source": "Local file webfetch-1792176698708-xkbc3d.pdf (MCZO, footer 'December 10, 2025'), PDF pp.63-64; p.68; p.70; pp.84-102",
+   "category": "residential",
+   "permitted_uses": [
+    "Single-family dwelling, one per lot of record (Art. 602.2)",
+    "Detached accessory dwelling unit",
+    "Home daycare up to 4 children",
+    "Churches, K-12 schools, parks, playgrounds, public facilities, public utilities, non-commercial golf courses",
+    "Community residences (Sec. 907)",
+    "Home occupations (Art. 603.9)"
+   ],
+   "conditional_uses": [
+    "Special Use Permit (S): cottage industry not meeting 603.9, private emergency-service stations, recreational open-air facilities, public riding/boarding stables, special event venues, large assemblages of people, guest ranches/hotels, agricultural chemicals, outdoor storage, billboards"
+   ]
+  },
+  {
+   "code": "R-2",
+   "name": "Two-Family Residential Zoning District",
+   "category": "residential",
+   "purpose": "Provides for two-family and limited multifamily housing in suitable locations considering existing land use, sustainable practices and utilities. Efficient use of land for attached or detached single-family and limited multifamily.",
+   "permitted_uses": [
+    "Single-family and duplex (two-family) dwellings",
+    "Limited multifamily (>2 units) by POD",
+    "Uses permitted in the single-family districts"
+   ],
+   "conditional_uses": [
+    "Special Use Permit (S): cottage industry not meeting 603.9, recreational facilities, private emergency-service stations, special event venues; recovery communities in R-3/R-4 only with SUP (Art. 1001.1.9)"
+   ],
+   "standards": {
+    "min_lot_size": "6,000 sq ft per lot; 4,000 sq ft per dwelling unit",
+    "max_height": "35 ft",
+    "setbacks": "Front 10 ft; street side 10 ft; interior side 5 ft; rear 25 ft. Accessory: front 10, street side 10, interior side/rear 3 ft",
+    "lot_coverage": "60%",
+    "other": "Min lot width 60 ft. Plan of Development required for multifamily when more than one building on a parcel (a single building of up to 4 units on a lot of record is exempt)."
+   },
+   "section": "Ch. 4 Sec. 401.3.1; 501.3.1; Ch. 5 Sec. 501.3, 502; Ch. 6 Sec. 601",
+   "notes": "Complete.",
+   "source": "Local file webfetch-1792176698708-xkbc3d.pdf (MCZO, footer 'December 10, 2025'), PDF pp.63-64; pp.68-70; p.70; pp.84-102"
+  },
+  {
+   "code": "R-3",
+   "name": "Multiple-Family Residential Zoning District",
+   "category": "residential",
+   "purpose": "Provides for multifamily housing in suitable locations considering existing land use, sustainable practices and utilities. Multifamily in suitable locations.",
+   "permitted_uses": [
+    "Two-family, duplex, multifamily dwellings (POD)",
+    "Dormitories (POD)",
+    "Uses permitted in single-family districts"
+   ],
+   "conditional_uses": [
+    "Special Use Permit (S): cottage industry not meeting 603.9, recreational facilities, private emergency-service stations, special event venues; recovery communities in R-3/R-4 only with SUP (Art. 1001.1.9)"
+   ],
+   "standards": {
+    "min_lot_size": "6,000 sq ft per lot; 3,000 sq ft per dwelling unit",
+    "max_height": "40 ft",
+    "setbacks": "Front 10 ft; street side 10 ft; interior side 5 ft; rear 25 ft. Accessory: front 10, street side 10, interior side/rear 3 ft",
+    "lot_coverage": "60%",
+    "other": "Min lot width 60 ft. Plan of Development required for multifamily when more than one building on a parcel (a single building of up to 4 units on a lot of record is exempt)."
+   },
+   "section": "Ch. 4 Sec. 401.3.2; 501.3.2; Ch. 5 Sec. 501.3, 502; Ch. 6 Sec. 601",
+   "notes": "Complete.",
+   "source": "Local file webfetch-1792176698708-xkbc3d.pdf (MCZO, footer 'December 10, 2025'), PDF pp.63-64; pp.68-70; p.70; pp.84-102"
+  },
+  {
+   "code": "R-4",
+   "name": "Multiple-Family Residential Zoning District",
+   "category": "residential",
+   "purpose": "Provides for multifamily housing in suitable locations considering existing land use, sustainable practices and utilities. Multifamily in suitable locations. NOTE internal inconsistency: Sec. 401.3.3 states 1,000 sq ft per unit for R-4, while 501.3.2 and the 502 table state 2,000 for R-4 and 1,000 for R-5.",
+   "permitted_uses": [
+    "Two-family, duplex, multifamily dwellings (POD)",
+    "Dormitories (POD)",
+    "Uses permitted in single-family districts"
+   ],
+   "conditional_uses": [
+    "Special Use Permit (S): cottage industry not meeting 603.9, recreational facilities, private emergency-service stations, special event venues; recovery communities in R-3/R-4 only with SUP (Art. 1001.1.9)"
+   ],
+   "standards": {
+    "min_lot_size": "6,000 sq ft per lot; 2,000 sq ft per dwelling unit (Sec. 501/502); Sec. 401.3.3 states 1,000",
+    "max_height": "40 ft",
+    "setbacks": "Front 10 ft; street side 10 ft; interior side 5 ft; rear 25 ft. Accessory: front 10, street side 10, interior side/rear 3 ft",
+    "lot_coverage": "60%",
+    "other": "Min lot width 60 ft. Plan of Development required for multifamily when more than one building on a parcel (a single building of up to 4 units on a lot of record is exempt)."
+   },
+   "section": "Ch. 4 Sec. 401.3.3; 501.3.2; Ch. 5 Sec. 501.3, 502; Ch. 6 Sec. 601",
+   "notes": "Complete, with noted Sec. 401 vs 502 inconsistency.",
+   "source": "Local file webfetch-1792176698708-xkbc3d.pdf (MCZO, footer 'December 10, 2025'), PDF pp.63-64; pp.68-70; p.70; pp.84-102"
+  },
+  {
+   "code": "R-5",
+   "name": "Multiple-Family Residential Zoning District",
+   "category": "residential",
+   "purpose": "Provides for multifamily housing in suitable locations considering existing land use, sustainable practices and utilities. Highest-density multifamily; also allows C-1 uses.",
+   "permitted_uses": [
+    "Two-family, duplex, multifamily dwellings (POD)",
+    "Dormitories; mobile home/manufactured home parks (POD*, Sec. 903)",
+    "All C-1 uses (Sec. 501.3.2), e.g. business schools, banks, offices, light retail, restaurants, gas stations, grocery (POD)",
+    "Uses permitted in single-family districts"
+   ],
+   "conditional_uses": [
+    "Special Use Permit (S): cottage industry not meeting 603.9, recreational facilities, private emergency-service stations, special event venues; recovery communities in R-3/R-4 only with SUP (Art. 1001.1.9)"
+   ],
+   "standards": {
+    "min_lot_size": "6,000 sq ft per lot; 1,000 sq ft per dwelling unit",
+    "max_height": "40 ft",
+    "setbacks": "Front 10 ft; street side 10 ft; interior side 5 ft; rear 25 ft. Accessory: front 10, street side 10, interior side/rear 3 ft",
+    "lot_coverage": "60%",
+    "other": "Min lot width 60 ft. Plan of Development required for multifamily when more than one building on a parcel (a single building of up to 4 units on a lot of record is exempt)."
+   },
+   "section": "Ch. 4 Sec. 501.3.2 (not listed in Sec. 401); Ch. 5 Sec. 501.3, 502; Ch. 6 Sec. 601",
+   "notes": "Complete.",
+   "source": "Local file webfetch-1792176698708-xkbc3d.pdf (MCZO, footer 'December 10, 2025'), PDF pp.63-64; pp.68-70; p.70; pp.84-102"
+  },
+  {
+   "code": "C-O",
+   "name": "Commercial Office Zoning District",
+   "category": "commercial",
+   "purpose": "Well-designed professional and business office sites that act as a transition and buffer between other commercial uses and residential neighborhoods.",
+   "permitted_uses": [
+    "Professional, semi-professional and business offices (POD)",
+    "Medical, dental, clinical laboratories (POD)",
+    "Uses allowed in every district (churches, schools, public facilities, utilities, home occupations, etc.)"
+   ],
+   "conditional_uses": [
+    "Special Use Permit (S): cottage industry, large assemblages of people, recreational open-air facilities, special event venues"
+   ],
+   "standards": {
+    "min_lot_size": "12,000 sq ft",
+    "max_height": "30 ft; no building over 15 ft within 20 ft of rural/residential zoning",
+    "setbacks": "Front 10 ft; street side 15 ft; interior side 5 ft; rear 5 ft",
+    "lot_coverage": "35%",
+    "other": "Min lot width 60 ft. Landscaping: solid 6 ft wall/fence + planting where adjacent to rural/residential; street frontage 1 tree + 3 shrubs per 20 ft (2-inch caliper); 4% of gross parking area landscaped. POD required. All activity (except parking/loading) in enclosed building; commercial outdoor uses enclosed by 6 ft view-obscuring wall."
+   },
+   "section": "Ch. 4 Sec. 401.4.2; Ch. 5 Sec. 503.1.1, 504; Ch. 6 Sec. 601",
+   "notes": "Use-table column reading for C-O/C-S was done from PDF text positions; verify against the PDF table.",
+   "source": "Local file webfetch-1792176698708-xkbc3d.pdf (MCZO, footer 'December 10, 2025'), PDF p.76; pp.77-78; pp.84-102"
+  },
+  {
+   "code": "C-S",
+   "name": "Planned Shopping Center Zoning District",
+   "category": "commercial",
+   "purpose": "Well-designed retail shopping centers on sites of at least five acres to serve nearby neighborhoods.",
+   "permitted_uses": [
+    "Retail sale of merchandise and services customarily considered shopping-center uses (Sec. 503.1.2)",
+    "Professional office (POD)"
+   ],
+   "conditional_uses": [
+    "Special Use Permit (S) items marked in the C-S column, e.g. large assemblages of people, special event venues"
+   ],
+   "standards": {
+    "min_lot_size": "217,800 sq ft (5 acres)",
+    "max_height": "40 ft",
+    "setbacks": "Front 10 ft; street side 50 ft; interior side 50 ft; rear 50 ft",
+    "lot_coverage": "25%",
+    "other": "Lot width N/A. Shopping center site must be in single ownership or under central management/supervisory control; unbuilt areas landscaped. Landscaping: solid 6 ft wall/fence + planting where adjacent to rural/residential; street frontage 1 tree + 3 shrubs per 20 ft (2-inch caliper); 4% of gross parking area landscaped. POD required. All activity (except parking/loading) in enclosed building; commercial outdoor uses enclosed by 6 ft view-obscuring wall."
+   },
+   "section": "Ch. 4 Sec. 401.4.1; Ch. 5 Sec. 503.1.2, 504; Ch. 6 Sec. 601",
+   "notes": "PARTIAL on use list: the C-S column in the Sec. 601 use table is mostly blank in the extracted PDF text, so the purpose text is the main by-right description. Confirm with the PDF/County.",
+   "source": "Local file webfetch-1792176698708-xkbc3d.pdf (MCZO, footer 'December 10, 2025'), PDF p.76; pp.77-78; pp.84-102"
+  },
+  {
+   "code": "C-2",
+   "name": "Intermediate Commercial Zoning District",
+   "category": "commercial",
+   "purpose": "Retail sales and services drawing from a market area wider than the immediate neighborhood.",
+   "permitted_uses": [
+    "Offices, professional offices, banks, art/photography studios (POD)",
+    "Light retail services, grocery stores/meat markets, book/gift shops, laundries, gas stations (POD*), business schools (POD)",
+    "Restaurants/cafes, food and beverage, liquor stores, private clubs (POD/POD*)",
+    "General retail, pet shops, self-storage facilities, automobile sales/repair, carwash, cash advance, fast food with drive-in",
+    "Bars, catering, theaters, pool halls, medical laboratories, veterinary clinics, hospitals/detox, boarding houses, halfway houses, hotels, parking lots/garages, plant nurseries"
+   ],
+   "conditional_uses": [
+    "Special Use Permit (S): large assemblages of people, commercial storage of vehicles (S* through C-2), recreational facilities, special event venues, billboards (S*)"
+   ],
+   "standards": {
+    "min_lot_size": "6,000 sq ft",
+    "max_height": "40 ft",
+    "setbacks": "Front 10 ft; street side 10 ft; interior side none (10 ft adjacent to rural/residential); rear none (25 ft adjacent to rural/residential)",
+    "lot_coverage": "60%",
+    "other": "Min lot width 60 ft. Landscaping: solid 6 ft wall/fence + planting where adjacent to rural/residential; street frontage 1 tree + 3 shrubs per 20 ft (2-inch caliper); 4% of gross parking area landscaped. POD required. All activity (except parking/loading) in enclosed building; commercial outdoor uses enclosed by 6 ft view-obscuring wall."
+   },
+   "section": "Ch. 4 Sec. 401.4.4; Ch. 5 Sec. 503.1.4, 504; Ch. 6 Sec. 601",
+   "notes": "Use list is a representative grouping from the use table, not exhaustive. Bus depots, amusement/outdoor entertainment start at C-3.",
+   "source": "Local file webfetch-1792176698708-xkbc3d.pdf (MCZO, footer 'December 10, 2025'), PDF p.76; pp.77-78; pp.84-102"
+  },
+  {
+   "code": "C-3",
+   "name": "General Commercial Zoning District",
+   "category": "commercial",
+   "purpose": "Commercial uses tied to wholesale or distribution activity where there is good access to major streets or highways.",
+   "permitted_uses": [
+    "Offices, professional offices, banks, art/photography studios (POD)",
+    "Light retail services, grocery stores/meat markets, book/gift shops, laundries, gas stations (POD*), business schools (POD)",
+    "Restaurants/cafes, food and beverage, liquor stores, private clubs (POD/POD*)",
+    "All C-2 uses (general retail, self-storage, auto sales/repair, carwash, theaters, hospitals, etc.)",
+    "Amusement enterprises/outdoor amusement, circus/carnival grounds, dance halls/nightclubs, drive-in theaters, outdoor entertainment, miniature golf (POD)",
+    "Commercial storage/impoundment of vehicles, RVs, boats, aircraft (POD; sites min 1 acre)",
+    "Bus depots (POD)",
+    "Recreational open-air facilities (POD)"
+   ],
+   "conditional_uses": [
+    "Billboards (S*)"
+   ],
+   "standards": {
+    "min_lot_size": "6,000 sq ft",
+    "max_height": "40 ft",
+    "setbacks": "Front 10 ft; street side 10 ft; interior side none (10 ft adjacent to rural/residential); rear none (25 ft adjacent to rural/residential)",
+    "lot_coverage": "60%",
+    "other": "Min lot width 60 ft. Landscaping: solid 6 ft wall/fence + planting where adjacent to rural/residential; street frontage 1 tree + 3 shrubs per 20 ft (2-inch caliper); 4% of gross parking area landscaped. POD required. All activity (except parking/loading) in enclosed building; commercial outdoor uses enclosed by 6 ft view-obscuring wall."
+   },
+   "section": "Ch. 4 Sec. 401.4.5; Ch. 5 Sec. 503.1.5, 504; Ch. 6 Sec. 601",
+   "notes": "The warehousing/wholesale distribution, truck terminal and industrial outdoor-storage rows of the use table show only IND districts (C-3 not shown) despite the purpose text.",
+   "source": "Local file webfetch-1792176698708-xkbc3d.pdf (MCZO, footer 'December 10, 2025'), PDF p.76; pp.77-78; pp.84-102"
+  },
+  {
+   "code": "IND-1",
+   "name": "Light Industrial Zoning District",
+   "category": "industrial",
+   "purpose": "Quiet, attractive, well-screened business and manufacturing uses that can sit close to residential areas so people can live and work in the same neighborhood.",
+   "permitted_uses": [
+    "Manufacturing: light industrial manufacturing by right with POD (general manufacturing is NOT listed for IND-1)",
+    "Warehousing, storage and wholesale distribution: by right with POD",
+    "Any other office, laboratory, manufacturing and assembling uses with no hazards/offensive impacts and little truck traffic (POD*, Art. 603.11)",
+    "Laboratories, research/testing, motion picture producing (POD)",
+    "Storage/maintenance of agricultural machinery (POD)",
+    "Commercial uses at POD: offices, banks, general/light retail, restaurants, self-storage, auto sales/repair, carwash, bus depots, parking lots, etc.",
+    "Outdoor storage: not by right; Special Use Permit in IND-1",
+    "Data center: not allowed (row lists IND-2 and IND-3 only)",
+    "Truck terminals: not allowed (IND-2 and IND-3 only)",
+    "Utility-scale solar: not allowed (IND-2/IND-3 only)",
+    "Battery energy storage: not allowed (IND-2/IND-3 only)",
+    "Energetics/explosives manufacturing: not addressed"
+   ],
+   "conditional_uses": [
+    "Outdoor storage incl. landscape materials sales, storage rental yards, construction yards, interim industrial uses (S)",
+    "Experimental and proving grounds (S)",
+    "Storage/mixing/sale of agricultural chemicals (S)",
+    "Custom meat processing plants (S)",
+    "Development of earth products (S*)",
+    "Airports/helipads (S*)",
+    "Cottage industry not meeting 603.9 (S*)"
+   ],
+   "standards": {
+    "min_lot_size": "35,000 sq ft",
+    "max_height": "60 ft",
+    "setbacks": "Front 20 ft; street side 10 ft; interior side none (10 ft adjacent to rural/residential); rear 10 ft",
+    "lot_coverage": "60%",
+    "other": "Min lot width 150 ft. Landscaping/screening: street frontage 1 tree + 3 shrubs per 20 ft (2-inch caliper); 4% of parking area landscaped; solid masonry wall min 6 ft along property lines abutting rural/residential zoning or alley; outdoor industrial areas enclosed/screened min 6 ft with view-obscuring walls; no outdoor use or storage taller than the enclosure and none in street setbacks. POD required for all industrial development. IND-1 allows landscaped berms/landscape screening as alternative to walls (Board approval). Enclosure: IND-1 and IND-2 uses (except parking/loading/unloading/storage) in a completely enclosed building; IND-3 all uses may be outdoors."
+   },
+   "section": "Ch. 4 Sec. 401.5.1; Ch. 5 Sec. 505.1.1, 506; Ch. 6 Sec. 601, 603.11",
+   "notes": "Assignment of 35,000/150 to IND-1 and 6,000/60 to IND-2/IND-3 is taken from the Sec. 506 table text; verify visually. Use-table district columns were derived from PDF text x-positions consistent with the table header. 'By right' = permitted subject to Plan of Development (POD) approval.",
+   "source": "Local file webfetch-1792176698708-xkbc3d.pdf (MCZO, footer 'December 10, 2025'), PDF p.80 (Sec.505); pp.81-82 (Sec.506); pp.96-98 (use table); p.112 (603.11)"
+  },
+  {
+   "code": "IND-2",
+   "name": "General Industrial Zoning District",
+   "category": "industrial",
+   "purpose": "Industrial uses (manufacturing, compounding, processing, packaging, treatment) in locations with good highway/rail access and utilities, without objectionable smoke, dust, noise, odor, glare or similar hazards.",
+   "permitted_uses": [
+    "Manufacturing: general and light industrial manufacturing (POD) -- by right",
+    "Warehousing, storage and wholesale distribution facilities (POD) -- by right",
+    "Truck terminals including service and storage (POD) -- by right",
+    "Outdoor storage incl. landscape materials, storage rental yards, construction yards (POD) -- by right with POD",
+    "Data centers with compensatory power generation (POD) -- by right (Ch. 2 definition includes AI/cloud processing and crypto mining)",
+    "Utility-scale solar, CSP or PV any capacity, primary or accessory (POD*, Art. 603.13; water must come from a renewable source)",
+    "Battery energy storage systems (POD*; 100 ft setback from all lot lines, Art. 603.10)",
+    "Utility treatment and generating plants (POD*)",
+    "Food production, cleaning plants, laboratories, motion picture, industrial training centers, autonomous vehicle/drone depots (POD)",
+    "Energetics/explosives manufacturing: not addressed as a use. The Warehousing definition excludes storage of explosive/corrosive/noxious materials. Treat as not allowed by right; confirm with County."
+   ],
+   "conditional_uses": [
+    "Custom meat processing, agricultural chemicals, industrial agricultural operations, cotton gins (S in IND-2)",
+    "Development of earth products (S*; extraction itself only in IND-3)",
+    "Cottage industry not meeting 603.9 (S*)"
+   ],
+   "standards": {
+    "min_lot_size": "6,000 sq ft",
+    "max_height": "60 ft",
+    "setbacks": "Front 20 ft; street side 10 ft; interior side none (10 ft adjacent to rural/residential); rear 10 ft (25 ft adjacent to rural/residential)",
+    "lot_coverage": "60%",
+    "other": "Min lot width 60 ft. Landscaping/screening: street frontage 1 tree + 3 shrubs per 20 ft (2-inch caliper); 4% of parking area landscaped; solid masonry wall min 6 ft along property lines abutting rural/residential zoning or alley; outdoor industrial areas enclosed/screened min 6 ft with view-obscuring walls; no outdoor use or storage taller than the enclosure and none in street setbacks. POD required for all industrial development. IND-1 allows landscaped berms/landscape screening as alternative to walls (Board approval). Enclosure: IND-1 and IND-2 uses (except parking/loading/unloading/storage) in a completely enclosed building; IND-3 all uses may be outdoors."
+   },
+   "section": "Ch. 4 Sec. 401.5.2; Ch. 5 Sec. 505.1.2, 506; Ch. 6 Sec. 601, 603.10, 603.13",
+   "notes": "The use-table text beside the solar row mentions IND-2 only, but Art. 603.13 and the column marks say IND-2 or IND-3. Airports/heliports are POD with Art. 811.3 standards. 'By right' = POD approval required.",
+   "source": "Local file webfetch-1792176698708-xkbc3d.pdf (MCZO, footer 'December 10, 2025'), PDF p.80; pp.81-82; pp.96-98, 101-102 (use table); pp.112-113 (603.10, 603.13); Ch.2 'Data Center' and manufacturing definitions"
+  },
+  {
+   "code": "IND-3",
+   "name": "Heavy Industrial Zoning District",
+   "category": "industrial",
+   "purpose": "The most intense industrial uses, including industrial uses not permitted in any other district, where access, rail and compatibility allow.",
+   "permitted_uses": [
+    "All IND-2 uses at POD: general and light manufacturing, warehousing/distribution, truck terminals, outdoor storage, data centers with compensatory power, utility-scale solar (Art. 603.13), BESS, utility generating plants",
+    "Development of earth products including extraction (POD*; extraction only in IND-3)",
+    "Custom meat processing, agricultural chemicals, industrial agricultural operations, cotton gins (POD)",
+    "All uses may be conducted outdoors",
+    "Energetics/explosives manufacturing: not addressed by name. Sec. 505.1.3 says IND-3 covers industrial uses not permitted in any other district, but no explosives use is listed. Confirm with County."
+   ],
+   "conditional_uses": [
+    "Few Special Use Permit items apply in IND-3; nearly everything the table lists is POD"
+   ],
+   "standards": {
+    "min_lot_size": "6,000 sq ft",
+    "max_height": "60 ft",
+    "setbacks": "Front 20 ft; street side 10 ft; interior side none (10 ft adjacent to rural/residential); rear 10 ft (25 ft adjacent to rural/residential)",
+    "lot_coverage": "60%",
+    "other": "Min lot width 60 ft. Landscaping/screening: street frontage 1 tree + 3 shrubs per 20 ft (2-inch caliper); 4% of parking area landscaped; solid masonry wall min 6 ft along property lines abutting rural/residential zoning or alley; outdoor industrial areas enclosed/screened min 6 ft with view-obscuring walls; no outdoor use or storage taller than the enclosure and none in street setbacks. POD required for all industrial development. IND-1 allows landscaped berms/landscape screening as alternative to walls (Board approval). Enclosure: IND-1 and IND-2 uses (except parking/loading/unloading/storage) in a completely enclosed building; IND-3 all uses may be outdoors."
+   },
+   "section": "Ch. 4 Sec. 401.5.3; Ch. 5 Sec. 505.1.3, 506; Ch. 6 Sec. 601, 603.10, 603.13",
+   "notes": "Conditional-use list is thin because nearly all IND-3 items are POD.",
+   "source": "Local file webfetch-1792176698708-xkbc3d.pdf (MCZO, footer 'December 10, 2025'), PDF p.80; pp.81-82; pp.96-102"
+  },
+  {
+   "code": "IND-2p",
+   "name": "IND-2 with 'p' suffix (undefined)",
+   "category": "industrial",
+   "purpose": null,
+   "permitted_uses": [],
+   "conditional_uses": [],
+   "standards": {
+    "min_lot_size": null,
+    "max_height": null,
+    "setbacks": null,
+    "lot_coverage": null,
+    "other": null
+   },
+   "section": null,
+   "notes": "Not defined in the MCZO provided (Dec 10, 2025 edition); a text search found no 'IND-2p' district. Possibly a GIS/data notation (e.g. planned/PAD/IUPD-related or older numbering); NOT verified. A web search found no definition. Until clarified, use IND-2 as the base district and check County PlanNet for an attached PAD/IUPD case.",
+   "source": "Local PDF full-text search (no match); WebSearch (no definition found)"
+  },
+  {
+   "code": "IND-3p",
+   "name": "IND-3 with 'p' suffix (undefined)",
+   "category": "industrial",
+   "purpose": null,
+   "permitted_uses": [],
+   "conditional_uses": [],
+   "standards": {
+    "min_lot_size": null,
+    "max_height": null,
+    "setbacks": null,
+    "lot_coverage": null,
+    "other": null
+   },
+   "section": null,
+   "notes": "Not defined in the MCZO provided (Dec 10, 2025 edition); a text search found no 'IND-3p' district. Possibly a GIS/data notation (e.g. planned/PAD/IUPD-related or older numbering); NOT verified. A web search found no definition. Until clarified, use IND-3 as the base district and check County PlanNet for an attached PAD/IUPD case.",
+   "source": "Local PDF full-text search (no match); WebSearch (no definition found)"
+  },
+  {
+   "code": "AD-1",
+   "name": "AD-1 (not in MCZO)",
+   "category": "other",
+   "purpose": null,
+   "permitted_uses": [],
+   "conditional_uses": [],
+   "standards": {
+    "min_lot_size": null,
+    "max_height": null,
+    "setbacks": null,
+    "lot_coverage": null,
+    "other": null
+   },
+   "section": null,
+   "notes": "Not a zoning district in the MCZO (Sec. 401 lists none). Possibly from a different regulation (e.g. a military-airport compatibility zone or another jurisdiction); NOT verified. A web search surfaced only a mention of an 'AD-III' zone in a Maricopa County military airport ordinance, unconfirmed. MCZO Sec. 706 (Military Airport overlay) is the closest related material.",
+   "source": "Local PDF Sec. 401 (pp.63-64) and full-text search (no match); WebSearch"
+  },
+  {
+   "code": "AD-2",
+   "name": "AD-2 (not in MCZO)",
+   "category": "other",
+   "purpose": null,
+   "permitted_uses": [],
+   "conditional_uses": [],
+   "standards": {
+    "min_lot_size": null,
+    "max_height": null,
+    "setbacks": null,
+    "lot_coverage": null,
+    "other": null
+   },
+   "section": null,
+   "notes": "Not a zoning district in the MCZO (Sec. 401 lists none). Possibly from a different regulation (e.g. a military-airport compatibility zone or another jurisdiction); NOT verified. A web search surfaced only a mention of an 'AD-III' zone in a Maricopa County military airport ordinance, unconfirmed. MCZO Sec. 706 (Military Airport overlay) is the closest related material.",
+   "source": "Local PDF Sec. 401 (pp.63-64) and full-text search (no match); WebSearch"
+  },
+  {
+   "code": "AD-3",
+   "name": "AD-3 (not in MCZO)",
+   "category": "other",
+   "purpose": null,
+   "permitted_uses": [],
+   "conditional_uses": [],
+   "standards": {
+    "min_lot_size": null,
+    "max_height": null,
+    "setbacks": null,
+    "lot_coverage": null,
+    "other": null
+   },
+   "section": null,
+   "notes": "Not a zoning district in the MCZO (Sec. 401 lists none). Possibly from a different regulation (e.g. a military-airport compatibility zone or another jurisdiction); NOT verified. A web search surfaced only a mention of an 'AD-III' zone in a Maricopa County military airport ordinance, unconfirmed. MCZO Sec. 706 (Military Airport overlay) is the closest related material.",
+   "source": "Local PDF Sec. 401 (pp.63-64) and full-text search (no match); WebSearch"
+  },
+  {
+   "code": "R1-6 RUPD",
+   "name": "R1-6 Single-Family Residential with Residential Unit Plan of Development overlay",
+   "category": "planned",
+   "purpose": "R1-6 base zoning plus an RUPD overlay that allows reduced lot sizes and varied standards under an approved plan while holding overall density to the base district.",
+   "permitted_uses": [
+    "Same uses as R1-6 (single-family dwellings, etc.)"
+   ],
+   "conditional_uses": [
+    "Same as R1-6"
+   ],
+   "standards": {
+    "min_lot_size": "Base R1-6 is 6,000 sq ft; RUPD may reduce individual lots but average lot area per dwelling (excluding streets) may not be below 6,000 sq ft",
+    "max_height": "Per underlying district unless varied by approved plan",
+    "setbacks": "Per underlying district unless varied by approved plan",
+    "lot_coverage": "Per underlying district unless varied by approved plan",
+    "other": "Approved by Board of Supervisors after Planning & Zoning Commission hearing; uses must conform to the underlying district's permitted uses."
+   },
+   "section": "Ch. 4 Sec. 401.6.2; Ch. 7 Sec. 702.2(1)",
+   "notes": "Actual standards for a given site are in its approved RUPD plan (case file), not in the ordinance.",
+   "source": "Local file webfetch-1792176698708-xkbc3d.pdf (MCZO, footer 'December 10, 2025'), PDF p.64; pp.117-118"
+  },
+  {
+   "code": "RUPD",
+   "name": "Residential Unit Plan of Development (overlay)",
+   "category": "planned",
+   "purpose": "Overlay available on any rural or residential district that permits reduced lot area and tailored standards under an approved plan, with density held to the base district.",
+   "permitted_uses": [
+    "Uses of the underlying district only"
+   ],
+   "conditional_uses": [],
+   "standards": {
+    "min_lot_size": "Per underlying district unless varied by approved plan",
+    "max_height": "Per underlying district unless varied by approved plan",
+    "setbacks": "Per underlying district unless varied by approved plan",
+    "lot_coverage": "Per underlying district unless varied by approved plan",
+    "other": "Approved by Board of Supervisors after Planning & Zoning Commission hearing; uses must conform to the underlying district's permitted uses."
+   },
+   "section": "Ch. 7 Sec. 702.2(1)",
+   "notes": "Overlay, not a base district.",
+   "source": "Local file webfetch-1792176698708-xkbc3d.pdf (MCZO, footer 'December 10, 2025'), PDF pp.117-118"
+  },
+  {
+   "code": "IUPD",
+   "name": "Industrial Unit Plan of Development (overlay)",
+   "category": "planned",
+   "purpose": "Overlay available on any industrial district that limits entitled uses and/or varies development standards through an approved plan; requires access to a major street/highway, rail or other transport and no adverse effect on adjacent properties.",
+   "permitted_uses": [
+    "Uses of the underlying industrial district only, possibly narrowed by the approved plan"
+   ],
+   "conditional_uses": [],
+   "standards": {
+    "min_lot_size": "Per underlying district unless varied by approved plan",
+    "max_height": "Per underlying district unless varied by approved plan",
+    "setbacks": "Per underlying district unless varied by approved plan",
+    "lot_coverage": "Per underlying district unless varied by approved plan",
+    "other": "Approved by Board of Supervisors after Planning & Zoning Commission hearing; uses must conform to the underlying district's permitted uses."
+   },
+   "section": "Ch. 4 Sec. 401.6.4; Ch. 7 Sec. 702.2(3), 702.6",
+   "notes": "Overlay, not a base district. The IUPD case file can LIMIT uses (e.g. bar outdoor storage or truck terminals), so pull it for any IUPD-tagged parcel. Related PAD overlay (Sec. 701): min 160 acres, combinable with any district incl. IND and IUPD.",
+   "source": "Local file webfetch-1792176698708-xkbc3d.pdf (MCZO, footer 'December 10, 2025'), PDF p.64; pp.117-118"
+  }
+ ]
+}

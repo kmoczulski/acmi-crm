@@ -17,7 +17,8 @@ from shapely.ops import unary_union
 
 from . import score
 from .layers import METERS_PER_MILE, to_albers
-from .sources import (ELECTRIC_AREAS, ELECTRIC_NATIONAL, EPA_CLEANUPS, FEMA_FLOOD, NWI_WETLANDS, SBA_HUBZONE, SESSION,
+from .sources import fema_flood_url
+from .sources import (ELECTRIC_AREAS, ELECTRIC_NATIONAL, EPA_CLEANUPS, NWI_WETLANDS, SBA_HUBZONE, SESSION,
                       SEWER_CCN, SEWER_LINES, TX_PARCELS_MAPSERVER, WATER_CCN, WATER_LINES, arcgis_query)
 
 SQ_M_PER_ACRE = 4046.8564224
@@ -61,7 +62,7 @@ def _pct(parcel_a, pieces):
 
 
 def check_flood(geom, parcel_a):
-    feats = _shapes(arcgis_query(FEMA_FLOOD, fields=["FLD_ZONE", "ZONE_SUBTY", "SFHA_TF"],
+    feats = _shapes(arcgis_query(fema_flood_url(), fields=["FLD_ZONE", "ZONE_SUBTY", "SFHA_TF"],
                                  geometry=esri_polygon(geom), geometry_type="esriGeometryPolygon"))
     sfha = [g for g, p in feats if p.get("SFHA_TF") == "T"]
     floodway = [g for g, p in feats if "FLOODWAY" in (p.get("ZONE_SUBTY") or "").upper()]
@@ -208,11 +209,95 @@ CHECKS = {
 TEXAS_ONLY = ("water", "sewer")
 
 
-def checks_for(state):
+# Arizona: private water / sewer companies certified by the Corporation Commission (ACC), per county GIS; the cities
+# and districts that serve the rest don't publish service areas, so "no company" means city / district / well.
+PINAL_GIS = "https://gis.pinal.gov/mapping/rest/services"
+MARICOPA_PLANNET = "https://gis.maricopa.gov/arcgis/rest/services/PND/PlanNet/MapServer"
+ELOY_GIS = "https://services7.arcgis.com/VfOwt1fngp5cVBlk/arcgis/rest/services"
+AZ_PROVIDERS = {
+    "Maricopa": {"water": f"{MARICOPA_PLANNET}/48", "sewer": f"{MARICOPA_PLANNET}/50"},
+    "Pinal": {"water": f"{PINAL_GIS}/Water_Providers/MapServer/0", "sewer": f"{PINAL_GIS}/Sewer_Providers/MapServer/0"},
+}
+AZ_LINES = {  # city mains we can measure to (Eloy publishes its water and gravity sewer mains)
+    "Pinal": {"water": (f"{ELOY_GIS}/wMains_view/FeatureServer/0", "City of Eloy water main"),
+              "sewer": (f"{ELOY_GIS}/sGravityMains/FeatureServer/0", "City of Eloy sewer main")},
+}
+PINAL_ELECTRIC_DISTRICTS = f"{PINAL_GIS}/Electric_Dist/MapServer/0"
+
+
+def _az_providers(url, geom, parcel_a):
+    feats = _shapes(arcgis_query(url, fields=["LABEL"], geometry=esri_polygon(geom),
+                                 geometry_type="esriGeometryPolygon"))
+    rows = {}
+    for g, p in feats:
+        name = _name(p.get("LABEL")) or "Unnamed utility"
+        pct = round(100 * _safe_intersection(to_albers(g), parcel_a).area / parcel_a.area, 1) if parcel_a.area else 0
+        row = rows.setdefault(name, {"name": name, "pct": 0})
+        row["pct"] = min(100, round(row["pct"] + pct, 1))
+    rows = sorted((r for r in rows.values() if r["pct"] > 0), key=lambda r: -r["pct"])
+    return {"providers": [r["name"] for r in rows], "details": rows}
+
+
+def _nearest_main(url, label, geom, parcel_a, miles=2):
+    best = None
+    for g, _ in _shapes(arcgis_query(url, fields=["OBJECTID"], geometry=esri_polygon(geom),
+                                     geometry_type="esriGeometryPolygon", distance=miles, max_records=500)):
+        d = to_albers(g).distance(parcel_a) / METERS_PER_MILE
+        if best is None or d < best["miles"]:
+            best = {"miles": round(d, 2), "name": label, "facility": ""}
+    return best
+
+
+def az_utility_check(kind, county_name):
+    def run(geom, parcel_a):
+        out = _az_providers(AZ_PROVIDERS[county_name][kind], geom, parcel_a)
+        line = AZ_LINES.get(county_name, {}).get(kind)
+        out["nearest_line"] = _nearest_main(line[0], line[1], geom, parcel_a) if line else None
+        out["note"] = "ACC-certified private companies only; city and district service is not mapped"
+        return out, None
+    return run
+
+
+# Names in the federal territory layer that are irrigation / water districts or federal power marketers, not retail
+# electric providers for a plant.
+_NOT_RETAIL = re.compile(r"\b(irr|irrigation|water|drain|conserv|usbia|wapa|western area|m w c|tohono|gila river|"
+                         r"ak-chin|harquahala)\b", re.I)
+
+
+def az_electric_check(county_name):
+    def run(geom, parcel_a):
+        data, _ = check_electric_national(geom, parcel_a)
+        keep, other = [], []
+        for p in data["providers"]:
+            (other if _NOT_RETAIL.search(p["name"]) else keep).append(p)
+        if county_name == "Pinal":  # the county's own electrical-district boundaries replace the federal layer's
+            keep = [p for p in keep if not p["name"].lower().startswith("electrical dist")]
+            for f in arcgis_query(PINAL_ELECTRIC_DISTRICTS, fields=["District_Name"], geometry=_point(geom),
+                                  geometry_type="esriGeometryPoint", return_geometry=False):
+                keep.append({"name": (f.get("properties") or {}).get("District_Name"), "kind": "Electrical district (county)",
+                             "phone": "", "website": "", "grid": ""})
+        data["providers"] = keep
+        data["other_territories"] = [p["name"] for p in other]
+        data["note"] = ("Federal (HIFLD) territories overlap at the edges: confirm with the utility. Irrigation / water "
+                        "districts and federal power marketers are listed separately.")
+        return data, None
+    return run
+
+
+def checks_for(state, county_name=""):
+    from . import incentives
+
     if state == "TX":
-        return dict(CHECKS)
-    out = {k: v for k, v in CHECKS.items() if k not in TEXAS_ONLY}
-    out["electric"] = check_electric_national
+        out = dict(CHECKS)
+    elif state == "AZ" and county_name in AZ_PROVIDERS:
+        out = {k: v for k, v in CHECKS.items() if k not in TEXAS_ONLY}
+        out["electric"] = az_electric_check(county_name)
+        out["water"] = az_utility_check("water", county_name)
+        out["sewer"] = az_utility_check("sewer", county_name)
+    else:
+        out = {k: v for k, v in CHECKS.items() if k not in TEXAS_ONLY}
+        out["electric"] = check_electric_national
+    out["incentives"] = lambda geom, parcel_a: (incentives.check(geom, county_name, state), None)
     return out
 
 
@@ -220,7 +305,7 @@ def run_checks(parcel, only=None):
     """Run the live checks (in parallel), store them on the parcel, re-score, save. Returns parcel.checks."""
     geom = shape(json.loads(parcel.geometry))
     parcel_a = to_albers(geom)
-    available = checks_for(parcel.county.state)
+    available = checks_for(parcel.county.state, parcel.county.name)
     names = [n for n in (only or available) if n in available]
     results, covered = dict(parcel.checks or {}), {}
 
@@ -253,7 +338,7 @@ def identify(lat, lon):
     """The parcel at a point, any size: {"county": {fips, name, state}, "fields": Parcel fields, "geometry"}.
 
     Texas: the state's StratMap map service (identify works there; searching doesn't).
-    Charles County, MD: the county's tax-parcel service.
+    Charles County, MD and the Huntsville-area Alabama counties: each county's tax-parcel service.
     """
     from . import counties
 
@@ -265,11 +350,12 @@ def identify(lat, lon):
             {"x": lon, "y": lat, "spatialReference": {"wkid": 4326}}), geometry_type="esriGeometryPoint",
             max_records=1)
         if feats and feats[0].get("geometry"):
-            fields = counties.fields_from_record(feats[0]["properties"])
+            fields = counties.record_fields(cfg, feats[0]["properties"])
             fields["acres"] = round(_geod_acres(shape(feats[0]["geometry"])), 2)
             return {"county": {"fips": cfg["fips"], "name": cfg["name"], "state": cfg["state"],
                                "cad_search_url": cfg.get("cad_search_url", "")},
-                    "fields": fields, "geometry": feats[0]["geometry"]}
+                    "fields": fields, "geometry": feats[0]["geometry"],
+                    "key": counties.record_key(cfg, feats[0]["properties"])}
     if not (25.8 <= lat <= 36.6 and -106.7 <= lon <= -93.5):
         return None
     d = 0.01
@@ -329,3 +415,18 @@ def _geod_acres(geom):
     from pyproj import Geod
 
     return abs(Geod(ellps="WGS84").geometry_area_perimeter(geom)[0]) / SQ_M_PER_ACRE
+
+
+def constraint_geometry(geom):
+    """FEMA 100-year floodplain + mapped wetlands (streams, ponds, freshwater wetlands) over a site, WGS84."""
+    pieces = []
+    # Bounding-box queries (clipped below): FEMA rejects complex multi-part outlines.
+    for f in arcgis_query(fema_flood_url(), where="SFHA_TF = 'T'", fields=["FLD_ZONE"], bbox=geom.bounds, simplify=0.00005):
+        if f.get("geometry"):
+            pieces.append(shape(f["geometry"]))
+    for f in arcgis_query(NWI_WETLANDS, where=WETLANDS_WHERE, fields=["WETLAND_TYPE"], bbox=geom.bounds,
+                          simplify=0.00005, page_size=500):
+        if f.get("geometry"):
+            pieces.append(shape(f["geometry"]))
+    pieces = [g if g.is_valid else make_valid(g) for g in pieces]
+    return unary_union(pieces).intersection(geom) if pieces else None

@@ -1336,7 +1336,7 @@ class LandCounty(models.Model):
 
     @property
     def state_name(self):
-        return {"TX": "Texas", "MD": "Maryland", "VA": "Virginia"}.get(self.state, self.state)
+        return {"TX": "Texas", "MD": "Maryland", "VA": "Virginia", "AL": "Alabama", "NC": "North Carolina", "AZ": "Arizona", "IN": "Indiana"}.get(self.state, self.state)
 
 
 class Parcel(models.Model):
@@ -1400,6 +1400,7 @@ class Parcel(models.Model):
     status_at = models.DateTimeField(null=True, blank=True)
     notes = models.TextField(blank=True)
     qd_design = models.JSONField(default=dict, blank=True, help_text="QD site layout: buildings and positions")
+    site_plan = models.JSONField(default=dict, blank=True, help_text="Quick site plan inputs (zone, overrides, program)")
     company = models.ForeignKey(Company, null=True, blank=True, on_delete=models.SET_NULL, related_name="parcels",
                                 help_text="The landowner, once someone chose Pursue")
     created_at = models.DateTimeField(auto_now_add=True)
@@ -1482,6 +1483,9 @@ class LandSite(models.Model):
     parcels = models.ManyToManyField(Parcel, blank=True, related_name="sites")
     notes = models.TextField(blank=True)
     qd_design = models.JSONField(default=dict, blank=True, help_text="QD site layout on the assembled boundary")
+    milestones = models.JSONField(default=dict, blank=True, help_text="{milestone key: 'YYYY-MM-DD'} (see MILESTONES)")
+    site_plan = models.JSONField(default=dict, blank=True, help_text="Quick site plan inputs (zone, overrides, program)")
+    listing = models.JSONField(default=dict, blank=True, help_text="Facts from the broker flyer or listing (see crm/land/briefs.py LISTING_KEYS)")
     created_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -1491,6 +1495,67 @@ class LandSite(models.Model):
 
     def __str__(self):
         return self.name
+
+    # Furthest along first; dropped last.
+    STATUS_ORDER = ["acquired", "contract", "loi", "outreach", "review", "prospect", "dropped"]
+
+    # Deal timeline, in order. Reaching a milestone moves the status forward to the one shown (never back).
+    MILESTONES = [
+        ("identified", "Identified", "prospect"),
+        ("contacted", "Owner contacted", "outreach"),
+        ("loi_sent", "LOI sent", "loi"),
+        ("loi_signed", "LOI signed", "loi"),
+        ("psa_sent", "PSA drafted / sent", "loi"),
+        ("psa_signed", "PSA signed", "contract"),
+        ("feasibility_end", "Feasibility ends", "contract"),
+        ("approvals", "Approvals / entitlements", "contract"),
+        ("closed", "Closed", "acquired"),
+    ]
+
+    def milestone_rows(self):
+        """[(key, label, date or None, days since the previous reached milestone)] in timeline order."""
+        from datetime import date
+
+        rows, prev, first = [], None, None
+        for key, label, _ in self.MILESTONES:
+            raw = (self.milestones or {}).get(key)
+            when = date.fromisoformat(raw) if raw else None
+            gap = (when - prev).days if when and prev else None
+            if when and first is None:
+                first = when
+            total = (when - first).days if when and first else None
+            rows.append({"key": key, "label": label, "date": when, "gap": gap, "total": total})
+            if when:
+                prev = when
+        return rows
+
+    def timeline_summary(self):
+        """Overall clock: first dated milestone to closing (or today while still open). None if no dates."""
+        from datetime import date
+
+        dated = [r for r in self.milestone_rows() if r["date"]]
+        if not dated:
+            return None
+        first, last = dated[0], dated[-1]
+        closed = last["key"] == "closed"
+        end = last["date"] if closed else date.today()
+        return {"start": first["date"], "start_label": first["label"], "end": end, "closed": closed,
+                "days": (end - first["date"]).days, "last_label": last["label"], "last_date": last["date"],
+                "since_last": (date.today() - last["date"]).days if not closed else 0,
+                "ahead": max(0, (last["date"] - date.today()).days)}
+
+    def status_for_milestones(self):
+        """The furthest status the recorded milestones imply (None if none recorded)."""
+        reached = [st for key, _, st in self.MILESTONES if (self.milestones or {}).get(key)]
+        if not reached:
+            return None
+        return min(reached, key=lambda st: self.STATUS_ORDER.index(st))
+
+    @classmethod
+    def by_status(cls, sites):
+        """Sort sites by deal stage, then name."""
+        return sorted(sites, key=lambda s: (cls.STATUS_ORDER.index(s.status) if s.status in cls.STATUS_ORDER
+                                            else len(cls.STATUS_ORDER), s.name.lower()))
 
     def get_absolute_url(self):
         return reverse("crm:land_search") + f"?site={self.pk}"
@@ -1502,3 +1567,120 @@ class LandSite(models.Model):
     @property
     def home_label(self):
         return " / ".join(str(x) for x in [self.campus, self.project] if x) or "No campus or project"
+
+
+class LandSiteEvent(models.Model):
+    """Change log for a land site: status moves, milestones, notes. Feeds the site's timeline."""
+
+    site = models.ForeignKey(LandSite, on_delete=models.CASCADE, related_name="events")
+    when = models.DateTimeField(default=timezone.now, db_index=True)
+    user = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    kind = models.CharField(max_length=20, help_text="status, milestone, note, edit")
+    text = models.CharField(max_length=500)
+
+    class Meta:
+        ordering = ["-when", "-id"]
+
+    def __str__(self):
+        return self.text[:60]
+
+
+class SiteParcelDeal(models.Model):
+    """One parcel's own deal inside a site (an assemblage closes owner by owner): status, milestones, notes."""
+
+    site = models.ForeignKey(LandSite, on_delete=models.CASCADE, related_name="parcel_deals")
+    parcel = models.ForeignKey(Parcel, on_delete=models.CASCADE, related_name="site_deals")
+    status = models.CharField(max_length=10, choices=LandSite.Status.choices, default=LandSite.Status.REVIEW)
+    milestones = models.JSONField(default=dict, blank=True, help_text="{milestone key: 'YYYY-MM-DD'}")
+    notes = models.TextField(blank=True)
+    # Excluded parcels stay on the site (history, owner contact) but drop out of its acres, outline, QD and plan.
+    included = models.BooleanField(default=True)
+    # The part of the parcel this site needs (GeoJSON, WGS84), e.g. only the side of a trail that touches the
+    # rest of the assemblage. Blank = the whole parcel.
+    portion = models.TextField(blank=True)
+    portion_acres = models.FloatField(null=True, blank=True)
+    portion_cuts = models.JSONField(default=list, blank=True, help_text="Cut lines drawn to make the portion")
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["site", "parcel"], name="site_parcel_deal_unique")]
+
+    def __str__(self):
+        return f"{self.site} · {self.parcel.prop_id or self.parcel.key}"
+
+    @property
+    def acres(self):
+        """Acres this site counts for the parcel: the trimmed portion when there is one."""
+        return self.portion_acres if self.portion and self.portion_acres is not None else self.parcel.acres
+
+    @property
+    def trimmed(self):
+        return bool(self.portion)
+
+    def geometry_json(self):
+        return self.portion or self.parcel.geometry
+
+    def milestone_rows(self):
+        from datetime import date
+
+        return [{"key": k, "label": label, "date": date.fromisoformat(self.milestones[k]) if (self.milestones or {}).get(k) else None}
+                for k, label, _ in LandSite.MILESTONES]
+
+    def status_for_milestones(self):
+        reached = [st for key, _, st in LandSite.MILESTONES if (self.milestones or {}).get(key)]
+        return min(reached, key=lambda st: LandSite.STATUS_ORDER.index(st)) if reached else None
+
+
+class Assignment(models.Model):
+    """A land search for a client: many candidate sites, each with a diligence report, ranked against each other.
+
+    Clients see it through a private share link (crm/land/assignments.py, the /g/<token>/ pages).
+    """
+
+    name = models.CharField(max_length=200, help_text="e.g. Elbit 26 Defense land search")
+    client = models.CharField(max_length=200, blank=True)
+    program = models.CharField(max_length=300, blank=True, help_text="End use, e.g. energetics manufacturing campus")
+    demand_driver = models.CharField(max_length=200, blank=True, help_text="Installation or gate the program serves")
+    acreage_floor = models.DecimalField(max_digits=10, decimal_places=1, null=True, blank=True,
+                                        help_text="Net usable acres the program needs")
+    guest_intro = models.TextField(blank=True, help_text="Cover note shown to the client above the ranking")
+    notes = models.TextField(blank=True, help_text="Internal only")
+    share_token = models.CharField(max_length=64, blank=True, db_index=True)
+    share_enabled = models.BooleanField(default=False)
+    share_expires = models.DateField(null=True, blank=True)
+    guest_views = models.PositiveIntegerField(default=0)
+    guest_last_view = models.DateTimeField(null=True, blank=True)
+    created_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-updated_at"]
+
+    def __str__(self):
+        return self.name
+
+    def get_absolute_url(self):
+        return reverse("crm:assignment_detail", args=[self.pk])
+
+    def share_active(self):
+        from datetime import date
+
+        return bool(self.share_enabled and self.share_token and (not self.share_expires or self.share_expires >= date.today()))
+
+
+class AssignmentSite(models.Model):
+    """A site inside an assignment, with the diligence report written for that client."""
+
+    assignment = models.ForeignKey(Assignment, on_delete=models.CASCADE, related_name="entries")
+    site = models.ForeignKey(LandSite, on_delete=models.CASCADE, related_name="assignment_entries")
+    report = models.JSONField(default=dict, blank=True, help_text="Ratings, findings, checklist, utilities, permits, ROM")
+    rank_override = models.PositiveSmallIntegerField(null=True, blank=True, help_text="Pin to this position in the ranking")
+    show_to_guest = models.BooleanField(default=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["assignment", "site"], name="assignment_site_unique")]
+
+    def __str__(self):
+        return f"{self.assignment} · {self.site}"

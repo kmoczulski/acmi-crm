@@ -12,7 +12,7 @@ from django.views.decorators.http import require_POST
 from shapely.geometry import shape
 
 from ..models import Activity, Campus, Company, LandCounty, LandSite, Note, Parcel, Project, Task, normalize_key
-from . import layers, score
+from . import layers, score, zoning_ref
 from .lookup import identify, run_checks
 from .sources import LIMIT_LAYERS, STORED_LAYERS
 
@@ -107,6 +107,8 @@ def land_search(request):
     return render(request, "crm/land_search.html", {
         "counties": counties, "focus": focus, "totals": totals, "layer_counts": layers.layer_counts(),
         "statuses": Parcel.Status.choices, "zoning_classes": score.ZONING_CLASSES,
+        "incentive_programs": __import__("crm.land.incentives", fromlist=["public"]).public(),
+        "fema_flood_layer": __import__("crm.land.sources", fromlist=["x"]).fema_flood_layer_id(),
         "zoning_counts": dict(Parcel.objects.values_list("zoning_class").annotate(n=Count("id"))),
         "county_bounds": {c.fips: [[c.s, c.w], [c.nn, c.e]] for c in counties},
     })
@@ -145,30 +147,35 @@ def parcels_json(request):
                          "truncated": total > len(features), "points": as_points, "list": listed})
 
 
+def near_rows(parcel):
+    """Distances to the nearest power, road, rail, pipeline and military features, as {label, miles, name} rows."""
+    rows = []
+    for layer, spec in STORED_LAYERS.items():
+        n = (parcel.near or {}).get(layer)
+        if layer in LIMIT_LAYERS or not n:
+            continue
+        if layer == "highway":
+            name = score.road_name(n)
+        elif layer == "substation":
+            name = score.substation_name(n).replace("an unnamed", "Unnamed")
+            kv = n.get("MAX_VOLTAG")
+            name += f" · {kv:g} kV" if isinstance(kv, (int, float)) and kv > 0 else ""
+        elif layer == "transmission":
+            name = " · ".join(str(x) for x in [n.get("name"), f"{n['VOLT_CLASS']} kV" if n.get("VOLT_CLASS") else ""] if x)
+        else:
+            name = n.get("name") or ""
+        name = " · ".join(x for x in name.split(" · ") if x.strip().upper() not in ("NOT AVAILABLE", "UNKNOWN", "NA"))
+        if name.isupper() and len(name) > 4:  # keep railroad marks like UP, BNSF, CSXT
+            name = name.title()
+        rows.append({"layer": layer, "label": spec["label"], "miles": n["miles"], "name": name})
+    return rows
+
+
 def _card(request, parcel, live=None):
     checks = (parcel.checks or {}) if parcel else {}
-    near_rows = []
-    if parcel:
-        for layer, spec in STORED_LAYERS.items():
-            n = (parcel.near or {}).get(layer)
-            if layer in LIMIT_LAYERS or not n:
-                continue
-            if layer == "highway":
-                name = score.road_name(n)
-            elif layer == "substation":
-                name = score.substation_name(n).replace("an unnamed", "Unnamed")
-                kv = n.get("MAX_VOLTAG")
-                name += f" · {kv:g} kV" if isinstance(kv, (int, float)) and kv > 0 else ""
-            elif layer == "transmission":
-                name = " · ".join(str(x) for x in [n.get("name"), f"{n['VOLT_CLASS']} kV" if n.get("VOLT_CLASS") else ""] if x)
-            else:
-                name = n.get("name") or ""
-            name = " · ".join(x for x in name.split(" · ") if x.strip().upper() not in ("NOT AVAILABLE", "UNKNOWN", "NA"))
-            if name.isupper() and len(name) > 4:  # keep railroad marks like UP, BNSF, CSXT
-                name = name.title()
-            near_rows.append({"label": spec["label"], "miles": n["miles"], "name": name})
     return render(request, "crm/partials/land_card.html", {
-        "p": parcel, "live": live, "checks": checks, "near_rows": near_rows,
+        "p": parcel, "live": live, "checks": checks, "near_rows": near_rows(parcel) if parcel else [],
+        "zoning_ref": zoning_ref.district_for(parcel) if parcel else None,
         "land_use": score.land_use_label(parcel.state_land_use) if parcel else "",
         "unconfirmed": score.ALWAYS_UNCONFIRMED, "statuses": Parcel.Status.choices,
         "ccn_rows": [(k, label, checks[k]) for k, label in (("water", "Water"), ("sewer", "Sewer")) if checks.get(k)],
@@ -276,25 +283,20 @@ def identify_view(request):
                                       "geometry_json": json.dumps(hit["geometry"]) if hit["geometry"] else ""})
 
 
-@require_POST
-def parcel_save(request):
-    """Save the parcel at a point into land search (for parcels under the size cut-off, or outside loaded counties)."""
+def _store_parcel_at(lat, lon):
+    """The parcel at a point stored in land search (fetched live and saved if we don't have it), or None."""
     from .parcels import owner_key
 
-    try:
-        lat, lon = float(request.POST["lat"]), float(request.POST["lon"])
-    except (KeyError, ValueError):
-        raise Http404
     hit = identify(lat, lon)
     if not hit or not hit["geometry"]:
-        raise Http404
+        return None
     c = hit["county"]
     county, _ = LandCounty.objects.get_or_create(fips=c["fips"], defaults={
         "name": c["name"], "state": c["state"], "source": c.get("source", ""),
         "cad_search_url": c.get("cad_search_url", "")})
     geom = shape(hit["geometry"])
     fields = hit["fields"]
-    key = fields.get("prop_id") or fields.get("geo_id") or f"pt-{lat:.5f},{lon:.5f}"
+    key = hit.get("key") or fields.get("prop_id") or fields.get("geo_id") or f"pt-{lat:.5f},{lon:.5f}"
     parcel = Parcel.objects.filter(county=county, key=key).first() or Parcel(county=county, key=key)
     for name, value in fields.items():
         f = Parcel._meta.get_field(name)
@@ -309,8 +311,37 @@ def parcel_save(request):
     parcel.near, parcel.in_city = layers.measure(geom)
     score.apply(parcel)
     parcel.save()
+    return parcel
+
+
+@require_POST
+def parcel_save(request):
+    """Save the parcel at a point into land search (for parcels under the size cut-off, or outside loaded counties)."""
+    try:
+        lat, lon = float(request.POST["lat"]), float(request.POST["lon"])
+    except (KeyError, ValueError):
+        raise Http404
+    parcel = _store_parcel_at(lat, lon)
+    if parcel is None:
+        raise Http404
     run_checks(parcel)
     return _card(request, parcel)
+
+
+@require_POST
+def assemble_point(request):
+    """Assemble mode: the stored parcel at a clicked point (stored on the spot if it wasn't), as {id, acres, owner}."""
+    try:
+        lat, lon = float(request.POST["lat"]), float(request.POST["lon"])
+    except (KeyError, ValueError):
+        raise Http404
+    hit = identify(lat, lon)
+    prop = (hit or {}).get("fields", {}).get("prop_id")
+    parcel = Parcel.objects.filter(county__fips=hit["county"]["fips"], prop_id=prop).first() if hit and prop else None
+    parcel = parcel or _store_parcel_at(lat, lon)
+    if parcel is None:
+        raise Http404
+    return JsonResponse({"id": parcel.pk, "acres": round(parcel.acres, 1), "owner": parcel.owner_name})
 
 
 def search_json(request):
@@ -415,7 +446,12 @@ def qd_layout(request):
         ids = list(site.parcels.values_list("pk", flat=True))
     group = list(Parcel.objects.filter(pk__in=ids)) if ids else []
     parcel = None if group else (Parcel.objects.filter(pk=data.get("parcel")).first() if data.get("parcel") else None)
-    geom = _union_geometry(group) if group else (shape(json.loads(parcel.geometry)) if parcel else None)
+    if site and group:
+        from . import trim
+
+        geom = trim.site_geometry(site, ids)
+    else:
+        geom = _union_geometry(group) if group else (shape(json.loads(parcel.geometry)) if parcel else None)
     centre = geom.representative_point() if geom else None
     if centre is None:
         located = [b for b in buildings if b.get("lat") is not None]
@@ -477,20 +513,34 @@ def _union_geometry(parcels):
 
 
 def _site_json(site):
-    parcels = list(site.parcels.select_related("county"))
+    from . import trim
+
+    acres = trim.site_acres(site)  # also makes sure every parcel has its deal row
+    excluded = set(site.parcel_deals.filter(included=False).values_list("parcel_id", flat=True))
+    parcels = [p for p in site.parcels.select_related("county") if p.pk not in excluded]
     owners = sorted({p.owner_name for p in parcels if p.owner_name})
     return {
         "id": site.pk, "name": site.name, "status": site.status, "status_label": site.get_status_display(),
         "campus": site.campus_id, "project": site.project_id, "home": site.home_label, "notes": site.notes,
-        "parcels": [p.pk for p in parcels], "acres": round(sum(p.acres for p in parcels), 1),
+        "parcels": [p.pk for p in parcels], "excluded": sorted(excluded), "acres": acres,
         "owners": owners, "has_qd": bool((site.qd_design or {}).get("buildings")),
-        "url": site.get_absolute_url(),
+        "url": site.get_absolute_url(), "deal_clock": _deal_clock(site),
     }
+
+
+def _deal_clock(site):
+    """'142 days since identified' / '98 days identified to close' for a site, '' with no milestone dates."""
+    ts = site.timeline_summary()
+    if not ts:
+        return ""
+    n = ts["days"]
+    unit = "day" if n == 1 else "days"
+    return f"{n} {unit} {'identified to close' if ts['closed'] else 'since ' + ts['start_label']}"
 
 
 def sites_json(request):
     """Saved land sites, plus the campus and project choices for the save dialog."""
-    sites = LandSite.objects.select_related("campus", "project").prefetch_related("parcels")
+    sites = LandSite.by_status(LandSite.objects.select_related("campus", "project").prefetch_related("parcels"))
     return JsonResponse({
         "sites": [_site_json(s) for s in sites],
         "campuses": [{"id": c.pk, "label": f"{c.code} · {c.name}"} for c in Campus.objects.all()],
@@ -502,10 +552,12 @@ def sites_json(request):
 def site_json(request, pk):
     site = get_object_or_404(LandSite, pk=pk)
     data = _site_json(site)
-    parcels = list(site.parcels.all())
     from shapely.geometry import mapping
-    data["geometry"] = (mapping(
-        _union_geometry(parcels)) if parcels else None)
+
+    from . import trim
+
+    geom = trim.site_geometry(site)
+    data["geometry"] = mapping(geom) if geom is not None else None
     data["qd_design"] = site.qd_design or {}
     return JsonResponse(data)
 
@@ -518,6 +570,7 @@ def site_save(request):
     except ValueError:
         return JsonResponse({"error": "Bad request"}, status=400)
     site = LandSite.objects.filter(pk=data.get("id")).first() if data.get("id") else LandSite(created_by=request.user)
+    is_new, old_status = site.pk is None, site.status
     name = (data.get("name") or "").strip()
     if not name:
         return JsonResponse({"error": "Give the site a name."}, status=400)
@@ -532,7 +585,15 @@ def site_save(request):
         site.notes = data.get("notes") or ""
     site.save()
     if "parcels" in data:
-        site.parcels.set(Parcel.objects.filter(pk__in=[int(i) for i in data["parcels"] if str(i).isdigit()]))
+        keep = set(site.parcel_deals.filter(included=False).values_list("parcel_id", flat=True)) if site.pk else set()
+        site.parcels.set(Parcel.objects.filter(pk__in=[int(i) for i in data["parcels"] if str(i).isdigit()] + list(keep)))
+    if is_new:
+        _log(site, request.user, "edit", f"Site created on the map with {site.parcels.count()} parcels")
+        if not (site.milestones or {}).get("identified"):
+            site.milestones = {**(site.milestones or {}), "identified": timezone.localdate().isoformat()}
+            site.save(update_fields=["milestones"])
+    elif old_status != site.status:
+        _log(site, request.user, "status", f"Status → {site.get_status_display()} (from the map)")
     return JsonResponse(_site_json(site))
 
 
@@ -622,3 +683,474 @@ def view_delete(request, pk):
 
     get_object_or_404(SavedView, pk=pk, owner=request.user, object_type=ObjectType.LAND).delete()
     return JsonResponse({"ok": True})
+
+
+def sites_geojson(request):
+    """Every saved site as one outline (its parcels merged), for the "Saved sites" map layer."""
+    from shapely.geometry import mapping
+
+    feats = []
+    from . import trim
+
+    for site in LandSite.objects.select_related("campus", "project"):
+        pieces = trim.parts(site)
+        if not pieces:
+            continue
+        geom = trim.union([g for _, g in pieces]).simplify(0.00002, preserve_topology=True)
+        feats.append({"type": "Feature", "geometry": mapping(geom), "properties": {
+            "id": site.pk, "name": site.name, "status": site.status, "status_label": site.get_status_display(),
+            "home": site.home_label, "acres": round(sum(d.acres for d, _ in pieces), 1), "parcels": len(pieces)}})
+    return JsonResponse({"type": "FeatureCollection", "features": feats})
+
+
+def sites_page(request):
+    """Prospective sites by campus and project, each group sorted by deal stage, with totals."""
+    from collections import Counter
+
+    status = request.GET.get("status", "active")
+    every = LandSite.objects.select_related("campus", "project").prefetch_related("parcels__county", "events")
+    # Dropped sites always go to the Archive at the bottom, not the campus / project groups.
+    sites = every.exclude(status=LandSite.Status.DROPPED)
+    stage_n = Counter(sites.values_list("status", flat=True))
+    stage_chips = [(v, l, stage_n[v]) for v, l in LandSite.Status.choices if v != LandSite.Status.DROPPED]
+    if status in LandSite.Status.values and status != LandSite.Status.DROPPED:
+        sites = sites.filter(status=status)
+    archive = []
+    for s in sorted(every.filter(status=LandSite.Status.DROPPED), key=lambda x: x.updated_at, reverse=True):
+        dropped = next((e.when for e in s.events.all() if e.kind == "status" and "Dropped" in e.text), None)
+        from . import trim
+
+        archive.append({"site": s, "when": dropped or s.updated_at, "acres": trim.site_acres(s),
+                        "parcels": s.parcel_deals.filter(included=True).count(),
+                        "reason": (s.notes or "").strip().splitlines()[0][:220] if s.notes else ""})
+    from . import tracker
+
+    rows = []
+    for s in LandSite.by_status(sites):
+        tracker.ensure_deals(s)
+        deals = list(s.parcel_deals.select_related("parcel", "parcel__county").filter(included=True))
+        parcels = [d.parcel for d in deals]
+        owners = Counter()
+        for p in parcels:
+            owners[p.owner_name or "Unknown owner"] += p.acres
+        zoning = Counter()
+        for p in parcels:
+            label = (p.zoning.split(" / ")[0] if p.zoning else "") or score.land_use_label(p.state_land_use) or "—"
+            zoning[label] += p.acres
+        killers = sorted({k for p in parcels for k in (p.killers or [])})
+        checked = [p for p in parcels if (p.checks or {}).get("net_usable")]
+        net = sum(p.checks["net_usable"]["acres"] for p in checked) if checked and len(checked) == len(parcels) else None
+        values = [p.market_value for p in parcels if p.market_value]
+        rows.append({
+            "site": s, "parcels": len(parcels), "acres": round(sum(d.acres for d in deals), 1), "net": net,
+            "clock": (lambda ts: f"{ts['days']}d" if ts else "")(s.timeline_summary()),
+            "owners": owners.most_common(), "zoning": [z for z, _ in zoning.most_common(3)],
+            "counties": sorted({p.county.name for p in parcels}),
+            "score": max((p.score for p in parcels), default=None), "killers": killers,
+            "value": sum(values) if values else None, "has_qd": bool((s.qd_design or {}).get("buildings")),
+            "note": (s.notes or "").strip().splitlines()[0][:220] if s.notes else "",
+            "progress": tracker.progress(s) if len({(p.owner_name or "").upper() for p in parcels}) > 1 else [],
+        })
+    groups = {}
+    for r in rows:
+        s = r["site"]
+        key = (s.campus.code if s.campus else "~", s.project.name if s.project else "")
+        g = groups.setdefault(key, {"campus": s.campus, "project": s.project, "rows": [], "by_status": Counter()})
+        g["rows"].append(r)
+        g["by_status"][s.get_status_display()] += 1
+    ordered = [groups[k] for k in sorted(groups)]
+    for g in ordered:
+        live = [r for r in g["rows"] if r["site"].status != LandSite.Status.DROPPED]
+        g["acres"] = round(sum(r["acres"] for r in live), 1)
+        g["count"] = len(g["rows"])
+        g["by_status"] = [(label, g["by_status"][label]) for _, label in LandSite.Status.choices if g["by_status"][label]]
+    return render(request, "crm/land_sites.html", {
+        "groups": ordered, "status": status, "timeline": _timeline(rows), "archive": archive,
+        "stage_chips": stage_chips, "stage_values": [c[0] for c in stage_chips], "active_count": sum(stage_n.values()),
+        "total": len(rows), "total_acres": round(sum(r["acres"] for r in rows), 1),
+    })
+
+
+def _log(site, user, kind, text):
+    from ..models import LandSiteEvent
+
+    LandSiteEvent.objects.create(site=site, user=user, kind=kind, text=text[:500])
+
+
+def _set_status(site, status, user, why=""):
+    if status in LandSite.Status.values and status != site.status:
+        old = site.get_status_display()
+        site.status = status
+        site.save(update_fields=["status", "updated_at"])
+        _log(site, user, "status", f"Status {old} → {site.get_status_display()}" + (f" ({why})" if why else ""))
+
+
+def site_detail(request, pk):
+    """One prospective site: details, status, deal milestones, parcels and change log."""
+    from datetime import date
+
+    from django.contrib import messages
+    from django.shortcuts import redirect
+
+    site = get_object_or_404(LandSite.objects.select_related("campus", "project"), pk=pk)
+    if request.method == "POST":
+        action = request.POST.get("action")
+        if action == "details":
+            changes = []
+            name = (request.POST.get("name") or "").strip()[:200]
+            if name and name != site.name:
+                changes.append(f"renamed from “{site.name}”")
+                site.name = name
+            campus = Campus.objects.filter(pk=request.POST.get("campus") or 0).first()
+            project = Project.objects.filter(pk=request.POST.get("project") or 0).first()
+            if project and not campus:
+                campus = project.campus
+            if (campus, project) != (site.campus, site.project):
+                changes.append(f"moved to {' / '.join(str(x) for x in [campus, project] if x) or 'no campus'}")
+                site.campus, site.project = campus, project
+            notes = request.POST.get("notes", "")
+            if notes.strip() != (site.notes or "").strip():
+                changes.append("notes edited")
+                site.notes = notes
+            site.save()
+            if changes:
+                _log(site, request.user, "edit", "; ".join(changes).capitalize())
+            _set_status(site, request.POST.get("status"), request.user)
+            messages.success(request, "Saved.")
+        elif action == "milestones":
+            new = {}
+            for key, label, _ in LandSite.MILESTONES:
+                raw = (request.POST.get(key) or "").strip()
+                if raw:
+                    try:
+                        new[key] = date.fromisoformat(raw).isoformat()
+                    except ValueError:
+                        messages.error(request, f"{label}: use a date.")
+                        return redirect("crm:land_site_detail", pk=site.pk)
+            old = site.milestones or {}
+            labels = {k: label for k, label, _ in LandSite.MILESTONES}
+            for key in labels:
+                if new.get(key) != old.get(key):
+                    if new.get(key):
+                        d = date.fromisoformat(new[key])
+                        _log(site, request.user, "milestone", f"{labels[key]}: {d:%b} {d.day}, {d.year}")
+                    else:
+                        _log(site, request.user, "milestone", f"{labels[key]} date cleared")
+            site.milestones = new
+            site.save(update_fields=["milestones", "updated_at"])
+            implied = site.status_for_milestones()
+            order = LandSite.STATUS_ORDER
+            if implied and site.status != "dropped" and order.index(implied) < order.index(site.status):
+                _set_status(site, implied, request.user, "from milestones")
+            messages.success(request, "Timeline saved.")
+        elif action == "parcel_deal":
+            from ..models import SiteParcelDeal
+
+            deal = get_object_or_404(SiteParcelDeal, site=site, pk=request.POST.get("deal"))
+            new_dates = {}
+            for key, label, _ in LandSite.MILESTONES:
+                raw = (request.POST.get(key) or "").strip()
+                if raw:
+                    try:
+                        new_dates[key] = date.fromisoformat(raw).isoformat()
+                    except ValueError:
+                        messages.error(request, f"{label}: use a date.")
+                        return redirect("crm:land_site_detail", pk=site.pk)
+            status = request.POST.get("status") or deal.status
+            notes = request.POST.get("notes", deal.notes)
+            targets = [deal]
+            owner = (deal.parcel.owner_name or "").strip().upper()
+            if request.POST.get("apply_owner") and owner:
+                targets = [d for d in site.parcel_deals.select_related("parcel")
+                           if (d.parcel.owner_name or "").strip().upper() == owner]
+            labels = {k: label for k, label, _ in LandSite.MILESTONES}
+            changes = []
+            for d in targets:
+                if d.milestones != new_dates:
+                    for key in labels:
+                        if new_dates.get(key) != (d.milestones or {}).get(key) and d is deal:
+                            changes.append(f"{labels[key]} {date.fromisoformat(new_dates[key]):%b} "
+                                           f"{date.fromisoformat(new_dates[key]).day}" if new_dates.get(key)
+                                           else f"{labels[key]} cleared")
+                d.milestones = new_dates
+                implied = d.status_for_milestones()
+                order = LandSite.STATUS_ORDER
+                d.status = status
+                if implied and d.status != "dropped" and order.index(implied) < order.index(d.status):
+                    d.status = implied  # dates move a parcel forward, never back
+                d.notes = notes
+                d.save()
+            who = (deal.parcel.owner_name or "Unknown owner").title()
+            scope = f"{who} ({len(targets)} parcels)" if len(targets) > 1 else f"{who} · {deal.parcel.prop_id or deal.parcel.key}"
+            _log(site, request.user, "parcel",
+                 f"{scope}: {deal.get_status_display()}" + (f"; {', '.join(changes)}" if changes else ""))
+            messages.success(request, f"Updated {scope}.")
+        elif action == "note":
+            text = (request.POST.get("text") or "").strip()
+            if text:
+                _log(site, request.user, "note", text)
+        elif action == "include_parcel":
+            from ..models import SiteParcelDeal
+
+            deal = get_object_or_404(SiteParcelDeal.objects.select_related("parcel"), site=site, pk=request.POST.get("deal"))
+            deal.included = request.POST.get("included") == "1"
+            deal.save(update_fields=["included", "updated_at"])
+            p = deal.parcel
+            _log(site, request.user, "edit", f"{'Included' if deal.included else 'Excluded'} parcel "
+                 f"{p.prop_id or p.key} ({(p.owner_name or 'Unknown owner').title()}, {deal.acres:,.1f} ac)")
+        elif action == "remove_parcel":
+            p = site.parcels.filter(pk=request.POST.get("parcel")).first()
+            if p:
+                site.parcels.remove(p)
+                _log(site, request.user, "edit", f"Removed parcel {p.prop_id or p.key} ({p.owner_name}, {p.acres:,.0f} ac)")
+        elif action == "delete":
+            name = site.name
+            site.delete()
+            messages.success(request, f"Deleted site “{name}”. Its parcels stay in land search.")
+            return redirect("crm:land_sites_page")
+        return redirect("crm:land_site_detail", pk=site.pk)
+
+    from . import incentives, tracker
+    from .sources import fema_flood_layer_id
+
+    parcels = list(site.parcels.select_related("county").order_by("-acres"))
+    tr = tracker.summary(site)
+    deal_by_parcel = {d.parcel_id: d for d in tr["deals"]}
+    for p in parcels:
+        p.deal = deal_by_parcel.get(p.pk)
+    map_features = []
+    for p in parcels:
+        d = p.deal
+        map_features.append({"type": "Feature", "geometry": json.loads(d.geometry_json() if d else p.geometry), "properties": {
+            "id": p.pk, "deal": d.pk if d else None, "owner": (p.owner_name or "Unknown owner").title(),
+            "acres": round(d.acres if d else p.acres, 1), "parcel_acres": round(p.acres, 1),
+            "prop_id": p.prop_id or p.key, "status": d.status if d else site.status,
+            "status_label": d.get_status_display() if d else site.get_status_display(),
+            "included": d.included if d else True, "trimmed": bool(d and d.trimmed),
+            "whole": json.loads(p.geometry) if d and d.trimmed else None, "cuts": (d.portion_cuts or []) if d else [],
+            "zoning": p.zoning or "", "url": p.get_absolute_url()}})
+    return render(request, "crm/land_site_detail.html", {
+        "tracker": tr, "milestone_defs": LandSite.MILESTONES,
+        "map_data": {"type": "FeatureCollection", "features": map_features},
+        "incentive_programs": incentives.public(), "fema_flood_layer": fema_flood_layer_id(),
+        "site": site, "parcels": parcels, "acres": tr["total_acres"],
+        "owners": len({d.parcel.owner_name for d in tr["included"]}), "milestones": site.milestone_rows(),
+        "events": site.events.select_related("user")[:100], "statuses": LandSite.Status.choices,
+        "campuses": Campus.objects.all(), "projects": Project.objects.filter(active=True).select_related("campus"),
+        "today": date.today(),
+    })
+
+
+
+@require_POST
+def site_trim(request, pk):
+    """Trim one parcel of a site to the portion the site needs.
+    JSON: {parcel, action: "preview" | "save" | "reset", lines: [[[lon, lat], ...], ...], keep: [piece index]}."""
+    from ..models import SiteParcelDeal
+    from . import trim
+
+    site = get_object_or_404(LandSite, pk=pk)
+    try:
+        data = json.loads(request.body or "{}")
+    except ValueError:
+        return JsonResponse({"error": "Bad request"}, status=400)
+    from .tracker import ensure_deals
+
+    ensure_deals(site)
+    deal = SiteParcelDeal.objects.select_related("parcel", "site").filter(site=site, parcel_id=data.get("parcel")).first()
+    if not deal:
+        return JsonResponse({"error": "That parcel isn't on this site."}, status=404)
+    lines = [l for l in (data.get("lines") or []) if isinstance(l, list) and len(l) >= 2][:20]
+    action = data.get("action")
+    p = deal.parcel
+    label = f"{p.prop_id or p.key} ({(p.owner_name or 'Unknown owner').title()})"
+    if action == "reset":
+        trim.reset(deal)
+        _log(site, request.user, "edit", f"Parcel {label} back to the whole parcel ({p.acres:,.1f} ac)")
+        return JsonResponse({"ok": True, "acres": deal.acres})
+    if not lines:
+        return JsonResponse({"error": "Draw a cut line across the parcel first."}, status=400)
+    if action == "save":
+        keep = [int(i) for i in (data.get("keep") or []) if str(i).lstrip("-").isdigit()]
+        trim.apply(deal, lines, keep)
+        if deal.trimmed:
+            _log(site, request.user, "edit", f"Trimmed parcel {label} to {deal.acres:,.1f} of {p.acres:,.1f} ac")
+        else:
+            _log(site, request.user, "edit", f"Parcel {label} kept whole ({p.acres:,.1f} ac)")
+        return JsonResponse({"ok": True, "acres": deal.acres, "trimmed": deal.trimmed})
+    out = trim.preview(deal, lines)
+    if len(out["pieces"]) < 2:
+        out["warning"] = "That line doesn't cut the parcel in two. Start and end it outside the parcel's edge."
+    return JsonResponse(out)
+
+
+def _timeline(rows):
+    """Gantt-style rows for sites with milestone dates: positions as % of a shared date axis."""
+    from datetime import date, timedelta
+
+    items = []
+    for r in rows:
+        site = r["site"]
+        if site.status == "dropped":
+            continue
+        dated = [m for m in site.milestone_rows() if m["date"]]
+        if not dated:  # fall back to the earliest parcel-level dates
+            from datetime import date as _d
+
+            seen = {}
+            for deal in site.parcel_deals.all():
+                for k, v in (deal.milestones or {}).items():
+                    seen[k] = min(seen.get(k, v), v)
+            dated = [{"key": k, "label": dict((a, b) for a, b, _ in LandSite.MILESTONES)[k], "date": _d.fromisoformat(v),
+                      "gap": None} for k, v in sorted(seen.items(), key=lambda kv: kv[1])]
+        if dated:
+            items.append((site, dated))
+    if not items:
+        return None
+    today = date.today()
+    start = min(m["date"] for _, dated in items for m in dated) - timedelta(days=20)
+    end = max(today, max(m["date"] for _, dated in items for m in dated)) + timedelta(days=30)
+    span = (end - start).days or 1
+    pct = lambda d: round(100 * (d - start).days / span, 2)  # noqa: E731
+    months, cur = [], date(start.year, start.month, 1)
+    while cur <= end:
+        if cur >= start:
+            months.append({"label": cur.strftime("%b %Y" if cur.month == 1 or not months else "%b"), "pct": pct(cur)})
+        cur = date(cur.year + (cur.month == 12), cur.month % 12 + 1, 1)
+    out = []
+    for site, dated in sorted(items, key=lambda x: (LandSite.STATUS_ORDER.index(x[0].status), x[1][0]["date"])):
+        first, last = dated[0]["date"], dated[-1]["date"]
+        done = site.status == "acquired"
+        parcel_pts = []
+        for d in site.parcel_deals.select_related("parcel"):
+            for m in d.milestone_rows():
+                if m["date"] and start <= m["date"] <= end:
+                    parcel_pts.append({**m, "pct": pct(m["date"]), "owner": (d.parcel.owner_name or "").title()})
+        out.append({
+            "site": site, "start": pct(first), "width": max(0.6, pct(last if done else today) - pct(first)),
+            "parcel_points": parcel_pts,
+            "points": [{**m, "pct": pct(m["date"])} for m in dated],
+            "days": ((last if done else today) - first).days,
+        })
+    return {"rows": out, "months": months, "today": pct(today)}
+
+
+def _plan_target(data):
+    """(geometry WGS84, parcels, record to save on) for a site plan / QD request."""
+    site = LandSite.objects.filter(pk=data.get("site")).first() if data.get("site") else None
+    ids = [int(i) for i in (data.get("parcels") or []) if str(i).isdigit()]
+    if site and not ids:
+        ids = list(site.parcels.values_list("pk", flat=True))
+    group = list(Parcel.objects.filter(pk__in=ids).select_related("county")) if ids else []
+    if not group and data.get("parcel"):
+        group = list(Parcel.objects.filter(pk=data["parcel"]).select_related("county"))
+    if not group:
+        return None, [], None
+    if site:
+        from . import trim
+
+        geom = trim.site_geometry(site, [p.pk for p in group])
+        if geom is None:
+            return None, [], None
+        group = [d.parcel for d, _ in trim.parts(site, [p.pk for p in group])]
+    else:
+        geom = _union_geometry(group) if len(group) > 1 else shape(json.loads(group[0].geometry))
+    target = site if site else (group[0] if len(group) == 1 else None)
+    return geom, group, target
+
+
+def _dominant_zone(parcels):
+    """(fips, zone code) with the most acres across the parcels."""
+    from collections import Counter
+
+    acres = Counter()
+    for p in parcels:
+        parts = ((p.overlays or {}).get("zoning") or {}).get("parts") or {}
+        if parts:
+            for code, pct in parts.items():
+                acres[(p.county.fips, code)] += p.acres * pct / 100
+        elif p.zoning:
+            acres[(p.county.fips, p.zoning.split(" / ")[0])] += p.acres
+        else:
+            acres[(p.county.fips, "")] += p.acres
+    (fips, code), _ = acres.most_common(1)[0]
+    return fips, code
+
+
+@require_POST
+def site_plan(request):
+    """Quick site plan. JSON in: {parcel|parcels|site, zone?, overrides?, program, parking_mode, exclude, action}.
+    action "save" also stores the inputs on the site (or the single parcel)."""
+    from shapely.geometry import mapping
+    from shapely.ops import transform as reproject
+
+    from . import qd, siteplan
+    from .lookup import constraint_geometry
+
+    try:
+        data = json.loads(request.body or "{}")
+    except ValueError:
+        return JsonResponse({"error": "Bad request"}, status=400)
+    geom, parcels, target = _plan_target(data)
+    if geom is None:
+        return JsonResponse({"error": "Open a parcel or an assemblage first."}, status=400)
+    fips, current = _dominant_zone(parcels)
+    zone = data.get("zone") if data.get("zone") is not None else current
+    std = siteplan.standards_for(fips, zone)
+    for key, value in (data.get("overrides") or {}).items():
+        if key in ("front", "side", "rear", "height", "stories", "far", "isr", "coverage") and value not in ("", None):
+            try:
+                std[key] = float(value)
+            except (TypeError, ValueError):
+                pass
+        elif key in ("far", "isr", "coverage") and value == "":
+            std[key] = None
+    program = [p for p in (data.get("program") or []) if isinstance(p, dict) and p.get("type") in siteplan.BUILDING_TYPES][:12]
+    if not program:
+        program = [{"type": "flex", "count": 4}, {"type": "warehouse"}]
+    c = geom.representative_point()
+    to_m, fwd, inv = qd.projector(c.y, c.x)
+    site_m = to_m(geom if geom.is_valid else geom.buffer(0))
+    exclude_m = None
+    excluded_acres = 0
+    exclusion_note = ""
+    if data.get("exclude"):
+        try:
+            cons = constraint_geometry(geom)
+            if cons is not None and not cons.is_empty:
+                exclude_m = to_m(cons)
+                excluded_acres = round(exclude_m.area * siteplan.SQFT_PER_M2 / siteplan.SQFT_PER_ACRE, 1)
+        except Exception as exc:  # lay the site out anyway and say the exclusion was skipped
+            exclusion_note = f"Flood/wetland maps didn't respond ({str(exc)[:60]}); laid out without excluding them."
+    setback = data.get("setback")
+    try:
+        setback = float(setback) if setback not in (None, "") else None
+    except (TypeError, ValueError):
+        setback = None
+    shapes, summary = siteplan.layout(site_m, std, program, setback_ft=setback, exclude_m=exclude_m,
+                                      parking_mode=data.get("parking_mode", "market"))
+    to_wgs = lambda g: mapping(reproject(inv, g))  # noqa: E731
+    features = [{"type": "Feature", "geometry": to_wgs(shapes["envelope"]), "properties": {"kind": "envelope"}}] \
+        if not shapes["envelope"].is_empty else []
+    if exclude_m is not None:
+        features.append({"type": "Feature", "geometry": to_wgs(exclude_m), "properties": {"kind": "excluded"}})
+    for g in shapes["parking"]:
+        features.append({"type": "Feature", "geometry": to_wgs(g), "properties": {"kind": "parking"}})
+    for b in shapes["buildings"]:
+        features.append({"type": "Feature", "geometry": to_wgs(b["geom"]), "properties": {
+            "kind": "building", "type": b["type"], "label": b["label"], "color": b["color"],
+            "gfa": round(b["gfa"]), "stalls": b["stalls"], "stories": b["stories"]}})
+    summary["excluded_acres"] = excluded_acres
+    summary["note"] = exclusion_note
+    if data.get("action") == "save" and target is not None:
+        keep = {k: data.get(k) for k in ("zone", "overrides", "program", "parking_mode", "exclude", "setback")}
+        target.site_plan = {**keep, "saved_at": timezone.now().isoformat(), "saved_by": request.user.username,
+                            "summary": {k: summary[k] for k in ("gfa_sf", "buildings", "stalls", "site_acres")}}
+        target.save(update_fields=["site_plan", "updated_at"])
+    return JsonResponse({
+        "standards": std, "current_zone": current, "fips": fips, "zones": siteplan.zone_choices(fips),
+        "types": siteplan.BUILDING_TYPES, "code_parking": siteplan.CODE_PARKING,
+        "features": {"type": "FeatureCollection", "features": features}, "summary": summary,
+        "saved": (target.site_plan if target is not None else {}) or {},
+        "saved_to": "site" if isinstance(target, LandSite) else ("parcel" if target is not None else None),
+    })

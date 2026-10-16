@@ -5,7 +5,7 @@ from django.shortcuts import redirect
 
 _current_user = ContextVar("current_user", default=None)
 
-PUBLIC_PREFIXES = ("/accounts/", "/static/", "/admin/login/", "/healthz", "/internal/")
+PUBLIC_PREFIXES = ("/accounts/", "/static/", "/admin/login/", "/healthz", "/internal/", "/g/")
 
 
 def get_current_user():

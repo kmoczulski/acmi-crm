@@ -26,7 +26,33 @@ TX_CITY_LIMITS = (
     "https://feature.geographic.texas.gov/arcgis/rest/services/City_Boundaries/Texas_City_Boundaries/MapServer/0"
 )
 PUCT = "https://services6.arcgis.com/N6Lzvtb46cpxThhu/arcgis/rest/services"
-FEMA_FLOOD = "https://hazards.fema.gov/arcgis/rest/services/public/NFHL/MapServer/28"
+FEMA_NFHL = "https://hazards.fema.gov/arcgis/rest/services/public/NFHL/MapServer"
+FEMA_FLOOD_LAYER_NAME = "Flood Hazard Zones"
+_fema_layer_cache = {}
+
+
+def fema_flood_layer_id():
+    """FEMA renumbers NFHL layers now and then (28 → 35 in Oct 2026): find "Flood Hazard Zones" by name."""
+    import time
+
+    hit = _fema_layer_cache.get("id")
+    if hit and time.time() - hit[1] < 6 * 3600:
+        return hit[0]
+    for attempt in range(3):  # FEMA's server drops connections now and then
+        try:
+            meta = SESSION.get(FEMA_NFHL, params={"f": "json"}, timeout=20).json()
+            layer_id = next(l["id"] for l in meta.get("layers", []) if l.get("name") == FEMA_FLOOD_LAYER_NAME)
+            _fema_layer_cache["id"] = (layer_id, time.time())
+            return layer_id
+        except Exception:
+            time.sleep(1.5 * (attempt + 1))
+    # Lookup failed: use the last layer id we saw (and don't remember the guess, so the next call tries again).
+    last = _fema_layer_cache.get("id")
+    return last[0] if last else 28
+
+
+def fema_flood_url():
+    return f"{FEMA_NFHL}/{fema_flood_layer_id()}"
 NWI_WETLANDS = "https://fwspublicservices.wim.usgs.gov/wetlandsmapservice/rest/services/Wetlands/MapServer/0"
 EPA_CLEANUPS = "https://services.arcgis.com/cJ9YHowT8TU7DUyn/arcgis/rest/services/Cleanups_in_my_Community_Sites/FeatureServer/0"
 SBA_HUBZONE = "https://maps.certify.sba.gov/hubzone/map/search"
@@ -67,7 +93,7 @@ STORED_LAYERS = {
     "substation": {
         "label": "Substation",
         "url": "https://services.arcgis.com/XG15cJAlne2vxtgt/arcgis/rest/services/Electric_Substations/FeatureServer/0",
-        "where": "STATE IN ('TX', 'MD', 'VA', 'DC')",
+        "where": "STATE IN ('TX', 'MD', 'VA', 'DC', 'AL', 'TN', 'NC', 'AZ', 'IN')",
         "name": "NAME",
         "fields": ["MAX_VOLTAG", "MIN_VOLTAG", "LINES", "CITY"],
         "simplify": 0,
@@ -114,9 +140,45 @@ STORED_LAYERS = {
         "simplify": 0.0002,
         "regions": ["southern_md"],
     },
+    "town_al": {
+        "label": "City limits",
+        "url": "https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/Places_CouSub_ConCity_SubMCD/MapServer/4",
+        "where": "STATE = '01'",  # Census incorporated places, Alabama
+        "name": "BASENAME",
+        "fields": ["LSADC"],
+        "simplify": 0.0002,
+        "regions": ["north_al"],
+    },
+    "town_nc": {
+        "label": "City limits",
+        "url": "https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/Places_CouSub_ConCity_SubMCD/MapServer/4",
+        "where": "STATE = '37'",  # Census incorporated places, North Carolina
+        "name": "BASENAME",
+        "fields": ["LSADC"],
+        "simplify": 0.0002,
+        "regions": ["fayetteville_nc"],
+    },
+    "town_az": {
+        "label": "City limits",
+        "url": "https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/Places_CouSub_ConCity_SubMCD/MapServer/4",
+        "where": "STATE = '04'",  # Census incorporated places, Arizona
+        "name": "BASENAME",
+        "fields": ["LSADC"],
+        "simplify": 0.0002,
+        "regions": ["central_az"],
+    },
+    "town_in": {
+        "label": "City limits",
+        "url": "https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/Places_CouSub_ConCity_SubMCD/MapServer/4",
+        "where": "STATE = '18'",  # Census incorporated places, Indiana
+        "name": "BASENAME",
+        "fields": ["LSADC"],
+        "simplify": 0.0002,
+        "regions": ["crane_in"],
+    },
 }
 # Layers that mark city/town limits rather than something to measure distance to.
-LIMIT_LAYERS = ("city", "town_md")
+LIMIT_LAYERS = ("city", "town_md", "town_al", "town_nc", "town_az", "town_in")
 
 # Regions the stored layers cover (lon/lat west, south, east, north).
 REGIONS = {
@@ -124,6 +186,15 @@ REGIONS = {
     "texas_triangle": (-99.6, 28.6, -94.4, 33.7),
     # Charles County MD plus ~40 miles around it (NSWC Indian Head, Dahlgren, Pax River, Andrews).
     "southern_md": (-77.8, 37.9, -76.2, 39.1),
+    # Huntsville area: Limestone, Madison and Morgan counties, AL plus a margin (Redstone Arsenal, the I-565 /
+    # Greenbrier corridor, Decatur).
+    "north_al": (-87.45, 34.2, -86.1, 35.1),
+    # Fayetteville, NC: Cumberland County plus a margin (Cumberland, Hoke, Harnett, Moore; Fort Liberty, I-95 / I-295).
+    "fayetteville_nc": (-79.9, 34.7, -78.3, 35.7),
+    # Arizona I-10 corridor: Tonopah / Buckeye (Wintersburg Rd) east to Casa Grande and Eloy, down to the I-8 junction.
+    "central_az": (-113.1, 32.5, -111.2, 33.7),
+    # Greene County, IN plus a margin (NSWC Crane, Bloomfield, Linton, the I-69 corridor).
+    "crane_in": (-87.4, 38.4, -86.2, 39.3),
 }
 TEXAS_TRIANGLE_BBOX = REGIONS["texas_triangle"]
 
@@ -139,7 +210,11 @@ def arcgis_query(url, *, where="1=1", fields=("*",), bbox=None, geometry=None, g
         "f": "geojson",
     }
     if bbox:
-        params.update(geometry=",".join(str(v) for v in bbox), geometryType="esriGeometryEnvelope",
+        # JSON envelope: some servers (FEMA's NFHL) reject the "xmin,ymin,xmax,ymax" shorthand.
+        import json
+
+        env = dict(zip(("xmin", "ymin", "xmax", "ymax"), bbox), spatialReference={"wkid": 4326})
+        params.update(geometry=json.dumps(env), geometryType="esriGeometryEnvelope",
                       inSR=4326, spatialRel="esriSpatialRelIntersects")
     if geometry is not None:
         params.update(geometry=geometry, geometryType=geometry_type, inSR=4326, spatialRel="esriSpatialRelIntersects")
@@ -220,7 +295,16 @@ COUNTY_REGIONS = {
                                              "Robertson", "Brazos", "Burleson", "Milam", "Madison"],
     "Southern Maryland": ["Charles", "St. Mary's", "Calvert", "Prince George's"],
 }
+# Outside Texas (county names repeat across states: Texas has a Limestone and a Madison county too).
+STATE_COUNTY_REGIONS = {
+    "MD": {"Southern Maryland": ["Charles", "St. Mary's", "Calvert", "Prince George's"]},
+    "AL": {"North Alabama (Huntsville)": ["Limestone", "Madison", "Morgan"]},
+    "IN": {"Southwest Indiana (Crane)": ["Greene"]},
+    "AZ": {"Central Arizona (I-10 corridor)": ["Maricopa", "Pinal"]},
+    "NC": {"Fayetteville, NC": ["Cumberland", "Hoke", "Harnett", "Moore"]},
+}
 
 
-def region_for(county_name):
-    return next((r for r, names in COUNTY_REGIONS.items() if county_name in names), "")
+def region_for(county_name, state="TX"):
+    regions = STATE_COUNTY_REGIONS.get(state) or COUNTY_REGIONS
+    return next((r for r, names in regions.items() if county_name in names), "")

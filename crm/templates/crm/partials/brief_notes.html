@@ -1,0 +1,16 @@
+<article class="brief brief-notes">
+  <div class="brief-top">{% include "crm/partials/report_logo.html" with width="105" %}<span>Notes &amp; definitions</span></div>
+  <h1>Notes &amp; definitions</h1>
+  <p class="sub">Plain-language meanings for the terms, designations and layers used in these briefs. Only the terms that appear are listed.</p>
+  <h2>How the buy-box score is calculated</h2>
+  <p class="small muted">A parcel starts at zero and earns points in the parts below, up to each part's maximum. The score ranks land against ACMI's defense-industrial buy-box (50 to 500+ net usable acres, industrial or ag land with a path to industrial use, high-voltage power, truck or rail access, a defense driver, and no floodway, material wetlands or contamination).</p>
+  <table class="method">
+    <tr><th>Part</th><th class="num">Max</th><th>How points are earned</th></tr>
+    {% for r in method.parts %}<tr><td><b>{{ r.part }}</b></td><td class="num">{{ r.max }}</td><td>{% for line in r.how %}<div>{{ line }}</div>{% endfor %}</td></tr>{% endfor %}
+  </table>
+  <p class="small"><b>Deal-killers</b> (each one caps the score):</p>
+  <ul class="plain">{% for k in method.killers %}<li>{{ k }}</li>{% endfor %}{% for n in method.notes %}<li class="note">{{ n }}</li>{% endfor %}</ul>
+  <h2>Terms</h2>
+  <dl class="defs">{% for term, text in definitions %}<div class="def"><dt>{{ term }}</dt><dd>{{ text }}</dd></div>{% endfor %}</dl>
+  <div class="brief-foot">ACMI Properties. Screening information from public records and live federal checks; confirm with the jurisdiction, the utility and a licensed professional before relying on it.</div>
+</article>

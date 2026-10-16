@@ -29,7 +29,7 @@ ZONING_CLASSES = [
     ("conservation", "Conservation / protected"),
     ("public", "Public / institutional"),
     ("town", "Town or city zoning (not mapped)"),
-    ("unzoned", "No zoning (unincorporated TX)"),
+    ("unzoned", "No zoning (unincorporated TX / AL)"),
 ]
 ZONING_LABELS = dict(ZONING_CLASSES)
 # Points for the land-use / entitlement part of the screen, by bucket.
@@ -60,6 +60,55 @@ ZONING_CODES = {
         "INDIAN HEAD": "town", "LA PLATA": "town",
     },
 }
+# City of Huntsville districts (they also cover Huntsville's annexed land in Limestone and Morgan counties).
+HUNTSVILLE_CODES = {
+    "PI": "industrial", "CIP": "industrial", "AIP": "industrial", "IP": "industrial", "LI": "industrial",
+    "HI": "industrial",
+    "RP": "business_park", "RP2": "business_park", "RPA": "business_park", "RPC": "business_park",
+    "RPW": "business_park",
+    "C1": "commercial", "C2": "commercial", "C3": "commercial", "C4": "commercial", "C5": "commercial",
+    "C6": "commercial", "O": "commercial",
+    "RO2": "mixed_use", "PD": "planned", "PDH": "planned",
+    "R1": "residential", "R1A": "residential", "R1B": "residential", "R1C": "residential", "R2": "residential",
+    "R2A": "residential", "R2B": "residential", "R2C": "residential", "RA": "residential",
+}
+for _fips in ("01083", "01089", "01103"):
+    ZONING_CODES[_fips] = HUNTSVILLE_CODES
+# Pinal County zoning (unincorporated land); city names mean the city zones it.
+PINAL_CODES = {
+    "CI-B": "industrial", "CI-1": "industrial", "CI-2": "industrial", "I-1": "industrial", "I-2": "industrial",
+    "I-3": "industrial", "CB-1": "commercial", "CB-2": "commercial", "C-1": "commercial", "C-2": "commercial",
+    "C-3": "commercial", "O-1": "commercial", "O-2": "commercial", "AC-1": "mixed_use", "AC-2": "mixed_use",
+    "AC-3": "mixed_use", "MPCMP": "planned", "L-MPC": "planned", "GR": "agricultural", "SR": "agricultural",
+    "SH": "agricultural", "CAR": "agricultural", "CR-1A": "residential", "CR-1": "residential", "CR-2": "residential",
+    "CR-3": "residential", "CR-4": "residential", "CR-5": "residential", "MH": "residential", "MHP": "residential",
+    "RV": "residential", "RVP": "residential", "TR": "residential", "MD": "residential", "MR": "residential",
+    "MH-8": "residential", "MH-435": "residential", "PM/RV": "residential",
+    **{f"RU-{n}": "residential" for n in ("10", "5", "3.3", "2", "1.25", "C")},
+    **{f"R-{n}": "residential" for n in ("43", "35", "20", "12", "9", "7")},
+    **{city: "town" for city in ("APACHE JUNCTION", "CASA GRANDE", "COOLIDGE", "ELOY", "FLORENCE", "KEARNY", "MAMMOTH",
+                                 "MARANA", "MARICOPA", "QUEEN CREEK", "SUPERIOR", "WINKELMAN")},
+}
+# City of Casa Grande and City of Eloy districts (Pinal parcels inside those cities show the city's own code).
+PINAL_CODES.update({
+    "I-1": "industrial", "I-2": "industrial", "B-1": "commercial", "B-2": "commercial", "B-3": "commercial",
+    "B-4": "commercial", "CO": "commercial", "BP": "business_park", "C-1": "commercial", "C-2": "commercial",
+    "PAD": "planned", "PAD-RV": "planned", "PF": "planned", "RR": "agricultural", "UR": "agricultural",
+    "RR-5": "agricultural", "RR-20": "agricultural", "OSR": "conservation",
+    **{f"R-{n}": "residential" for n in ("1", "1A", "2", "3", "4", "5")},
+    **{f"R1-{n}": "residential" for n in ("6", "12", "43")},
+})
+ZONING_CODES["04021"] = PINAL_CODES
+# Maricopa County zoning (unincorporated land, e.g. Tonopah).
+ZONING_CODES["04013"] = {
+    "IND-1": "industrial", "IND-2": "industrial", "IND-3": "industrial", "IND-2P": "industrial", "IND-3P": "industrial",
+    "C-1": "commercial", "C-2": "commercial", "C-3": "commercial", "C-O": "commercial", "C-S": "commercial",
+    "R-2": "residential", "R-3": "residential", "R-4": "residential", "R-5": "residential", "R1-6": "residential",
+    "R1-7": "residential", "R1-8": "residential", "R1-10": "residential", "R1-18": "residential",
+    "R1-35": "residential", "RU-43": "agricultural", "RU-70": "agricultural", "RU-190": "agricultural",
+}
+# States whose rural counties have no zoning ordinance (subdivision rules only).
+NO_COUNTY_ZONING = ("TX", "AL")
 _ZONE_WORDS = [("industr", "industrial"), ("employment", "business_park"), ("business park", "business_park"),
                ("mixed", "mixed_use"), ("planned unit", "planned"), ("commerc", "commercial"),
                ("business", "commercial"), ("agri", "agricultural"), ("rural", "agricultural"),
@@ -71,13 +120,16 @@ def zoning_class(p):
     county = getattr(p, "county", None)
     zone = (p.overlays or {}).get("zoning")
     if zone:
-        code = (zone.get("value") or "").upper()
+        code = (zone.get("value") or "").upper().strip()
         codes = ZONING_CODES.get(getattr(county, "fips", ""), {})
         if code in codes:
             return codes[code]
+        base = code.split(" / ")[0].strip()  # 'I-2 / CR' = I-2 with a Casa Grande overlay
+        if base in codes:
+            return codes[base]
         text = f"{zone.get('name', '')} {zone.get('general', '')}".lower()
         return next((cls for word, cls in _ZONE_WORDS if word in text), "")
-    if (getattr(county, "state", "") or "TX") == "TX":
+    if (getattr(county, "state", "") or "TX") in NO_COUNTY_ZONING:
         return "town" if p.in_city else "unzoned"
     return "town" if p.in_city else ""
 
@@ -187,16 +239,19 @@ def screen(p):
     elif groups & {"F1", "C"}:
         use = add(8, "Commercial or vacant land")
     elif "X" in groups:
-        use = add(0, "Tax-exempt owner (public, school or church): unlikely seller", "bad")
+        use = add(0, "Tax-exempt owner (public, school or church): fewer sellers, but counties do sell land", "warn")
     elif groups & {"A", "B", "M", "O"}:
         use = add(2, "Residential use on the tax roll")
     else:
         use = add(4, "Land use not given by the appraisal district", "warn")
     if p.in_city:
-        add(0, f"Inside {p.in_city} city limits: check city zoning" if state == "TX"
+        add(0, f"Inside {p.in_city} city limits: check city zoning" if state != "MD"
             else f"Inside the Town of {p.in_city}: town zoning applies")
     elif state == "TX":
         use += add(5, "Unincorporated: Texas counties have no zoning (subdivision rules still apply)")
+    elif state == "AL":
+        use += add(5, "Unincorporated: no county zoning (subdivision rules only); water, sewer and fire usually "
+                      "need annexation or an extension agreement")
     if ov.get("tech_corridor"):
         use += add(5, "In the county Technology Corridor")
     if ov.get("pfa"):
@@ -272,6 +327,14 @@ def screen(p):
         util += add(1, f"{g:.1f} mi to a natural gas pipeline ({(near.get('gas_pipeline') or {}).get('name') or ''})".replace(" ()", ""))
     score += min(util, 5)
 
+    # Incentive programs (from the live check): Opportunity Zone, NMTC, Enterprise Zone, FTZ...
+    programs = (checks.get("incentives") or {}).get("programs") or []
+    bonus = 0
+    for prog in programs:
+        if prog.get("points"):
+            bonus += add(prog["points"], f"{prog['label']}" + (f": {prog['area']}" if prog.get("area") else ""))
+    score += min(bonus, 5)
+
     # Owner attention signals.
     owner = 0
     if p.mail_state and p.mail_state.upper() not in (state, ""):
@@ -296,8 +359,7 @@ def screen(p):
     for site in (checks.get("epa") or {}).get("sites", []):
         if site.get("npl") and site.get("miles", 9) <= 0.5:
             killers.append(f"Superfund (NPL) site {site['miles']:.1f} mi away: {site['name']}")
-    if "X" in groups:
-        killers.append("Tax-exempt (public or institutional) owner")
+    # A public or institutional owner is a warning, not a deal-killer: counties do sell land (e.g. Livingston Rd).
     ca = ov.get("critical_area") or {}
     if ca.get("pct", 0) >= 30 and ca.get("value") == "RCA":
         killers.append(f"{ca['pct']:.0f}% in the Chesapeake Bay Critical Area (RCA): little development allowed")
@@ -308,6 +370,64 @@ def screen(p):
     if killers:
         score = min(score, KILLER_CAP)
     return score, reasons, killers
+
+
+def methodology():
+    """The buy-box score written out for the reports' definitions page: [{part, max, how: [lines]}] plus notes.
+
+    Built from the same constants the scorer uses where there are any. KEEP IT IN STEP WITH screen(): when a threshold
+    or a point value changes there, change it here (a test checks the headline numbers)."""
+    zp = ZONING_POINTS
+    return {
+        "parts": [
+            {"part": "Size", "max": 25, "how": [
+                "Uses net usable acres (after floodplain and wetlands) once the live checks have run, otherwise gross acres.",
+                "250 acres or more: 25. 100 to 249: 22. 50 to 99: 15. Under 50: 0, since a small tract only matters as part "
+                "of an assemblage (5 points if the same owner holds 50+ acres across several parcels in the county)."]},
+            {"part": "Land use and entitlement", "max": 25, "how": [
+                "Where a zoning map covers the land, its district sets the points: "
+                + "; ".join(f"{ZONING_LABELS[k].split(' (')[0].lower()} {v}" for k, v in
+                            sorted(zp.items(), key=lambda kv: -kv[1]) if k in ZONING_LABELS) + ".",
+                "Where there is no zoning layer, the tax-roll land use is used: industrial 20, farm or rural 12, commercial "
+                "or vacant 8, residential 2, tax-exempt 0, not given 4.",
+                "Add-ons: unincorporated land in Texas or Alabama with no county zoning +5; county Technology Corridor +5; "
+                "Maryland Priority Funding Area +3. The part is capped at 25."]},
+            {"part": "Power", "max": 20, "how": [
+                "Distance to the nearest transmission line (100 kV and up): within 1 mile 14, within 3 miles 9, within 6 miles 4.",
+                "Distance to the nearest substation: within 2 miles 6, within 5 miles 3."]},
+            {"part": "Access", "max": 15, "how": [
+                "Nearest major highway: within 1 mile 8, within 3 miles 5, within 6 miles 2.",
+                "Nearest rail line: within 1 mile 7, within 3 miles 4, within 6 miles 1."]},
+            {"part": "Defense demand", "max": 10, "how": [
+                "Distance to the nearest military installation: within 25 miles 10, within 50 miles 6, within 100 miles 2.",
+                "Navy Military Awareness Zone +5; HUBZone +5. The part is capped at 10."]},
+            {"part": "Utilities", "max": 5, "how": [
+                "Water provider found +2; sewer provider found +2; a county water or sewer service category of 1 to 3 +2 each; "
+                "natural gas pipeline within 3 miles +1. Capped at 5."]},
+            {"part": "Incentives", "max": 5, "how": [
+                "Points set by program (Opportunity Zone 3, New Markets Tax Credit 2, Foreign-Trade Zone 1, state programs "
+                "where they exist). Capped at 5."]},
+            {"part": "Owner signals", "max": 5, "how": [
+                "Owner mails to another state +3 (often a passive owner); owned by an entity, trust or estate +2."]},
+            {"part": "Improvements", "max": -5, "how": [
+                "Minus 5 when buildings are worth over $250,000 and over 30% of the property's value."]},
+        ],
+        "killers": [
+            f"{FLOOD_KILL_PCT}% or more of the parcel in the FEMA 100-year floodplain.",
+            f"{FLOODWAY_KILL_PCT}% or more in a FEMA floodway.",
+            f"{WETLAND_KILL_PCT}% or more in mapped wetlands (NWI).",
+            "A Superfund (NPL) site within half a mile.",
+            "30% or more in the Chesapeake Bay Critical Area's resource conservation area (Maryland).",
+        ],
+        "notes": [
+            "The parts add up to 110 at most and the total is held to 0 to 100.",
+            f"If any deal-killer applies, the score is held at {KILLER_CAP} or below however well the rest scores.",
+            "A site's score is the acre-weighted average of its parcels' scores. Each parcel card lists the exact reasons "
+            "and points behind its number.",
+            "The score ranks sites for a first look only. It does not see power capacity, safety-arc (QD) clearance, "
+            "title, environmental history, or whether the land is for sale.",
+        ],
+    }
 
 
 def apply(parcel):

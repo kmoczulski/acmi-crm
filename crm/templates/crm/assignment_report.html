@@ -1,0 +1,20 @@
+{% extends "crm/base.html" %}
+{% load static %}
+{% block title %}{{ c.site.name }} · {{ a.name }} · ACMI CRM{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="{% static 'crm/report.css' %}">
+<div class="record-head">
+  <div>
+    <div class="muted lc-small"><a href="{% url 'crm:assignments' %}">Client searches</a> › <a href="{{ a.get_absolute_url }}">{{ a.name }}</a></div>
+    <div class="muted lc-small">This is the report as the client sees it. Owner names, site notes and the internal score are never shown to them.</div>
+  </div>
+  <div class="record-nav">
+    <a class="btn btn-primary" href="{% url 'crm:assignment_edit' a.pk c.entry.pk %}">Edit report</a>
+    <a class="btn" href="{% url 'crm:land_site_detail' c.site.pk %}">Site page</a>
+  </div>
+</div>
+<section class="panel">
+  {% include "crm/partials/dd_report.html" %}
+  {% if internal_notes %}<h3 style="margin-top:24px">Internal site notes <span class="muted lc-small">(not shown to the client)</span></h3><p style="white-space:pre-line">{{ internal_notes }}</p>{% endif %}
+</section>
+{% endblock %}

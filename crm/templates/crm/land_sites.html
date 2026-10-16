@@ -1,0 +1,101 @@
+{% extends "crm/base.html" %}
+{% load humanize %}
+{% block title %}Sites · Land search · ACMI CRM{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Prospective sites</h1>
+  <span class="muted">{{ total }} active site{{ total|pluralize }} · {{ total_acres|floatformat:0|intcomma }} ac{% if archive %} · {{ archive|length }} archived{% endif %}</span>
+  <span class="spacer"></span>
+  <a class="btn" href="{% url 'crm:land_briefs' %}" title="Comparison page plus a one-page brief with aerial per site">Compare &amp; print briefs</a>
+  <a class="btn" href="{% url 'crm:land_search' %}">Open the map</a>
+</div>
+<nav class="stage-filter" aria-label="Filter by deal stage">
+  <span class="stage-filter-label">Stage</span>
+  <a class="stage-chip{% if status not in stage_values %} on{% endif %}" href="?">All active <b>{{ active_count }}</b></a>
+  {% for value, label, n in stage_chips %}<a class="stage-chip{% if status == value %} on{% endif %}{% if not n %} empty{% endif %}" href="?status={{ value }}"><i class="acq-key site-{{ value }}"></i>{{ label }} <b>{{ n }}</b></a>{% endfor %}
+  {% if archive %}<a class="stage-chip stage-chip-archive" href="#archive">Archived <b>{{ archive|length }}</b></a>{% endif %}
+</nav>
+<p class="muted" style="margin-top:0">Sites are saved from the map (Assemble → Save as site). Each group is sorted by deal stage. Acres are mapped acres; net usable shows once every parcel's flood and wetland checks have run.</p>
+
+{% if timeline %}
+<section class="panel">
+  <h3>Deal timelines <span class="muted lc-small">active sites with dates · dots are milestones · bar runs from first milestone to today (or closing)</span></h3>
+  <div class="gantt">
+    <div class="gantt-axis">{% for m in timeline.months %}<span style="left:{{ m.pct }}%">{{ m.label }}</span>{% endfor %}</div>
+    {% for r in timeline.rows %}
+    <div class="gantt-row">
+      <a class="gantt-name" href="{% url 'crm:land_site_detail' r.site.pk %}" title="{{ r.site.name }}"><span class="pill site-{{ r.site.status }}">{{ r.site.get_status_display }}</span> <span class="gantt-title">{{ r.site.name }}</span><span class="gantt-days" title="Total days, first milestone to {% if r.site.status == 'acquired' %}close{% else %}today{% endif %}">{{ r.days }}d</span></a>
+      <div class="gantt-track">
+        {% for m in timeline.months %}<i class="gantt-tick" style="left:{{ m.pct }}%"></i>{% endfor %}
+        <i class="gantt-today" style="left:{{ timeline.today }}%"></i>
+        <span class="gantt-bar site-{{ r.site.status }}" style="left:{{ r.start }}%;width:{{ r.width }}%" title="{{ r.days }} days total"></span>
+        {% for m in r.parcel_points %}<span class="gantt-pt gantt-sub ms-{{ m.key }}" style="left:{{ m.pct }}%" title="{{ m.owner }}: {{ m.label }} · {{ m.date|date:'M j, Y' }}"></span>{% endfor %}
+        {% for m in r.points %}<span class="gantt-pt ms-{{ m.key }}" style="left:{{ m.pct }}%" title="{{ m.label }} · {{ m.date|date:'M j, Y' }}{% if m.gap is not None %} (day {{ m.total }}, +{{ m.gap }} since previous){% elif m.total is not None %} (day {{ m.total }}){% endif %}"></span>{% endfor %}
+      </div>
+    </div>{% endfor %}
+    <div class="gantt-legend lc-small muted">
+      <span><i class="gantt-pt ms-identified"></i>Identified / contacted</span><span><i class="gantt-pt ms-loi_sent"></i>LOI sent</span>
+      <span><i class="gantt-pt ms-loi_signed"></i>LOI signed</span><span><i class="gantt-pt ms-psa_sent"></i>PSA drafted</span>
+      <span><i class="gantt-pt ms-psa_signed"></i>PSA signed</span><span><i class="gantt-pt ms-closed"></i>Feasibility → closing</span>
+      <span><i class="gantt-pt gantt-sub ms-loi_sent"></i>Small dots: individual parcels</span>
+      <span><i class="gantt-today-key"></i>Today</span>
+    </div>
+  </div>
+</section>
+{% endif %}
+
+{% for g in groups %}
+<section class="panel campus-card">
+  <div class="campus-head">
+    <div>
+      <h2>{% if g.campus %}{{ g.campus.code }}{% else %}No campus{% endif %}{% if g.project %} <span class="muted">›</span> <a href="{{ g.project.get_absolute_url }}">{{ g.project.name }}</a>{% elif g.campus %} <span class="muted">· {{ g.campus.name }}</span>{% endif %}</h2>
+      <div class="lc-small">{% for label, n in g.by_status %}<span class="muted">{{ n }} {{ label|lower }}</span>{% if not forloop.last %} · {% endif %}{% endfor %}</div>
+    </div>
+    <div class="campus-stats"><b>{{ g.count }}</b> site{{ g.count|pluralize }} · <b>{{ g.acres|floatformat:0|intcomma }}</b> ac in play</div>
+  </div>
+  <div class="table-wrap" style="border:0;border-radius:0">
+    <table class="data sites-table sites-active">
+      <thead><tr><th>Status</th><th>Site</th><th class="num">Acres</th><th class="num">Parcels</th><th>Owners</th><th>Zoning</th><th class="num">Best score</th><th>Flags</th><th>Latest</th></tr></thead>
+      <tbody>{% for r in g.rows %}
+        <tr>
+          <td><span class="pill site-{{ r.site.status }}">{{ r.site.get_status_display }}</span>{% if r.clock %}<div class="deal-day" title="Days since the first dated milestone">{{ r.clock }}</div>{% endif %}</td>
+          <td class="wrap"><a href="{% url 'crm:land_site_detail' r.site.pk %}"><b>{{ r.site.name }}</b></a> <a href="{{ r.site.get_absolute_url }}" class="lc-small" title="Open on the map">map ↗</a> <a href="{% url 'crm:land_site_brief' r.site.pk %}" class="lc-small" title="One-page brief with aerial">brief ↗</a>
+            {% if r.progress %}<div class="sites-progress" title="{% for b in r.progress %}{{ b.label }}: {{ b.acres }} ac ({{ b.parcels }}){% if not forloop.last %} · {% endif %}{% endfor %}">{% for b in r.progress %}<span class="acq-seg site-{{ b.stage }}" style="width:{{ b.pct }}%"></span>{% endfor %}</div>{% endif %}
+            <div class="muted lc-small">{{ r.counties|join:", " }}{% if r.site.campus and r.site.project %} · {{ r.site.campus.code }}{% endif %}{% if r.has_qd %} · QD plan{% endif %}</div></td>
+          <td class="num">{{ r.acres|floatformat:1|intcomma }}{% if r.net is not None %}<div class="muted lc-small">{{ r.net|floatformat:0|intcomma }} net</div>{% endif %}</td>
+          <td class="num">{{ r.parcels }}</td>
+          <td class="wrap lc-small">{% for o, ac in r.owners|slice:":3" %}{{ o|title }} <span class="muted">({{ ac|floatformat:0 }} ac)</span>{% if not forloop.last %}<br>{% endif %}{% endfor %}{% if r.owners|length > 3 %}<br><span class="muted">+{{ r.owners|length|add:"-3" }} more</span>{% endif %}{% if not r.owners %}<span class="muted">No parcels mapped</span>{% endif %}</td>
+          <td class="lc-small">{{ r.zoning|join:", " }}</td>
+          <td class="num">{% if r.score is not None %}{{ r.score }}{% else %}–{% endif %}</td>
+          <td class="wrap lc-small">{% for k in r.killers|slice:":2" %}<div class="overdue">⛔ {{ k }}</div>{% empty %}<span class="muted">–</span>{% endfor %}</td>
+          <td class="wrap lc-small sites-note"><div class="note-clamp" title="{{ r.note }}">{{ r.note }}</div></td>
+        </tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% empty %}
+<div class="panel"><p class="muted">No active sites{% if status != "active" %} at this stage{% endif %}. Build one on the map: Assemble, click parcels, then Save as site.</p></div>
+{% endfor %}
+
+{% if archive %}
+<details class="panel archive" id="archive">
+  <summary><h3 style="display:inline">Archive</h3> <span class="muted lc-small">{{ archive|length }} dropped site{{ archive|length|pluralize }}: kept for the record so nobody re-contacts a passed deal by mistake</span></summary>
+  <div class="table-wrap" style="border:0">
+    <table class="data sites-table">
+      <thead><tr><th>Dropped</th><th>Site</th><th>Campus / project</th><th class="num">Acres</th><th class="num">Parcels</th><th>Why</th></tr></thead>
+      <tbody>{% for r in archive %}
+        <tr>
+          <td class="lc-small">{{ r.when|date:"M j, Y" }}</td>
+          <td class="wrap"><a href="{% url 'crm:land_site_detail' r.site.pk %}">{{ r.site.name }}</a> <a href="{{ r.site.get_absolute_url }}" class="lc-small">map ↗</a></td>
+          <td class="lc-small">{{ r.site.home_label }}</td>
+          <td class="num">{{ r.acres|floatformat:1|intcomma }}</td>
+          <td class="num">{{ r.parcels }}</td>
+          <td class="wrap lc-small sites-note">{{ r.reason }}</td>
+        </tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</details>
+{% endif %}
+{% endblock %}

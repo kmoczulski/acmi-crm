@@ -1,0 +1,20 @@
+{% load humanize %}
+<article class="brief brief-cover">
+  <div class="brief-top">{% include "crm/partials/report_logo.html" with width="105" %}<span>Site screening · {% now "F j, Y" %}</span></div>
+  <h1>Site comparison</h1>
+  <p class="sub">{{ briefs|length }} site{{ briefs|length|pluralize }} screened {% now "M j, Y" %}. Order is a screening aid (fewest red flags, then fewest cautions, then most usable acres), not a recommendation.</p>
+  <table>
+    <tr><th></th>{% for b in briefs %}<th class="site-col">{% if forloop.first %}<span class="pick">▲ </span>{% endif %}{{ b.site.name }}</th>{% endfor %}</tr>
+    <tr><th>Where</th>{% for b in briefs %}<td>{{ b.counties|join:", " }}<br><span class="muted">{{ b.jurisdictions|join:", " }}</span></td>{% endfor %}</tr>
+    <tr><th>Acres (gross / net usable)</th>{% for b in briefs %}<td><b>{{ b.gross|floatformat:0|intcomma }}</b>{% if b.net is not None %} / {{ b.net|floatformat:0|intcomma }}{% endif %}<br><span class="muted">{{ b.n_parcels }} parcels, {{ b.owners|length }} owner{{ b.owners|length|pluralize }}</span></td>{% endfor %}</tr>
+    <tr><th>Zoning (public map)</th>{% for b in briefs %}<td>{% for z in b.zoning|slice:":3" %}<div><b>{{ z.code }}</b> <span class="muted">{{ z.pct }}%</span></div>{% endfor %}<span class="muted">{{ b.industrial_pct }}% industrial</span></td>{% endfor %}</tr>
+    <tr><th>Transmission / substation</th>{% for b in briefs %}<td>{% for r in b.near %}{% if r.layer == "transmission" or r.layer == "substation" %}<div>{{ r.miles|floatformat:1 }} mi <span class="muted">{{ r.label|lower }}</span></div>{% endif %}{% endfor %}</td>{% endfor %}</tr>
+    <tr><th>Highway / rail</th>{% for b in briefs %}<td>{% for r in b.near %}{% if r.layer == "highway" or r.layer == "rail" %}<div>{{ r.miles|floatformat:1 }} mi <span class="muted">{{ r.name }}</span></div>{% endif %}{% endfor %}</td>{% endfor %}</tr>
+    <tr><th>Electric provider(s)</th>{% for b in briefs %}<td>{% for x in b.electric|slice:":3" %}<div>{{ x.name }}</div>{% endfor %}</td>{% endfor %}</tr>
+    <tr><th>Water / sewer</th>{% for b in briefs %}<td>{% for x in b.water %}<div>{{ x.name }}</div>{% endfor %}{% if b.water_line %}<div>Water main {{ b.water_line.miles|floatformat:1 }} mi</div>{% endif %}{% if b.sewer_line %}<div>Sewer main {{ b.sewer_line.miles|floatformat:1 }} mi</div>{% endif %}{% if not b.water and not b.water_line %}<span class="muted">Not mapped</span>{% endif %}</td>{% endfor %}</tr>
+    <tr><th>FEMA floodplain</th>{% for b in briefs %}<td>{% if b.flood is None %}–{% else %}{{ b.flood|floatformat:0 }}%{% endif %}</td>{% endfor %}</tr>
+    <tr><th>Buy-box score</th>{% for b in briefs %}<td><b>{{ b.score }}</b></td>{% endfor %}</tr>
+    <tr><th>Flags</th>{% for b in briefs %}<td>{% if b.bad %}<span class="pill-tag bad">{{ b.bad }} red</span> {% endif %}{% if b.warn %}<span class="pill-tag warn">{{ b.warn }} caution</span> {% endif %}<span class="pill-tag good">{{ b.good }} positive</span></td>{% endfor %}</tr>
+    <tr><th>Biggest concerns</th>{% for b in briefs %}<td>{% for f in b.flags %}{% if f.kind != "good" and forloop.counter <= 3 %}<div>{{ f.text }}</div>{% endif %}{% empty %}–{% endfor %}</td>{% endfor %}</tr>
+  </table>
+</article>

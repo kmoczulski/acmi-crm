@@ -1,0 +1,18 @@
+{% extends "crm/base.html" %}
+{% load static humanize %}
+{% block title %}Site briefs · ACMI CRM{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="{% static 'crm/brief.css' %}?v={{ ASSET_VERSION }}">
+<div class="brief-toolbar no-print">
+  <a href="{% url 'crm:land_sites_page' %}">← Sites</a>
+  <span class="spacer"></span>
+  <a class="btn" href="?ids={{ ids }}&amp;refresh=1">Re-run live checks</a>
+  <a class="btn btn-primary" href="?ids={{ ids }}&amp;format=pdf" title="Downloads one PDF: comparison, a page per site, and the notes">Save as PDF</a>
+  <button class="btn" onclick="window.print()">Print</button>
+</div>
+{% if briefs %}
+{% include "crm/partials/brief_cover.html" %}
+{% for b in briefs %}{% include "crm/partials/site_brief.html" %}{% include "crm/partials/site_brief_detail.html" %}{% endfor %}
+{% include "crm/partials/brief_zoning.html" %}{% include "crm/partials/brief_notes.html" %}
+{% else %}<p class="muted">No sites to brief.</p>{% endif %}
+{% endblock %}

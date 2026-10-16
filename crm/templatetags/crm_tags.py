@@ -215,3 +215,17 @@ def mentions(text):
 def get_item(mapping, key):
     """Dict lookup with a variable key: {{ counts|get_item:value }}."""
     return (mapping or {}).get(key)
+
+
+@register.filter
+def split_commas(value):
+    """'a,b,c' -> ['a', 'b', 'c'] (for looping over a fixed list of field names in a template)."""
+    return [v.strip() for v in str(value).split(",") if v.strip()]
+
+
+@register.filter
+def as_json(value):
+    """JSON for a data-* attribute (autoescaping turns the quotes into &quot;, which the browser undoes)."""
+    import json
+
+    return json.dumps(value or {})

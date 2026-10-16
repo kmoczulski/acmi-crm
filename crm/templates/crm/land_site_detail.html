@@ -1,0 +1,416 @@
+{% extends "crm/base.html" %}
+{% load humanize crm_tags static %}
+{% block title %}{{ site.name }} · Sites · ACMI CRM{% endblock %}
+{% block content %}
+<div class="record-head">
+  <div>
+    <div class="muted lc-small"><a href="{% url 'crm:land_sites_page' %}">Sites</a> › {{ site.home_label }}</div>
+    <h1>{{ site.name }} <span class="pill site-{{ site.status }}">{{ site.get_status_display }}</span></h1>
+    <div class="muted">{{ tracker.parcels }} parcel{{ tracker.parcels|pluralize }} · {{ acres|floatformat:1|intcomma }} ac{% if tracker.excluded %} <span class="lc-small">({{ tracker.excluded|length }} excluded)</span>{% endif %}{% if tracker.trimmed %} <span class="lc-small">({{ tracker.trimmed|length }} trimmed)</span>{% endif %} · {{ owners }} owner{{ owners|pluralize }}</div>
+  </div>
+  <div class="record-nav">
+    <a class="btn" href="{% url 'crm:land_site_listing' site.pk %}">Listing details</a>
+    <a class="btn" href="{% url 'crm:land_site_brief' site.pk %}">Site brief (aerial, PDF)</a>
+    <a class="btn" href="{{ site.get_absolute_url }}">Open on map</a>
+  </div>
+</div>
+
+{% if map_data.features %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<section class="panel site-map-panel">
+  <div class="site-map-head">
+    <h3>Map</h3>
+    <span class="spacer"></span>
+    <select id="sm-base" class="tb-select" title="Base map"><option value="satellite">Satellite</option><option value="streets">Streets</option><option value="topo">Topo</option></select>
+    <details class="tb-menu" id="sm-layers"><summary class="tb-btn">Layers ▾</summary>
+      <div class="tb-pop ml-panel" id="sm-layer-list"></div>
+    </details>
+    <button type="button" class="tb-btn" id="sm-fit">Fit to site</button>
+    <a class="tb-btn" href="{{ site.get_absolute_url }}">Open in land search ↗</a>
+  </div>
+  <div class="trim-bar" id="trim-bar" hidden>
+    <b id="trim-title">Trim parcel</b>
+    <span id="trim-msg" class="lc-small"></span>
+    <span class="spacer"></span>
+    <button type="button" class="tb-btn" id="trim-undo" title="Undo the last point or line">Undo</button>
+    <button type="button" class="tb-btn" id="trim-reset" title="Drop the trim and use the whole parcel">Whole parcel</button>
+    <button type="button" class="tb-btn" id="trim-cancel">Cancel</button>
+    <button type="button" class="btn btn-primary btn-small" id="trim-save" disabled>Save portion</button>
+  </div>
+  <div id="site-map"></div>
+  <div class="map-legend site-map-legend">{% for v, l in statuses %}<span><i class="acq-key site-{{ v }}"></i>{{ l }}</span>{% endfor %}<span><i class="acq-key key-excluded"></i>Excluded</span><span><i class="acq-key key-cutaway"></i>Trimmed off</span></div>
+</section>
+{{ map_data|json_script:"site-map-data" }}
+{{ incentive_programs|json_script:"incentive-programs" }}
+{% endif %}
+
+<section class="panel">
+  <h3>Deal timeline</h3>
+  {% with ts=site.timeline_summary %}{% if ts %}
+  <p class="deal-clock"><b>{{ ts.days }} day{{ ts.days|pluralize }}</b> {% if ts.closed %}from {{ ts.start_label }} ({{ ts.start|date:"M j, Y" }}) to close{% else %}since {{ ts.start_label }} ({{ ts.start|date:"M j, Y" }}){% endif %}
+    · {% if not ts.closed %}last milestone: {{ ts.last_label }}, {% if ts.since_last < 0 %}set for {{ ts.ahead }} day{{ ts.ahead|pluralize }} from now{% elif ts.since_last == 0 %}today{% else %}{{ ts.since_last }} day{{ ts.since_last|pluralize }} ago{% endif %}{% else %}closed {{ ts.last_date|date:"M j, Y" }}{% endif %}</p>
+  {% endif %}{% endwith %}
+  <ol class="stage-track">
+    {% for m in milestones %}
+    <li class="{% if m.date %}done{% endif %}">
+      <span class="dot"></span>
+      <div class="st-label">{{ m.label }}</div>
+      <div class="st-date">{% if m.date %}{{ m.date|date:"M j, Y" }}{% else %}–{% endif %}</div>
+      {% if m.total is not None %}<div class="st-gap" title="Days since the first dated milestone">Day {{ m.total }}</div>{% endif %}
+      {% if m.gap is not None %}<div class="st-prev" title="Days since the previous milestone">+{{ m.gap }}d since prev</div>{% endif %}
+    </li>
+    {% endfor %}
+  </ol>
+</section>
+
+{% with tr=tracker %}{% if tr.all_parcels %}
+<section class="panel">
+  <h3>{% if tr.is_assemblage %}Assemblage tracker{% else %}Parcel tracker{% endif %}
+    <span class="muted lc-small">{{ tr.parcels }} parcel{{ tr.parcels|pluralize }} · {{ tr.owner_count }} owner{{ tr.owner_count|pluralize }} · {{ tr.total_acres|floatformat:1|intcomma }} ac</span></h3>
+  <div class="acq-bar" title="Acres by parcel stage">{% for b in tr.by_stage %}<span class="acq-seg site-{{ b.stage }}" style="width:{{ b.pct }}%" title="{{ b.label }}: {{ b.acres }} ac, {{ b.parcels }} parcel{{ b.parcels|pluralize }} ({{ b.owners|join:', ' }})"></span>{% endfor %}</div>
+  <div class="acq-legend lc-small">{% for b in tr.by_stage %}<span><i class="acq-key site-{{ b.stage }}"></i>{{ b.label }}: <b>{{ b.acres|floatformat:1|intcomma }} ac</b> <span class="muted">({{ b.parcels }}{% if b.pct < 100 %}, {{ b.pct|floatformat:0 }}%{% endif %})</span></span>{% endfor %}</div>
+  <div class="acq-stats lc-small">
+    <span><b>{{ tr.secured_acres|floatformat:1|intcomma }} ac</b> secured (under contract or acquired) · {{ tr.secured_pct|floatformat:0 }}%</span>
+    {% if tr.furthest and tr.is_assemblage %}<span>Furthest: <b>{{ tr.furthest.get_status_display }}</b> ({{ tr.furthest.parcel.owner_name|title }})</span>
+    <span>Slowest: <b>{{ tr.slowest.get_status_display }}</b> ({{ tr.slowest.parcel.owner_name|title }})</span>{% endif %}
+  </div>
+  {% if tr.is_assemblage and tr.suggested_status and tr.suggested_status != site.status and site.status != "dropped" %}
+  <p class="lc-small acq-hint">Every live parcel has reached at least <b>{{ tr.slowest.get_status_display }}</b> and the slowest one sets the assemblage's real stage; the site status is <b>{{ site.get_status_display }}</b>. Change it under Details if that's right.</p>{% endif %}
+  <div class="table-wrap" style="border:0">
+    <table class="data deal-grid">
+      <thead><tr><th>Owner / parcel</th><th class="num">Acres</th><th>Status</th>
+        {% for k, label, st in milestone_defs %}<th class="ms-col" title="{{ label }}">{{ label|truncatechars:12 }}</th>{% endfor %}<th>Notes</th><th></th></tr></thead>
+      <tbody>{% for g in tr.owners %}
+        {% if g.deals|length > 1 %}<tr class="owner-row"><td colspan="{{ milestone_defs|length|add:5 }}"><b>{{ g.owner }}</b> <span class="muted lc-small">{{ g.deals|length }} parcels · {{ g.acres|floatformat:1|intcomma }} ac</span></td></tr>{% endif %}
+        {% for row in g.deals %}{% with d=row.deal %}
+        <tr{% if not d.included %} class="row-excluded"{% endif %}>
+          <td class="wrap">{% if g.deals|length == 1 %}<b>{{ g.owner }}</b><br>{% endif %}<span class="lc-small"><a href="{{ d.parcel.get_absolute_url }}">{{ d.parcel.situs_address|default:d.parcel.legal_desc|truncatechars:34|default:d.parcel.prop_id }}</a> <span class="muted">{{ d.parcel.prop_id }}</span></span></td>
+          <td class="num">{% if d.trimmed %}{{ d.acres|floatformat:1|intcomma }}<div class="muted lc-small">of {{ d.parcel.acres|floatformat:1|intcomma }}</div>{% else %}{{ d.parcel.acres|floatformat:1|intcomma }}{% endif %}</td>
+          <td>{% if d.included %}<span class="pill site-{{ d.status }}">{{ d.get_status_display }}</span>{% else %}<span class="pill pill-excluded" title="Not counted in the site's acres, outline, QD or plan">Excluded</span>{% endif %}</td>
+          {% for m in row.milestones %}<td class="ms-col lc-small{% if m.date %} ms-done{% endif %}">{% if m.date %}{{ m.date|date:"n/j/y" }}{% else %}<span class="muted">·</span>{% endif %}</td>{% endfor %}
+          <td class="wrap lc-small deal-note">{{ d.notes|truncatechars:90 }}</td>
+          <td><button type="button" class="btn btn-small" data-edit-deal="{{ d.pk }}" data-status="{{ d.status }}" data-notes="{{ d.notes }}"
+               data-owner="{{ g.owner }}" data-owner-parcels="{{ g.deals|length }}" data-label="{{ g.owner }} · {{ d.parcel.prop_id|default:d.parcel.key }}"
+               data-dates="{{ d.milestones|as_json }}">Edit</button></td>
+        </tr>{% endwith %}{% endfor %}
+      {% endfor %}</tbody>
+      {% if tr.is_assemblage %}<tfoot><tr><td colspan="3" class="lc-small muted">First – last across parcels</td>
+        {% for s in tr.span %}<td class="ms-col lc-small muted">{% if s.first %}{{ s.first|slice:"5:" }}{% if s.last != s.first %} – {{ s.last|slice:"5:" }}{% endif %}{% if s.count > 1 %}<br>{{ s.count }}×{% endif %}{% else %}·{% endif %}</td>{% endfor %}<td colspan="2"></td></tr></tfoot>{% endif %}
+    </table>
+  </div>
+</section>
+
+<dialog id="deal-dialog" class="site-dialog">
+  <form method="post">{% csrf_token %}<input type="hidden" name="action" value="parcel_deal"><input type="hidden" name="deal">
+    <h3 id="deal-title">Parcel deal</h3>
+    <label>Status<select name="status">{% for v, l in statuses %}<option value="{{ v }}">{{ l }}</option>{% endfor %}</select></label>
+    <div class="deal-dates">{% for k, label, st in milestone_defs %}<label>{{ label }}<input type="date" name="{{ k }}"></label>{% endfor %}</div>
+    <label>Notes<textarea name="notes" rows="3"></textarea></label>
+    <label class="deal-owner"><input type="checkbox" name="apply_owner" value="1" checked> <span>Apply to all parcels of this owner</span></label>
+    <div class="site-dialog-actions"><span class="spacer"></span>
+      <button type="button" class="btn" onclick="this.closest('dialog').close()">Cancel</button>
+      <button class="btn btn-primary">Save</button></div>
+  </form>
+</dialog>
+{% endif %}{% endwith %}
+
+<div class="record">
+  <div>
+    <section class="panel">
+      <h3>Details</h3>
+      <form method="post" class="fields">{% csrf_token %}<input type="hidden" name="action" value="details">
+        <p><label>Name<input name="name" value="{{ site.name }}" required></label></p>
+        <p><label>Status<select name="status">{% for v, l in statuses %}<option value="{{ v }}"{% if v == site.status %} selected{% endif %}>{{ l }}</option>{% endfor %}</select></label></p>
+        <p><label>Campus<select name="campus"><option value="">None</option>{% for c in campuses %}<option value="{{ c.pk }}"{% if c.pk == site.campus_id %} selected{% endif %}>{{ c.code }} · {{ c.name }}</option>{% endfor %}</select></label></p>
+        <p><label>Project<select name="project"><option value="">None</option>{% for pr in projects %}<option value="{{ pr.pk }}"{% if pr.pk == site.project_id %} selected{% endif %}>{{ pr.name }}{% if pr.campus %} ({{ pr.campus.code }}){% endif %}</option>{% endfor %}</select></label></p>
+        <p><label>Notes<textarea name="notes" rows="10">{{ site.notes }}</textarea></label></p>
+        <button class="btn-primary">Save</button>
+      </form>
+    </section>
+
+    <section class="panel">
+      <h3>Milestone dates</h3>
+      <form method="post" class="milestone-form">{% csrf_token %}<input type="hidden" name="action" value="milestones">
+        {% for m in milestones %}
+        <label><span>{{ m.label }}</span>
+          <input type="date" name="{{ m.key }}" value="{{ m.date|date:'Y-m-d' }}">
+          <button type="button" class="btn-link lc-small" data-today>today</button></label>
+        {% endfor %}
+        <p class="muted lc-small">Setting a later milestone moves the status forward (LOI → Under contract → Acquired); it never moves it back. Dropped sites keep their status.</p>
+        <button class="btn-primary">Save timeline</button>
+      </form>
+    </section>
+
+    <section class="panel">
+      <h3>Danger zone</h3>
+      <form method="post" onsubmit="return confirm('Delete this site? Its parcels stay in land search.')">{% csrf_token %}
+        <input type="hidden" name="action" value="delete"><button class="btn btn-danger btn-small">Delete site</button>
+      </form>
+    </section>
+  </div>
+
+  <div>
+    <section class="panel">
+      <h3>Parcels</h3>
+      <div class="table-wrap" style="border:0">
+        <table class="data">
+          <thead><tr><th>Owner</th><th>Property</th><th class="num">Acres</th><th>Zoning / use</th><th class="num">Score</th><th>Map status</th><th></th></tr></thead>
+          <tbody>{% for p in parcels %}
+            <tr{% if p.deal and not p.deal.included %} class="row-excluded"{% endif %}>
+              <td class="wrap">{{ p.owner_name|title|default:"Unknown" }}{% if p.mail_state and p.mail_state != p.county.state %} <span class="muted lc-small">({{ p.mail_state }})</span>{% endif %}</td>
+              <td class="wrap"><a href="{{ p.get_absolute_url }}">{{ p.situs_address|default:p.legal_desc|truncatechars:40|default:p.prop_id }}</a>
+                <div class="muted lc-small">{{ p.county.name }} · {% if p.cad_url %}<a href="{{ p.cad_url }}" target="_blank" rel="noopener">{{ p.prop_id }}</a>{% else %}{{ p.prop_id|default:p.key }}{% endif %}</div></td>
+              <td class="num">{% if p.deal.trimmed %}{{ p.deal.acres|floatformat:1|intcomma }}<div class="muted lc-small">of {{ p.acres|floatformat:1|intcomma }} · trimmed</div>{% else %}{{ p.acres|floatformat:1|intcomma }}{% endif %}{% if p.deal and not p.deal.included %}<div class="muted lc-small">excluded</div>{% endif %}</td>
+              <td class="lc-small">{{ p.zoning|default:p.state_land_use|default:"–" }}</td>
+              <td class="num">{{ p.score }}{% if p.killers %} <span class="overdue" title="{{ p.killers|join:'; ' }}">⛔</span>{% endif %}</td>
+              <td class="lc-small">{{ p.get_status_display }}</td>
+              <td class="parcel-actions">{% if p.deal %}{% if p.deal.included %}<button type="button" class="btn-link lc-small" data-trim="{{ p.pk }}" title="Keep only part of this parcel (cut along a trail, creek, road)">✂ Trim</button>{% endif %}
+                <form method="post">{% csrf_token %}<input type="hidden" name="action" value="include_parcel"><input type="hidden" name="deal" value="{{ p.deal.pk }}"><input type="hidden" name="included" value="{% if p.deal.included %}0{% else %}1{% endif %}"><button class="btn-link lc-small" title="{% if p.deal.included %}Keep it on the site but leave it out of acres, outline, QD and plan{% else %}Count it in the site again{% endif %}">{% if p.deal.included %}Exclude{% else %}Include{% endif %}</button></form>{% endif %}
+                <form method="post" onsubmit="return confirm('Remove this parcel from the site?')">{% csrf_token %}<input type="hidden" name="action" value="remove_parcel"><input type="hidden" name="parcel" value="{{ p.pk }}"><button class="btn-link lc-small" title="Remove from site">✕</button></form></td>
+            </tr>{% empty %}
+            <tr><td colspan="7" class="muted">No parcels yet. Open the map, Assemble, pick parcels, then Save as site and choose this site.</td></tr>{% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h3>Activity</h3>
+      <form method="post" class="note-add">{% csrf_token %}<input type="hidden" name="action" value="note">
+        <input name="text" placeholder="Add an update, e.g. Seller countered on price" required><button class="btn btn-small">Add</button>
+      </form>
+      <ul class="site-events">{% for e in events %}
+        <li class="ev-{{ e.kind }}"><span class="muted lc-small">{{ e.when|date:"M j, Y" }}{% if e.user %} · {{ e.user.get_full_name|default:e.user.username }}{% endif %}</span><div>{{ e.text }}</div></li>
+      {% empty %}<li class="muted">No changes logged yet.</li>{% endfor %}</ul>
+    </section>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+{% if map_data.features %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/esri-leaflet@3.0.12/dist/esri-leaflet.js"></script>
+<script src="{% static 'crm/land_layers.js' %}?v={{ ASSET_VERSION }}"></script>
+<script>
+  // Site mini map: the site's parcels by deal stage, base maps and every land-search layer, plus trimming a parcel.
+  (function () {
+    const esc = LandLayers.escapeHtml;
+    const map = L.map('site-map', {preferCanvas: true});
+    const bases = LandLayers.bases();
+    const programs = JSON.parse(document.getElementById('incentive-programs').textContent);
+    const factories = LandLayers.overlays({femaLayer: {{ fema_flood_layer }}, programs: programs});
+    const built = {};
+    const COLORS = {acquired: '#1e4fbf', contract: '#3a7bd5', loi: '#00a5c2', outreach: '#f0a500', review: '#9b6dff',
+      prospect: '#9aa3ad', dropped: '#9aa3ad'};
+    let base = null;
+    const baseSel = document.getElementById('sm-base');
+    function setBase(name) { if (base) map.removeLayer(base); base = bases[name] || bases.satellite; base.addTo(map); }
+    try { baseSel.value = localStorage.getItem('site-map:base') || 'satellite'; } catch (e) {}
+    setBase(baseSel.value);
+    baseSel.addEventListener('change', function () {
+      setBase(baseSel.value);
+      try { localStorage.setItem('site-map:base', baseSel.value); } catch (e) {}
+    });
+
+    const data = JSON.parse(document.getElementById('site-map-data').textContent);
+    const acresText = p => p.trimmed ? p.acres.toLocaleString() + ' of ' + p.parcel_acres.toLocaleString() + ' ac (trimmed)'
+      : p.acres.toLocaleString() + ' ac';
+    // The part of a trimmed parcel the site doesn't need, drawn faintly under it.
+    const cutAway = L.geoJSON({type: 'FeatureCollection', features: data.features.filter(f => f.properties.whole)
+      .map(f => ({type: 'Feature', geometry: f.properties.whole, properties: {}}))},
+      {style: {color: '#fff', weight: 1, dashArray: '3 4', fillColor: '#fff', fillOpacity: 0.08}, interactive: false}).addTo(map);
+    const parcels = L.geoJSON(data, {
+      style: f => f.properties.included
+        ? {color: '#fff', weight: 2, fillColor: COLORS[f.properties.status] || '#00a5c2', fillOpacity: 0.45}
+        : {color: '#d6dbe1', weight: 1.5, dashArray: '5 4', fillColor: '#9aa3ad', fillOpacity: 0.12},
+      onEachFeature: (f, l) => {
+        const p = f.properties;
+        l.bindTooltip('<b>' + esc(p.owner) + '</b><br>' + (p.included ? acresText(p) + ' · ' + esc(p.status_label) : 'Excluded from the site')
+          + '<br><span class="muted">' + esc(p.prop_id) + (p.zoning ? ' · ' + esc(p.zoning) : '') + '</span>', {sticky: true});
+        l.on('click', function (e) {
+          if (T) return;  // trim mode: the click places a cut point instead
+          L.popup().setLatLng(e.latlng).setContent('<b>' + esc(p.owner) + '</b><br>'
+            + (p.included ? acresText(p) + ' · ' + esc(p.status_label) : 'Excluded from the site')
+            + '<br><a href="' + p.url + '">Open parcel in land search ↗</a>'
+            + (p.included ? '<br><button type="button" class="btn-link" data-trim="' + p.id + '">✂ Trim this parcel</button>' : '')).openOn(map);
+        });
+      },
+    }).addTo(map);
+    // The site (included parcels, trimmed) outlined on top, so an assemblage reads as one boundary.
+    const outline = L.geoJSON({type: 'FeatureCollection', features: data.features.filter(f => f.properties.included)},
+      {style: {color: '#ffff00', weight: 1.5, fill: false, dashArray: '4 3'}, interactive: false}).addTo(map);
+    const fit = () => map.fitBounds(L.featureGroup([parcels, cutAway]).getBounds(), {padding: [24, 24], maxZoom: 17});
+    fit();
+    document.getElementById('sm-fit').addEventListener('click', fit);
+
+    // Trim: cut a parcel with lines (a trail, a creek, a road) and keep only the pieces the site needs.
+    const TRIM_URL = "{% url 'crm:land_site_trim' site.pk %}";
+    const csrf = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    const panel = document.querySelector('.site-map-panel');
+    const bar = document.getElementById('trim-bar');
+    const msg = document.getElementById('trim-msg');
+    const saveBtn = document.getElementById('trim-save');
+    const trimLayer = L.layerGroup().addTo(map);
+    window.siteMap = map;  // handy from the console
+    let T = null;  // {f, lines, current, pieces, keep}
+
+    function post(body) {
+      return fetch(TRIM_URL, {method: 'POST', headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrf},
+        body: JSON.stringify({parcel: T.f.properties.id, ...body})}).then(r => r.json());
+    }
+    function drawTrim(note) {
+      trimLayer.clearLayers();
+      L.geoJSON(T.f.properties.whole || T.f.geometry, {style: {color: '#00e5ff', weight: 3, fill: !T.pieces, fillOpacity: 0.12}, interactive: false}).addTo(trimLayer);
+      (T.pieces || []).forEach(function (pc) {
+        const on = T.keep.has(pc.i);
+        L.geoJSON(pc.geometry, {style: on ? {color: '#16a34a', weight: 2, fillColor: '#22c55e', fillOpacity: 0.5}
+            : {color: '#ef4444', weight: 1.5, dashArray: '4 3', fillColor: '#ef4444', fillOpacity: 0.18}})
+          .bindTooltip((on ? 'Keep · ' : 'Drop · ') + pc.acres.toLocaleString() + ' ac', {sticky: true})
+          .on('click', function (e) {
+            if (T.current.length) return;  // mid-line: let the map place the point
+            L.DomEvent.stop(e);
+            T.keep.has(pc.i) ? T.keep.delete(pc.i) : T.keep.add(pc.i);
+            drawTrim();
+          }).addTo(trimLayer);
+      });
+      T.lines.forEach(l => L.polyline(l.map(c => [c[1], c[0]]), {color: '#ff7a00', weight: 3, interactive: false}).addTo(trimLayer));
+      if (T.current.length) {
+        L.polyline(T.current.map(c => [c[1], c[0]]), {color: '#ff7a00', weight: 3, dashArray: '6 4', interactive: false}).addTo(trimLayer);
+        T.current.forEach(c => L.circleMarker([c[1], c[0]], {radius: 4, color: '#ff7a00', fillOpacity: 1, interactive: false}).addTo(trimLayer));
+      }
+      if (T.pieces && T.pieces.length > 1) {
+        const kept = T.pieces.filter(pc => T.keep.has(pc.i)).reduce((a, pc) => a + pc.acres, 0);
+        msg.textContent = (note ? note + ' ' : '') + 'Keeping ' + kept.toLocaleString(undefined, {maximumFractionDigits: 1}) + ' of '
+          + T.f.properties.parcel_acres.toLocaleString() + ' ac (' + T.keep.size + ' of ' + T.pieces.length
+          + ' pieces). Click a piece to keep or drop it; draw another line to cut again.';
+        saveBtn.disabled = !T.keep.size;
+      } else {
+        msg.textContent = note || (T.current.length ? 'Keep clicking along the cut; double-click to finish the line.'
+          : 'Click along the cut (the trail, creek or road), starting and ending outside the parcel. Double-click to finish.');
+        saveBtn.disabled = true;
+      }
+    }
+    function preview() {
+      if (!T.lines.length) { T.pieces = null; drawTrim(); return; }
+      msg.textContent = 'Cutting…';
+      post({action: 'preview', lines: T.lines}).then(function (res) {
+        if (!T) return;
+        if (res.error) { drawTrim(res.error); return; }
+        T.pieces = res.pieces;
+        T.keep = new Set(res.pieces.filter(pc => pc.keep).map(pc => pc.i));
+        drawTrim(res.warning);
+      });
+    }
+    function startTrim(id) {
+      const f = data.features.find(x => x.properties.id === id);
+      if (!f) return;
+      map.closePopup();
+      T = {f: f, lines: (f.properties.cuts || []).slice(), current: [], pieces: null, keep: new Set()};
+      document.getElementById('trim-title').textContent = 'Trim ' + f.properties.owner + ' · ' + f.properties.prop_id;
+      bar.hidden = false;
+      panel.classList.add('trimming');
+      map.doubleClickZoom.disable();
+      panel.scrollIntoView({behavior: 'smooth', block: 'start'});
+      map.invalidateSize();
+      map.fitBounds(L.geoJSON(f.properties.whole || f.geometry).getBounds(), {padding: [30, 30], animate: false});
+      preview();
+    }
+    function stopTrim() {
+      T = null;
+      trimLayer.clearLayers();
+      bar.hidden = true;
+      panel.classList.remove('trimming');
+      map.doubleClickZoom.enable();
+    }
+    map.on('click', function (e) {
+      if (!T) return;
+      const pt = [+e.latlng.lng.toFixed(7), +e.latlng.lat.toFixed(7)];
+      const last = T.current[T.current.length - 1];
+      if (!last || last[0] !== pt[0] || last[1] !== pt[1]) T.current.push(pt);
+      drawTrim();
+    });
+    map.on('dblclick', function () {
+      if (!T || T.current.length < 2) return;
+      T.lines.push(T.current);
+      T.current = [];
+      preview();
+    });
+    document.addEventListener('keydown', function (e) { if (T && e.key === 'Escape') { T.current = []; drawTrim(); } });
+    document.addEventListener('click', function (e) {
+      const b = e.target.closest('[data-trim]');
+      if (b) { e.preventDefault(); startTrim(+b.dataset.trim); }
+    });
+    document.getElementById('trim-undo').addEventListener('click', function () {
+      if (!T) return;
+      if (T.current.length) { T.current.pop(); drawTrim(); } else { T.lines.pop(); preview(); }
+    });
+    document.getElementById('trim-cancel').addEventListener('click', stopTrim);
+    document.getElementById('trim-reset').addEventListener('click', function () {
+      if (!T || !confirm('Use the whole parcel again?')) return;
+      post({action: 'reset'}).then(() => location.reload());
+    });
+    saveBtn.addEventListener('click', function () {
+      if (!T || !T.pieces) return;
+      saveBtn.disabled = true;
+      post({action: 'save', lines: T.lines, keep: [...T.keep]}).then(function (res) {
+        if (res.error) { msg.textContent = res.error; saveBtn.disabled = false; return; }
+        location.reload();
+      });
+    });
+
+    // Layers menu: the same groups as land search, incentives included; remembered for site pages.
+    let on = [];
+    try { on = JSON.parse(localStorage.getItem('site-map:layers') || '[]'); } catch (e) {}
+    const groups = LandLayers.LABELS.concat([['Incentives & programs', programs.map(g => ['inc:' + g.key, g.label])]]);
+    document.getElementById('sm-layer-list').innerHTML = groups.map(([title, items]) =>
+      '<div class="ml-h">' + esc(title) + '</div>' + items.map(([k, label]) =>
+        '<label><input type="checkbox" data-sm-layer="' + k + '"' + (on.includes(k) ? ' checked' : '') + '> ' + esc(label) + '</label>').join('')).join('');
+    function toggle(key, show) {
+      if (show) {
+        built[key] = built[key] || factories[key]();
+        built[key].addTo(map);
+        parcels.bringToFront();
+        outline.bringToFront();
+      } else if (built[key]) {
+        map.removeLayer(built[key]);
+      }
+    }
+    document.querySelectorAll('[data-sm-layer]').forEach(function (i) {
+      if (i.checked) toggle(i.dataset.smLayer, true);
+      i.addEventListener('change', function () {
+        toggle(i.dataset.smLayer, i.checked);
+        const keys = [...document.querySelectorAll('[data-sm-layer]:checked')].map(x => x.dataset.smLayer);
+        try { localStorage.setItem('site-map:layers', JSON.stringify(keys)); } catch (e) {}
+      });
+    });
+    const menu = document.getElementById('sm-layers');
+    document.addEventListener('click', function (e) { if (!e.target.closest('#sm-layers')) menu.open = false; });
+  })();
+</script>
+{% endif %}
+<script>
+  // Parcel deal editor: one dialog, filled from the row's Edit button.
+  (function () {
+    const dlg = document.getElementById('deal-dialog');
+    if (!dlg) return;
+    const f = dlg.querySelector('form');
+    document.querySelectorAll('[data-edit-deal]').forEach(b => b.addEventListener('click', () => {
+      f.deal.value = b.dataset.editDeal;
+      f.status.value = b.dataset.status;
+      f.notes.value = b.dataset.notes || '';
+      let dates = {};
+      try { dates = JSON.parse(b.dataset.dates || '{}') || {}; } catch (e) {}
+      f.querySelectorAll('input[type=date]').forEach(i => { i.value = dates[i.name] || ''; });
+      const many = +b.dataset.ownerParcels > 1;
+      f.querySelector('.deal-owner').hidden = !many;
+      f.apply_owner.checked = many;
+      f.querySelector('.deal-owner span').textContent = `Apply to all ${b.dataset.ownerParcels} parcels of ${b.dataset.owner}`;
+      document.getElementById('deal-title').textContent = b.dataset.label;
+      dlg.showModal();
+    }));
+  })();
+  document.querySelectorAll('[data-today]').forEach(b => b.addEventListener('click', () => {
+    b.parentElement.querySelector('input[type=date]').value = new Date().toISOString().slice(0, 10);
+  }));
+</script>
+{% endblock %}

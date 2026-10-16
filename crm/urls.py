@@ -1,6 +1,8 @@
 from django.urls import path
 
 from . import views
+from .land import assignment_views as asg_views
+from .land import brief_views
 from .land import views as land_views
 from .mail import views as mail_views
 from .news import views as news_views
@@ -93,16 +95,32 @@ urlpatterns = [
     path("land/drive/route/", land_views.drive_route, name="land_drive_route"),
     path("land/drive/isochrone/", land_views.drive_isochrone, name="land_drive_isochrone"),
     path("land/qd/", land_views.qd_layout, name="land_qd"),
+    path("land/siteplan/", land_views.site_plan, name="land_site_plan"),
     path("land/views.json", land_views.views_json, name="land_views"),
     path("land/views/save/", land_views.view_save, name="land_view_save"),
     path("land/views/<int:pk>/delete/", land_views.view_delete, name="land_view_delete"),
     path("land/assemblage.json", land_views.assemblage_json, name="land_assemblage"),
+    path("land/assignments/", asg_views.assignment_list, name="assignments"),
+    path("land/assignments/<int:pk>/", asg_views.assignment_detail, name="assignment_detail"),
+    path("land/assignments/<int:pk>/sites/<int:entry_pk>/", asg_views.assignment_report, name="assignment_report"),
+    path("land/assignments/<int:pk>/sites/<int:entry_pk>/edit/", asg_views.assignment_edit, name="assignment_edit"),
+    path("g/<str:token>/", asg_views.guest_home, name="guest_home"),
+    path("g/<str:token>/<int:entry_pk>/", asg_views.guest_report, name="guest_report"),
+    path("land/sites/", land_views.sites_page, name="land_sites_page"),
+    path("land/sites/<int:pk>/manage/", land_views.site_detail, name="land_site_detail"),
+    path("land/sites/<int:pk>/trim/", land_views.site_trim, name="land_site_trim"),
     path("land/sites.json", land_views.sites_json, name="land_sites"),
+    path("land/sites.geojson", land_views.sites_geojson, name="land_sites_geojson"),
     path("land/sites/save/", land_views.site_save, name="land_site_save"),
+    path("land/sites/<int:pk>/brief/", brief_views.site_brief, name="land_site_brief"),
+    path("land/sites/<int:pk>/aerial.jpg", brief_views.site_aerial, name="land_site_aerial"),
+    path("land/briefs/", brief_views.briefs_page, name="land_briefs"),
+    path("land/sites/<int:pk>/listing/", brief_views.site_listing, name="land_site_listing"),
     path("land/sites/<int:pk>/", land_views.site_json, name="land_site"),
     path("land/sites/<int:pk>/delete/", land_views.site_delete, name="land_site_delete"),
     path("land/parcel/<int:pk>/qd/", land_views.qd_design, name="land_qd_design"),
     path("land/identify/", land_views.identify_view, name="land_identify"),
+    path("land/assemble-point/", land_views.assemble_point, name="land_assemble_point"),
     path("land/save/", land_views.parcel_save, name="land_parcel_save"),
     path("land/parcel/<int:pk>/", land_views.parcel_card, name="land_parcel_card"),
     path("land/parcel/<int:pk>/shape/", land_views.parcel_geojson, name="land_parcel_geojson"),

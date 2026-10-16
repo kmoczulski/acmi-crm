@@ -1,0 +1,94 @@
+{% load humanize %}
+<article class="dd">
+  {% include "crm/partials/report_logo.html" %}
+  <h1>{{ c.site.name }}</h1>
+  <p class="sub">{% for label, v in c.overview %}{% if label == "Location" %}{{ v }}{% endif %}{% endfor %}{% if c.net_acres %} · {{ c.net_acres|floatformat:0|intcomma }} net acres{% endif %}{% if a.client %} · Prepared for {{ a.client }}{% endif %}</p>
+
+  <div class="dd-verdict">
+    <span class="dd-pill {{ c.tone }}">{{ c.verdict }}</span>
+    {% if guest and position %}<span class="muted">Ranked #{{ position }} of {{ total }} in this search</span>{% endif %}
+  </div>
+  <div class="dd-counts">
+    <div class="dd-stat"><b>{{ c.counts.low }}</b><span>Low risk</span></div>
+    <div class="dd-stat"><b>{{ c.counts.moderate }}</b><span>Moderate</span></div>
+    <div class="dd-stat"><b>{{ c.counts.elevated }}</b><span>Elevated</span></div>
+    <div class="dd-stat"><b>{{ c.counts.unrated }}</b><span>Not yet rated</span></div>
+    <div class="dd-stat"><b>{{ c.checklist_done }}/{{ c.checklist_active }}</b><span>Checklist complete</span></div>
+  </div>
+
+  {% if c.report.summary %}<h2>Executive summary</h2><p class="pre">{{ c.report.summary }}</p>{% endif %}
+
+  <h2>Risk matrix</h2>
+  <table>
+    <thead><tr><th>Category</th><th>Rating</th><th>Key finding</th><th>Mitigation / owner</th></tr></thead>
+    <tbody>{% for r in c.cats %}
+      <tr><td><b>{{ r.label }}</b></td><td><span class="dd-pill {% if r.rating %}{{ r.rating }}{% else %}unrated{% endif %}">{{ r.rating_label }}</span></td>
+        <td>{{ r.finding|default:"–" }}</td><td>{{ r.mitigation }}{% if r.owner %}<div class="muted">{{ r.owner }}</div>{% endif %}</td></tr>{% endfor %}
+    </tbody>
+  </table>
+  <p class="muted" style="font-size:12px">Low Risk: no material impediment identified. Moderate: a defined issue with a known mitigation path. Elevated: a fatal-flaw candidate to resolve before commitment.</p>
+
+  {% if c.actions %}<h2>Priority actions</h2>
+  <table><thead><tr><th>#</th><th>Action</th><th>Why it is critical path</th><th>Owner</th><th>Deadline</th></tr></thead>
+    <tbody>{% for r in c.actions %}<tr><td>{{ forloop.counter }}</td><td>{{ r.action }}</td><td>{{ r.why }}</td><td>{{ r.owner }}</td><td class="nowrap">{{ r.deadline }}</td></tr>{% endfor %}</tbody></table>{% endif %}
+
+  <h2>Site overview</h2>
+  <table><tbody>{% for label, v in c.overview %}{% if v %}<tr><th style="width:200px">{{ label }}</th><td class="pre">{{ v }}</td></tr>{% endif %}{% endfor %}</tbody></table>
+  {% if map_geojson %}
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <div class="dd-map" id="dd-map"></div>
+  {{ map_geojson|json_script:"dd-geo" }}
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    (function () {
+      var m = L.map('dd-map', {scrollWheelZoom: false});
+      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {maxZoom: 19, attribution: 'Imagery © Esri'}).addTo(m);
+      var g = L.geoJSON(JSON.parse(document.getElementById('dd-geo').textContent), {style: {color: '#00e5ff', weight: 3, fillOpacity: 0.15}}).addTo(m);
+      m.fitBounds(g.getBounds(), {padding: [20, 20]});
+    })();
+  </script>{% endif %}
+
+  {% if c.gross %}<h2>Net usable acreage</h2>
+  <table><tbody>
+    <tr><td>Gross acres</td><td class="num">{{ c.gross|floatformat:1|intcomma }}</td></tr>
+    {% if c.less.wetlands %}<tr><td>Less: wetlands</td><td class="num">{{ c.less.wetlands|floatformat:1|intcomma }}</td></tr>{% endif %}
+    {% if c.less.floodway %}<tr><td>Less: floodway</td><td class="num">{{ c.less.floodway|floatformat:1|intcomma }}</td></tr>{% endif %}
+    {% if c.less.easements %}<tr><td>Less: easements and ROW</td><td class="num">{{ c.less.easements|floatformat:1|intcomma }}</td></tr>{% endif %}
+    {% if c.less.qd %}<tr><td>Less: required QD setback area</td><td class="num">{{ c.less.qd|floatformat:1|intcomma }}</td></tr>{% endif %}
+    <tr><td><b>Net usable acres</b></td><td class="num"><b>{{ c.net_acres|floatformat:1|intcomma }}</b></td></tr>
+    {% if c.floor %}<tr><td>Program requirement</td><td class="num">{{ c.floor|floatformat:0|intcomma }}</td></tr>
+    <tr><td>Headroom</td><td class="num">{{ c.headroom|floatformat:1|intcomma }}</td></tr>{% endif %}
+  </tbody></table>{% endif %}
+
+  {% if c.report.market %}<h2>Market overview</h2><p class="pre">{{ c.report.market }}</p>{% endif %}
+  {% for heading, text in c.sections %}{% if text %}<h2>{{ heading }}</h2><p class="pre">{{ text }}</p>{% endif %}{% endfor %}
+
+  {% if c.gap_rows %}<h2>Utilities: capacity and gap analysis</h2>
+  <table><thead><tr><th>Utility</th><th>Provider</th><th>Infrastructure</th><th>Available today</th><th>Committed path</th><th>Gap risk</th><th>Action to close</th></tr></thead>
+    <tbody>{% for r in c.gap_rows %}<tr><td><b>{{ r.utility }}</b></td><td>{{ r.provider }}</td><td>{{ r.infrastructure }}</td><td>{{ r.available }}</td><td>{{ r.committed }}</td><td>{{ r.gap }}</td><td>{{ r.action }}</td></tr>{% endfor %}</tbody></table>{% endif %}
+
+  {% if c.permits %}<h2>Permit matrix</h2>
+  <table><thead><tr><th>Approval / permit</th><th>Authority</th><th>Typical duration</th><th>Sequencing note</th></tr></thead>
+    <tbody>{% for r in c.permits %}<tr><td>{{ r.approval }}</td><td>{{ r.authority }}</td><td>{{ r.duration|default:"TBD" }}</td><td>{{ r.note }}</td></tr>{% endfor %}</tbody></table>{% endif %}
+
+  {% if c.dates %}<h2>Critical dates</h2>
+  <table><thead><tr><th>Item</th><th>Date</th><th>Consequence of missing</th><th>Owner</th></tr></thead>
+    <tbody>{% for r in c.dates %}<tr><td>{{ r.item }}</td><td class="nowrap">{{ r.date }}</td><td>{{ r.consequence }}</td><td>{{ r.owner }}</td></tr>{% endfor %}</tbody></table>{% endif %}
+
+  {% if c.rom_rows %}<h2>Site readiness cost: ROM to pad-ready</h2>
+  <table><thead><tr><th>Cost category</th><th>Basis of estimate</th><th class="num">Amount</th><th>Incentive eligible</th></tr></thead>
+    <tbody>{% for r in c.rom_rows %}<tr><td>{{ r.category }}</td><td>{{ r.basis }}</td><td class="num">{% if r.value is not None %}${{ r.value|floatformat:0|intcomma }}{% else %}TBD{% endif %}</td><td>{{ r.incentive|default:"TBD" }}</td></tr>{% endfor %}
+      {% if c.rom_total %}<tr><td colspan="2"><b>Total ROM to pad-ready</b></td><td class="num"><b>${{ c.rom_total|floatformat:0|intcomma }}</b></td><td></td></tr>
+      <tr><td colspan="2">Less incentive-eligible (Yes)</td><td class="num">${{ c.rom_eligible|default:0|floatformat:0|intcomma }}</td><td></td></tr>
+      <tr><td colspan="2"><b>Net of incentives</b></td><td class="num"><b>${{ c.rom_net|floatformat:0|intcomma }}</b></td><td></td></tr>{% endif %}
+    </tbody></table>{% endif %}
+
+  <h2>Master due diligence checklist</h2>
+  <div class="dd-bar" title="{{ c.checklist_done }} of {{ c.checklist_active }} complete"><i style="width:{% widthratio c.checklist_done c.checklist_active 100 %}%"></i></div>
+  <table><thead><tr><th>Ref</th><th>Item</th><th>Verification method</th><th>Status</th></tr></thead><tbody>
+    {% regroup c.checklist by block as blocks %}{% for b in blocks %}
+    <tr class="block-row"><td colspan="4">{{ b.grouper }}</td></tr>
+    {% for r in b.list %}<tr><td class="nowrap">{{ r.ref }}</td><td>{{ r.item }}{% if r.note %}<div class="muted">{{ r.note }}</div>{% endif %}</td><td>{{ r.how }}</td><td class="nowrap dd-status-{{ r.status|cut:' ' }}">{{ r.status }}</td></tr>{% endfor %}{% endfor %}
+  </tbody></table>
+  <p class="muted" style="font-size:12px">Nothing is marked Complete without a document or correspondence in the diligence file.</p>
+</article>

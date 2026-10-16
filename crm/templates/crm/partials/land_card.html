@@ -35,8 +35,9 @@
     <dl class="lc-dl">
       <dt>Property ID</dt><dd>{% if p.cad_url %}<a href="{{ p.cad_url }}" target="_blank" rel="noopener">{{ p.prop_id }}</a>{% else %}{{ p.prop_id|default:p.key }}{% endif %}{% if p.geo_id %} <span class="muted">· {{ p.geo_id }}</span>{% endif %}</dd>
       {% if p.zoning %}<dt>Zoning</dt><dd><b>{{ p.overlays.zoning.value }}</b>{% if p.overlays.zoning.name %} {{ p.overlays.zoning.name }}{% endif %}{% if p.overlays.zoning.parts|length > 1 %} <span class="muted">({% for k, v in p.overlays.zoning.parts.items %}{{ k }} {{ v|floatformat:0 }}%{% if not forloop.last %}, {% endif %}{% endfor %})</span>{% endif %}</dd>{% endif %}
+      {% if zoning_ref %}<dt></dt><dd><details class="zd-card"><summary>What {{ zoning_ref.code }} allows (from the zoning code)</summary>{% with ref=zoning_ref %}{% include "crm/partials/zoning_district.html" %}{% endwith %}</details></dd>{% endif %}
       <dt>Land use</dt><dd>{{ land_use|default:"Not given" }} <span class="muted">{{ p.state_land_use }}{% if p.local_land_use %} · {{ p.local_land_use }}{% endif %}</span></dd>
-      <dt>Jurisdiction</dt><dd>{% if p.in_city %}{% if p.county.state == "TX" %}City of {{ p.in_city }}{% else %}Town of {{ p.in_city }}{% endif %}{% else %}Unincorporated {{ p.county.name }} County{% endif %}</dd>
+      <dt>Jurisdiction</dt><dd>{% if p.in_city %}{% if p.county.state == "MD" %}Town of {{ p.in_city }}{% else %}City of {{ p.in_city }}{% endif %}{% else %}Unincorporated {{ p.county.name }} County{% endif %}</dd>
       {% if p.market_value %}<dt>Market value</dt><dd>${{ p.market_value|intcomma }} <span class="muted">· ${{ p.value_per_acre|intcomma }}/ac{% if p.improvement_value %} · ${{ p.improvement_value|intcomma }} buildings{% endif %}</span></dd>{% elif p.county.state == "MD" %}<dt>Value</dt><dd class="muted">See the SDAT record (assessment not in the county layer)</dd>{% endif %}
       {% if p.legal_acres %}<dt>Deed acres</dt><dd>{{ p.legal_acres|floatformat:1|intcomma }} <span class="muted">(mapped {{ p.acres|floatformat:1|intcomma }})</span></dd>{% endif %}
       {% if p.legal_desc %}<dt>Legal</dt><dd>{{ p.legal_desc }}</dd>{% endif %}
@@ -67,6 +68,19 @@
       {% with e=checks.epa %}{% if e %}<tr><th>EPA cleanups ≤1 mi</th><td>{% if e.error %}<span class="muted">Unavailable</span>{% else %}{% for s in e.sites|slice:":5" %}<div>{% if s.url %}<a href="{{ s.url }}" target="_blank" rel="noopener">{{ s.name }}</a>{% else %}{{ s.name }}{% endif %} <span class="muted">· {{ s.kind }}{% if s.npl %} (NPL){% endif %} · {{ s.miles|floatformat:1 }} mi</span></div>{% empty %}<span class="muted">None</span>{% endfor %}{% endif %}</td></tr>{% endif %}{% endwith %}
     </table>
   </section>
+
+  {% with inc=checks.incentives %}{% if inc %}<section>
+    <h3>Incentive programs</h3>
+    {% for g in inc.programs %}
+    <div class="lc-program">
+      <div><a href="{{ g.link }}" target="_blank" rel="noopener"><b>{{ g.label }}</b></a>{% if g.area %} <span class="muted">· {{ g.area }}</span>{% endif %}</div>
+      <div class="lc-small">{{ g.summary }}</div>
+      <div class="lc-small muted"><b>How we'd use it:</b> {{ g.how }}</div>
+      {% if g.contact %}<div class="lc-small">Contact: {{ g.contact }}</div>{% endif %}
+    </div>
+    {% empty %}<p class="muted lc-small">Not in an Opportunity Zone, NMTC tract, Enterprise Zone or other mapped program{% if p.county.state == "MD" %} (PFA and Sustainable Communities checked too){% endif %}.</p>{% endfor %}
+    {% if inc.errors %}<p class="muted lc-small">Didn't respond: {% for e in inc.errors %}{{ e|truncatechars:40 }}{% if not forloop.last %}; {% endif %}{% endfor %}. Re-check later.</p>{% endif %}
+  </section>{% endif %}{% endwith %}
 
   {% if p.overlays %}<section>
     <h3>County planning layers</h3>

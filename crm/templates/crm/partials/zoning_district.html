@@ -1,0 +1,12 @@
+{% with d=ref.district %}
+<div class="zd">
+  <div class="zd-head"><b>{{ ref.code }}</b>{% if d.name and d.name != ref.code %} · {{ d.name }}{% endif %} <span class="muted">· {{ ref.jurisdiction }}{% if d.section %} · {{ d.section }}{% endif %}</span>{% if ref.mirror %} <span class="pill-tag warn" title="The text came from a third-party copy of the code: check the official code before relying on it">check source</span>{% endif %}</div>
+  {% if d.purpose %}<p class="zd-p">{{ d.purpose }}</p>{% endif %}
+  {% if d.permitted_uses %}<div class="zd-h">Permitted uses</div><ul class="zd-ul">{% for u in d.permitted_uses %}<li>{{ u }}</li>{% endfor %}</ul>{% else %}<div class="zd-h">Permitted uses</div><p class="zd-p muted">Not captured: see the code section above.</p>{% endif %}
+  {% if d.conditional_uses %}<div class="zd-h">Conditional / special-permit uses</div><ul class="zd-ul">{% for u in d.conditional_uses %}<li>{{ u }}</li>{% endfor %}</ul>{% endif %}
+  {% if d.standards %}<div class="zd-h">Standards</div>
+  <table class="zd-t">{% if d.standards.min_lot_size %}<tr><th>Lot size</th><td>{{ d.standards.min_lot_size }}</td></tr>{% endif %}{% if d.standards.max_height %}<tr><th>Height</th><td>{{ d.standards.max_height }}</td></tr>{% endif %}{% if d.standards.setbacks %}<tr><th>Setbacks</th><td>{{ d.standards.setbacks }}</td></tr>{% endif %}{% if d.standards.lot_coverage %}<tr><th>Coverage</th><td>{{ d.standards.lot_coverage }}</td></tr>{% endif %}{% if d.standards.other %}<tr><th>Other</th><td>{{ d.standards.other }}</td></tr>{% endif %}</table>{% endif %}
+  {% if d.notes %}<p class="zd-p small muted">{{ d.notes }}</p>{% endif %}
+  {% if d.source %}<p class="zd-p small muted">Source: {{ d.source }}</p>{% endif %}
+</div>
+{% endwith %}

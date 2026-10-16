@@ -1,0 +1,1 @@
+{% load static %}<img class="report-logo" src="{% if logo_data %}{{ logo_data }}{% else %}{% static 'crm/logo_blue.png' %}?v={{ ASSET_VERSION }}{% endif %}" alt="ACMI Properties" width="{{ width|default:'120' }}">

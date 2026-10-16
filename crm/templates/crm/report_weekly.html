@@ -1,6 +1,7 @@
 {% extends "crm/base.html" %}
 {% block title %}Weekly report · ACMI CRM{% endblock %}
 {% block content %}
+{% include "crm/partials/report_logo.html" %}
 <div class="page-head">
   <h1>Weekly outreach report</h1>
   <a class="btn btn-small" href="?week={{ prev_week|date:'Y-m-d' }}">‹ Previous week</a>

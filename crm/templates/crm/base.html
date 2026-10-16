@@ -44,7 +44,11 @@
 
     <details class="nav-sec" data-key="development" open>
       <summary>Development</summary>
-      <a href="{% url 'crm:land_search' %}" class="nav-1 {% if '/land/' in p %}active{% endif %}">Land search</a>
+      <details class="nav-sub" data-key="land">
+        <summary><a href="{% url 'crm:land_search' %}" class="nav-1 {% if p == '/land/' %}active{% endif %}">Land search</a></summary>
+        <a href="{% url 'crm:land_sites_page' %}" class="nav-2 {% if '/land/sites/' in p %}active{% endif %}">Sites</a>
+        <a href="{% url 'crm:assignments' %}" class="nav-2 {% if '/land/assignments/' in p %}active{% endif %}">Client searches</a>
+      </details>
       <span class="nav-1 nav-planned" title="Separate tool for contract negotiations">Contract negotiations</span>
     </details>
 
