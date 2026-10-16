@@ -127,7 +127,9 @@ def cell(context, record, column):
 @register.simple_tag
 def conversation(activity):
     """'Kellen → Ben Allen' for sent mail, 'Ben Allen → Kellen, Simon' for inbound; else who/what did it."""
-    team = ", ".join(username(u) for u in activity.team_members.all()) or username(activity.actor)
+    # Sorted by name: a many-to-many has no order of its own (Postgres returns it in any order).
+    team = ", ".join(sorted((username(u) for u in activity.team_members.all()), key=str.lower)) \
+        or username(activity.actor)
     them = ""
     if activity.person_id:
         them = format_html('<a href="{}">{}</a>', activity.person.get_absolute_url(), activity.person)

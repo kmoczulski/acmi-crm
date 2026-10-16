@@ -520,12 +520,15 @@ class AttachmentAndDocumentTests(TestCase):
         pdf.file.save("brochure.pdf", ContentFile(b"%PDF-1.4"), save=True)
         self.assertEqual(Client().get(doc.href).status_code, 302)  # to sign-in
         self.client.force_login(self.user)
+        # Read each response to the end: the test client then closes it (and the file, which Windows won't delete while
+        # open) with the connection-closing signal held back. A bare r.close() would close the database connection,
+        # harmless on SQLite's in-memory test database, fatal on Postgres.
         r = self.client.get(doc.href)
-        r.close()  # FileResponse holds the file open (Windows won't delete an open file)
+        b"".join(r.streaming_content)
         self.assertEqual(r.status_code, 200)
         self.assertIn("attachment", r["Content-Disposition"])
         r = self.client.get(pdf.href)
-        r.close()
+        self.assertEqual(b"".join(r.streaming_content), b"%PDF-1.4")
         self.assertIn("inline", r["Content-Disposition"])
 
 
@@ -570,7 +573,8 @@ class LoaderTidyTests(LandFixtures):
             for i in range(1500)])
         with CaptureQueriesContext(connection) as q:
             self.assertEqual(parcels.rescore(log=lambda *a: None), 1500)
-        select = next(x["sql"] for x in q.captured_queries if x["sql"].startswith("SELECT") and "crm_parcel" in x["sql"])
+        # Postgres wraps the iterator's query in a server-side cursor (DECLARE ... FOR SELECT), so search, don't match.
+        select = next(x["sql"] for x in q.captured_queries if 'FROM "crm_parcel"' in x["sql"] and "ORDER BY" in x["sql"])
         self.assertIn('ORDER BY "crm_parcel"."id" ASC', select)
         self.assertFalse(Parcel.objects.filter(score__gt=score.FEDERAL_CAP).exists())
 
