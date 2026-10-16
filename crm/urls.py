@@ -35,6 +35,7 @@ urlpatterns = [
     path("opportunities/suggested/<int:company_id>/dismiss/", views.suggestion_dismiss, name="suggestion_dismiss"),
     path("documents/add/", views.document_add, name="document_add"),
     path("documents/<int:pk>/delete/", views.document_delete, name="document_delete"),
+    path("documents/<int:pk>/file/", views.document_file, name="document_file"),
     path("companies/bulk-owner/", views.company_bulk_owner, name="company_bulk_owner"),
     path("reports/pipeline/", views.pipeline_report, name="pipeline_report"),
     path("reports/pipeline.xlsx", views.pipeline_report_xlsx, name="pipeline_report_xlsx"),

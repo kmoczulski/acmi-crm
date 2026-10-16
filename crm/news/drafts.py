@@ -11,6 +11,8 @@ from difflib import SequenceMatcher
 from email.header import decode_header, make_header
 from email.message import EmailMessage
 from email.utils import getaddresses
+from html import escape as html_escape
+from html.parser import HTMLParser
 
 from django.conf import settings
 
@@ -34,11 +36,87 @@ MATCH_THRESHOLD = 0.45
 MAX_INLINE_BYTES = 512 * 1024
 DRAFT_LIMIT = 400
 
-_SCRIPT_BLOCK = re.compile(r"<\s*(script|style|iframe|object|embed|link|meta)\b.*?<\s*/\s*\1\s*>", re.I | re.S)
-_SELF_CLOSING_BAD = re.compile(r"<\s*(link|meta|script|iframe)\b[^>]*/?>", re.I)
-_EVENT_ATTR = re.compile(r"\s+on[a-z]+\s*=\s*(\"[^\"]*\"|'[^']*'|[^\s>]+)", re.I)
-_JS_HREF = re.compile(r"(href|src)\s*=\s*(\"|')\s*javascript:[^\"']*\2", re.I)
 _BODY_INNER = re.compile(r"<\s*body[^>]*>(.*?)<\s*/\s*body\s*>", re.I | re.S)
+
+# Draft HTML is shown unescaped (and editable) on the News review page, so it is rebuilt from a parse with only these
+# formatting tags and attributes. Other tags are dropped but keep their text; these lose their contents too.
+_ALLOWED_TAGS = {
+    "a", "abbr", "b", "big", "blockquote", "br", "caption", "center", "cite", "code", "col", "colgroup", "dd", "div",
+    "dl", "dt", "em", "font", "h1", "h2", "h3", "h4", "h5", "h6", "hr", "i", "img", "li", "ol", "p", "pre", "q", "s",
+    "small", "span", "strike", "strong", "sub", "sup", "table", "tbody", "td", "tfoot", "th", "thead", "tr", "u", "ul",
+    "wbr",
+}
+_VOID_TAGS = {"br", "col", "hr", "img", "wbr"}
+_DROP_WITH_CONTENT = {"script", "style", "iframe", "object", "embed", "noscript", "template", "svg", "math", "title",
+                      "head", "textarea", "select", "xmp", "noembed", "noframes", "plaintext", "frameset", "applet"}
+_ALLOWED_ATTRS = {"href", "src", "alt", "title", "width", "height", "align", "valign", "style", "color", "face", "size",
+                  "dir", "colspan", "rowspan", "border", "cellpadding", "cellspacing", "bgcolor", "target", "class",
+                  "start", "type", "span"}
+_SAFE_URL = re.compile(r"^(https?:|mailto:|tel:|cid:|#|/(?!/)|[^:/?#]*(?:[/?#]|$))", re.I)
+_SAFE_DATA_IMAGE = re.compile(r"^data:image/(png|jpe?g|gif|webp);", re.I)
+_BAD_STYLE = re.compile(r"expression\s*\(|javascript:|vbscript:|behavior\s*:|-moz-binding|@import", re.I)
+
+
+class _Cleaner(HTMLParser):
+    def __init__(self):
+        super().__init__(convert_charrefs=True)  # entities in text and attributes are decoded before the checks
+        self.out, self.open, self.skip = [], [], []
+
+    def _attrs(self, tag, attrs):
+        kept = []
+        for name, value in attrs:
+            name, value = name.lower(), value or ""
+            if not (name in _ALLOWED_ATTRS or name.startswith("data-")):
+                continue
+            if name in ("href", "src"):
+                bare = re.sub(r"[\x00-\x20]", "", value)  # browsers ignore tabs / newlines inside "java\tscript:"
+                if not (_SAFE_URL.match(bare) or (tag == "img" and name == "src" and _SAFE_DATA_IMAGE.match(bare))):
+                    continue
+            if name == "style" and _BAD_STYLE.search(value):
+                continue
+            kept.append(f' {name}="{html_escape(value, quote=True)}"')
+        if tag == "a" and any(k.startswith(' target="') for k in kept):
+            kept.append(' rel="noopener noreferrer"')
+        return "".join(kept)
+
+    def handle_starttag(self, tag, attrs):
+        tag = tag.lower()
+        if self.skip or tag in _DROP_WITH_CONTENT:
+            if tag in _DROP_WITH_CONTENT and tag not in _VOID_TAGS:
+                self.skip.append(tag)
+            return
+        if tag not in _ALLOWED_TAGS:
+            return
+        self.out.append(f"<{tag}{self._attrs(tag, attrs)}>")
+        if tag not in _VOID_TAGS:
+            self.open.append(tag)
+
+    def handle_startendtag(self, tag, attrs):
+        tag = tag.lower()
+        if self.skip or tag in _DROP_WITH_CONTENT or tag not in _ALLOWED_TAGS:
+            return
+        self.out.append(f"<{tag}{self._attrs(tag, attrs)}>" + ("" if tag in _VOID_TAGS else f"</{tag}>"))
+
+    def handle_endtag(self, tag):
+        tag = tag.lower()
+        if self.skip:
+            if tag == self.skip[-1]:
+                self.skip.pop()
+            return
+        if tag in self.open:  # close anything left open inside it, so the output stays well nested
+            while self.open:
+                last = self.open.pop()
+                self.out.append(f"</{last}>")
+                if last == tag:
+                    break
+
+    def handle_data(self, data):
+        if not self.skip:
+            self.out.append(html_escape(data, quote=False))
+
+    def result(self):
+        self.close()
+        return "".join(self.out) + "".join(f"</{t}>" for t in reversed(self.open))
 
 
 class DraftError(RuntimeError):
@@ -46,15 +124,15 @@ class DraftError(RuntimeError):
 
 
 def sanitize_html(html):
-    """Make a mail body safe to show in an editable region."""
+    """Make a mail body safe to show in an editable region: only formatting tags and safe links survive."""
     if not html:
         return ""
     inner = _BODY_INNER.search(html)
     if inner:
         html = inner.group(1)
-    for rx in (_SCRIPT_BLOCK, _SELF_CLOSING_BAD, _EVENT_ATTR, _JS_HREF):
-        html = rx.sub("", html)
-    return html.strip()
+    cleaner = _Cleaner()
+    cleaner.feed(html)
+    return cleaner.result().strip()
 
 
 def html_to_text(html):

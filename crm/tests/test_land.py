@@ -493,7 +493,8 @@ class ArchiveAndParcelDealTests(TestCase):
     def test_parcel_deal_owner_apply_and_rollup(self):
         from crm.land import tracker
 
-        summary = tracker.summary(self.site)  # creates the deal rows
+        tracker.ensure_deals(self.site)  # deal rows are made when parcels join a site (map save, import, site page)
+        summary = tracker.summary(self.site)
         self.assertEqual(summary["owner_count"], 2)
         kroc = self.site.parcel_deals.get(parcel=self.k1)
         self.client.post(f"/land/sites/{self.site.pk}/manage/", {

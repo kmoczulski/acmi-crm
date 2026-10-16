@@ -12,27 +12,47 @@ STAGE_ORDER = LandSite.STATUS_ORDER  # furthest first; dropped last
 STAGE_LABEL = dict(LandSite.Status.choices)
 
 
-def ensure_deals(site):
-    """Make sure every parcel in the site has a deal row. Single-owner sites copy the site's status and dates
-    (one negotiation); other new rows start at "Under review"."""
-    parcels = list(site.parcels.all())
-    have = set(site.parcel_deals.values_list("parcel_id", flat=True))
-    owners = {(p.owner_name or "").strip().upper() for p in parcels}
-    single_owner = len(owners) == 1
-    new = [SiteParcelDeal(site=site, parcel=p,
+def _new_deal(site, parcel, single_owner):
+    """A parcel's starting deal: single-owner sites copy the site's status and dates (one negotiation); otherwise
+    it starts at "Under review"."""
+    return SiteParcelDeal(site=site, parcel=parcel,
                           status=site.status if single_owner else LandSite.Status.REVIEW,
                           milestones=dict(site.milestones or {}) if single_owner else {})
-           for p in parcels if p.pk not in have]
+
+
+def _single_owner(parcels):
+    return len({(p.owner_name or "").strip().upper() for p in parcels}) == 1
+
+
+def ensure_deals(site):
+    """Write side: give every parcel in the site a deal row and drop the rows of parcels no longer in it. Call it
+    after changing a site's parcels; pages read site_deals() and never write."""
+    parcels = list(site.parcels.all())
+    have = set(site.parcel_deals.values_list("parcel_id", flat=True))
+    single_owner = _single_owner(parcels)
+    new = [_new_deal(site, p, single_owner) for p in parcels if p.pk not in have]
     if new:
         SiteParcelDeal.objects.bulk_create(new)
-    # Parcels removed from the site lose their deal row.
     site.parcel_deals.exclude(parcel__in=parcels).delete()
+
+
+def missing_deals(site):
+    """True when some parcel in the site has no deal row yet (sites saved before deal rows were made on write)."""
+    return site.parcels.exclude(pk__in=site.parcel_deals.values("parcel_id")).exists()
+
+
+def site_deals(site):
+    """Read side: the deal of every parcel now in the site. Stored rows, plus an unsaved starting deal for a parcel
+    that has no row yet (what ensure_deals would create), so reading a site never writes to the database."""
+    parcels = list(site.parcels.select_related("county"))
+    stored = {d.parcel_id: d for d in site.parcel_deals.select_related("parcel", "parcel__county")}
+    single_owner = _single_owner(parcels)
+    return [stored.get(p.pk) or _new_deal(site, p, single_owner) for p in parcels]
 
 
 def summary(site):
     """Global tracker for a site."""
-    ensure_deals(site)
-    every = list(site.parcel_deals.select_related("parcel", "parcel__county"))
+    every = site_deals(site)
     # Excluded parcels stay listed (greyed) but count for nothing; trimmed parcels count their portion.
     deals = [d for d in every if d.included]
     total = sum(d.acres for d in deals) or 0

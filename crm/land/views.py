@@ -12,6 +12,7 @@ from django.views.decorators.http import require_POST
 from shapely.geometry import shape
 
 from ..models import Activity, Campus, Company, LandCounty, LandSite, Note, Parcel, Project, Task, normalize_key
+from ..permissions import is_manager, manager_required, refuse
 from . import layers, score, zoning_ref
 from .lookup import identify, run_checks
 from .sources import LIMIT_LAYERS, STORED_LAYERS
@@ -264,6 +265,37 @@ def parcel_notes(request, pk):
     return _card(request, parcel)
 
 
+def _stored_at(hit, lat, lon):
+    """The stored parcel behind a live identify hit, or None: same key, else same property id, else the stored parcel
+    whose outline holds the point and covers most of the live one. The outline match finds Texas ids merged into one
+    shared shape (the state service may answer with a sibling id) and parcels whose id changed."""
+    county = LandCounty.objects.filter(fips=hit["county"]["fips"]).first()
+    if county is None:
+        return None
+    qs = Parcel.objects.filter(county=county).select_related("county", "company", "status_by")
+    for field, value in (("key", hit.get("key")), ("prop_id", hit["fields"].get("prop_id"))):
+        if value:
+            found = qs.filter(**{field: value}).first()
+            if found:
+                return found
+    if not hit.get("geometry"):
+        return None
+    from shapely import make_valid
+    from shapely.geometry import Point
+
+    live, point = make_valid(shape(hit["geometry"])), Point(lon, lat)
+    best, best_share = None, 0.5
+    for p in qs.filter(min_lon__lte=lon, max_lon__gte=lon, min_lat__lte=lat, max_lat__gte=lat):
+        g = make_valid(shape(json.loads(p.geometry)))
+        smaller = min(g.area, live.area)
+        if not g.buffer(1e-6).contains(point) or not smaller:
+            continue
+        share = g.intersection(live).area / smaller
+        if share > best_share:
+            best, best_share = p, share
+    return best
+
+
 def identify_view(request):
     """Click on the map: our stored parcel if we have it, otherwise the live county/state record."""
     try:
@@ -273,9 +305,7 @@ def identify_view(request):
     hit = identify(lat, lon)
     if not hit:
         return HttpResponse('<div class="land-card"><p class="muted">No parcel record here.</p></div>')
-    prop = hit["fields"].get("prop_id")
-    stored = Parcel.objects.filter(county__fips=hit["county"]["fips"], prop_id=prop).select_related(
-        "county", "company").first() if prop else None
+    stored = _stored_at(hit, lat, lon)
     if stored:
         return _card(request, stored)
     return _card(request, None, live={**hit, "lat": lat, "lon": lon,
@@ -283,11 +313,19 @@ def identify_view(request):
                                       "geometry_json": json.dumps(hit["geometry"]) if hit["geometry"] else ""})
 
 
-def _store_parcel_at(lat, lon):
-    """The parcel at a point stored in land search (fetched live and saved if we don't have it), or None."""
-    from .parcels import owner_key
+def _shape_key(geom):
+    """Key for land the source gives no id: from its outline, so clicking the same tract twice finds one parcel."""
+    import hashlib
 
-    hit = identify(lat, lon)
+    sig = ",".join(f"{v:.5f}" for v in geom.bounds) + f",{geom.area:.9f}"
+    return "shp-" + hashlib.sha1(sig.encode()).hexdigest()[:12]
+
+
+def _store_parcel_at(lat, lon, hit=None):
+    """The parcel at a point stored in land search (fetched live and saved if we don't have it), or None."""
+    from .parcels import assign_fields, owner_key
+
+    hit = hit or identify(lat, lon)
     if not hit or not hit["geometry"]:
         return None
     c = hit["county"]
@@ -296,11 +334,12 @@ def _store_parcel_at(lat, lon):
         "cad_search_url": c.get("cad_search_url", "")})
     geom = shape(hit["geometry"])
     fields = hit["fields"]
-    key = hit.get("key") or fields.get("prop_id") or fields.get("geo_id") or f"pt-{lat:.5f},{lon:.5f}"
-    parcel = Parcel.objects.filter(county=county, key=key).first() or Parcel(county=county, key=key)
-    for name, value in fields.items():
-        f = Parcel._meta.get_field(name)
-        setattr(parcel, name, value[: f.max_length] if isinstance(value, str) and getattr(f, "max_length", None) else value)
+    stored = _stored_at(hit, lat, lon)
+    if stored is not None:
+        return stored  # already in land search (maybe under a merged or older id): keep its data as loaded
+    key = hit.get("key") or fields.get("prop_id") or fields.get("geo_id") or _shape_key(geom)
+    parcel = Parcel(county=county, key=key)
+    assign_fields(parcel, fields)
     parcel.geometry = json.dumps(hit["geometry"])
     pt = geom.representative_point()
     parcel.lat, parcel.lon = pt.y, pt.x
@@ -336,9 +375,7 @@ def assemble_point(request):
     except (KeyError, ValueError):
         raise Http404
     hit = identify(lat, lon)
-    prop = (hit or {}).get("fields", {}).get("prop_id")
-    parcel = Parcel.objects.filter(county__fips=hit["county"]["fips"], prop_id=prop).first() if hit and prop else None
-    parcel = parcel or _store_parcel_at(lat, lon)
+    parcel = (_stored_at(hit, lat, lon) or _store_parcel_at(lat, lon, hit)) if hit else None
     if parcel is None:
         raise Http404
     return JsonResponse({"id": parcel.pk, "acres": round(parcel.acres, 1), "owner": parcel.owner_name})
@@ -585,8 +622,11 @@ def site_save(request):
         site.notes = data.get("notes") or ""
     site.save()
     if "parcels" in data:
+        from .tracker import ensure_deals
+
         keep = set(site.parcel_deals.filter(included=False).values_list("parcel_id", flat=True)) if site.pk else set()
         site.parcels.set(Parcel.objects.filter(pk__in=[int(i) for i in data["parcels"] if str(i).isdigit()] + list(keep)))
+        ensure_deals(site)
     if is_new:
         _log(site, request.user, "edit", f"Site created on the map with {site.parcels.count()} parcels")
         if not (site.milestones or {}).get("identified"):
@@ -598,6 +638,7 @@ def site_save(request):
 
 
 @require_POST
+@manager_required
 def site_delete(request, pk):
     get_object_or_404(LandSite, pk=pk).delete()
     return JsonResponse({"ok": True})
@@ -727,8 +768,7 @@ def sites_page(request):
 
     rows = []
     for s in LandSite.by_status(sites):
-        tracker.ensure_deals(s)
-        deals = list(s.parcel_deals.select_related("parcel", "parcel__county").filter(included=True))
+        deals = [d for d in tracker.site_deals(s) if d.included]
         parcels = [d.parcel for d in deals]
         owners = Counter()
         for p in parcels:
@@ -901,9 +941,14 @@ def site_detail(request, pk):
         elif action == "remove_parcel":
             p = site.parcels.filter(pk=request.POST.get("parcel")).first()
             if p:
+                from .tracker import ensure_deals
+
                 site.parcels.remove(p)
+                ensure_deals(site)  # its deal row goes with it
                 _log(site, request.user, "edit", f"Removed parcel {p.prop_id or p.key} ({p.owner_name}, {p.acres:,.0f} ac)")
         elif action == "delete":
+            if not is_manager(request.user):
+                return refuse(request)
             name = site.name
             site.delete()
             messages.success(request, f"Deleted site “{name}”. Its parcels stay in land search.")
@@ -914,6 +959,8 @@ def site_detail(request, pk):
     from .sources import fema_flood_layer_id
 
     parcels = list(site.parcels.select_related("county").order_by("-acres"))
+    if tracker.missing_deals(site):  # the grid edits deal rows by id, so a site saved before they existed gets them
+        tracker.ensure_deals(site)
     tr = tracker.summary(site)
     deal_by_parcel = {d.parcel_id: d for d in tr["deals"]}
     for p in parcels:

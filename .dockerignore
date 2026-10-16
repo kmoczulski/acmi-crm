@@ -11,3 +11,9 @@ data/imports/
 data/land/
 staticfiles/
 .claude/
+*.sqlite3-wal
+*.sqlite3-shm
+*.sqlite3-journal
+docs/
+*.docx
+*.pdf

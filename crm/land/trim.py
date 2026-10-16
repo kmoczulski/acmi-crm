@@ -38,13 +38,11 @@ def deal_shape(deal):
 
 def parts(site, ids=None):
     """[(deal, shape)] for the site's included parcels (optionally only these parcel ids), trimmed."""
-    from .tracker import ensure_deals
+    from .tracker import site_deals
 
-    ensure_deals(site)
-    deals = site.parcel_deals.select_related("parcel", "parcel__county").filter(included=True)
-    if ids is not None:
-        deals = deals.filter(parcel_id__in=ids)
-    return [(d, deal_shape(d)) for d in deals]
+    wanted = None if ids is None else set(ids)
+    return [(d, deal_shape(d)) for d in site_deals(site)
+            if d.included and (wanted is None or d.parcel_id in wanted)]
 
 
 def site_geometry(site, ids=None):
@@ -52,10 +50,9 @@ def site_geometry(site, ids=None):
 
 
 def site_acres(site):
-    from .tracker import ensure_deals
+    from .tracker import site_deals
 
-    ensure_deals(site)
-    return round(sum(d.acres for d in site.parcel_deals.select_related("parcel").filter(included=True)), 1)
+    return round(sum(d.acres for d in site_deals(site) if d.included), 1)
 
 
 def _extend(coords):

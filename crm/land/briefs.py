@@ -252,7 +252,14 @@ def _summarise_killers(parcels):
 def _checks_missing(parcel):
     have = parcel.checks or {}
     wanted = set(checks_for(parcel.county.state, parcel.county.name))
-    return bool(wanted - set(have)) or any(isinstance(v, dict) and v.get("error") for v in have.values())
+    return bool(wanted - set(have)) or any(isinstance(v, dict) and (v.get("error") or v.get("refresh_error"))
+                                           for v in have.values())
+
+
+def sfha_zones(zones):
+    """The 100-year (Special Flood Hazard Area) zones among FEMA zone codes: A, AE, AH, AO, AR, A99, V, VE.
+    Zone X (500-year / minimal hazard) and D (undetermined) are not."""
+    return [z for z in zones or [] if z[:1] in ("A", "V")]
 
 
 def build(site, refresh=False):
@@ -377,12 +384,27 @@ def build(site, refresh=False):
     else:
         flag("warn", "No zoning data on the public layers for this land: confirm the zoning with the jurisdiction.")
     zones = sorted({z for p in parcels for z in ck(p, "flood").get("zones") or []})
+    hundred_year = sfha_zones(zones)
+    # Parcels the live checks couldn't cover: the site's flood and wetland shares are over the other parcels only.
+    no_flood = [p for p in parcels if not isinstance(ck(p, "flood").get("sfha_pct"), (int, float))]
+    no_wet = [p for p in parcels if "wetlands" in checks_for(p.county.state, p.county.name)
+              and not isinstance(ck(p, "wetlands").get("pct"), (int, float))]
     if flood is not None and flood >= FLOOD_WARN_PCT:
-        approx = " Zone A is FEMA's approximate mapping (no base flood elevations): an engineering study or LOMR can change it."             if zones and set(zones) <= {"A"} else ""
-        flag("bad", f"{flood:.0f}% of the site is in the FEMA 100-year floodplain (zone {', '.join(zones)})"
+        approx = " Zone A is FEMA's approximate mapping (no base flood elevations): an engineering study or LOMR can change it."             if hundred_year and set(hundred_year) <= {"A"} else ""
+        in_zones = f" (zone {', '.join(hundred_year)})" if hundred_year else ""
+        flag("bad", f"{flood:.0f}% of the site is in the FEMA 100-year floodplain{in_zones}"
                     + (f"; net usable about {net:,.0f} of {gross:,.0f} ac." if net is not None else ".") + approx)
-    elif flood is not None:
+    elif flood is not None and not no_flood:
         flag("good", f"Little or no FEMA flood exposure ({flood:.0f}% in the 100-year zone)")
+    if no_flood or no_wet:
+        parts = [f"FEMA flood data for {len(no_flood)} of {len(parcels)} parcels "
+                 f"({sum(acres[p.pk] for p in no_flood):,.0f} ac)" if no_flood else "",
+                 f"wetland data for {len(no_wet)} of {len(parcels)} parcels" if no_wet else ""]
+        flag("warn", "Live checks incomplete: missing " + " and ".join(x for x in parts if x)
+                     + ". The flood and wetland figures cover the other parcels only; re-run live checks.")
+    if any(ck(p, name).get("refresh_error") for p in parcels for name in ("flood", "wetlands")):
+        flag("warn", "FEMA or the wetlands service didn't respond on the last re-check: flood and wetland figures are "
+                     "from the check before.")
     if wet is not None and wet >= WETLAND_WARN_PCT:
         flag("warn", f"{wet:.0f}% mapped wetlands / waters")
     if t:
@@ -399,7 +421,7 @@ def build(site, refresh=False):
     if oz:
         flag("good", "In a federal Opportunity Zone")
     for k in killers:
-        if flood is not None and flood >= FLOOD_WARN_PCT and ("flood" in k.lower() or "fema" in k.lower()):
+        if flood is not None and flood >= FLOOD_WARN_PCT and "floodplain" in k.lower():
             continue  # already flagged above
         flag("bad", k)
     order = {"bad": 0, "warn": 1, "good": 2}
@@ -573,7 +595,8 @@ def html_to_pdf(html, timeout=180):
         src.write_text(html, encoding="utf-8")
         cmd = [chrome, "--headless=new", "--disable-gpu", "--disable-dev-shm-usage", "--no-pdf-header-footer",
                f"--user-data-dir={Path(folder) / 'profile'}", f"--print-to-pdf={out}"]
-        if hasattr(os, "geteuid") and os.geteuid() == 0:  # containers run as root, where Chrome needs this
+        # Chrome's sandbox needs user namespaces, which root and Cloud Run's container sandbox don't give it.
+        if os.environ.get("ACMI_CHROME_NO_SANDBOX") == "1" or (hasattr(os, "geteuid") and os.geteuid() == 0):
             cmd.append("--no-sandbox")
         try:
             subprocess.run(cmd + [src.as_uri()], capture_output=True, timeout=timeout, check=False)

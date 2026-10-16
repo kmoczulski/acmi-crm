@@ -17,6 +17,37 @@ LAND_USE = {
 ENTITY_WORDS = re.compile(r"\b(LLC|L\.L\.C|LP|L\.P|LTD|INC|CORP|CO|COMPANY|PARTNERS(HIP)?|TRUST|TR|TRUSTEE|ESTATE|EST|"
                           r"HOLDINGS|INVESTMENTS?|PROPERTIES|LAND|RANCH|FAMILY)\b")
 
+# Public and institutional owners, from the owner name: only Texas rolls mark exempt land ("X"), so without this an
+# active Army arsenal or TVA land scored like the best private tracts. Federal land is sold only through a GSA
+# disposal, so it is held to FEDERAL_CAP; state trust land (Arizona auctions it), county surplus, schools and
+# churches do sell, through a public process, so they lose PUBLIC_PENALTY points and get a warning.
+FEDERAL_OWNER = re.compile(
+    r"\b(UNITED STATES|USA|U\.? ?S\.? ?A\.?|U\.? ?S\.? (GOVERNMENT|GOVT|DEPT|DEPARTMENT|ARMY|NAVY|AIR FORCE)|"
+    r"T\.? ?V\.? ?A|(TENNESSEE|TN) VALLEY AUTH\w*|ARSENAL|(DEPARTMENT|DEPT|SECRETARY) OF THE (ARMY|NAVY|AIR FORCE)|"
+    r"BUREAU OF (LAND MANAGEMENT|RECLAMATION|INDIAN AFFAIRS)|BLM|FOREST SERVICE|CORPS OF ENGINEERS|"
+    r"FISH (AND|&) WILDLIFE SERVICE|NATIONAL PARK SERVICE|GENERAL SERVICES ADMIN\w*)\b")
+PUBLIC_OWNER = re.compile(
+    r"\b(STATE OF [A-Z]+|STATE LAND|COMMONWEALTH OF|COUNTY OF|CITY OF|TOWN OF|VILLAGE OF|BOROUGH OF|[A-Z]+ COUNTY$|"
+    r"COUNTY COMMISSION\w*|BOARD OF (EDUCATION|COMMISSIONERS|SUPERVISORS|REGENTS)|SCHOOL DIST\w*|SCHOOL BOARD|"
+    r"PUBLIC SCHOOLS|INDEPENDENT SCHOOL|C?ISD|UNIVERSITY|(HOUSING|AIRPORT|PORT|TRANSIT|UTILITIES) AUTHORITY|"
+    r"(WATER|UTILITY|IRRIGATION|SANITARY|FIRE|DRAINAGE|IMPROVEMENT) DISTRICT|FLOOD CONTROL|DEPT\.? OF|DEPARTMENT OF|"
+    r"CHURCH OF|(?<=\s)CHURCH|DIOCESE|CONGREGATION)\b")
+# Words that make an owner a private business even with a public-sounding name (UNITED STATES STEEL CORP).
+PRIVATE_WORDS = re.compile(r"\b(LLC|L\.L\.C|LP|L\.P|LLP|LTD|INC|CORP|CORPORATION|COMPANY|CO|PARTNERS(HIP)?|"
+                           r"HOLDINGS|INVESTMENTS?|PROPERTIES|DEVELOPMENT|FARMS?|RANCH|GROUP|ENTERPRISES?)\b")
+FEDERAL_CAP = 40
+PUBLIC_PENALTY = 5
+
+
+def public_owner(name):
+    """'federal', 'public' (state, local government, school, authority, church) or '' for an owner name."""
+    text = " ".join((name or "").upper().replace(",", " ").split())
+    if not text or PRIVATE_WORDS.search(text):
+        return ""
+    if FEDERAL_OWNER.search(text):
+        return "federal"
+    return "public" if PUBLIC_OWNER.search(text) else ""
+
 # Zoning buckets shared across counties and towns (each county's codes map onto these).
 ZONING_CLASSES = [
     ("industrial", "Industrial"),
@@ -347,6 +378,15 @@ def screen(p):
     if (p.improvement_value or 0) > 250_000 and (p.market_value or 0) and p.improvement_value > 0.3 * p.market_value:
         score += add(-5, f"Improved: ${p.improvement_value:,.0f} of buildings", "warn")
 
+    # Public owners (the Texas exempt code above already scored the land use 0, so no second penalty there).
+    public = public_owner(p.owner_name)
+    if public == "federal":
+        add(0, f"Federal owner: federal land is sold only through a GSA disposal, so the score is held at "
+               f"{FEDERAL_CAP} or below", "bad")
+    elif public and "X" not in groups:
+        score += add(-PUBLIC_PENALTY, "Public or institutional owner (state, local government, school, authority or "
+                                      "church): sells only through a public process (auction, surplus sale)", "warn")
+
     # Deal-killers from the live checks.
     flood = checks.get("flood") or {}
     if flood.get("sfha_pct", 0) >= FLOOD_KILL_PCT:
@@ -367,6 +407,8 @@ def screen(p):
         add(0, f"{ca['pct']:.0f}% in the Chesapeake Bay Critical Area ({ca['value']})", "warn")
 
     score = max(0, min(100, round(score)))
+    if public == "federal":
+        score = min(score, FEDERAL_CAP)
     if killers:
         score = min(score, KILLER_CAP)
     return score, reasons, killers
@@ -387,7 +429,8 @@ def methodology():
             {"part": "Land use and entitlement", "max": 25, "how": [
                 "Where a zoning map covers the land, its district sets the points: "
                 + "; ".join(f"{ZONING_LABELS[k].split(' (')[0].lower()} {v}" for k, v in
-                            sorted(zp.items(), key=lambda kv: -kv[1]) if k in ZONING_LABELS) + ".",
+                            sorted(zp.items(), key=lambda kv: -kv[1]) if k in ZONING_LABELS)
+                + ". A district not yet sorted into one of these categories scores 4.",
                 "Where there is no zoning layer, the tax-roll land use is used: industrial 20, farm or rural 12, commercial "
                 "or vacant 8, residential 2, tax-exempt 0, not given 4.",
                 "Add-ons: unincorporated land in Texas or Alabama with no county zoning +5; county Technology Corridor +5; "
@@ -411,6 +454,12 @@ def methodology():
                 "Owner mails to another state +3 (often a passive owner); owned by an entity, trust or estate +2."]},
             {"part": "Improvements", "max": -5, "how": [
                 "Minus 5 when buildings are worth over $250,000 and over 30% of the property's value."]},
+            {"part": "Public owners", "max": -PUBLIC_PENALTY, "how": [
+                f"State, county, city, school, authority or church owner (read from the owner's name): minus "
+                f"{PUBLIC_PENALTY}, since such land sells only through a public process (state trust auction, surplus "
+                "sale). Texas parcels the roll marks tax-exempt already score 0 for land use and aren't docked again.",
+                f"Federal owner (United States, TVA, the Army / Navy / Air Force, BLM, Forest Service...): the score is "
+                f"held at {FEDERAL_CAP} or below, since federal land is sold only through a GSA disposal."]},
         ],
         "killers": [
             f"{FLOOD_KILL_PCT}% or more of the parcel in the FEMA 100-year floodplain.",
@@ -421,7 +470,8 @@ def methodology():
         ],
         "notes": [
             "The parts add up to 110 at most and the total is held to 0 to 100.",
-            f"If any deal-killer applies, the score is held at {KILLER_CAP} or below however well the rest scores.",
+            f"If any deal-killer applies, the score is held at {KILLER_CAP} or below however well the rest scores. "
+            f"Federal land is held at {FEDERAL_CAP} or below.",
             "A site's score is the acre-weighted average of its parcels' scores. Each parcel card lists the exact reasons "
             "and points behind its number.",
             "The score ranks sites for a first look only. It does not see power capacity, safety-arc (QD) clearance, "

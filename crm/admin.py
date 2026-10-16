@@ -66,3 +66,11 @@ admin.site.register(models.OutreachSettings)
 admin.site.register(models.OutreachFile)
 admin.site.register(models.SendBatch)
 admin.site.register(models.SendItem)
+
+# Google refresh tokens (Calendar read access) shouldn't be readable by anyone with admin access.
+try:
+    from allauth.socialaccount.models import SocialToken
+
+    admin.site.unregister(SocialToken)
+except (ImportError, admin.sites.NotRegistered):
+    pass

@@ -55,6 +55,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "crm.middleware.ContentSecurityPolicyMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -120,8 +121,9 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 AUTHENTICATION_BACKENDS = [
-    "django.contrib.auth.backends.ModelBackend",
-    "allauth.account.auth_backends.AuthenticationBackend",
+    # Django's and allauth's backends, with passwords refused when ACMI_LOCAL_LOGIN is false (crm/auth.py).
+    "crm.auth.PasswordBackend",
+    "crm.auth.AllauthBackend",
 ]
 
 LANGUAGE_CODE = "en-us"
@@ -188,10 +190,37 @@ NEWS_WATCH_FOLDER = env("ACMI_NEWS_WATCH_FOLDER", r"C:/Users/Kemoc/Desktop/Prosp
 # Shared secret for the scheduler that calls /internal/sync-mail/ in production.
 CRON_SECRET = env("ACMI_CRON_SECRET", "")
 
+# --- Security headers ------------------------------------------------------
+# Scripts may only come from this site and the pinned unpkg files (which also carry integrity hashes). Inline scripts
+# are still allowed because the templates use them. Images, tiles and map-service requests are left open.
+CONTENT_SECURITY_POLICY = env(
+    "ACMI_CSP",
+    "script-src 'self' 'unsafe-inline' https://unpkg.com; object-src 'none'; base-uri 'self'; frame-ancestors 'none'",
+)
+
+# --- Logging ---------------------------------------------------------------
+# Django's defaults print nothing when DEBUG is off, so a crash in production would leave no trace. Send errors to
+# the console, which Cloud Run collects. 4xx responses aren't logged here (the platform's request log has them).
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {"plain": {"format": "{levelname} {name}: {message}", "style": "{"}},
+    "handlers": {"console": {"class": "logging.StreamHandler", "formatter": "plain"}},
+    "root": {"handlers": ["console"], "level": env("ACMI_LOG_LEVEL", "WARNING")},
+    "loggers": {
+        "django": {"handlers": ["console"], "level": "WARNING", "propagate": False},
+        "django.request": {"handlers": ["console"], "level": "ERROR", "propagate": False},
+    },
+}
+
 if not DEBUG:
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
-    SECURE_HSTS_SECONDS = int(env("DJANGO_HSTS_SECONDS", "3600"))
-    if SECRET_KEY.startswith("dev-only"):
-        raise RuntimeError("Set DJANGO_SECRET_KEY before running with DJANGO_DEBUG=false")
+    SECURE_HSTS_SECONDS = int(env("DJANGO_HSTS_SECONDS", "31536000"))
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = env_bool("DJANGO_HSTS_INCLUDE_SUBDOMAINS", True)
+    # Cloud Run's front end sets X-Forwarded-Proto; the health check is left alone for plain-HTTP probes.
+    SECURE_SSL_REDIRECT = env_bool("DJANGO_SSL_REDIRECT", True)
+    SECURE_REDIRECT_EXEMPT = [r"^healthz$"]
+    if SECRET_KEY.startswith("dev-only") or len(SECRET_KEY) < 50:
+        raise RuntimeError("Set DJANGO_SECRET_KEY (50+ random characters) before running with DJANGO_DEBUG=false")

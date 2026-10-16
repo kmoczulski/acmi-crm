@@ -68,8 +68,12 @@ addresses, newsletters and protected addresses is never logged.
 | `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_HOST`, `POSTGRES_PORT` | unset → SQLite | Cloud SQL |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | unset → no Google button | OAuth client from the Google Cloud project |
 | `ACMI_ALLOWED_EMAIL_DOMAINS` | `acmigroup.com` | Who may sign in with Google |
-| `ACMI_LOCAL_LOGIN` | `true` | Username/password login; set `false` in production |
+| `ACMI_LOCAL_LOGIN` | `true` | Username/password sign-in (sign-in page and `/admin/login/`); `false` in production makes Google the only way in |
 | `ACMI_SQLITE_PATH` | `db.sqlite3` | Point at a copy for testing |
 | `ACMI_IMAP_PASSWORD_<USERNAME>` | unset | Gmail app password per mailbox |
 | `ACMI_INTERNAL_DOMAINS` | `acmigroup.com,acmiproperties.com` | Never logged |
 | `ACMI_CRON_SECRET` | unset | Protects `/internal/sync-mail/` |
+| `DJANGO_HSTS_SECONDS`, `DJANGO_HSTS_INCLUDE_SUBDOMAINS`, `DJANGO_SSL_REDIRECT` | 1 year, on, on | HTTPS rules when `DJANGO_DEBUG=false` (`DJANGO_SECRET_KEY` must then be 50+ characters) |
+| `ACMI_CSP` | scripts from this site and unpkg | Content-Security-Policy header |
+| `ACMI_LOG_LEVEL` | `WARNING` | Console logging level for the app (errors always print) |
+| `ACMI_CHROME`, `ACMI_CHROME_NO_SANDBOX` | found on PATH; off | Chrome / Edge for PDF briefs; `1` in containers (set in the Dockerfile) |

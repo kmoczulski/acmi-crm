@@ -16,7 +16,7 @@
 </div>
 
 {% if map_data.features %}
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
 <section class="panel site-map-panel">
   <div class="site-map-head">
     <h3>Map</h3>
@@ -141,12 +141,12 @@
       </form>
     </section>
 
-    <section class="panel">
+    {% if IS_MANAGER %}<section class="panel">
       <h3>Danger zone</h3>
       <form method="post" onsubmit="return confirm('Delete this site? Its parcels stay in land search.')">{% csrf_token %}
         <input type="hidden" name="action" value="delete"><button class="btn btn-danger btn-small">Delete site</button>
       </form>
-    </section>
+    </section>{% endif %}
   </div>
 
   <div>
@@ -188,8 +188,8 @@
 {% endblock %}
 {% block scripts %}
 {% if map_data.features %}
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://unpkg.com/esri-leaflet@3.0.12/dist/esri-leaflet.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script src="https://unpkg.com/esri-leaflet@3.0.12/dist/esri-leaflet.js" integrity="sha256-uqgmWaQPSR4MnmCnfjY48gUPuyeaFHYZ2gDdJqw2QkQ=" crossorigin=""></script>
 <script src="{% static 'crm/land_layers.js' %}?v={{ ASSET_VERSION }}"></script>
 <script>
   // Site mini map: the site's parcels by deal stage, base maps and every land-search layer, plus trimming a parcel.

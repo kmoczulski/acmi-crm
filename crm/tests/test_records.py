@@ -118,8 +118,9 @@ class MergeTests(TestCase):
     def setUp(self):
         from django.utils import timezone
         from crm.models import Activity, Attachment, Person
+        from crm.tests.utils import make_manager
 
-        self.user = get_user_model().objects.create(username="kellen")
+        self.user = make_manager(get_user_model().objects.create(username="kellen"))
         self.client.force_login(self.user)
         self.keep = Company.objects.create(name="L3Harris Technologies", domains=["l3harris.com"], priority="Mid")
         self.dup = Company.objects.create(name="L3Harris", domains=["l3harris.com", "harris.com"], priority="High",

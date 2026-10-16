@@ -3,11 +3,13 @@ import json
 from datetime import date
 
 from django.contrib import messages
+from django.db.models import F
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
 from ..models import Assignment, AssignmentSite, LandSite
+from ..permissions import is_manager, refuse
 from . import assignments as A
 
 
@@ -60,14 +62,19 @@ def assignment_detail(request, pk):
                 e.show_to_guest = bool(request.POST.get("show_to_guest"))
                 e.save(update_fields=["rank_override", "show_to_guest", "updated_at"])
         elif action in ("share_on", "share_regen"):
+            if not is_manager(request.user):  # a share link puts a report in front of people outside ACMI
+                return refuse(request)
+            raw = (request.POST.get("share_expires") or "").strip()
+            try:
+                expires = date.fromisoformat(raw) if raw else None
+            except ValueError:
+                # Never fall back to "no expiry": that would quietly turn a time-limited link into a permanent one.
+                messages.error(request, f"“{raw}” isn't a date (use YYYY-MM-DD). The share link was not changed.")
+                return redirect(a)
             if action == "share_regen" or not a.share_token:
                 a.share_token = A.new_token()
             a.share_enabled = True
-            raw = (request.POST.get("share_expires") or "").strip()
-            try:
-                a.share_expires = date.fromisoformat(raw) if raw else None
-            except ValueError:
-                a.share_expires = None
+            a.share_expires = expires
             a.save()
             messages.success(request, "Share link is on." if action == "share_on" else "New link made; the old one no longer works.")
         elif action == "share_off":
@@ -152,7 +159,7 @@ def _guest_response(request, template, ctx):
 
 
 def _touch(a):
-    Assignment.objects.filter(pk=a.pk).update(guest_views=a.guest_views + 1, guest_last_view=timezone.now())
+    Assignment.objects.filter(pk=a.pk).update(guest_views=F("guest_views") + 1, guest_last_view=timezone.now())
 
 
 def guest_home(request, token):

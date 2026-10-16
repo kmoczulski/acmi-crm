@@ -2,6 +2,8 @@ from pathlib import Path
 
 from django.conf import settings
 
+from .permissions import is_manager
+
 STATIC_DIR = Path(__file__).resolve().parent / "static" / "crm"
 
 
@@ -43,4 +45,6 @@ def app_context(request):
         "ASSET_VERSION": _asset_version(),
         "GOOGLE_SIGNIN_ENABLED": settings.GOOGLE_SIGNIN_ENABLED,
         "LOCAL_LOGIN_ENABLED": settings.LOCAL_LOGIN_ENABLED,
+        # Managers-only buttons are hidden for everyone else (the views refuse them too).
+        "IS_MANAGER": is_manager(getattr(request, "user", None)),
     }

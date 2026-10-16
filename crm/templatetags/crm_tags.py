@@ -212,6 +212,23 @@ def mentions(text):
 
 
 @register.filter
+def clean_html(html):
+    """Mail HTML made safe to show: rebuilt with formatting tags and safe links only (drafts saved before the
+    parser-based cleaner existed are cleaned again here)."""
+    from django.utils.safestring import mark_safe
+
+    from crm.news.drafts import sanitize_html
+
+    return mark_safe(sanitize_html(html or ""))
+
+
+@register.filter
+def stale_checks(checks):
+    """Names of live checks whose last refresh failed (their earlier result is still shown)."""
+    return [name.replace("_", " ") for name, v in (checks or {}).items() if isinstance(v, dict) and v.get("refresh_error")]
+
+
+@register.filter
 def get_item(mapping, key):
     """Dict lookup with a variable key: {{ counts|get_item:value }}."""
     return (mapping or {}).get(key)

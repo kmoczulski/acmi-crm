@@ -35,7 +35,9 @@ class FakeSmtp:
 
 class OutreachTests(TestCase):
     def setUp(self):
-        self.user = get_user_model().objects.create(username="kellen", email=ME, first_name="Kellen")
+        from crm.tests.utils import make_manager
+
+        self.user = make_manager(get_user_model().objects.create(username="kellen", email=ME, first_name="Kellen"))
         Mailbox.objects.create(user=self.user, email=ME)
         self.settings = OutreachSettings.load()
         self.settings.current_campaign = "Fall"

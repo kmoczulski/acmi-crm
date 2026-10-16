@@ -16,12 +16,12 @@
       <h3>Details <button type="button" class="btn btn-small" style="float:right" onclick="document.getElementById('edit-dialog').showModal()">Edit</button></h3>
       {% include "crm/partials/opportunity_details.html" %}
       {% include "crm/partials/edit_dialog.html" with title="opportunity" %}
-      <details class="danger-zone"><summary>Delete this opportunity</summary>
+      {% if IS_MANAGER %}<details class="danger-zone"><summary>Delete this opportunity</summary>
         <form method="post" action="{% url 'crm:opportunity_delete' opp.pk %}" style="margin-top:8px"
               onsubmit="return confirm('Delete this opportunity? Its emails stay on the company.')">{% csrf_token %}
           <button class="btn-small btn-danger">Delete opportunity</button>
         </form>
-      </details>
+      </details>{% endif %}
     </div>
 
     <div class="panel">

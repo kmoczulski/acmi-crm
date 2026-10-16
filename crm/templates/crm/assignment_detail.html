@@ -18,16 +18,16 @@
     <div class="note-add"><input id="share-url" value="{{ share_url }}" readonly onclick="this.select()"><button type="button" class="btn" onclick="navigator.clipboard.writeText(document.getElementById('share-url').value);this.textContent='Copied'">Copy</button><a class="btn" href="{{ share_url }}" target="_blank" rel="noopener">Preview as client</a></div>
     <form method="post" class="note-add">{% csrf_token %}
       <label class="lc-small">Expires <input type="date" name="share_expires" value="{{ a.share_expires|date:'Y-m-d' }}"></label>
-      <button class="btn" name="action" value="share_on">Update expiry</button>
-      <button class="btn" name="action" value="share_regen" onclick="return confirm('The current link will stop working. Make a new one?')">New link</button>
+      {% if IS_MANAGER %}<button class="btn" name="action" value="share_on">Update expiry</button>
+      <button class="btn" name="action" value="share_regen" onclick="return confirm('The current link will stop working. Make a new one?')">New link</button>{% endif %}
       <button class="btn" name="action" value="share_off">Switch off</button>
     </form>
   {% else %}
     <p class="lc-small">{% if a.share_enabled and a.share_token %}The link has expired.{% else %}Sharing is off.{% endif %} Turning it on makes a private link that only works while it is on and before the expiry date.</p>
-    <form method="post" class="note-add">{% csrf_token %}
+    {% if IS_MANAGER %}<form method="post" class="note-add">{% csrf_token %}
       <label class="lc-small">Expires (optional) <input type="date" name="share_expires"></label>
       <button class="btn btn-primary" name="action" value="share_on">Turn on client link</button>
-    </form>
+    </form>{% else %}<p class="lc-small muted">Only managers can turn a client link on.</p>{% endif %}
   {% endif %}
 </section>
 

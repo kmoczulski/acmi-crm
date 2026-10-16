@@ -310,7 +310,8 @@ def compute_checks(parcel, only=None):
     parcel_a = to_albers(geom)
     available = checks_for(parcel.county.state, parcel.county.name)
     names = [n for n in (only or available) if n in available]
-    results, covered = dict(parcel.checks or {}), {}
+    previous = dict(parcel.checks or {})
+    results, covered, fresh = dict(previous), {}, set()
 
     def run(name):
         try:
@@ -321,11 +322,20 @@ def compute_checks(parcel, only=None):
 
     with ThreadPoolExecutor(max_workers=len(names)) as pool:
         for name, data, geom_hit in pool.map(run, names):
+            old = previous.get(name)
+            if "error" in data and isinstance(old, dict) and old and "error" not in old:
+                # Keep the last good answer: a FEMA outage during a refresh must not erase a floodplain (and with it
+                # the deal-killer). The failed refresh is noted so pages say so and the next brief retries.
+                results[name] = {**{k: v for k, v in old.items() if k != "refresh_error"}, "refresh_error": data["error"]}
+                continue
             results[name] = data
+            if "error" not in data:
+                fresh.add(name)
             if geom_hit is not None:
                 covered[name] = geom_hit
-    # Net usable = gross minus the 100-year floodplain and mapped wetlands (not easements or QD arcs).
-    if "error" not in results.get("flood", {}) and "error" not in results.get("wetlands", {}):
+    # Net usable = gross minus the 100-year floodplain and mapped wetlands (not easements or QD arcs). It needs both
+    # outlines from this run: kept or skipped results have no geometry, and counting them as zero would overstate it.
+    if {"flood", "wetlands"} <= fresh:
         lost = [g for g in covered.values() if g is not None and not g.is_empty]
         lost_area = unary_union(lost).area if lost else 0
         share = lost_area / parcel_a.area if parcel_a.area else 0
@@ -370,7 +380,9 @@ def identify(lat, lon):
         west, south, east, north = cfg["bbox"]
         if not (west <= lon <= east and south <= lat <= north):
             continue
-        feats = arcgis_query(cfg["parcels_url"], fields=["*"], geometry=json.dumps(
+        # Scoped to the county like the loader (statewide NC / IN layers): county boxes overlap, so an unscoped query
+        # would hand a Harnett parcel to Cumberland just because Cumberland's box comes first.
+        feats = arcgis_query(cfg["parcels_url"], where=counties.in_county(cfg, "1=1"), fields=["*"], geometry=json.dumps(
             {"x": lon, "y": lat, "spatialReference": {"wkid": 4326}}), geometry_type="esriGeometryPoint",
             max_records=1)
         if feats and feats[0].get("geometry"):

@@ -1,4 +1,4 @@
-{% load humanize %}{% if p %}
+{% load humanize crm_tags %}{% if p %}
 <div class="land-card" data-parcel="{{ p.pk }}" data-lat="{{ p.lat }}" data-lon="{{ p.lon }}"{% if not p.checked_at %} data-autocheck="{% url 'crm:land_parcel_check' p.pk %}"{% endif %}>
   <div class="lc-head">
     <div class="lc-score s{% if p.killers %}k{% elif p.score >= 70 %}h{% elif p.score >= 50 %}m{% else %}l{% endif %}" title="Buy-box screen score (0-100)">{{ p.score }}</div>
@@ -56,6 +56,7 @@
   <section>
     <h3>Utilities &amp; site <span class="muted lc-small">{% if p.checked_at %}live checks {{ p.checked_at|date:"M j, g:i a" }}{% else %}running live checks…{% endif %}</span>
       <form method="post" action="{% url 'crm:land_parcel_check' p.pk %}" data-card-form style="display:inline">{% csrf_token %}<button class="btn-link lc-small">Re-check</button></form></h3>
+    {% with stale=checks|stale_checks %}{% if stale %}<p class="muted lc-small">Didn't respond on the last re-check, so earlier results are shown: {{ stale|join:", " }}.</p>{% endif %}{% endwith %}
     <table class="lc-table">
       {% with e=checks.electric %}{% if e %}<tr><th>Electric provider</th><td>{% if e.error %}<span class="muted">Unavailable: {{ e.error|truncatechars:60 }}</span>{% else %}{% for x in e.providers %}<div>{{ x.name }} <span class="muted">· {{ x.kind }}{% if x.grid %} · {{ x.grid }}{% endif %}{% if x.phone %} · {{ x.phone }}{% endif %}</span>{% if x.website %} <a href="{{ x.website }}" target="_blank" rel="noopener">site</a>{% endif %}</div>{% empty %}<span class="muted">None mapped</span>{% endfor %}{% endif %}</td></tr>{% endif %}{% endwith %}
       {% for row in near_rows %}<tr><th>{{ row.label }}</th><td><b>{{ row.miles|floatformat:1 }} mi</b> <span class="muted">{{ row.name }}</span></td></tr>{% endfor %}

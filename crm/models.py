@@ -526,7 +526,9 @@ class Document(models.Model):
 
     @property
     def href(self):
-        return self.url or (self.file.url if self.file else "")
+        # Uploads go through the app (crm.views.document_file): it checks sign-in and works with DEBUG off, where
+        # /media/ isn't served.
+        return self.url or (reverse("crm:document_file", args=[self.pk]) if self.file else "")
 
 
 class DealSuggestionDismissal(models.Model):
@@ -1288,6 +1290,9 @@ class SendBatch(models.Model):
 class SendItem(models.Model):
     class Status(models.TextChoices):
         PENDING = "pending", "Pending"
+        # Claimed by a sender just before it goes to Gmail. One left here after a crash may or may not have gone
+        # out, so it is never sent again automatically.
+        SENDING = "sending", "Sending (unconfirmed)"
         SENT = "sent", "Sent"
         FAILED = "failed", "Failed"
         SKIPPED = "skipped", "Skipped"
@@ -1664,9 +1669,9 @@ class Assignment(models.Model):
         return reverse("crm:assignment_detail", args=[self.pk])
 
     def share_active(self):
-        from datetime import date
-
-        return bool(self.share_enabled and self.share_token and (not self.share_expires or self.share_expires >= date.today()))
+        # The team's date (TIME_ZONE), not the server's: a Cloud Run server on UTC would end links hours early.
+        return bool(self.share_enabled and self.share_token
+                    and (not self.share_expires or self.share_expires >= timezone.localdate()))
 
 
 class AssignmentSite(models.Model):

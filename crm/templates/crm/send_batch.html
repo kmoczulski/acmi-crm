@@ -14,6 +14,7 @@
   <div class="card"><div class="label">Sent</div><div class="value">{{ counts.sent|default:0 }}</div></div>
   <div class="card"><div class="label">Waiting</div><div class="value">{{ counts.pending|default:0 }}</div></div>
   <div class="card"><div class="label">Failed</div><div class="value">{{ counts.failed|default:0 }}</div></div>
+  {% if counts.sending and not active %}<div class="card" title="These were being sent when the process stopped: check Gmail Sent before resending."><div class="label">Unconfirmed</div><div class="value">{{ counts.sending }}</div></div>{% endif %}
   <div class="card"><div class="label">Started</div><div class="value" style="font-size:14px">{{ batch.started_at|date:"M j, g:i a"|default:"—" }}</div><div class="sub">by {{ batch.created_by|username }}</div></div>
 </div>
 <div class="table-wrap"><table class="data">

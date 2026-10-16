@@ -10,3 +10,6 @@ logs/
 media/
 data/imports/
 data/land/
+*.sqlite3-wal
+*.sqlite3-shm
+*.sqlite3-journal

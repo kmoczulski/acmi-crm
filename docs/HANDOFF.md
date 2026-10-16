@@ -288,7 +288,8 @@ Gmail sync, read side (`crm/mail/`, Mail page, `sync_mail` command, 23 tests pas
 **Screen** (`crm/land/score.py`): 0-100 from the defense-site buy-box: size (net usable once checked), zoning bucket
 or tax-roll land use, power (line + substation distance), access (highway, rail), defense driver (base distance,
 HUBZone, Navy zone), water/sewer, owner signals. Deal-killers cap the score at 25: 30%+ floodplain, 10%+ floodway,
-20%+ wetlands, Superfund within 0.5 mi, tax-exempt owner, 30%+ Critical Area RCA.
+20%+ wetlands, Superfund within 0.5 mi, 30%+ Critical Area RCA. (A tax-exempt / public owner is a warning, not a
+deal-killer; since 2026-10-16 federal owners are held at 40 and other public owners lose 5: `score.public_owner`.)
 - Zoning buckets (`ZONING_CLASSES`): industrial, business park/employment, commercial, mixed use, PUD, ag/rural,
   residential, conservation, public, town (not mapped), unzoned (unincorporated TX). Charles codes mapped by code
   (`ZONING_CODES`; the county files BP/PEP under "Mixed use"). Add new counties' codes there.
@@ -691,6 +692,30 @@ Barnes Farm (Casa Grande, Pinal), I-10 | I-8 Business Park / Petersen Park (Eloy
   market, nearby employers, documents, brokers, drive times, and a flyer-claims table (confirmed / partly confirmed /
   differs / note / not checked). Anything left blank prints as N/A on the brief's second page. PDFs are made from the
   app's Save as PDF button; none are kept in the repo.
+
+### Audit (2026-10-16, night)
+- Independent audit per `docs/AUDIT_BRIEF.md`; results in **`docs/AUDIT_REPORT.md`** (report only, no code changed). 182 tests pass.
+- Top items: password sign-in can't be switched off (`ACMI_LOCAL_LOGIN=false` only hides the form); no roles; outreach
+  batches can double-send; a failed live re-check drops the flood deal-killer; map clicks mislabel NC counties / duplicate
+  merged Hays parcels; no production logging; Cloud Build has no migrate step; public land (Redstone, TVA) scores 60-80.
+- **Fixes made (same night)** on branch `worktree-audit-fixes` (worktree `.claude/worktrees/audit-fixes`), 215 tests:
+  see the "Fix status" table at the top of `docs/AUDIT_REPORT.md`. Things to know after merging:
+  - Password sign-in is checked by `crm.auth.PasswordBackend` / `AllauthBackend`; everyone is signed out once.
+  - Site deal rows are written when parcels join or leave a site (`tracker.ensure_deals`), never on reads; pages use
+    `tracker.site_deals()`.
+  - Live checks keep their last good result when an agency fails (`refresh_error`); briefs warn when checks are missing.
+  - `load_parcels` won't prune when a reload returns < 80% of stored parcels (`--force-prune` to override); site plans
+    are protected. `send_batch --resume` takes over a batch whose process died.
+  - Scores change only after `manage.py score_parcels` (public-owner rule).
+  - **Roles:** the *Managers* group (`crm/permissions.py`) sends batches, edits outreach settings / templates, deletes,
+    merges, deletes sites and turns client links on. Every account that existed at migration 0032 is in it; new Google
+    sign-ins start without it (add them in Admin › Groups).
+  - Loads skip slivers (< 0.01 ac), store identical outlines once and re-key object-id parcels by outline;
+    `manage.py clean_parcels [County_ST] [--commit]` tidies what is stored (dry run by default).
+  - A missing outreach attachment fails the batch up front; uploads are served by `/documents/<id>/file/`.
+  - `.github/workflows/tests.yml` runs the tests on Postgres once the repo is on GitHub.
+  - Still open (improvements review, `docs/ROADMAP.md`): background work and file storage on Cloud Run.
+- The 15-minute mail sync runs the main folder's code against the real DB, so work on branches in a worktree.
 
 ### Speed and the add-county skill (2026-10-16, evening)
 - Reports were slow because everything ran in sequence: the aerial's four map layers (Esri imagery, FEMA, roads, places)

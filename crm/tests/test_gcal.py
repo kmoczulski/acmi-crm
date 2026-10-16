@@ -51,7 +51,9 @@ def event(eid, title, start, attendees, status="confirmed"):
             "attendees": [{"email": a} for a in attendees]}
 
 
-@override_settings(SOCIALACCOUNT_PROVIDERS=GOOGLE, CALENDAR_DAYS_BACK=90, CALENDAR_DAYS_AHEAD=60)
+# GOOGLE_SIGNIN_ENABLED comes from GOOGLE_CLIENT_ID in .env; set it here so the tests don't depend on a local .env.
+@override_settings(SOCIALACCOUNT_PROVIDERS=GOOGLE, GOOGLE_SIGNIN_ENABLED=True, CALENDAR_DAYS_BACK=90,
+                   CALENDAR_DAYS_AHEAD=60)
 class CalendarSyncTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user("kellen", password="x", email="kmoczulski@acmigroup.com",

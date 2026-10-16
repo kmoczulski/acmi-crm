@@ -130,12 +130,9 @@ def _num(v):
 
 def prefill(site):
     """What the CRM already knows about a site, as report overview fields (all values are strings)."""
-    from . import score, trim
+    from . import score, tracker, trim
 
-    deals = list(site.parcel_deals.select_related("parcel", "parcel__county").filter(included=True))
-    if not deals:
-        trim.site_acres(site)  # makes sure each parcel has its deal row
-        deals = list(site.parcel_deals.select_related("parcel", "parcel__county").filter(included=True))
+    deals = [d for d in tracker.site_deals(site) if d.included]  # read-only: guest pages never write
     parcels = [d.parcel for d in deals]
     counties = sorted({f"{p.county.name}, {p.county.state}" for p in parcels})
     zoning = sorted({p.zoning for p in parcels if p.zoning})

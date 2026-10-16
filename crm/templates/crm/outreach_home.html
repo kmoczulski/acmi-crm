@@ -7,7 +7,7 @@
   <span class="tag">Campaign: {{ settings.current_campaign }}</span>
   <span class="spacer"></span>
   <a class="btn" href="{% url 'crm:template_list' %}">Templates</a>
-  <a class="btn" href="{% url 'crm:outreach_settings' %}">Settings</a>
+  {% if IS_MANAGER %}<a class="btn" href="{% url 'crm:outreach_settings' %}">Settings</a>{% endif %}
   <a class="btn" href="{% url 'crm:weekly_report' %}">Weekly report</a>
 </div>
 
@@ -31,11 +31,11 @@
       <select name="template">{% for t in templates %}<option value="{{ t.pk }}">{{ t.template_id }} · {{ t.name }}</option>{% endfor %}</select>
       <button class="btn-small" {% if not mailbox or not templates %}disabled{% endif %}>Send a test to {{ mailbox.email|default:"me" }}</button>
     </form>
-    <form method="post" action="{% url 'crm:outreach_start' %}" class="inline-form">{% csrf_token %}
+    {% if IS_MANAGER %}<form method="post" action="{% url 'crm:outreach_start' %}" class="inline-form">{% csrf_token %}
       <label class="muted" style="font-size:12px">How many <input name="limit" type="number" min="1" max="{{ remaining_today }}" value="{% if queue_size < remaining_today %}{{ queue_size }}{% else %}{{ remaining_today }}{% endif %}" style="width:90px"></label>
       <label class="muted" style="font-size:12px">Type {{ confirm_word }} to confirm <input name="confirm" autocomplete="off" style="width:90px"></label>
       <button class="btn-primary" {% if not mailbox or running or not queue_size %}disabled{% endif %}>Start sending</button>
-    </form>
+    </form>{% else %}<p class="muted" style="font-size:12px">Only managers can start a send.</p>{% endif %}
     <p class="muted" style="font-size:12px;margin-bottom:0">Sends run in the background with {{ settings.delay_seconds }}s between emails; you can stop a send from its progress page. Each email is logged on the person's timeline straight away.</p>
   </div>
   <div class="panel">

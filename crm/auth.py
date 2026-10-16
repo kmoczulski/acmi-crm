@@ -1,14 +1,38 @@
 """Sign-in rules: Google accounts on ACMI's domain only; no self sign-up."""
 from allauth.account.adapter import DefaultAccountAdapter
+from allauth.account.auth_backends import AuthenticationBackend
 from allauth.core.exceptions import ImmediateHttpResponse
 from allauth.socialaccount.adapter import DefaultSocialAccountAdapter
 from django.conf import settings
+from django.contrib.auth.backends import ModelBackend
 from django.http import HttpResponseForbidden
 
 
 def email_allowed(email):
     domain = (email or "").rsplit("@", 1)[-1].lower()
     return domain in [d.lower() for d in settings.ALLOWED_EMAIL_DOMAINS]
+
+
+# Passwords are checked only by these two backends, so ACMI_LOCAL_LOGIN=false switches password sign-in off
+# everywhere (the sign-in page and /admin/login/), not just the form. Google sign-in never calls authenticate()
+# with a password, so it is unaffected.
+
+class PasswordBackend(ModelBackend):
+    """Django's username / password check (used by /admin/login/)."""
+
+    def authenticate(self, request, username=None, password=None, **kwargs):
+        if not settings.LOCAL_LOGIN_ENABLED:
+            return None
+        return super().authenticate(request, username=username, password=password, **kwargs)
+
+
+class AllauthBackend(AuthenticationBackend):
+    """allauth's backend: password sign-in on /accounts/login/, and the backend Google sessions are tied to."""
+
+    def authenticate(self, request, **credentials):
+        if not settings.LOCAL_LOGIN_ENABLED:
+            return None
+        return super().authenticate(request, **credentials)
 
 
 class AccountAdapter(DefaultAccountAdapter):

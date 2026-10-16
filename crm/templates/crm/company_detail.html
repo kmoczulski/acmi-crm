@@ -17,6 +17,7 @@
       <h3>Details <button type="button" class="btn btn-small" style="float:right" onclick="document.getElementById('edit-dialog').showModal()">Edit</button></h3>
       {% include "crm/partials/company_details.html" %}
       {% include "crm/partials/edit_dialog.html" with title="company" %}
+      {% if IS_MANAGER %}
       <details style="margin-top:10px"><summary class="muted" style="font-size:12px;cursor:pointer">Merge another company into this one</summary>
         <form method="post" action="{% url 'crm:company_merge_into' company.pk %}" class="inline-form" style="margin-top:6px"
               onsubmit="return confirm('Merge that company into {{ company.name|escapejs }}? Its people, emails and documents move here and it is deleted.')">{% csrf_token %}
@@ -32,6 +33,7 @@
           <button class="btn-small btn-danger">Delete company</button>
         </form>
       </details>
+      {% endif %}
     </div>
     {% include "crm/partials/record_side.html" %}
   </aside>

@@ -35,10 +35,10 @@
   <h2>Site overview</h2>
   <table><tbody>{% for label, v in c.overview %}{% if v %}<tr><th style="width:200px">{{ label }}</th><td class="pre">{{ v }}</td></tr>{% endif %}{% endfor %}</tbody></table>
   {% if map_geojson %}
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
   <div class="dd-map" id="dd-map"></div>
   {{ map_geojson|json_script:"dd-geo" }}
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script>
     (function () {
       var m = L.map('dd-map', {scrollWheelZoom: false});

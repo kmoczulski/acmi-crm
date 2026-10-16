@@ -52,7 +52,7 @@
           <details {% if i.edited %}open{% endif %}><summary><strong>{{ i.subject }}</strong></summary>
             <label class="muted" style="font-size:12px">To</label><input class="draft-to" value="{{ i.to }}" style="width:100%" {% if locked %}disabled{% endif %}>
             <label class="muted" style="font-size:12px">Subject</label><input class="draft-subject" value="{{ i.subject }}" style="width:100%" {% if locked %}disabled{% endif %}>
-            <div class="draft-html" {% if not locked %}contenteditable="true"{% endif %}>{{ i.html|safe }}</div>
+            <div class="draft-html" {% if not locked %}contenteditable="true"{% endif %}>{{ i.html|clean_html }}</div>
           </details>
         {% endif %}
       {% else %}

@@ -8,11 +8,12 @@ import html
 import mimetypes
 import smtplib
 import time
+from datetime import timedelta
 from email.message import EmailMessage
 from email.utils import formataddr, make_msgid
 
 from django.conf import settings as django_settings
-from django.db import transaction
+from django.db.models import Max
 from django.utils import timezone
 
 from crm import interactions
@@ -55,18 +56,24 @@ def compose(template, person, greeting, settings=None):
 
 
 def attachments(settings=None):
+    """The active outreach files. A missing one stops the send (SendError) rather than letting every email go out
+    without it, which is what happens on a server whose disk doesn't have the uploads."""
     settings = settings or OutreachSettings.load()
     if not settings.include_attachments:
         return []
-    files = []
+    files, missing = [], []
     for f in OutreachFile.objects.filter(active=True):
         try:
             with f.file.open("rb") as fh:
                 data = fh.read()
-        except (FileNotFoundError, OSError):
+        except (FileNotFoundError, OSError, ValueError):
+            missing.append(f.file.name.rsplit("/", 1)[-1] or str(f))
             continue
         ctype, _ = mimetypes.guess_type(f.file.name)
         files.append((f.file.name.rsplit("/", 1)[-1], data, ctype or "application/octet-stream"))
+    if missing:
+        raise SendError(f"Attachment file missing: {', '.join(missing)}. Upload it again or switch it off in the "
+                        "outreach settings (or untick 'include attachments').")
     return files
 
 
@@ -150,25 +157,30 @@ def send_test(user, template, person, to_addr):
         smtp.send(msg)
 
 
-def run_batch(batch_id, sleep=time.sleep):
-    """Send every pending item in a batch. Safe to call again: sent items are never resent."""
+def run_batch(batch_id, sleep=time.sleep, resume=False):
+    """Send every pending item in a batch.
+
+    Only one sender works on a batch: it claims the batch (queued -> sending) and then each email (pending -> sending)
+    with a conditional update, so a second process, a double click or a re-run can't send anything twice. A batch
+    left 'sending' by a crashed process is only picked up again with resume=True (manage.py send_batch --resume).
+    """
     from .queue import greeting_for
 
-    with transaction.atomic():
-        batch = SendBatch.objects.select_for_update().get(pk=batch_id)
-        if batch.status not in (SendBatch.Status.QUEUED, SendBatch.Status.SENDING):
-            return batch
-        batch.status, batch.started_at = SendBatch.Status.SENDING, batch.started_at or timezone.now()
-        batch.save(update_fields=["status", "started_at"])
+    now = timezone.now()
+    claimed = SendBatch.objects.filter(pk=batch_id, status=SendBatch.Status.QUEUED).update(
+        status=SendBatch.Status.SENDING, started_at=now)
+    batch = SendBatch.objects.get(pk=batch_id)
+    if not claimed and not (resume and batch.status == SendBatch.Status.SENDING):
+        return batch
 
     settings = OutreachSettings.load()
     user = batch.created_by
     mailbox = Mailbox.objects.filter(user=user).first()
-    files = attachments(settings)
     person_ids = []
     try:
         if mailbox is None:
             raise SendError("Connect your mailbox on the Mail page first.")
+        files = attachments(settings)  # before anything is sent: a missing brochure fails the batch up front
         with Smtp(mailbox) as smtp:
             for item in batch.items.filter(status=SendItem.Status.PENDING).select_related("person__company", "template"):
                 batch.refresh_from_db(fields=["stop_requested"])
@@ -179,6 +191,9 @@ def run_batch(batch_id, sleep=time.sleep):
                     item.status, item.error = SendItem.Status.SKIPPED, "Person or template was deleted"
                     item.save(update_fields=["status", "error"])
                     continue
+                if not SendItem.objects.filter(pk=item.pk, status=SendItem.Status.PENDING).update(
+                        status=SendItem.Status.SENDING):
+                    continue  # another sender already has this one
                 subject, body_html, plain = compose(item.template, item.person, greeting_for(item.person), settings)
                 msg = build_message(mailbox, item.email, subject, body_html, plain, files, settings)
                 try:
@@ -218,6 +233,25 @@ def run_batch(batch_id, sleep=time.sleep):
                 c.status = CompanyStatus.CONTACTED
                 c.save()
     return batch
+
+
+STALE_AFTER = timedelta(minutes=15)
+
+
+def stop_batch(batch):
+    """Ask a batch to stop after the email it is on. A batch that nobody is sending any more (its process ended
+    without finishing, or never started) is closed at once, so it stops blocking new sends. True if closed now."""
+    SendBatch.objects.filter(pk=batch.pk).update(stop_requested=True)
+    if batch.status not in (SendBatch.Status.QUEUED, SendBatch.Status.SENDING):
+        return False
+    settings = OutreachSettings.load()
+    last = batch.items.aggregate(m=Max("sent_at"))["m"] or batch.started_at or batch.created_at
+    if timezone.now() - last <= max(STALE_AFTER, timedelta(seconds=3 * settings.delay_seconds)):
+        return False
+    return bool(SendBatch.objects.filter(pk=batch.pk, status=batch.status).update(
+        status=SendBatch.Status.STOPPED, finished_at=timezone.now(),
+        error=f"Closed on stop: nothing had been sent since {timezone.localtime(last):%b %d %H:%M}, so the sending "
+              "process had ended. Emails marked 'Sending (unconfirmed)' may or may not have gone out."))
 
 
 def start_in_background(batch):

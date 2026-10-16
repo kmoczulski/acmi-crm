@@ -2,16 +2,18 @@ from datetime import date
 
 from django import forms
 from django.contrib import messages
+from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from crm.forms import UserChoiceField, active_users
 from crm.models import EmailTemplate, Mailbox, OutreachFile, OutreachSettings, Person, SendBatch, SendItem
+from crm.permissions import manager_required
 
 from . import queue as outreach_queue
 from . import report as weekly
-from .sender import SendError, compose, send_test, start_in_background
+from .sender import SendError, compose, send_test, start_in_background, stop_batch
 
 CONFIRM_WORD = "SEND"
 
@@ -81,6 +83,7 @@ def outreach_test(request):
 
 
 @require_POST
+@manager_required
 def outreach_start(request):
     settings = OutreachSettings.load()
     if request.POST.get("confirm", "").strip() != CONFIRM_WORD:
@@ -89,20 +92,24 @@ def outreach_start(request):
     if _mailbox(request.user) is None:
         messages.error(request, "Connect your mailbox on the Mail page first.")
         return redirect("crm:outreach_home")
-    if SendBatch.objects.filter(status__in=[SendBatch.Status.QUEUED, SendBatch.Status.SENDING]).exists():
-        messages.error(request, "A send is already running. Wait for it to finish or stop it.")
-        return redirect("crm:outreach_home")
-    remaining = max(0, settings.daily_cap - outreach_queue.sent_today(request.user))
-    limit = request.POST.get("limit", "")
-    limit = min(int(limit), remaining) if limit.isdigit() else remaining
-    entries, _ = outreach_queue.build(settings, limit=limit)
-    if not entries:
-        messages.error(request, "Nobody to send to (queue empty or today's cap reached).")
-        return redirect("crm:outreach_home")
-    batch = SendBatch.objects.create(created_by=request.user, campaign=settings.current_campaign)
-    SendItem.objects.bulk_create([SendItem(batch=batch, person=e.person, template=e.template, email=e.person.email)
-                                  for e in entries])
-    start_in_background(batch)
+    # Check-and-create as one locked step, so two people pressing Send together can't start two batches to the same
+    # people (the settings row is the lock on Postgres; SQLite's IMMEDIATE transactions already queue writers).
+    with transaction.atomic():
+        OutreachSettings.objects.select_for_update().filter(pk=settings.pk).first()
+        if SendBatch.objects.filter(status__in=[SendBatch.Status.QUEUED, SendBatch.Status.SENDING]).exists():
+            messages.error(request, "A send is already running. Wait for it to finish or stop it.")
+            return redirect("crm:outreach_home")
+        remaining = max(0, settings.daily_cap - outreach_queue.sent_today(request.user))
+        limit = request.POST.get("limit", "")
+        limit = min(int(limit), remaining) if limit.isdigit() else remaining
+        entries, _ = outreach_queue.build(settings, limit=limit)
+        if not entries:
+            messages.error(request, "Nobody to send to (queue empty or today's cap reached).")
+            return redirect("crm:outreach_home")
+        batch = SendBatch.objects.create(created_by=request.user, campaign=settings.current_campaign)
+        SendItem.objects.bulk_create([SendItem(batch=batch, person=e.person, template=e.template,
+                                               email=e.person.email) for e in entries])
+    start_in_background(batch)  # after the commit, so the sending process sees the batch
     messages.success(request, f"Sending {len(entries)} emails in the background.")
     return redirect(batch)
 
@@ -118,11 +125,15 @@ def send_batch(request, pk):
 
 @require_POST
 def send_batch_stop(request, pk):
-    SendBatch.objects.filter(pk=pk).update(stop_requested=True)
-    messages.info(request, "Stopping after the current email.")
+    batch = get_object_or_404(SendBatch, pk=pk)
+    if stop_batch(batch):
+        messages.info(request, "This batch had stopped sending on its own; it is now closed.")
+    else:
+        messages.info(request, "Stopping after the current email.")
     return redirect("crm:send_batch", pk=pk)
 
 
+@manager_required
 def outreach_settings(request):
     form = SettingsForm(request.POST or None, instance=OutreachSettings.load())
     if request.method == "POST" and form.is_valid():
@@ -140,6 +151,7 @@ def template_list(request):
     })
 
 
+@manager_required
 def template_edit(request, pk=None):
     template = get_object_or_404(EmailTemplate, pk=pk) if pk else None
     form = TemplateForm(request.POST or None, instance=template)

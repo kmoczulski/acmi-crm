@@ -5,10 +5,11 @@ from django.conf import settings
 from django.contrib import messages
 from django.core.paginator import Paginator
 from django.db.models import Count, Max, Q
-from django.http import Http404, HttpResponse, HttpResponseBadRequest, JsonResponse
+from django.http import FileResponse, Http404, HttpResponse, HttpResponseBadRequest, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
 from . import ai, documents, gcal, meetings, merge, notify, pipeline
@@ -22,6 +23,7 @@ from .models import (
     List, ListEntry, Note, ObjectType, Opportunity, OpportunityContact, OpportunityStage, Person, Project, SavedView,
     CalendarSync, Meeting, Notification, Task,
 )
+from .permissions import manager_required
 from .pipeline import risk_reasons
 from .interactions import team_connections
 from .mail.parse import new_text
@@ -36,8 +38,11 @@ TIMELINE_PAGE = 100
 
 
 def _safe_next(request, fallback):
+    """The posted ?next= path if it stays on this site ('/\\evil.com' and '//evil.com' don't), else fallback."""
     nxt = request.POST.get("next") or request.GET.get("next")
-    return nxt if nxt and nxt.startswith("/") and not nxt.startswith("//") else fallback
+    ok = nxt and nxt.startswith("/") and url_has_allowed_host_and_scheme(
+        nxt, allowed_hosts={request.get_host()}, require_https=request.is_secure())
+    return nxt if ok else fallback
 
 
 def _record_from_post(request):
@@ -190,6 +195,7 @@ def duplicates(request):
 
 
 @require_POST
+@manager_required
 def duplicates_merge(request):
     keep = get_object_or_404(Company, pk=request.POST.get("keep"))
     ids = [int(i) for i in request.POST.getlist("merge") if i.isdigit()]
@@ -214,6 +220,7 @@ def duplicates_dismiss(request):
 
 
 @require_POST
+@manager_required
 def company_merge_into(request, pk):
     """From a company page: fold another company (picked by name) into this one."""
     keep = get_object_or_404(Company, pk=pk)
@@ -942,6 +949,7 @@ def saved_view_delete(request, pk):
 
 
 @require_POST
+@manager_required
 def person_delete(request, pk):
     person = get_object_or_404(Person, pk=pk)
     label = str(person) if (person.full_name or person.email) else "Unnamed person"
@@ -957,6 +965,7 @@ def person_delete(request, pk):
 
 
 @require_POST
+@manager_required
 def company_delete(request, pk):
     company = get_object_or_404(Company, pk=pk)
     name = company.name
@@ -969,6 +978,7 @@ def company_delete(request, pk):
 
 
 @require_POST
+@manager_required
 def opportunity_delete(request, pk):
     opp = get_object_or_404(Opportunity, pk=pk)
     company = opp.company
@@ -998,6 +1008,23 @@ def document_add(request):
     else:
         messages.error(request, " ".join(e for errs in form.errors.values() for e in errs))
     return redirect(_safe_next(request, links["company"].get_absolute_url()))
+
+
+INLINE_TYPES = (".pdf", ".png", ".jpg", ".jpeg", ".gif", ".webp")
+
+
+def document_file(request, pk):
+    """An uploaded document, streamed to signed-in users. PDFs and images open in the browser; anything else
+    downloads, so an uploaded web page can't run as part of the CRM."""
+    doc = get_object_or_404(Document, pk=pk)
+    if not doc.file:
+        raise Http404
+    try:
+        fh = doc.file.open("rb")
+    except (FileNotFoundError, OSError):
+        raise Http404("That file is no longer on the server.")
+    name = doc.file.name.rsplit("/", 1)[-1]
+    return FileResponse(fh, as_attachment=not name.lower().endswith(INLINE_TYPES), filename=name)
 
 
 @require_POST

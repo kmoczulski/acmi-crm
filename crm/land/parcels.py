@@ -51,6 +51,16 @@ TX_TEXT_FIELDS = {
 # Fields the loaders own; everything the team or live checks set is left alone on re-load.
 KEEP_IF_BLANK = {"owner_name", "care_of", "mail_address", "mail_city", "mail_state", "mail_zip", "land_value",
                  "improvement_value", "market_value"}
+# Parcels with team work on them: never pruned on a reload, and the one kept when several ids share a shape.
+TEAM_WORK = (~Q(status="") | ~Q(notes="") | Q(company__isnull=False) | Q(sites__isnull=False)
+             | Q(site_deals__isnull=False) | ~Q(qd_design={}) | ~Q(site_plan={}))
+# A reload that returns fewer than this share of the stored parcels looks like a partial download: nothing is pruned
+# unless force_prune (manage.py load_parcels --force-prune).
+PRUNE_FLOOR = 0.8
+# Below this a "parcel" is a sliver or a drawing error (Pinal's full windows held 44 of them at 0.00 ac).
+MIN_PARCEL_ACRES = 0.01
+# Keys made from an object id (Pinal "NAP<objectid>", NC "OID<objectid>") or an outline ("shp-..."); see unstable_key.
+UNSTABLE_PREFIXES = ("NAP", "OID", "SHP-", "PT-")
 LOADED_FIELDS = [
     "prop_id", "geo_id", "owner_name", "care_of", "mail_address", "mail_city", "mail_state", "mail_zip",
     "situs_address", "situs_city", "situs_zip", "legal_desc", "acres", "legal_acres", "land_value",
@@ -84,11 +94,11 @@ def geodesic_acres(geom):
     return abs(_geod.geometry_area_perimeter(geom)[0]) / SQ_M_PER_ACRE
 
 
-def load_county(name_or_fips, *, min_acres=20, keep_zip=False, catalog=None, log=print):
+def load_county(name_or_fips, *, min_acres=20, keep_zip=False, catalog=None, log=print, force_prune=False):
     """Load one county by name or FIPS. Returns the LandCounty."""
     md = counties.find(name_or_fips)
     if md:
-        return load_arcgis_county(md, min_acres=min_acres, log=log)
+        return load_arcgis_county(md, min_acres=min_acres, log=log, force_prune=force_prune)
     catalog = catalog or txgio_parcel_catalog()
     entry = catalog.get(str(name_or_fips).lower()) or next(
         (c for c in catalog.values() if c["fips"] == str(name_or_fips)), None)
@@ -103,7 +113,7 @@ def load_county(name_or_fips, *, min_acres=20, keep_zip=False, catalog=None, log
         with zipfile.ZipFile(zpath) as z:
             shp_names = [n for n in z.namelist() if n.lower().endswith((".shp", ".shx", ".dbf", ".prj", ".cpg"))]
             z.extractall(work, members=shp_names)
-        county = _load_texas_shapefile(next(work.rglob("*.shp")), entry, min_acres, log)
+        county = _load_texas_shapefile(next(work.rglob("*.shp")), entry, min_acres, log, force_prune=force_prune)
     finally:
         shutil.rmtree(work, ignore_errors=True)
     if not keep_zip:
@@ -111,7 +121,7 @@ def load_county(name_or_fips, *, min_acres=20, keep_zip=False, catalog=None, log
     return county
 
 
-def _load_texas_shapefile(shp_path, entry, min_acres, log):
+def _load_texas_shapefile(shp_path, entry, min_acres, log, force_prune=False):
     reader = shapefile.Reader(str(shp_path), encoding="utf-8", encodingErrors="replace")
     # Pass 1: attributes only. Group split polygons by property id; total each owner's acres.
     groups, first, total = defaultdict(list), {}, 0
@@ -141,9 +151,7 @@ def _load_texas_shapefile(shp_path, entry, min_acres, log):
         if geoms:
             shapes[k] = geoms
     reader.close()
-    team =set(Parcel.objects.filter(county=county).filter(
-        ~Q(status="") | ~Q(notes="") | Q(company__isnull=False) | Q(sites__isnull=False) | ~Q(qd_design={})
-    ).values_list("key", flat=True))
+    team = set(Parcel.objects.filter(county=county).filter(TEAM_WORK).values_list("key", flat=True))
     shared = shared_shapes({k: (_shape_sig(g, sum(a for _, a in keep[k])),
                                 (k in team, _num(first[k].get("LEGAL_AREA")) or 0)) for k, g in shapes.items()})
     sig_of = {k: rep for rep, others in shared.items() for k in (rep, *others)}
@@ -184,7 +192,7 @@ def _load_texas_shapefile(shp_path, entry, min_acres, log):
                 fields.update(_merged_fields(fields, [first[o] for o in shared[k]]))
             yield k, fields, geoms
 
-    _save(county, items(), owner_totals, len(shapes) - len(merged_away), log)
+    _save(county, items(), owner_totals, len(shapes) - len(merged_away), log, force_prune=force_prune)
     return county
 
 
@@ -208,18 +216,33 @@ def shared_shapes(sigs):
     return out
 
 
-def _merged_fields(fields, others):
-    """Note the other property ids (and owners) on the same shape in the kept record's legal description.
-    Mapped acres stay the shape's; deed acres stay the kept id's (the largest)."""
-    ids = [_text(r.get("PROP_ID")) or _text(r.get("GEO_ID")) for r in others]
-    owners = sorted({_text(r.get("OWNER_NAME")) for r in others} - {fields["owner_name"], ""})
-    note = f"[same shape as prop ids {', '.join(ids)}" + (f"; also owned by {'; '.join(owners)}" if owners else "") + "]"
+def same_shape_legal(fields, ids, owners, label="prop ids"):
+    """The kept record's legal description with the other ids (and owners) on the same outline noted at the end."""
+    owners = sorted({o for o in owners if o} - {fields.get("owner_name") or ""})
+    note = f"[same shape as {label} {', '.join(ids)}" + (f"; also owned by {'; '.join(owners)}" if owners else "") + "]"
     note = note if len(note) <= 200 else note[:198] + "…]"
-    legal = fields["legal_desc"][: 300 - len(note) - 1]
+    legal = (fields.get("legal_desc") or "")[: 300 - len(note) - 1]
     return {"legal_desc": f"{legal} {note}".strip()}
 
 
-def load_arcgis_county(cfg, *, min_acres=20, log=print):
+def _merged_fields(fields, others):
+    """Texas: note the other property ids (and owners) on the same shape in the kept record's legal description.
+    Mapped acres stay the shape's; deed acres stay the kept id's (the largest)."""
+    return same_shape_legal(fields, [_text(r.get("PROP_ID")) or _text(r.get("GEO_ID")) for r in others],
+                            [_text(r.get("OWNER_NAME")) for r in others])
+
+
+def unstable_key(key):
+    """Keys made from an object id or an outline (no parcel number): they can change when the county republishes."""
+    return (key or "").upper().startswith(UNSTABLE_PREFIXES)
+
+
+def reload_sig(min_lon, min_lat, max_lon, max_lat, acres):
+    """Identity of a stored outline across reloads (bounds to ~1 m, acres to 0.1)."""
+    return round(min_lon, 5), round(min_lat, 5), round(max_lon, 5), round(max_lat, 5), round(acres or 0, 1)
+
+
+def load_arcgis_county(cfg, *, min_acres=20, log=print, force_prune=False):
     """A county that publishes its tax parcels as a queryable ArcGIS service (Charles County, MD)."""
     log(f"{cfg['name']}: reading owner totals")
     every = arcgis_query(cfg["parcels_url"], where=counties.count_where(cfg), fields=counties.count_fields(cfg),
@@ -251,19 +274,39 @@ def load_arcgis_county(cfg, *, min_acres=20, log=print):
         if f.get("geometry") and key and key.upper() != "NO ID":
             groups[key].append(f)
 
+    kept = {}
+    for k, fs in groups.items():
+        geoms = [shape(f["geometry"]) for f in fs]
+        fields = counties.record_fields(cfg, fs[0]["properties"])
+        geom = unary_union([g if g.is_valid else make_valid(g) for g in geoms])
+        fields["acres"] = round(geodesic_acres(geom), 2)
+        if fields["acres"] < MIN_PARCEL_ACRES:  # zero-area slivers and drawing errors, not land anyone can buy
+            continue
+        if fields["acres"] < min_acres and not counties.in_windows(cfg, geom):
+            continue
+        kept[k] = (fields, geoms, geom)
+    # Several accounts on one identical outline (records without a parcel number, condo-style splits): store the
+    # outline once, as the Texas loader does. Kept: the one with team work, else a real parcel number, else the
+    # highest value; the others are noted in its legal description and pruned like any vanished parcel.
+    team = set(Parcel.objects.filter(county__fips=cfg["fips"]).filter(TEAM_WORK).values_list("key", flat=True))
+    shared = shared_shapes({k: (_shape_sig([g], f["acres"]), (k in team, not unstable_key(k),
+                                                              f.get("market_value") or f.get("land_value") or 0))
+                            for k, (f, _, g) in kept.items()})
+    merged_away = {o for others in shared.values() for o in others}
+    if merged_away:
+        log(f"{cfg['name']}: {len(merged_away):,} records share another's outline; each outline is stored once")
+
     def items():
-        for k, fs in groups.items():
-            geoms = [shape(f["geometry"]) for f in fs]
-            rec = fs[0]["properties"]
-            fields = counties.record_fields(cfg, rec)
-            geom = unary_union([g if g.is_valid else make_valid(g) for g in geoms])
-            fields["acres"] = round(geodesic_acres(geom), 2)
-            if fields["acres"] < min_acres and not counties.in_windows(cfg, geom):
+        for k, (fields, geoms, geom) in kept.items():
+            if k in merged_away:
                 continue
+            if k in shared:
+                fields.update(same_shape_legal(fields, shared[k], [kept[o][0].get("owner_name") for o in shared[k]],
+                                               label="parcel ids"))
             fields["zoning"], fields["overlays"] = counties.stamp(overlay_index, geom)
             yield k, fields, geoms
 
-    _save(county, items(), owner_totals, len(groups), log)
+    _save(county, items(), owner_totals, len(kept) - len(merged_away), log, force_prune=force_prune)
     return county
 
 
@@ -277,8 +320,21 @@ def _owner_totals(pairs):
     return totals
 
 
-def _save(county, items, owner_totals, expected, log, prune=True):
-    """Upsert parcels from (key, fields, geometries). prune: drop untouched parcels no longer in the source."""
+def assign_fields(p, fields):
+    """Copy loaded fields onto a parcel: text cut to the column size, and owner data a file added (load_owners)
+    kept when the source has it blank."""
+    for field, value in fields.items():
+        if value in ("", None) and p.pk and field in KEEP_IF_BLANK and getattr(p, field):
+            continue
+        f = Parcel._meta.get_field(field)
+        if isinstance(value, str) and getattr(f, "max_length", None):
+            value = value[: f.max_length]
+        setattr(p, field, value)
+
+
+def _save(county, items, owner_totals, expected, log, prune=True, force_prune=False):
+    """Upsert parcels from (key, fields, geometries). prune: drop parcels no longer in the source, except those with
+    team work on them (TEAM_WORK), and only when the source didn't come back suspiciously short (PRUNE_FLOOR)."""
     existing = {p.key: p for p in Parcel.objects.filter(county=county)}
     layers.reset_cache()
     to_create, to_update, seen = [], [], set()
@@ -290,13 +346,7 @@ def _save(county, items, owner_totals, expected, log, prune=True):
             continue
         p = existing.get(k) or Parcel(county=county, key=k)
         p.county = county
-        for field, value in fields.items():
-            if value in ("", None) and p.pk and field in KEEP_IF_BLANK and getattr(p, field):
-                continue  # owner data added from a file (load_owners) survives a reload from a service without it
-            f = Parcel._meta.get_field(field)
-            if isinstance(value, str) and getattr(f, "max_length", None):
-                value = value[: f.max_length]
-            setattr(p, field, value)
+        assign_fields(p, fields)
         p.mail_state = (p.mail_state or "")[:2]
         p.geometry = json.dumps(mapping(geom))
         pt = geom.representative_point()
@@ -313,17 +363,114 @@ def _save(county, items, owner_totals, expected, log, prune=True):
         (to_update if p.pk else to_create).append(p)
         if n % 2000 == 0:
             log(f"  {n:,} / {expected:,}")
+    # A parcel keyed by an object id gets a new key when the county republishes. If a new record has exactly the
+    # outline of a stored one whose unstable key vanished, it is the same land: move the stored parcel (and the team's
+    # work on it) to the new key instead of pruning it and creating a stranger.
+    rekeys = []
+    if prune:
+        vanished = {}
+        for key in set(existing) - seen:
+            if unstable_key(key):
+                old = existing[key]
+                vanished.setdefault(reload_sig(old.min_lon, old.min_lat, old.max_lon, old.max_lat, old.acres), old)
+        if vanished:
+            still_new = []
+            for p in to_create:
+                old = vanished.pop(reload_sig(p.min_lon, p.min_lat, p.max_lon, p.max_lat, p.acres), None)
+                if old is None:
+                    still_new.append(p)
+                    continue
+                for f in LOADED_FIELDS:
+                    setattr(old, f, getattr(p, f))
+                rekeys.append((old.pk, old.key, p.key))
+                to_update.append(old)
+            to_create = still_new
     with transaction.atomic():
+        for pk, _old, new in rekeys:
+            Parcel.objects.filter(pk=pk).update(key=new)
+        if rekeys:
+            log(f"{county.name}: {len(rekeys):,} parcels kept their record under a new key "
+                f"(e.g. {rekeys[0][1]} -> {rekeys[0][2]})")
         Parcel.objects.bulk_create(to_create, batch_size=500)
         Parcel.objects.bulk_update(to_update, LOADED_FIELDS, batch_size=500)
-        if prune:
-            gone = set(existing) - seen
-            Parcel.objects.filter(county=county, key__in=gone, status="", notes="", company__isnull=True,
-                                  sites__isnull=True, qd_design={}).delete()
+        gone = sorted(set(existing) - seen) if prune else []
+        if gone and len(seen) < PRUNE_FLOOR * len(existing) and not force_prune:
+            log(f"{county.name}: the source returned {len(seen):,} parcels against {len(existing):,} stored, so the "
+                f"{len(gone):,} missing ones were kept (a partial download?). If the drop is real, re-run with "
+                "--force-prune.")
+            gone = []
+        for i in range(0, len(gone), 500):
+            chunk = gone[i:i + 500]
+            protected = set(Parcel.objects.filter(county=county, key__in=chunk).filter(TEAM_WORK)
+                            .values_list("key", flat=True))
+            Parcel.objects.filter(county=county, key__in=[k for k in chunk if k not in protected]).delete()
         county.kept_parcels = county.parcels.count()
         county.loaded_at = timezone.now()
         county.save()
     log(f"{county.name}: saved {len(to_create):,} new, {len(to_update):,} updated")
+
+
+def loaded_county(name):
+    """A loaded county by config name ('Pinal AZ', 'fayetteville'), 'Name ST', a name only one county has, or FIPS.
+    Covers the Texas counties too, which come from TxGIO files rather than a configured service."""
+    cfg = counties.find(name)
+    if cfg:
+        return LandCounty.objects.filter(fips=cfg["fips"]).first()
+    text = name.strip()
+    if text.isdigit():
+        return LandCounty.objects.filter(fips=text).first()
+    head, _, state = text.rpartition(" ")
+    if head and len(state) == 2:
+        return LandCounty.objects.filter(name__iexact=head, state__iexact=state).first()
+    matches = list(LandCounty.objects.filter(name__iexact=text)[:2])
+    return matches[0] if len(matches) == 1 else None
+
+
+def clean_stored(county=None, commit=False):
+    """Tidy parcels already stored the way loads now do: remove slivers under MIN_PARCEL_ACRES and keep each
+    identical outline once (the kept one notes the others in its legal description). Parcels with team work are
+    never removed. Returns ({county label: Counter}, number removed); nothing changes unless commit."""
+    from collections import Counter
+
+    qs = Parcel.objects.select_related("county").defer(
+        "geometry", "overlays", "near", "checks", "score_reasons", "killers", "qd_design", "site_plan")
+    if county is not None:
+        qs = qs.filter(county=county)
+    team = set(qs.filter(TEAM_WORK).values_list("pk", flat=True))
+    report, remove, notes, groups = defaultdict(Counter), [], {}, defaultdict(list)
+    for p in qs.iterator(chunk_size=5000):
+        label = f"{p.county.name} {p.county.state}"
+        if p.acres < MIN_PARCEL_ACRES:
+            if p.pk in team:
+                report[label]["slivers kept (team work)"] += 1
+            else:
+                remove.append(p.pk)
+                report[label]["slivers removed"] += 1
+            continue
+        groups[(label, reload_sig(p.min_lon, p.min_lat, p.max_lon, p.max_lat, p.acres))].append(p)
+    for (label, _sig), ps in groups.items():
+        if len(ps) < 2:
+            continue
+        ps.sort(key=lambda p: (p.pk in team, not unstable_key(p.key), p.market_value or p.land_value or 0, -p.pk),
+                reverse=True)
+        keep, others = ps[0], ps[1:]
+        dropped = [o for o in others if o.pk not in team]
+        report[label]["duplicates kept (team work)"] += len(others) - len(dropped)
+        if not dropped:
+            continue
+        remove.extend(o.pk for o in dropped)
+        report[label]["duplicate outlines removed"] += len(dropped)
+        if "[same shape as" not in (keep.legal_desc or ""):
+            notes[keep.pk] = same_shape_legal({"owner_name": keep.owner_name, "legal_desc": keep.legal_desc},
+                                              [o.key for o in dropped], [o.owner_name for o in dropped],
+                                              label="parcel ids")["legal_desc"]
+    if commit:
+        with transaction.atomic():
+            for pk, legal in notes.items():
+                Parcel.objects.filter(pk=pk).update(legal_desc=legal)
+            for i in range(0, len(remove), 500):
+                Parcel.objects.filter(pk__in=remove[i:i + 500]).delete()
+    return report, len(remove)
 
 
 def rescore(queryset=None, remeasure=False, log=print):

@@ -17,10 +17,10 @@
       <h3>Details <button type="button" class="btn btn-small" style="float:right" onclick="document.getElementById('edit-dialog').showModal()">Edit</button></h3>
       {% include "crm/partials/person_details.html" %}
       {% include "crm/partials/edit_dialog.html" with title="person" %}
-      <form method="post" action="{% url 'crm:person_delete' person.pk %}" style="margin-top:10px"
+      {% if IS_MANAGER %}<form method="post" action="{% url 'crm:person_delete' person.pk %}" style="margin-top:10px"
             onsubmit="return confirm('Delete {{ person|escapejs }}? Their emails stay on the company timeline; their tasks and notes are deleted.')">{% csrf_token %}
         <button class="btn-small btn-danger">Delete person</button>
-      </form>
+      </form>{% endif %}
     </div>
     {% include "crm/partials/record_side.html" %}
   </aside>

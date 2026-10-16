@@ -16,7 +16,9 @@ def post_for(ratings, **extra):
 
 class AssignmentTests(TestCase):
     def setUp(self):
-        self.user = get_user_model().objects.create_user("kellen", password="x")
+        from crm.tests.utils import make_manager
+
+        self.user = make_manager(get_user_model().objects.create_user("kellen", password="x"))
         self.client.force_login(self.user)
         self.county = LandCounty.objects.create(fips="40031", name="Comanche", state="OK")
         self.a = Assignment.objects.create(name="Elbit land search", client="Elbit", acreage_floor=500)

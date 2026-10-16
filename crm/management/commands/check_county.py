@@ -2,12 +2,15 @@ from collections import Counter
 
 from django.core.management.base import BaseCommand, CommandError
 
-from crm.land import counties, zoning_ref
-from crm.models import LandCounty, Parcel
+from crm.land import zoning_ref
+from crm.land.parcels import loaded_county, unstable_key
+from crm.models import Parcel
 
 
 def pct(n, total):
     return f"{100 * n / total:.0f}%" if total else "n/a"
+
+
 
 
 class Command(BaseCommand):
@@ -20,8 +23,7 @@ class Command(BaseCommand):
         parser.add_argument("--samples", type=int, default=3, help="Largest parcels to print (default 3)")
 
     def handle(self, *args, **opts):
-        cfg = counties.find(opts["county"].replace("_", " "))
-        county = cfg and LandCounty.objects.filter(fips=cfg["fips"]).first()
+        county = loaded_county(opts["county"].replace("_", " "))
         if not county:
             raise CommandError(f"{opts['county']!r}: not a configured, loaded county (add it to counties.py, run load_parcels)")
         out = self.stdout.write
@@ -49,7 +51,7 @@ class Command(BaseCommand):
         if county.region == "":
             out("  WARNING: no region set for this county (add it to STATE_COUNTY_REGIONS in sources.py)")
         keys = qs.values_list("key", flat=True)
-        weak = [k for k in keys if not k or k.upper().startswith(("NAP", "PT-", "OID"))]
+        weak = [k for k in keys if not k or unstable_key(k)]
         if weak:
             out(f"  {len(weak):,} parcels keyed by object id / point (no parcel number): {', '.join(weak[:3])} ...")
 

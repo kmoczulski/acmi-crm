@@ -442,7 +442,9 @@ class NameTests(TestCase):
 
 class DeleteTests(TestCase):
     def setUp(self):
-        self.user = get_user_model().objects.create(username="kellen", email=ME)
+        from crm.tests.utils import make_manager
+
+        self.user = make_manager(get_user_model().objects.create(username="kellen", email=ME))
         self.client.force_login(self.user)
         self.company = Company.objects.create(name="Firehawk Aerospace")
 

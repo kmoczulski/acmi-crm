@@ -1,7 +1,6 @@
 """Site brief pages: one site (/land/sites/<id>/brief/), several side by side (/land/briefs/?ids=1,2,3), the aerial
 images they print, and PDF downloads of both (?format=pdf)."""
 from django.contrib import messages
-from django.contrib import messages
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
@@ -38,7 +37,10 @@ def _pdf(request, built, filename):
 
 def site_brief(request, pk):
     site = get_object_or_404(LandSite, pk=pk)
-    brief = _build(site, refresh=bool(request.GET.get("refresh")))
+    if request.method == "POST":  # "Re-run live checks" (a POST, so a link elsewhere can't set off the agency calls)
+        _build(site, refresh=True)
+        return redirect(request.get_full_path())
+    brief = _build(site)
     if brief and request.GET.get("format") == "pdf":
         return _pdf(request, [brief], briefs.export_name(site.name))
     return render(request, "crm/land_site_brief.html", {"brief": brief, "site": site,
@@ -51,8 +53,11 @@ def briefs_page(request):
     """Comparison cover page plus a brief per site. ?ids=1,2,3 (default: every site that isn't dropped)."""
     ids = [int(i) for i in request.GET.get("ids", "").split(",") if i.strip().isdigit()]
     sites = LandSite.objects.filter(pk__in=ids) if ids else LandSite.objects.exclude(status=LandSite.Status.DROPPED)
-    refresh = bool(request.GET.get("refresh"))
-    built = [b for b in (_build(s, refresh) for s in sites) if b]
+    if request.method == "POST":  # "Re-run live checks"
+        for s in sites:
+            _build(s, refresh=True)
+        return redirect(request.get_full_path())
+    built = [b for b in (_build(s) for s in sites) if b]
     built.sort(key=lambda b: b["ranking"])
     if built and request.GET.get("format") == "pdf":
         return _pdf(request, built, briefs.export_name())

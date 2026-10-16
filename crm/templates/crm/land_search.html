@@ -2,7 +2,7 @@
 {% load humanize crm_tags static %}
 {% block title %}Land search · ACMI CRM{% endblock %}
 {% block content %}
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
 <div class="land">
   <div class="land-toolbar" id="toolbar">
       <span class="tb-title" title="{{ totals.parcels|intcomma }} parcels of 20+ ac · {{ totals.pursue }} pursue · {{ totals.watch }} watch">Land search</span>
@@ -326,8 +326,8 @@
 
 {% block scripts %}
 {{ incentive_programs|json_script:"incentive-programs" }}
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://unpkg.com/esri-leaflet@3.0.12/dist/esri-leaflet.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script src="https://unpkg.com/esri-leaflet@3.0.12/dist/esri-leaflet.js" integrity="sha256-uqgmWaQPSR4MnmCnfjY48gUPuyeaFHYZ2gDdJqw2QkQ=" crossorigin=""></script>
 <script src="{% static 'crm/land_layers.js' %}?v={{ ASSET_VERSION }}"></script>
 <script>
 (function () {
