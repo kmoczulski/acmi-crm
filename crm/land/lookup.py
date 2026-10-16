@@ -62,8 +62,10 @@ def _pct(parcel_a, pieces):
 
 
 def check_flood(geom, parcel_a):
+    # FEMA returns full-resolution zone outlines, which is slow on big parcels (15 to 20 s). Asking for ~3 m
+    # generalised geometry is about ten times faster and moves the floodplain share by well under 1%.
     feats = _shapes(arcgis_query(fema_flood_url(), fields=["FLD_ZONE", "ZONE_SUBTY", "SFHA_TF"],
-                                 geometry=esri_polygon(geom), geometry_type="esriGeometryPolygon"))
+                                 geometry=esri_polygon(geom), geometry_type="esriGeometryPolygon", simplify=0.00003))
     sfha = [g for g, p in feats if p.get("SFHA_TF") == "T"]
     floodway = [g for g, p in feats if "FLOODWAY" in (p.get("ZONE_SUBTY") or "").upper()]
     zone_500 = [g for g, p in feats if "0.2 PCT" in (p.get("ZONE_SUBTY") or "").upper()]
@@ -301,8 +303,9 @@ def checks_for(state, county_name=""):
     return out
 
 
-def run_checks(parcel, only=None):
-    """Run the live checks (in parallel), store them on the parcel, re-score, save. Returns parcel.checks."""
+def compute_checks(parcel, only=None):
+    """The parcel's live checks (run in parallel), as the dict to store on Parcel.checks. Touches no database, so it is
+    safe to run for several parcels at once. The parcel needs its county loaded (select_related)."""
     geom = shape(json.loads(parcel.geometry))
     parcel_a = to_albers(geom)
     available = checks_for(parcel.county.state, parcel.county.name)
@@ -327,11 +330,32 @@ def run_checks(parcel, only=None):
         lost_area = unary_union(lost).area if lost else 0
         share = lost_area / parcel_a.area if parcel_a.area else 0
         results["net_usable"] = {"acres": round(parcel.acres * (1 - share), 1), "lost_pct": round(100 * share, 1)}
+    return results
+
+
+def _store_checks(parcel, results):
     parcel.checks = results
     parcel.checked_at = timezone.now()
     score.apply(parcel)
     parcel.save(update_fields=["checks", "checked_at", "score", "score_reasons", "killers", "zoning_class", "updated_at"])
+
+
+def run_checks(parcel, only=None):
+    """Run the live checks, store them on the parcel, re-score, save. Returns parcel.checks."""
+    results = compute_checks(parcel, only)
+    _store_checks(parcel, results)
     return results
+
+
+def run_checks_many(parcels, workers=4):
+    """Live checks for several parcels at once (network in threads, database writes one at a time)."""
+    parcels = list(parcels)
+    if not parcels:
+        return
+    with ThreadPoolExecutor(max_workers=min(workers, len(parcels))) as pool:
+        computed = list(pool.map(lambda p: (p, compute_checks(p)), parcels))
+    for parcel, results in computed:
+        _store_checks(parcel, results)
 
 
 def identify(lat, lon):

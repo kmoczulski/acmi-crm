@@ -7,6 +7,7 @@ checks that haven't been run yet are run when the brief is built. Aerials are Es
 the page prints and saves as a PDF with the outline in place.
 """
 import base64
+from concurrent.futures import ThreadPoolExecutor
 import io
 import json
 import math
@@ -25,7 +26,7 @@ from pyproj import Transformer
 from shapely.geometry import shape
 
 from . import listing as listing_mod, score, trim, zoning_ref
-from .lookup import checks_for, run_checks
+from .lookup import checks_for, run_checks_many
 from .sources import STORED_LAYERS, fema_flood_url
 from .views import near_rows
 
@@ -64,7 +65,7 @@ def _fetch(layer, bbox, size, transparent=False):
               "format": "png32" if transparent else "jpg", "f": "image"}
     if transparent:
         params["transparent"] = "true"
-    resp = requests.get(f"{ESRI}/{layer}/MapServer/export", params=params, timeout=45)
+    resp = requests.get(f"{ESRI}/{layer}/MapServer/export", params=params, timeout=30)
     resp.raise_for_status()
     img = Image.open(io.BytesIO(resp.content)).convert("RGBA")
     return img if img.size == tuple(size) else img.resize(tuple(size))
@@ -91,15 +92,15 @@ def _fetch_fema(bbox, size):
     base, layer = fema_flood_url().rsplit("/", 1)  # FEMA renumbers its layers now and then, so look the id up (cached)
     params = {"bbox": ",".join(f"{v:.2f}" for v in bbox), "bboxSR": 3857, "imageSR": 3857, "size": f"{size[0]},{size[1]}",
               "format": "png32", "transparent": "true", "layers": f"show:{layer}", "f": "image"}
-    for attempt in range(4):
+    for attempt in range(3):  # short timeouts: a slow FEMA server must not hold the whole report up
         try:
-            resp = requests.get(f"{base}/export", params=params, timeout=60)
+            resp = requests.get(f"{base}/export", params=params, timeout=25)
             resp.raise_for_status()
             return Image.open(io.BytesIO(resp.content)).convert("RGBA")
         except (requests.RequestException, OSError):
-            if attempt == 3:
+            if attempt == 2:
                 raise
-            time.sleep(2 * (attempt + 1))
+            time.sleep(1 + attempt)
 
 
 def _strengthen_flood(img):
@@ -129,23 +130,28 @@ def render_aerial(parcel_geoms, site_geom, mode="site", size=(1200, 720), flood=
         return hit[1]
     flood_kinds = set()
     fit = lambda im: im if im.size == tuple(size) else im.resize(tuple(size))  # noqa: E731
-    try:
-        img = fit(_fetch("World_Imagery", bbox, size))
-    except (requests.RequestException, OSError):
-        img = Image.new("RGBA", size, (60, 60, 60, 255))
-        ImageDraw.Draw(img).text((20, 20), "Aerial unavailable (Esri imagery did not respond)", fill="white",
-                                 font=_label_font(22))
-    if flood:
+    # The imagery, the FEMA layer and the road / place layers are separate requests: fetch them all at once.
+    with ThreadPoolExecutor(max_workers=2 + len(ROAD_LAYERS)) as pool:
+        f_img = pool.submit(_fetch, "World_Imagery", bbox, size)
+        f_fema = pool.submit(_fetch_fema, bbox, size) if flood else None
+        f_roads = [pool.submit(_fetch, layer, bbox, size, True) for layer in ROAD_LAYERS]
         try:
-            fema, flood_kinds = _strengthen_flood(fit(_fetch_fema(bbox, size)))
-            img = Image.alpha_composite(img, fema)
+            img = fit(f_img.result())
         except (requests.RequestException, OSError):
-            flood = None  # FEMA's server is down: the aerial is still useful, and the legend says so
-    for layer in ROAD_LAYERS:  # road symbols and names, place names
-        try:
-            img = Image.alpha_composite(img, fit(_fetch(layer, bbox, size, transparent=True)))
-        except (requests.RequestException, OSError):
-            pass
+            img = Image.new("RGBA", size, (60, 60, 60, 255))
+            ImageDraw.Draw(img).text((20, 20), "Aerial unavailable (Esri imagery did not respond)", fill="white",
+                                     font=_label_font(22))
+        if f_fema is not None:
+            try:
+                fema, flood_kinds = _strengthen_flood(fit(f_fema.result()))
+                img = Image.alpha_composite(img, fema)
+            except (requests.RequestException, OSError):
+                flood = None  # FEMA's server is down: the aerial is still useful, and the legend says so
+        for fut in f_roads:  # road symbols and names, place names
+            try:
+                img = Image.alpha_composite(img, fit(fut.result()))
+            except (requests.RequestException, OSError):
+                pass
     minx, miny, maxx, maxy = bbox
 
     def px(coords):
@@ -256,12 +262,11 @@ def build(site, refresh=False):
         raise ValueError("This site has no parcels")
     deals = [d for d, _ in pairs]
     parcels = [d.parcel for d in deals]
-    for p in parcels:
-        if refresh or _checks_missing(p):
-            try:
-                run_checks(p)
-            except Exception:  # an agency being down shouldn't stop the brief
-                pass
+    stale = [p for p in parcels if refresh or _checks_missing(p)]
+    try:
+        run_checks_many(stale)  # all the parcels at once; each check inside is already parallel
+    except Exception:  # an agency being down shouldn't stop the brief
+        pass
     acres = {p.pk: d.acres for d, p in zip(deals, parcels)}
     gross = sum(acres.values())
     ck = lambda p, name: (p.checks or {}).get(name) or {}  # noqa: E731
@@ -607,8 +612,11 @@ def pdf_css():
 def embed(brief):
     """Put the site's two aerials into the brief as data URIs, for the standalone PDF page."""
     geoms, outline = site_geometries(brief["site"])
-    brief["aerial_site"] = data_uri(render_aerial(geoms, outline, mode="site", size=SITE_SIZE), "image/jpeg")
-    brief["aerial_context"] = data_uri(render_aerial(geoms, outline, mode="context", size=CONTEXT_SIZE), "image/jpeg")
+    with ThreadPoolExecutor(max_workers=2) as pool:  # the close-up and the context map at once
+        near = pool.submit(render_aerial, geoms, outline, "site", SITE_SIZE)
+        wide = pool.submit(render_aerial, geoms, outline, "context", CONTEXT_SIZE)
+        brief["aerial_site"] = data_uri(near.result(), "image/jpeg")
+        brief["aerial_context"] = data_uri(wide.result(), "image/jpeg")
     return brief
 
 
