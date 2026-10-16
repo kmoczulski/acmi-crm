@@ -26,6 +26,32 @@
   </div>
 
   <aside>
+    <section class="panel" id="report">
+      <h3>Weekly update · week of {{ week_of|date:"M j" }}</h3>
+      {% if report and report.status == "sent" %}
+        <p class="lc-small" style="margin:0">Sent {{ report.sent_at|date:"M j, g:i a" }}{% if report.sent_by %} by {{ report.sent_by|username }}{% endif %} to {{ report.recipients }}.
+          <a href="{% url 'crm:campus_report' campus.code report.pk %}">View / print</a></p>
+      {% elif report %}
+        <form method="post">{% csrf_token %}<input type="hidden" name="report" value="{{ report.pk }}">
+          <textarea name="body" rows="18" class="campus-report-body">{{ report.body }}</textarea>
+          <label class="lc-small muted" style="display:block">To <input name="recipients" value="{{ report.recipients }}" style="width:100%"></label>
+          <div class="inline-form" style="margin-top:6px">
+            <button class="btn btn-small" name="action" value="save_report">Save</button>
+            {% if IS_MANAGER %}<button class="btn btn-small btn-primary" name="action" value="send_report" onclick="return confirm('Send this update to the people listed?')">Send</button>{% endif %}
+            <a class="btn btn-small" href="{% url 'crm:campus_report' campus.code report.pk %}">Print</a>
+          </div>
+        </form>
+        <form method="post" style="margin-top:6px">{% csrf_token %}<button class="btn-link btn-small" name="action" value="draft_report">Re-draft with Claude</button>
+          <span class="muted lc-small">drafted {{ report.generated_at|date:"M j, g:i a" }}; your edits are replaced</span></form>
+      {% elif ai_ready %}
+        <form method="post">{% csrf_token %}<button class="btn btn-primary" name="action" value="draft_report" onclick="this.textContent='Drafting… about a minute'">Draft this week's update with Claude</button></form>
+        <p class="muted lc-small" style="margin-bottom:0">Claude writes one line per item from this tab, using only what's here. Edit it, then a manager sends it from their Gmail.</p>
+      {% else %}
+        <p class="muted lc-small" style="margin:0">Add ANTHROPIC_API_KEY to .env to have Claude draft it, or use "Weekly update email" above.</p>
+      {% endif %}
+      {% if past_reports %}<div class="lc-small" style="margin-top:8px"><b>Earlier weeks:</b> {% for p in past_reports %}<a href="{% url 'crm:campus_report' campus.code p.pk %}">{{ p.week_of|date:"M j" }}</a>{% if p.status == "draft" %} (draft){% endif %}{% if not forloop.last %} · {% endif %}{% endfor %}</div>{% endif %}
+    </section>
+
     <section class="panel">
       <h3>What happened · last {{ feed_days }} days</h3>
       {% for d in feed %}

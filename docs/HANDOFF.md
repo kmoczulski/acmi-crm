@@ -758,7 +758,12 @@ archive first, then the Summary tab, then the weekly Claude draft; next module a
   court (us / them / third party), promised-for date, date; the latest shows on the line, earlier ones fold away.
   "Weekly update email" gives the whole tab in Simon's bullet format to paste. Checked on a copy of the real DB: MEIH
   shows 14 tenants, 16 sites, 2 projects (e.g. ERG "no reply in 22 days (we wrote Sep 24)").
-  Next: the weekly draft by Claude (approve & send, PDF with the logo) on top of these lines.
+- **Weekly update drafted by Claude** (`crm/campus_ai.py`, `CampusReport`, migration 0034): "Draft this week's update
+  with Claude" on the Summary tab sends the tab's facts (items, this week's updates, flags, the week's activity, meeting
+  notes, last week's sent update) to Claude Opus 5.5 (structured JSON, effort medium, server-side refusal fallback on)
+  and saves one draft per campus per week in the team's bullet format. Edit it in place; a Manager sends it from their
+  own Gmail (HTML with the logo + plain text; recipients default to last week's, else the outreach report list); sent
+  weeks are kept read-only and printable (`/campuses/<code>/reports/<id>/`, logo on the page).
 - **Go-live plumbing:** `ACMI_SEND_JOB` makes Send start a Cloud Run job (`crm/cloudrun.py`, REST + metadata-server
   token, no new library) instead of a local process; a job that won't start fails the batch instead of blocking sends.
   `manage.py sync_all` (mail, then calendar) is what the Cloud Run sync job runs; `cloudbuild.yaml` deploys

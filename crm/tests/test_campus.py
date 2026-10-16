@@ -2,6 +2,7 @@
 import tempfile
 from datetime import timedelta
 from pathlib import Path
+from unittest import mock
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
@@ -139,6 +140,78 @@ class CampusSummaryTests(TestCase):
         self.client.force_login(self.user)
         self.client.post(f"/campuses/updates/{u.pk}/delete/")
         self.assertFalse(CampusUpdate.objects.filter(pk=u.pk).exists())
+
+    def fake_claude(self, payload=None, stop_reason="end_turn"):
+        import json as _json
+        from types import SimpleNamespace
+
+        payload = payload or {"intro": "", "sections": [
+            {"title": "Tenants", "items": [{"name": "ARA", "line": "finished GC interviews; still waiting on redlines, "
+                                                           "promised 5 weeks ago", "sub_items": []}]},
+            {"title": "Land", "items": [{"name": "Outside the Gate", "line": "",
+                                         "sub_items": ["Wamsley - has our draft", "Kroc David - attorneys connecting"]}]},
+            {"title": "Projects", "items": []}]}
+        create = mock.Mock(return_value=SimpleNamespace(
+            stop_reason=stop_reason, model="claude-opus-5-5",
+            content=[SimpleNamespace(type="text", text=_json.dumps(payload))]))
+        client = SimpleNamespace(beta=SimpleNamespace(messages=SimpleNamespace(create=create)))
+        return mock.patch("anthropic.Anthropic", return_value=client), create
+
+    @mock.patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test"})
+    def test_claude_drafts_from_the_tabs_facts_and_a_manager_sends_it(self):
+        from crm import campus_ai
+        from crm.models import CampusReport, Mailbox
+        from crm.tests.test_outreach import FakeSmtp
+
+        patcher, create = self.fake_claude()
+        with patcher:
+            r = self.client.post("/campuses/MEIH/", {"action": "draft_report"})
+        self.assertEqual(r.status_code, 302)
+        report = CampusReport.objects.get(campus=self.meih)
+        self.assertIn("  - ARA - finished GC interviews; still waiting on redlines", report.body)
+        self.assertIn("  - Outside the Gate\n      - Wamsley - has our draft", report.body)
+        self.assertNotIn("Projects", report.body)  # empty sections are left out
+        kwargs = create.call_args.kwargs
+        self.assertEqual(kwargs["model"], "claude-opus-5-5")
+        self.assertEqual(kwargs["output_config"]["format"]["type"], "json_schema")
+        self.assertEqual(kwargs["fallbacks"], "default")
+        sent_facts = kwargs["messages"][0]["content"]
+        for fact in ("- ARA [LOI / PDA negotiation]", "Finished GC interviews", "flag: no reply in 20 days",
+                     "owner: Wamsley", "- The Forge"):
+            self.assertIn(fact, sent_facts)
+
+        Mailbox.objects.create(user=self.user, email="simon@acmigroup.com")
+        FakeSmtp.sent = []
+        with mock.patch("crm.outreach.sender.Smtp", FakeSmtp):
+            self.client.post("/campuses/MEIH/", {"action": "send_report", "report": report.pk,
+                                                 "body": report.body + "Edited by Simon\n",
+                                                 "recipients": "dave@acmigroup.com, john@acmigroup.com"})
+        report.refresh_from_db()
+        self.assertEqual((report.status, report.sent_by), ("sent", self.user))
+        self.assertIn("Edited by Simon", report.body)
+        msg = FakeSmtp.sent[0]
+        self.assertEqual(msg["To"], "dave@acmigroup.com, john@acmigroup.com")
+        self.assertIn("MEIH update, week of", msg["Subject"])
+        with self.assertRaises(campus_ai.DraftUnavailable):  # a sent week is never overwritten
+            campus_ai.draft(self.meih)
+        page = self.client.get(f"/campuses/MEIH/reports/{report.pk}/")
+        self.assertContains(page, "report-logo")
+        self.assertContains(page, "Edited by Simon")
+
+    @mock.patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test"})
+    def test_refusal_and_non_manager_send(self):
+        from crm import campus_ai
+        from crm.models import CampusReport
+
+        patcher, _ = self.fake_claude(stop_reason="refusal")
+        with patcher, self.assertRaises(campus_ai.DraftUnavailable):
+            campus_ai.draft(self.meih)
+        report = CampusReport.objects.create(campus=self.meih, week_of=campus_ai.week_of(), body="x\n")
+        self.client.force_login(User.objects.create_user("joe"))
+        self.client.post("/campuses/MEIH/", {"action": "send_report", "report": report.pk, "body": "x",
+                                             "recipients": "dave@acmigroup.com"})
+        report.refresh_from_db()
+        self.assertEqual(report.status, "draft")
 
     def test_feed_groups_the_week_by_day(self):
         days = campus_mod.feed(self.meih, self.today)

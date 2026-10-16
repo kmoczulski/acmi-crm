@@ -42,6 +42,7 @@ urlpatterns = [
     path("summary/<str:kind>/<int:pk>/", views.summary_refresh, name="summary_refresh"),
     path("campuses/", campus_views.campus_index, name="campus_index"),
     path("campuses/<str:code>/", campus_views.campus_summary, name="campus_summary"),
+    path("campuses/<str:code>/reports/<int:pk>/", campus_views.campus_report, name="campus_report"),
     path("campuses/updates/<int:pk>/delete/", campus_views.campus_update_delete, name="campus_update_delete"),
     path("projects/", views.project_list, name="project_list"),
     path("projects/<int:pk>/", views.project_detail, name="project_detail"),

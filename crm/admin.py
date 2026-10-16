@@ -81,3 +81,9 @@ class CampusUpdateAdmin(admin.ModelAdmin):
     list_display = ("happened_on", "campus", "workstream", "text", "waiting_on", "author")
     list_filter = ("campus", "workstream", "waiting_on")
     search_fields = ("text",)
+
+
+@admin.register(models.CampusReport)
+class CampusReportAdmin(admin.ModelAdmin):
+    list_display = ("week_of", "campus", "status", "sent_by", "sent_at")
+    list_filter = ("campus", "status")

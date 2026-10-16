@@ -692,3 +692,5 @@ details.archive { background: #fafbfc; }
 .campus-day { margin-bottom: 8px; font-size: 13px; }
 .campus-feed { list-style: none; margin: 4px 0 0; padding: 0; }
 .campus-feed li { padding: 2px 0; font-size: 12px; }
+.campus-report-body { width: 100%; font-family: ui-monospace, Consolas, monospace; font-size: 12px; }
+.campus-report-print { white-space: pre-wrap; font-family: inherit; font-size: 14px; margin: 0; }

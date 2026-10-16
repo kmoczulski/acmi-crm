@@ -809,6 +809,34 @@ class CampusUpdate(models.Model):
         return self.text[:60]
 
 
+class CampusReport(models.Model):
+    """The weekly campus update: drafted by Claude from the Summary tab (crm/campus_ai.py), edited by the team,
+    then sent by a manager from their own Gmail. One per campus per week; sent ones are kept as the archive."""
+
+    class Status(models.TextChoices):
+        DRAFT = "draft", "Draft"
+        SENT = "sent", "Sent"
+
+    campus = models.ForeignKey(Campus, on_delete=models.CASCADE, related_name="reports")
+    week_of = models.DateField(help_text="Monday of the week the update covers")
+    body = models.TextField(help_text="The update as it goes out (plain text, bullet lines)")
+    status = models.CharField(max_length=6, choices=Status.choices, default=Status.DRAFT)
+    model = models.CharField(max_length=60, blank=True, help_text="Claude model that wrote the draft")
+    generated_at = models.DateTimeField(null=True, blank=True)
+    created_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    recipients = models.TextField(blank=True, help_text="Comma-separated addresses it went (or goes) to")
+    sent_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    sent_at = models.DateTimeField(null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-week_of"]
+        constraints = [models.UniqueConstraint(fields=["campus", "week_of"], name="one_campus_report_per_week")]
+
+    def __str__(self):
+        return f"{self.campus.code} week of {self.week_of:%b %d}"
+
+
 class MeetingTranscript(models.Model):
     """A meeting's full transcript, kept for good: Granola's free plan only shows the last 30 days. Each one is
     also written out as a .txt file (crm/transcripts.py, settings.TRANSCRIPT_DIR). Managers only."""
