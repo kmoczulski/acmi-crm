@@ -698,8 +698,11 @@ Barnes Farm (Casa Grande, Pinal), I-10 | I-8 Business Park / Petersen Park (Eloy
 - Top items: password sign-in can't be switched off (`ACMI_LOCAL_LOGIN=false` only hides the form); no roles; outreach
   batches can double-send; a failed live re-check drops the flood deal-killer; map clicks mislabel NC counties / duplicate
   merged Hays parcels; no production logging; Cloud Build has no migrate step; public land (Redstone, TVA) scores 60-80.
-- **Fixes made (same night)** on branch `worktree-audit-fixes` (worktree `.claude/worktrees/audit-fixes`), 215 tests:
-  see the "Fix status" table at the top of `docs/AUDIT_REPORT.md`. Things to know after merging:
+- **Fixes made and merged (same night):** main at `aef3d2b`, 225 tests; see the "Fix status" table at the top of
+  `docs/AUDIT_REPORT.md`. On the real DB: backup `backups/db-2026-10-16-before-audit-fixes.sqlite3`, migrations
+  0031-0032 applied (all 7 accounts in Managers), `clean_parcels --commit` removed 89 parcels (44 Pinal + 1 Maricopa
+  slivers, 25 Pinal + 19 Cumberland duplicate outlines), `score_parcels` rescored 132,193 (no federal parcel at 60+ now,
+  was 238). Things to know:
   - Password sign-in is checked by `crm.auth.PasswordBackend` / `AllauthBackend`; everyone is signed out once.
   - Site deal rows are written when parcels join or leave a site (`tracker.ensure_deals`), never on reads; pages use
     `tracker.site_deals()`.
