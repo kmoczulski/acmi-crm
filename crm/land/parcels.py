@@ -445,7 +445,7 @@ def clean_stored(county=None, commit=False):
                 report[label]["slivers kept (team work)"] += 1
             else:
                 remove.append(p.pk)
-                report[label]["slivers removed"] += 1
+                report[label]["slivers"] += 1
             continue
         groups[(label, reload_sig(p.min_lon, p.min_lat, p.max_lon, p.max_lat, p.acres))].append(p)
     for (label, _sig), ps in groups.items():
@@ -455,11 +455,12 @@ def clean_stored(county=None, commit=False):
                 reverse=True)
         keep, others = ps[0], ps[1:]
         dropped = [o for o in others if o.pk not in team]
-        report[label]["duplicates kept (team work)"] += len(others) - len(dropped)
+        if len(others) > len(dropped):
+            report[label]["duplicates kept (team work)"] += len(others) - len(dropped)
         if not dropped:
             continue
         remove.extend(o.pk for o in dropped)
-        report[label]["duplicate outlines removed"] += len(dropped)
+        report[label]["duplicate outlines"] += len(dropped)
         if "[same shape as" not in (keep.legal_desc or ""):
             notes[keep.pk] = same_shape_legal({"owner_name": keep.owner_name, "legal_desc": keep.legal_desc},
                                               [o.key for o in dropped], [o.owner_name for o in dropped],
@@ -479,7 +480,9 @@ def rescore(queryset=None, remeasure=False, log=print):
     layers.reset_cache()
     batch, n = [], 0
     fields = ["score", "score_reasons", "killers", "zoning_class"] + (["near", "in_city"] if remeasure else [])
-    for p in qs.select_related("county").iterator(chunk_size=1000):
+    # By id, not the default -score order: SQLite doesn't isolate a running read from writes on the same connection,
+    # so walking the score index while rewriting scores visited ~1,500 parcels twice (and miscounted).
+    for p in qs.select_related("county").order_by("pk").iterator(chunk_size=1000):
         if remeasure:
             p.near, p.in_city = layers.measure(shape(json.loads(p.geometry)))
         score.apply(p)

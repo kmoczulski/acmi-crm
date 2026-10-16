@@ -560,6 +560,20 @@ class LoaderTidyTests(LandFixtures):
         self.assertIn("JONES", c.legal_desc)
         self.assertFalse(Parcel.objects.filter(pk__in=[a.pk, b.pk, sliver.pk]).exists())
 
+    def test_rescore_walks_parcels_by_id(self):
+        # Scores change during the run. On the real (file) database, walking the score index (the default order)
+        # visited ~1,500 parcels twice; an in-memory test database sorts up front and hides that, so check the order.
+        geom = json.dumps(mapping(box(-77.0, 38.4, -76.99, 38.41)))
+        Parcel.objects.bulk_create([
+            Parcel(county=self.county, key=f"K{i}", owner_name="UNITED STATES OF AMERICA", acres=100.0, score=90,
+                   lat=38.405, lon=-76.995, min_lon=-77.0, min_lat=38.4, max_lon=-76.99, max_lat=38.41, geometry=geom)
+            for i in range(1500)])
+        with CaptureQueriesContext(connection) as q:
+            self.assertEqual(parcels.rescore(log=lambda *a: None), 1500)
+        select = next(x["sql"] for x in q.captured_queries if x["sql"].startswith("SELECT") and "crm_parcel" in x["sql"])
+        self.assertIn('ORDER BY "crm_parcel"."id" ASC', select)
+        self.assertFalse(Parcel.objects.filter(score__gt=score.FEDERAL_CAP).exists())
+
     def test_clean_stored_keeps_the_record_with_team_work(self):
         make_parcel(self.county, "1234", -77.0, 38.4)
         make_parcel(self.county, "OID9", -77.0, 38.4, notes="Owner called back")

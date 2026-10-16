@@ -26,8 +26,10 @@ class Command(BaseCommand):
             if county is None:
                 raise CommandError(f"{opts['county']!r}: not a loaded county")
         report, removed = clean_stored(county, commit=opts["commit"])
+        verb = "removed" if opts["commit"] else "to remove"
         for label, counts in sorted(report.items()):
-            self.stdout.write(f"{label}: " + ", ".join(f"{n:,} {what}" for what, n in sorted(counts.items())))
+            self.stdout.write(f"{label}: " + ", ".join(f"{n:,} {what}" + ("" if "kept" in what else f" {verb}")
+                                                       for what, n in sorted(counts.items())))
         if not report:
             self.stdout.write("Nothing to tidy.")
         verb = "Removed" if opts["commit"] else "Would remove"
