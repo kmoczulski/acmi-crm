@@ -678,3 +678,17 @@ details.archive { background: #fafbfc; }
 .zd-card .zd-ul { margin: 2px 0 4px 16px; padding: 0; list-style: disc; }
 .zd-card .zd-h { font-size: 10.5px; text-transform: uppercase; letter-spacing: .05em; color: #6b7480; margin-top: 6px; }
 .zd-card .zd-t { width: 100%; border-collapse: collapse; } .zd-card .zd-t th { text-align: left; width: 72px; color: #6b7480; font-weight: 600; vertical-align: top; }
+
+/* Campus summary (/campuses/<code>/) */
+.campus-layout { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 16px; align-items: start; }
+@media (max-width: 1000px) { .campus-layout { grid-template-columns: 1fr; } }
+.campus-item { padding: 8px 0; border-bottom: 1px solid var(--line); }
+.campus-item:last-of-type { border-bottom: 0; }
+.campus-line { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.campus-owners { margin: 4px 0 0 18px; padding: 0; font-size: 12px; }
+.campus-add summary { cursor: pointer; margin-top: 4px; }
+.campus-form textarea { width: 100%; margin: 6px 0; }
+.campus-update { padding: 2px 0; }
+.campus-day { margin-bottom: 8px; font-size: 13px; }
+.campus-feed { list-style: none; margin: 4px 0 0; padding: 0; }
+.campus-feed li { padding: 2px 0; font-size: 12px; }

@@ -1,4 +1,4 @@
-{% load crm_tags %}
+{% load crm_tags humanize %}
 <div class="meeting-panel">
   <div class="mp-head">
     <div>
@@ -7,6 +7,7 @@
       <div style="margin-top:6px">
         {% for c in m.companies.all %}<a class="chip chip-project" href="{{ c.get_absolute_url }}">{{ c.name }}</a>{% endfor %}
         {% if m.url %}<a href="{{ m.url }}" target="_blank" rel="noopener" style="font-size:12px">{% if m.source == 'granola' %}Open in Granola{% else %}Open in Google Calendar{% endif %} ↗</a>{% endif %}
+        {% if IS_MANAGER and m.transcript %}<a href="{% url 'crm:meeting_transcript' m.pk %}" style="font-size:12px;margin-left:8px">Transcript (.txt, {{ m.transcript.words|intcomma }} words)</a>{% endif %}
       </div>
     </div>
     <button type="button" class="btn btn-small" data-close>Close</button>

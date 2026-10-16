@@ -1181,6 +1181,20 @@ def meeting_panel(request, pk):
     })
 
 
+@manager_required
+def meeting_transcript(request, pk):
+    """The saved transcript as a .txt download (Managers only: transcripts can hold NDA material)."""
+    from . import transcripts
+
+    m = get_object_or_404(Meeting.objects.prefetch_related("companies"), pk=pk)
+    t = getattr(m, "transcript", None)
+    if t is None:
+        raise Http404("No transcript saved for this meeting.")
+    resp = HttpResponse(transcripts.as_text(t), content_type="text/plain; charset=utf-8")
+    resp["Content-Disposition"] = f'attachment; filename="{transcripts.file_name(m)}"'
+    return resp
+
+
 @require_POST
 def meeting_make_task(request, pk):
     m = get_object_or_404(Meeting, pk=pk)

@@ -44,6 +44,7 @@
 
     <details class="nav-sec" data-key="development" open>
       <summary>Development</summary>
+      <a href="{% url 'crm:campus_index' %}" class="nav-1 {% if '/campuses/' in p %}active{% endif %}">Campus summary</a>
       <details class="nav-sub" data-key="land">
         <summary><a href="{% url 'crm:land_search' %}" class="nav-1 {% if p == '/land/' %}active{% endif %}">Land search</a></summary>
         <a href="{% url 'crm:land_sites_page' %}" class="nav-2 {% if '/land/sites/' in p %}active{% endif %}">Sites</a>

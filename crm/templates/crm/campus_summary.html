@@ -1,0 +1,50 @@
+{% extends "crm/base.html" %}
+{% load crm_tags humanize %}
+{% block title %}{{ campus.code }} summary · ACMI CRM{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>{{ campus.code }} <span class="muted" style="font-weight:400">· {{ campus.name }}</span></h1>
+  {% for c in campuses %}{% if c.pk != campus.pk %}<a class="btn btn-small" href="{% url 'crm:campus_summary' c.code %}">{{ c.code }}</a>{% endif %}{% endfor %}
+  <span class="spacer"></span>
+  <button type="button" class="btn" onclick="document.getElementById('email-dialog').showModal()">Weekly update email</button>
+</div>
+<p class="muted" style="margin-top:0">Every tenant, land site and project on the campus with its latest status, who the ball is with
+  and how long it has been. Lines come from deals, email, meetings and land milestones; add an update for anything that happened
+  off-system (a call, a site visit). <span class="overdue">Red</span> = needs a nudge.</p>
+
+<div class="campus-layout">
+  <div>
+    {% with title="Tenants" items=tenants kind="opp" %}{% include "crm/partials/campus_section.html" %}{% endwith %}
+    {% with title="Land" items=land kind="site" %}{% include "crm/partials/campus_section.html" %}{% endwith %}
+    {% with title="Projects" items=projects kind="project" %}{% include "crm/partials/campus_section.html" %}{% endwith %}
+
+    <section class="panel" id="other">
+      <h3>Other</h3>
+      {% for u in other %}{% include "crm/partials/campus_update_row.html" %}{% empty %}<p class="muted" style="margin:0">Nothing yet.</p>{% endfor %}
+      {% include "crm/partials/campus_update_form.html" with target="other" anchor="other" %}
+    </section>
+  </div>
+
+  <aside>
+    <section class="panel">
+      <h3>What happened · last {{ feed_days }} days</h3>
+      {% for d in feed %}
+        <div class="campus-day"><b>{{ d.day|date:"D, M j" }}</b>
+          <ul class="campus-feed">{% for r in d.rows %}<li><span class="tag">{{ r.kind }}</span> {{ r.what }}</li>{% endfor %}</ul>
+        </div>
+      {% empty %}<p class="muted" style="margin:0">No activity in that time.</p>{% endfor %}
+      <p class="lc-small" style="margin-bottom:0"><a href="?days=14">Show two weeks</a> · <a href="?days=30">30 days</a></p>
+    </section>
+  </aside>
+</div>
+
+<dialog id="email-dialog" class="meeting-dialog">
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+    <h2 style="margin:0">Weekly update · {{ campus.code }}</h2>
+    <div><button type="button" class="btn" onclick="navigator.clipboard.writeText(document.getElementById('email-text').value);this.textContent='Copied'">Copy</button>
+      <button type="button" class="btn" onclick="this.closest('dialog').close()">Close</button></div>
+  </div>
+  <p class="muted lc-small">The tab's lines in the usual bullet format. Paste into an email and edit as you like.</p>
+  <textarea id="email-text" rows="24" style="width:100%;font-family:ui-monospace,Consolas,monospace;font-size:12px">{{ email }}</textarea>
+</dialog>
+{% endblock %}

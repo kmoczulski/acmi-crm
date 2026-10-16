@@ -175,6 +175,9 @@ if GOOGLE_SIGNIN_ENABLED:
     }
 # Keep each person's Google token (encrypted at rest by the database host in production).
 SOCIALACCOUNT_STORE_TOKENS = True
+# Meeting transcripts are also written as .txt files here, one folder per campus (crm/transcripts.py). Point it at a
+# shared-drive folder that only the right people can open (transcripts can hold NDA material).
+TRANSCRIPT_DIR = Path(env("ACMI_TRANSCRIPT_DIR", BASE_DIR / "data" / "transcripts"))
 # Calendar sync window: this many days back and ahead of today.
 CALENDAR_DAYS_BACK = int(env("ACMI_CALENDAR_DAYS_BACK", "90"))
 CALENDAR_DAYS_AHEAD = int(env("ACMI_CALENDAR_DAYS_AHEAD", "60"))
@@ -189,6 +192,20 @@ IMAP_HOST = env("ACMI_IMAP_HOST", "imap.gmail.com")
 NEWS_WATCH_FOLDER = env("ACMI_NEWS_WATCH_FOLDER", r"C:/Users/Kemoc/Desktop/Prospecting/Weekly News Search")
 # Shared secret for the scheduler that calls /internal/sync-mail/ in production.
 CRON_SECRET = env("ACMI_CRON_SECRET", "")
+# Production: the Cloud Run job that sends outreach batches (crm/cloudrun.py); unset = a local background process.
+SEND_JOB = env("ACMI_SEND_JOB", "")
+GCP_PROJECT = env("ACMI_GCP_PROJECT", "")  # default: read from the metadata server
+GCP_REGION = env("ACMI_GCP_REGION", "")
+
+# Uploaded documents and outreach attachments in a Cloud Storage bucket when ACMI_GCS_BUCKET is set (Cloud Run's own
+# disk is wiped on restart). Credentials come from the service account; files are served through the app.
+GCS_BUCKET = env("ACMI_GCS_BUCKET", "")
+if GCS_BUCKET:
+    STORAGES["default"] = {
+        "BACKEND": "storages.backends.gcloud.GoogleCloudStorage",
+        "OPTIONS": {"bucket_name": GCS_BUCKET, "default_acl": None, "querystring_auth": True,
+                    "file_overwrite": False},
+    }
 
 # --- Security headers ------------------------------------------------------
 # Scripts may only come from this site and the pinned unpkg files (which also carry integrity hashes). Inline scripts

@@ -77,3 +77,6 @@ addresses, newsletters and protected addresses is never logged.
 | `ACMI_CSP` | scripts from this site and unpkg | Content-Security-Policy header |
 | `ACMI_LOG_LEVEL` | `WARNING` | Console logging level for the app (errors always print) |
 | `ACMI_CHROME`, `ACMI_CHROME_NO_SANDBOX` | found on PATH; off | Chrome / Edge for PDF briefs; `1` in containers (set in the Dockerfile) |
+| `ACMI_TRANSCRIPT_DIR` | `data/transcripts` | Where meeting transcripts are written as `.txt` (one folder per campus); use a restricted shared-drive folder |
+| `ACMI_SEND_JOB`, `ACMI_GCP_PROJECT`, `ACMI_GCP_REGION` | unset | Production: the Cloud Run job that sends outreach batches (project / region default to the metadata server) |
+| `ACMI_GCS_BUCKET` | unset | Production: Cloud Storage bucket for uploads and outreach attachments |

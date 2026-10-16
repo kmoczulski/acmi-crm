@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import views
+from . import campus_views, views
 from .land import assignment_views as asg_views
 from .land import brief_views
 from .land import views as land_views
@@ -40,6 +40,9 @@ urlpatterns = [
     path("reports/pipeline/", views.pipeline_report, name="pipeline_report"),
     path("reports/pipeline.xlsx", views.pipeline_report_xlsx, name="pipeline_report_xlsx"),
     path("summary/<str:kind>/<int:pk>/", views.summary_refresh, name="summary_refresh"),
+    path("campuses/", campus_views.campus_index, name="campus_index"),
+    path("campuses/<str:code>/", campus_views.campus_summary, name="campus_summary"),
+    path("campuses/updates/<int:pk>/delete/", campus_views.campus_update_delete, name="campus_update_delete"),
     path("projects/", views.project_list, name="project_list"),
     path("projects/<int:pk>/", views.project_detail, name="project_detail"),
     path("tasks/", views.task_list, name="task_list"),
@@ -55,6 +58,7 @@ urlpatterns = [
     path("meetings/sync/", views.calendar_sync_now, name="calendar_sync_now"),
     path("meetings/<int:pk>/panel/", views.meeting_panel, name="meeting_panel"),
     path("meetings/<int:pk>/task/", views.meeting_make_task, name="meeting_make_task"),
+    path("meetings/<int:pk>/transcript.txt", views.meeting_transcript, name="meeting_transcript"),
     path("notes/add/", views.note_add, name="note_add"),
     path("lists/", views.list_index, name="list_index"),
     path("lists/<int:pk>/", views.list_detail, name="list_detail"),

@@ -3,7 +3,10 @@
 Input is a JSON list (written by the scheduled Claude task, or by hand), one object per meeting:
 
     {"source": "granola" | "calendar", "id": "...", "title": "...", "start": "2026-10-14T08:00:00-05:00",
-     "end": "...", "url": "...", "summary": "<Granola markdown>", "attendees": [{"email": "...", "name": "..."}]}
+     "end": "...", "url": "...", "summary": "<Granola markdown>", "attendees": [{"email": "...", "name": "..."}],
+     "transcript": "<text>" or [{"speaker": "...", "text": "...", "start": "..."}]}
+
+A transcript is saved for good (crm/transcripts.py) and written to a .txt file once the import commits.
 
 Every meeting with at least one other person (or real notes) becomes a Meeting on the calendar.
 A calendar event within 15 minutes of a Granola note with a similar title is the same meeting.
@@ -21,7 +24,7 @@ from django.db import transaction
 from django.utils import timezone
 from django.utils.safestring import mark_safe
 
-from . import interactions
+from . import interactions, transcripts
 from .models import Activity, Company, CompanyStatus, Meeting, Person, suppress_history
 
 INTERNAL_DOMAINS = {"acmigroup.com"}
@@ -177,8 +180,8 @@ def import_meetings(meetings):
     people = {p.email: p for p in Person.objects.filter(email__in=emails).select_related("company")}
     now = timezone.now()
     stats = {"meetings": 0, "calendar": 0, "skipped": 0, "created": 0, "updated": 0, "internal_only": 0,
-             "merged": 0, "unmatched": set()}
-    touched = set()
+             "merged": 0, "transcripts": 0, "unmatched": set()}
+    touched, saved = set(), []
     token = suppress_history.set(True)
     try:
         for m in meetings:
@@ -197,8 +200,9 @@ def import_meetings(meetings):
                 elif email.rsplit("@", 1)[-1] not in FREE_MAIL:
                     stats["unmatched"].add(email.rsplit("@", 1)[-1])
             summary = clean_summary(m.get("summary"))
+            has_transcript = bool(transcripts.normalize(m.get("transcript")))
             others = [a for a in attendees if a["email"].lower() not in team or len(internal) > 1]
-            if len(attendees) < 2 and not summary:
+            if len(attendees) < 2 and not summary and not has_transcript:
                 stats["skipped"] += 1  # solo calendar blocks ("Gym") and empty notes
                 continue
 
@@ -213,6 +217,11 @@ def import_meetings(meetings):
             meeting.team.add(*internal)
             meeting.companies.add(*by_company.keys())
             stats["calendar"] += 1
+            if has_transcript:
+                saved_t = transcripts.save(meeting, m.get("transcript"), m.get("source") or "granola")
+                if saved_t:
+                    saved.append(saved_t.pk)
+                    stats["transcripts"] += 1
 
             if not by_company:
                 stats["internal_only"] += 1
@@ -239,6 +248,8 @@ def import_meetings(meetings):
     finally:
         suppress_history.reset(token)
     interactions.recompute(company_ids=touched, person_ids=[])
+    if saved:  # the .txt copies, once the rows are committed
+        transaction.on_commit(lambda: transcripts.export_all())
     stats["unmatched"] = sorted(stats["unmatched"])
     return stats
 

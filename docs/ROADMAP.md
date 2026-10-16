@@ -1,5 +1,10 @@
 # Improvements review (2026-10-16)
 
+**Status (2026-10-16, night):** Kellen took the recommendations. Done: the audit fixes and roles; the repo on GitHub
+with CI; the transcript archive in the CRM (waiting on the Granola connector to pull from Granola); the campus Summary
+tab v1; Cloud Run jobs and Cloud Storage support in code. Next: connect Granola and start the daily archive, the weekly
+Claude draft, then the contract & critical-dates module. Details in `docs/HANDOFF.md` ("roadmap phase 1").
+
 What to build next, after the audit fixes. Four parts: what blocks going live, the campus summary (Kellen's proposal,
 worked through), the platform seen by a developer who has taken land from sourcing through construction, and the
 smaller items the audit turned up. Section 5 is the suggested order.

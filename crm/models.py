@@ -772,6 +772,58 @@ class Meeting(models.Model):
         return [a for a in self.attendees if not a.get("email", "").lower().endswith("@acmigroup.com")]
 
 
+class CampusUpdate(models.Model):
+    """A one-line update on a campus workstream item: what happened off-system (a call, a site visit), who the ball is
+    with, and when something was promised. Feeds the campus Summary tab and the weekly campus report (crm/campus.py)."""
+
+    class Workstream(models.TextChoices):
+        TENANT = "tenant", "Tenants"
+        LAND = "land", "Land"
+        PROJECT = "project", "Projects"
+        OTHER = "other", "Other"
+
+    class Waiting(models.TextChoices):
+        NONE = "", "Nobody"
+        US = "us", "Waiting on us"
+        THEM = "them", "Waiting on them"
+        THIRD = "third", "Waiting on a third party"
+
+    campus = models.ForeignKey(Campus, on_delete=models.CASCADE, related_name="updates")
+    workstream = models.CharField(max_length=10, choices=Workstream.choices, default=Workstream.OTHER)
+    opportunity = models.ForeignKey("Opportunity", null=True, blank=True, on_delete=models.SET_NULL,
+                                    related_name="campus_updates")
+    site = models.ForeignKey("LandSite", null=True, blank=True, on_delete=models.SET_NULL, related_name="campus_updates")
+    project = models.ForeignKey(Project, null=True, blank=True, on_delete=models.SET_NULL, related_name="campus_updates")
+    text = models.TextField()
+    waiting_on = models.CharField(max_length=6, choices=Waiting.choices, blank=True)
+    promised_on = models.DateField("promised for", null=True, blank=True,
+                                   help_text="When the thing we're waiting for was promised (redlines, a reply)")
+    happened_on = models.DateField(default=timezone.localdate)
+    author = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-happened_on", "-created_at"]
+
+    def __str__(self):
+        return self.text[:60]
+
+
+class MeetingTranscript(models.Model):
+    """A meeting's full transcript, kept for good: Granola's free plan only shows the last 30 days. Each one is
+    also written out as a .txt file (crm/transcripts.py, settings.TRANSCRIPT_DIR). Managers only."""
+
+    meeting = models.OneToOneField(Meeting, on_delete=models.CASCADE, related_name="transcript")
+    text = models.TextField()
+    source = models.CharField(max_length=20, default="granola")
+    words = models.PositiveIntegerField(default=0)
+    fetched_at = models.DateTimeField(auto_now=True)
+    file_path = models.CharField(max_length=500, blank=True, help_text="Where the .txt copy was last written")
+
+    def __str__(self):
+        return f"Transcript: {self.meeting}"
+
+
 class CalendarSync(models.Model):
     """Per-person Google Calendar sync state (the token itself lives in allauth's SocialToken)."""
 

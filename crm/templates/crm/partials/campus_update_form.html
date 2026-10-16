@@ -1,0 +1,10 @@
+<form method="post" class="campus-form">{% csrf_token %}
+  <input type="hidden" name="target" value="{{ target }}"><input type="hidden" name="anchor" value="{{ anchor }}">
+  <textarea name="text" rows="2" placeholder="What happened? e.g. Spoke with Wamsley Tuesday; he has our draft." required></textarea>
+  <div class="inline-form">
+    <select name="waiting_on">{% for v, l in waiting_choices %}<option value="{{ v }}">{% if v %}{{ l }}{% else %}Ball with: nobody{% endif %}</option>{% endfor %}</select>
+    <label class="lc-small muted">Promised for <input type="date" name="promised_on"></label>
+    <label class="lc-small muted">On <input type="date" name="happened_on"></label>
+    <button class="btn btn-small btn-primary">Add</button>
+  </div>
+</form>

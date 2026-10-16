@@ -9,6 +9,7 @@ from django.views.decorators.http import require_POST
 
 from crm.forms import UserChoiceField, active_users
 from crm.models import EmailTemplate, Mailbox, OutreachFile, OutreachSettings, Person, SendBatch, SendItem
+from crm.cloudrun import JobError
 from crm.permissions import manager_required
 
 from . import queue as outreach_queue
@@ -109,7 +110,13 @@ def outreach_start(request):
         batch = SendBatch.objects.create(created_by=request.user, campaign=settings.current_campaign)
         SendItem.objects.bulk_create([SendItem(batch=batch, person=e.person, template=e.template,
                                                email=e.person.email) for e in entries])
-    start_in_background(batch)  # after the commit, so the sending process sees the batch
+    try:
+        start_in_background(batch)  # after the commit, so the sending process sees the batch
+    except JobError as exc:  # production: the Cloud Run job didn't start; don't leave a batch blocking new sends
+        SendBatch.objects.filter(pk=batch.pk, status=SendBatch.Status.QUEUED).update(
+            status=SendBatch.Status.FAILED, error=str(exc), finished_at=timezone.now())
+        messages.error(request, f"{exc}. Nothing was sent.")
+        return redirect(batch)
     messages.success(request, f"Sending {len(entries)} emails in the background.")
     return redirect(batch)
 

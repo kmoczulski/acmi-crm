@@ -14,3 +14,4 @@ data/land/
 *.sqlite3-shm
 *.sqlite3-journal
 .claude/worktrees/
+data/transcripts/

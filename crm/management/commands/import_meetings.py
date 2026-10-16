@@ -14,7 +14,8 @@ class Command(BaseCommand):
         self.stdout.write(
             f"{stats['calendar']} meetings on the calendar ({stats['merged']} calendar events merged into Granola notes, "
             f"{stats['skipped']} solo/empty skipped); {stats['meetings']} with outside companies "
-            f"({stats['created']} timeline entries new, {stats['updated']} updated)"
+            f"({stats['created']} timeline entries new, {stats['updated']} updated); "
+            f"{stats['transcripts']} transcripts saved"
         )
         if stats["unmatched"]:
             self.stdout.write("  domains with no company: " + ", ".join(stats["unmatched"][:40]))

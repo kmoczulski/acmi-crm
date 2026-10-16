@@ -74,3 +74,10 @@ try:
     admin.site.unregister(SocialToken)
 except (ImportError, admin.sites.NotRegistered):
     pass
+
+
+@admin.register(models.CampusUpdate)
+class CampusUpdateAdmin(admin.ModelAdmin):
+    list_display = ("happened_on", "campus", "workstream", "text", "waiting_on", "author")
+    list_filter = ("campus", "workstream", "waiting_on")
+    search_fields = ("text",)

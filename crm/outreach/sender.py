@@ -255,9 +255,16 @@ def stop_batch(batch):
 
 
 def start_in_background(batch):
-    """Run the batch in a separate process so the web page doesn't wait (or die) on a long send."""
+    """Run the batch outside the page request: as a Cloud Run job in production (ACMI_SEND_JOB), otherwise as a
+    separate process, so the page doesn't wait (or die) on a long send."""
     import subprocess
     import sys
+
+    if django_settings.SEND_JOB:
+        from crm.cloudrun import run_job
+
+        run_job(django_settings.SEND_JOB, ["manage.py", "send_batch", str(batch.pk)])
+        return
 
     flags = 0
     if sys.platform == "win32":

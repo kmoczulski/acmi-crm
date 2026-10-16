@@ -17,3 +17,4 @@ staticfiles/
 docs/
 *.docx
 *.pdf
+data/transcripts/

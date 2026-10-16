@@ -1,16 +1,20 @@
-# Cloud Build trigger on the GitHub repo's main branch: build, push, migrate, deploy.
+# Cloud Build trigger on the GitHub repo's main branch: build, push, migrate, deploy the jobs and the service.
 #
 # Set on the trigger: _SQL_INSTANCE (project:region:instance) and _GOOGLE_CLIENT_ID; the others have defaults.
 # _HOSTS and _ORIGINS may list several values separated by commas (e.g. add the run.app address while DNS is set up).
+# _BUCKET is the Cloud Storage bucket for uploads and outreach attachments (create it first; blank = local disk).
 #
 # Secrets come from Secret Manager; create them once before the first deploy:
 #   acmi-django-secret-key (50+ random characters), acmi-postgres-password, acmi-cron-secret,
 #   acmi-google-client-secret, acmi-anthropic-api-key, acmi-imap-password-kellen (one per synced mailbox).
-# The Cloud Build service account needs Cloud Run Admin and Service Account User; the Cloud Run runtime service
-# account needs Secret Manager Secret Accessor and Cloud SQL Client.
+# The Cloud Build service account needs Cloud Run Admin and Service Account User. The runtime service account needs
+# Secret Manager Secret Accessor, Cloud SQL Client, Storage Object Admin on the bucket, and Cloud Run Developer on the
+# ${_SERVICE}-send job (the web app starts it with the batch id when someone presses Send).
 #
-# Outreach batches send from a background process after the page returns: either deploy with --no-cpu-throttling
-# (CPU always allocated, costs more) or move sending to a Cloud Run job.
+# Once, after the first deploy, run the mail + calendar sync every 15 minutes:
+#   gcloud scheduler jobs create http acmi-crm-sync --location=us-central1 --schedule="*/15 * * * *" \
+#     --uri="https://run.googleapis.com/v2/projects/PROJECT_ID/locations/us-central1/jobs/acmi-crm-sync:run" \
+#     --http-method=POST --oauth-service-account-email=RUNTIME_SERVICE_ACCOUNT
 substitutions:
   _REGION: us-central1
   _SERVICE: acmi-crm
@@ -18,6 +22,7 @@ substitutions:
   _ORIGINS: https://hub.acmigroup.com
   _DB_NAME: acmi
   _DB_USER: acmi
+  _BUCKET: ""
 steps:
   - id: build
     name: gcr.io/cloud-builders/docker
@@ -36,13 +41,33 @@ steps:
            "--set-env-vars=^@^DJANGO_DEBUG=false@DJANGO_ALLOWED_HOSTS=${_HOSTS}@DJANGO_CSRF_TRUSTED_ORIGINS=${_ORIGINS}@ACMI_LOCAL_LOGIN=false@POSTGRES_DB=${_DB_NAME}@POSTGRES_USER=${_DB_USER}@POSTGRES_HOST=/cloudsql/${_SQL_INSTANCE}@GOOGLE_CLIENT_ID=${_GOOGLE_CLIENT_ID}",
            "--set-secrets=DJANGO_SECRET_KEY=acmi-django-secret-key:latest,POSTGRES_PASSWORD=acmi-postgres-password:latest",
            "--command=python", "--args=manage.py,migrate,--noinput", "--max-retries=0", "--execute-now", "--wait"]
+  # Outreach batches: the web app runs this job with "manage.py send_batch <id>" (crm/cloudrun.py).
+  - id: send-job
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args: ["run", "jobs", "deploy", "${_SERVICE}-send",
+           "--image=${_REGION}-docker.pkg.dev/$PROJECT_ID/acmi/${_SERVICE}:$SHORT_SHA", "--region=${_REGION}",
+           "--set-cloudsql-instances=${_SQL_INSTANCE}", "--task-timeout=3600", "--max-retries=0",
+           "--set-env-vars=^@^DJANGO_DEBUG=false@DJANGO_ALLOWED_HOSTS=${_HOSTS}@POSTGRES_DB=${_DB_NAME}@POSTGRES_USER=${_DB_USER}@POSTGRES_HOST=/cloudsql/${_SQL_INSTANCE}@ACMI_GCS_BUCKET=${_BUCKET}",
+           "--set-secrets=DJANGO_SECRET_KEY=acmi-django-secret-key:latest,POSTGRES_PASSWORD=acmi-postgres-password:latest,ACMI_IMAP_PASSWORD_KELLEN=acmi-imap-password-kellen:latest",
+           "--command=python", "--args=manage.py,send_batch,0"]
+  # Mail + calendar sync, run every 15 minutes by Cloud Scheduler (see the header).
+  - id: sync-job
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args: ["run", "jobs", "deploy", "${_SERVICE}-sync",
+           "--image=${_REGION}-docker.pkg.dev/$PROJECT_ID/acmi/${_SERVICE}:$SHORT_SHA", "--region=${_REGION}",
+           "--set-cloudsql-instances=${_SQL_INSTANCE}", "--task-timeout=1800", "--max-retries=0",
+           "--set-env-vars=^@^DJANGO_DEBUG=false@DJANGO_ALLOWED_HOSTS=${_HOSTS}@POSTGRES_DB=${_DB_NAME}@POSTGRES_USER=${_DB_USER}@POSTGRES_HOST=/cloudsql/${_SQL_INSTANCE}@GOOGLE_CLIENT_ID=${_GOOGLE_CLIENT_ID}",
+           "--set-secrets=DJANGO_SECRET_KEY=acmi-django-secret-key:latest,POSTGRES_PASSWORD=acmi-postgres-password:latest,GOOGLE_CLIENT_SECRET=acmi-google-client-secret:latest,ACMI_IMAP_PASSWORD_KELLEN=acmi-imap-password-kellen:latest",
+           "--command=python", "--args=manage.py,sync_all"]
   - id: deploy
     name: gcr.io/google.com/cloudsdktool/cloud-sdk
     entrypoint: gcloud
     args: ["run", "deploy", "${_SERVICE}",
            "--image=${_REGION}-docker.pkg.dev/$PROJECT_ID/acmi/${_SERVICE}:$SHORT_SHA", "--region=${_REGION}",
            "--add-cloudsql-instances=${_SQL_INSTANCE}", "--timeout=900",
-           "--set-env-vars=^@^DJANGO_DEBUG=false@DJANGO_ALLOWED_HOSTS=${_HOSTS}@DJANGO_CSRF_TRUSTED_ORIGINS=${_ORIGINS}@ACMI_LOCAL_LOGIN=false@POSTGRES_DB=${_DB_NAME}@POSTGRES_USER=${_DB_USER}@POSTGRES_HOST=/cloudsql/${_SQL_INSTANCE}@GOOGLE_CLIENT_ID=${_GOOGLE_CLIENT_ID}",
+           "--set-env-vars=^@^DJANGO_DEBUG=false@DJANGO_ALLOWED_HOSTS=${_HOSTS}@DJANGO_CSRF_TRUSTED_ORIGINS=${_ORIGINS}@ACMI_LOCAL_LOGIN=false@POSTGRES_DB=${_DB_NAME}@POSTGRES_USER=${_DB_USER}@POSTGRES_HOST=/cloudsql/${_SQL_INSTANCE}@GOOGLE_CLIENT_ID=${_GOOGLE_CLIENT_ID}@ACMI_SEND_JOB=${_SERVICE}-send@ACMI_GCP_REGION=${_REGION}@ACMI_GCS_BUCKET=${_BUCKET}",
            "--set-secrets=DJANGO_SECRET_KEY=acmi-django-secret-key:latest,POSTGRES_PASSWORD=acmi-postgres-password:latest,ACMI_CRON_SECRET=acmi-cron-secret:latest,GOOGLE_CLIENT_SECRET=acmi-google-client-secret:latest,ANTHROPIC_API_KEY=acmi-anthropic-api-key:latest,ACMI_IMAP_PASSWORD_KELLEN=acmi-imap-password-kellen:latest"]
 images:
   - "${_REGION}-docker.pkg.dev/$PROJECT_ID/acmi/${_SERVICE}:$SHORT_SHA"

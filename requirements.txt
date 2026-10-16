@@ -15,3 +15,6 @@ pillow==12.3.0
 psycopg[binary]==3.2.9
 gunicorn==23.0.0
 whitenoise==6.9.0
+# Uploads and outreach attachments in Cloud Storage (only loaded when ACMI_GCS_BUCKET is set)
+django-storages[google]==1.14.6
+google-cloud-storage==3.17.1

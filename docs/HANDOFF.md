@@ -729,3 +729,39 @@ Barnes Farm (Casa Grande, Pinal), I-10 | I-8 Business Park / Petersen Park (Eloy
 - **Skill:** `.claude/skills/add-county/` is the playbook for adding a county (find the parcel source, owners, acreage,
   zoning layer, zoning code definitions and permitted uses, utilities, load, verify, tests). `manage.py check_county
   <County_ST>` prints owner / mailing / zoning coverage and the zoning codes that still lack a definition.
+
+## Built 2026-10-16 (night): roadmap phase 1 (Kellen: "go with your recommended answers")
+
+Decisions taken from `docs/ROADMAP.md`: keep every current account a Manager; Cloud Run jobs + Cloud Scheduler for
+background work; Cloud Storage for app files; repo on GitHub with CI; transcripts via a daily scheduled Claude task
+with the Granola connector, Kellen + Dave + Simon's meetings, kept in the CRM + `.txt` files; the campus summary built
+archive first, then the Summary tab, then the weekly Claude draft; next module after that: contract & critical dates.
+
+- **GitHub:** private repo `kmoczulski/acmi-crm` (origin). `.github/workflows/tests.yml` runs migrations check, the
+  tests and `check --deploy` on Postgres for every push.
+- **Transcript archive** (`crm/transcripts.py`, `MeetingTranscript`, migration 0033): `import_meetings` now accepts a
+  `transcript` (text, or Granola's `[{speaker, text, start}]`) per meeting, keeps it for good (a later import without
+  one, or a cut-off one, never replaces it) and writes one `.txt` per meeting to `ACMI_TRANSCRIPT_DIR/<campus or
+  General>/YYYY-MM-DD <title>.txt` (header, notes, transcript). `manage.py export_transcripts [--to <folder>]`
+  rewrites missing / changed files. Meeting pop-up: "Transcript (.txt)" download, Managers only.
+  **Still needed:** Kellen connects the Granola connector (claude.ai Connectors; its tools include
+  `get_meeting_transcript`), then a daily scheduled task pulls the last 3 days: Granola list / get meetings + transcript →
+  JSON in `data/imports/granola/<date>.json` (format at the top of `crm/meetings.py`) → `manage.py import_meetings
+  <file>` → `manage.py export_transcripts`. Do the first run over the full 30 days straight away. Dave's and Simon's
+  meetings need their own connector (or Granola sharing). Point `ACMI_TRANSCRIPT_DIR` at a restricted shared-drive
+  folder (transcripts can hold NDA material; Maryland needs all-party consent to record).
+- **Campus summary** (`/campuses/<code>/`, sidebar Development › Campus summary; `crm/campus.py`, `crm/campus_views.py`,
+  `CampusUpdate`): tenants (the campus's open deals: stage, last email each way, meetings, next step, flags "no reply in
+  N days", "next step overdue", "no activity in N days"), land (the campus's sites, owner by owner from the per-parcel
+  deals, last site event), projects (the campus's projects except the campus-code one: last tagged email), "Other",
+  and a 7-day feed (emails, meetings, land events, updates; `?days=14`). "Add update" on every item: text, ball in
+  court (us / them / third party), promised-for date, date; the latest shows on the line, earlier ones fold away.
+  "Weekly update email" gives the whole tab in Simon's bullet format to paste. Checked on a copy of the real DB: MEIH
+  shows 14 tenants, 16 sites, 2 projects (e.g. ERG "no reply in 22 days (we wrote Sep 24)").
+  Next: the weekly draft by Claude (approve & send, PDF with the logo) on top of these lines.
+- **Go-live plumbing:** `ACMI_SEND_JOB` makes Send start a Cloud Run job (`crm/cloudrun.py`, REST + metadata-server
+  token, no new library) instead of a local process; a job that won't start fails the batch instead of blocking sends.
+  `manage.py sync_all` (mail, then calendar) is what the Cloud Run sync job runs; `cloudbuild.yaml` deploys
+  `acmi-crm-send` and `acmi-crm-sync` jobs and documents the Cloud Scheduler line. `ACMI_GCS_BUCKET` puts uploads and
+  outreach attachments in Cloud Storage (`django-storages[google]`, only imported when the bucket is set). None of this
+  has run in Google Cloud yet (billing is still off).
