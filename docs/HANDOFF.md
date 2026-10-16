@@ -691,3 +691,13 @@ Barnes Farm (Casa Grande, Pinal), I-10 | I-8 Business Park / Petersen Park (Eloy
   market, nearby employers, documents, brokers, drive times, and a flyer-claims table (confirmed / partly confirmed /
   differs / note / not checked). Anything left blank prints as N/A on the brief's second page. PDFs are made from the
   app's Save as PDF button; none are kept in the repo.
+
+### Speed and the add-county skill (2026-10-16, evening)
+- Reports were slow because everything ran in sequence: the aerial's four map layers (Esri imagery, FEMA, roads, places)
+  and each parcel's live checks. They now run in parallel (`briefs.render_aerial`, `briefs.embed`,
+  `lookup.run_checks_many` + `compute_checks`), FEMA waits at most 25 s per try, and the FEMA flood query asks for
+  simplified geometry (about 10x faster, the floodplain share moves under 1%). Goodyear (NC, 2 parcels): fresh live checks
+  31 s -> 8 s; the two aerials 7 s.
+- **Skill:** `.claude/skills/add-county/` is the playbook for adding a county (find the parcel source, owners, acreage,
+  zoning layer, zoning code definitions and permitted uses, utilities, load, verify, tests). `manage.py check_county
+  <County_ST>` prints owner / mailing / zoning coverage and the zoning codes that still lack a definition.

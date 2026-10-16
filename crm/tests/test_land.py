@@ -800,7 +800,7 @@ class SiteBriefTests(TestCase):
     def test_build_summarises_the_site_without_running_checks_again(self):
         from crm.land import briefs
 
-        with mock.patch.object(briefs, "run_checks", side_effect=AssertionError("checks are already stored")):
+        with mock.patch.object(briefs, "run_checks_many", side_effect=AssertionError("checks are already stored")):
             b = briefs.build(self.site)
         self.assertEqual((b["n_parcels"], b["flood"], b["net"]), (1, 60.0, 60.0))
         self.assertEqual(b["owners"][0]["name"], "BARNES VERNON LESTER")
@@ -814,7 +814,7 @@ class SiteBriefTests(TestCase):
     def test_pages_render_and_aerial_is_a_jpeg(self):
         from crm.land import briefs
 
-        with mock.patch.object(briefs, "run_checks"):
+        with mock.patch.object(briefs, "run_checks_many"):
             page = self.client.get(f"/land/sites/{self.site.pk}/brief/")
             cover = self.client.get(f"/land/briefs/?ids={self.site.pk}")
         self.assertContains(page, "AZ - Barnes Farm")
@@ -855,7 +855,7 @@ class SiteBriefTests(TestCase):
     def test_notes_define_only_the_terms_that_appear(self):
         from crm.land import briefs
 
-        with mock.patch.object(briefs, "run_checks"):
+        with mock.patch.object(briefs, "run_checks_many"):
             b = briefs.build(self.site)
         terms = [t for t, _ in briefs.definitions([b])]
         self.assertIn("Zone A", terms)
@@ -878,7 +878,7 @@ class SiteBriefTests(TestCase):
             captured["html"] = html
             return b"%PDF-1.4 test"
 
-        with mock.patch.object(briefs, "run_checks"), mock.patch.object(briefs, "_fetch", return_value=fake),                 mock.patch.object(briefs, "_fetch_fema", return_value=Image.new("RGBA", (1400, 760), (0, 0, 0, 0))),                 mock.patch.object(briefs, "html_to_pdf", side_effect=fake_pdf):
+        with mock.patch.object(briefs, "run_checks_many"), mock.patch.object(briefs, "_fetch", return_value=fake),                 mock.patch.object(briefs, "_fetch_fema", return_value=Image.new("RGBA", (1400, 760), (0, 0, 0, 0))),                 mock.patch.object(briefs, "html_to_pdf", side_effect=fake_pdf):
             briefs._CACHE.clear()
             resp = self.client.get(f"/land/sites/{self.site.pk}/brief/?format=pdf")
             pkg = self.client.get(f"/land/briefs/?ids={self.site.pk}&format=pdf")
@@ -894,7 +894,7 @@ class SiteBriefTests(TestCase):
         self.assertEqual(briefs.export_name("Petersen Park - Eloy (Pinal Co.)", date(2026, 10, 16)),
                          "ACMI_Site_Brief_Petersen_Park_Eloy_Pinal_Co_2026.10.16.pdf")
         self.assertEqual(briefs.export_name(day=date(2026, 10, 16)), "ACMI_Site_Briefs_2026.10.16.pdf")
-        with mock.patch.object(briefs, "run_checks"), mock.patch.object(briefs, "chrome_path", return_value=None):
+        with mock.patch.object(briefs, "run_checks_many"), mock.patch.object(briefs, "chrome_path", return_value=None):
             nope = self.client.get(f"/land/sites/{self.site.pk}/brief/?format=pdf&refresh=0", follow=True)
         self.assertContains(nope, "Print the page and choose Save as PDF")
 
@@ -932,7 +932,7 @@ class SiteBriefTests(TestCase):
         self.assertEqual(reasons["300 gross acres"], 25)
         self.assertTrue(any(pts == 14 and "transmission" in text for text, pts in reasons.items()))
         self.assertTrue(any(pts == 6 and "substation" in text for text, pts in reasons.items()))
-        with mock.patch.object(briefs_module(), "run_checks"):
+        with mock.patch.object(briefs_module(), "run_checks_many"):
             page = self.client.get(f"/land/sites/{self.site.pk}/brief/")
         self.assertContains(page, "How the buy-box score is calculated")
         self.assertContains(page, "Deal-killers")
@@ -964,7 +964,7 @@ class SiteBriefTests(TestCase):
         self.assertEqual(zoning_ref.find("eloy", "I-2")[1]["code"], "I-2")
         self.assertFalse(zoning_ref.load("eloy")["mirror"])  # Eloy's code was read from American Legal itself
         self.assertTrue(zoning_ref.load("casa_grande")["mirror"])  # a third-party copy: flagged
-        with mock.patch.object(briefs_module(), "run_checks"):
+        with mock.patch.object(briefs_module(), "run_checks_many"):
             page = self.client.get(f"/land/sites/{self.site.pk}/brief/")
         self.assertContains(page, "Zoning districts on these sites")
         self.assertContains(page, "Permitted uses")
@@ -984,7 +984,7 @@ class SiteBriefTests(TestCase):
         from crm.land import listing
 
         # a site with nothing entered still prints every row, as N/A
-        with mock.patch.object(briefs_module(), "run_checks"):
+        with mock.patch.object(briefs_module(), "run_checks_many"):
             page = self.client.get(f"/land/sites/{self.site.pk}/brief/")
         self.assertContains(page, "From the listing flyer")
         self.assertContains(page, "N/A")
@@ -1011,7 +1011,7 @@ class SiteBriefTests(TestCase):
         self.assertEqual(L["contacts"], [{"name": "Trey Davis", "phone": "602-363-3901"}])
         self.assertEqual(L["drive_times"], [["Phoenix", "50 mi / 50 min"]])
         self.assertEqual([c["status"] for c in L["claims_check"]], ["confirmed", "not checked"])
-        with mock.patch.object(briefs_module(), "run_checks"):
+        with mock.patch.object(briefs_module(), "run_checks_many"):
             page = self.client.get(f"/land/sites/{self.site.pk}/brief/")
         self.assertContains(page, "Submit")
         self.assertContains(page, "CenturyLink")
@@ -1022,6 +1022,24 @@ class SiteBriefTests(TestCase):
         again = self.client.get(f"/land/sites/{self.site.pk}/listing/")
         self.assertContains(again, 'value="Submit"')
         self.assertContains(again, "Peters Rd improvements")
+
+    def test_live_checks_for_many_parcels_run_together_and_are_stored_by_the_caller(self):
+        from crm.land import lookup
+
+        second = make_parcel(self.a.county, "Q", -111.5, 32.9)
+        calls = []
+
+        def fake_compute(parcel, only=None):
+            calls.append(parcel.key)
+            return {"flood": {"sfha_pct": 0.0, "zones": ["X"], "mapped": True}, "net_usable": {"acres": parcel.acres, "lost_pct": 0}}
+
+        with mock.patch.object(lookup, "compute_checks", side_effect=fake_compute):
+            lookup.run_checks_many([self.a, second], workers=2)
+        self.assertEqual(sorted(calls), sorted([self.a.key, second.key]))
+        second.refresh_from_db()
+        self.assertEqual(second.checks["flood"]["zones"], ["X"])
+        self.assertIsNotNone(second.checked_at)
+        lookup.run_checks_many([])  # nothing to do is fine
 
     def test_empty_site_has_no_brief(self):
         empty = LandSite.objects.create(name="Nothing yet")
@@ -1081,6 +1099,32 @@ class AssembleSmallParcelsTests(TestCase):
         with mock.patch.object(land_views, "identify", return_value=None):
             resp = self.client.post("/land/assemble-point/", {"lat": "32.8", "lon": "-111.6"})
         self.assertEqual(resp.status_code, 404)
+
+
+class CheckCountyCommandTests(TestCase):
+    """check_county: the gate after loading a county."""
+
+    def test_reports_coverage_and_undefined_zoning_codes(self):
+        from io import StringIO
+
+        from django.core.management import call_command, CommandError
+
+        county = LandCounty.objects.create(fips="04021", name="Pinal", state="AZ", region="Central Arizona (I-10 corridor)",
+                                          min_acres=20, source="test")
+        make_parcel(county, "A", -111.7, 32.9, owner_name="BARNES VERNON LESTER", mail_address="3057 S TREKELL RD",
+                    overlays={"zoning": {"value": "I-2", "authority": "City of Casa Grande", "pct": 100}}, zoning="I-2")
+        make_parcel(county, "B", -111.6, 32.9, owner_name="", overlays={"zoning": {"value": "ZZ-9", "authority": "City of Casa Grande",
+                                                                                   "pct": 100}}, zoning="ZZ-9")
+        out = StringIO()
+        call_command("check_county", "Pinal_AZ", stdout=out)
+        text = out.getvalue()
+        self.assertIn("2 parcels stored", text)
+        self.assertIn("Owner name", text)
+        self.assertIn("50%", text)                       # one of the two has an owner
+        self.assertIn("<-- check", text)                 # owner coverage under 90% is flagged
+        self.assertIn("No definition in zoning_ref for 1: ZZ-9", text)
+        with self.assertRaises(CommandError):
+            call_command("check_county", "Hoke_NC", stdout=StringIO())  # configured but nothing loaded
 
 
 class SiteTrimTests(TestCase):
