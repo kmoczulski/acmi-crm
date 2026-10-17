@@ -888,3 +888,5 @@ critical dates with reminders, negotiation rounds and redlines, and the tie-in t
   button, which the busy indicator disabled before the post); the action is now a hidden field. The site page looked
   up FEMA's flood layer id on every render and, when FEMA was down, waited up to about 70 s each time; a failed lookup
   is now remembered for 10 minutes and the fallback is the current id (35), not the old 28. Tests never call FEMA.
+- **Merged 2026-10-17:** main at `e3ca2b0`, 285 tests (CI green on Postgres). On the real DB: backup
+  `backups/db-2026-10-17-before-entitlements.sqlite3`, migration 0037 applied (new tables only).
