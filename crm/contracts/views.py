@@ -13,6 +13,7 @@ from django.utils.safestring import mark_safe
 from django.views.decorators.http import require_POST
 
 from ..ai import enabled as ai_enabled
+from ..entitlements import logic as entitlement_logic
 from ..land import diligence
 from ..models import (
     Campus, ClosingItem, Contract, ContractAnswer, ContractDate, ContractDocument, ContractTemplate, LandSite,
@@ -165,6 +166,9 @@ def contract_detail(request, pk):
         d.prev = prev if prev.text and d.text else None
     purchase = contract.kind in (Contract.Kind.PSA, Contract.Kind.OPTION)
     return render(request, "crm/contract_detail.html", {
+        "approvals": (entitlement_logic.annotate(list(entitlement_logic.with_related(contract.approvals.all())), today)
+                      if purchase else []),
+        "new_approval_url": reverse("crm:approval_create") + f"?contract={contract.pk}",
         "dd": diligence.summary(contract.site, today, contract=contract) if purchase and contract.site_id else None,
         "closing": closing.progress(contract, today) if purchase else None, "today": today,
         "closing_sides": ClosingItem.Side.choices, "closing_statuses": ClosingItem.Status.choices,

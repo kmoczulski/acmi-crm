@@ -1,0 +1,56 @@
+{% extends "crm/base.html" %}
+{% load crm_tags %}
+{% block title %}Entitlements · ACMI CRM{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Entitlements</h1>
+  <form method="get" class="inline-form">
+    <select name="show" onchange="this.form.submit()"><option value="active">Active</option><option value="all"{% if show == "all" %} selected{% endif %}>All, incl. withdrawn and denied</option></select>
+    <select name="campus" onchange="this.form.submit()"><option value="">Every campus</option>{% for c in campuses %}<option value="{{ c.code }}"{% if c.code|lower == campus|lower %} selected{% endif %}>{{ c.code }}</option>{% endfor %}</select>
+    <select name="kind" onchange="this.form.submit()"><option value="">Every kind</option>{% for v, l in kinds %}<option value="{{ v }}"{% if v == kind %} selected{% endif %}>{{ l }}</option>{% endfor %}</select>
+  </form>
+  <span class="spacer"></span>
+  <button type="button" class="btn" onclick="document.getElementById('matrix').toggleAttribute('hidden')">Start a permit matrix</button>
+  <a class="btn btn-primary" href="{% url 'crm:approval_create' %}">New approval</a>
+</div>
+<p class="muted" style="margin-top:0">Every approval a project or site needs, from rezoning to the certificate of occupancy: the agency and case, where it stands,
+  who has the ball, the next hearing, and the conditions it came with.</p>
+<section class="panel" id="matrix" hidden>
+  <h3>Start a permit matrix</h3>
+  {% include "crm/partials/approval_matrix_form.html" %}
+</section>
+
+<div class="campus-layout">
+  <div>
+    {% for g in groups %}
+    <section class="panel">
+      <h3>{{ g.campus }}{% if g.label and g.label != g.campus %} · {{ g.label }}{% endif %}</h3>
+      <table class="data compact">
+        <thead><tr><th>Approval</th><th>Agency / case</th><th>Status</th><th>Next</th><th>Ball</th><th>Needed by</th><th>Runs it</th></tr></thead>
+        <tbody>{% for a in g.rows %}
+          <tr>
+            <td class="wrap"><a href="{{ a.get_absolute_url }}"><b>{{ a.title }}</b></a><div class="muted lc-small">{{ a.get_kind_display }}{% if a.open_conditions %} · {{ a.open_conditions|length }} open condition{{ a.open_conditions|length|pluralize }}{% endif %}</div></td>
+            <td class="wrap lc-small">{{ a.jurisdiction|default:"–" }}{% if a.case_number %}<div class="muted">{{ a.case_number }}</div>{% endif %}</td>
+            <td><span class="pill en-{{ a.status }}">{{ a.get_status_display }}</span>
+              {% if a.expiring_in is not None and a.expiring_in <= 60 %}<div class="lc-small {% if a.expiring_in < 0 %}overdue{% else %}soon{% endif %}">{% if a.expiring_in < 0 %}lapsed{% else %}lapses{% endif %} {{ a.expires_on|date:"M j" }}</div>{% endif %}</td>
+            <td class="wrap lc-small">{% if a.missed %}<span class="overdue">{{ a.missed.0.label }} {{ a.missed.0.date|date:"M j" }}: outcome?</span>{% elif a.next %}<span class="{% if a.next.left <= 7 %}soon{% endif %}">{{ a.next.label }} · {{ a.next.date|date:"M j" }}</span>{% elif a.next_step %}{{ a.next_step|truncatechars:60 }}{% else %}–{% endif %}</td>
+            <td class="lc-small">{% if a.waiting_on %}{{ a.get_waiting_on_display }}{% if a.waiting_days is not None %}<div class="{% if a.waiting_days >= 30 %}overdue{% else %}muted{% endif %}">{{ a.waiting_days }} day{{ a.waiting_days|pluralize }}</div>{% endif %}{% else %}–{% endif %}</td>
+            <td class="lc-small">{{ a.needed_by|date:"M j, Y"|default:"–" }}</td>
+            <td class="lc-small">{{ a.owner|username|default:"–" }}</td>
+          </tr>
+        {% endfor %}</tbody>
+      </table>
+    </section>
+    {% empty %}
+    <section class="panel"><p class="muted" style="margin:0">No approvals yet. Start a permit matrix for a project or land site, or add one approval at a time.</p></section>
+    {% endfor %}
+  </div>
+  <aside>
+    <section class="panel">
+      <h3>Coming up · next {{ coming.days }} days</h3>
+      {% include "crm/partials/contract_deadlines.html" with d=coming %}
+      <p class="muted lc-small" style="margin-bottom:0">Whoever runs an approval is reminded 7 and 1 days before a hearing or step, and 60, 30 and 7 days before an approval lapses.</p>
+    </section>
+  </aside>
+</div>
+{% endblock %}

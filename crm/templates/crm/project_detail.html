@@ -31,6 +31,7 @@
     </div>
   </aside>
   <section>
+    {% with add_url=new_approval_url show_matrix=True for_project=project %}{% include "crm/partials/approval_panel.html" %}{% endwith %}
     <div class="panel">
       <h3>Correspondence</h3>
       <ul class="timeline">{% for a in page %}

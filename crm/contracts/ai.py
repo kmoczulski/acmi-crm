@@ -290,6 +290,37 @@ def blocks(message, docs):
     return out
 
 
+def source_block(obj, title, context=""):
+    """A cited document block for one report (a diligence report, a staff report, a resolution): its text, or a scan
+    as the PDF. `obj` has .text, .text_status and .file. Raises Unavailable when there's nothing to read."""
+    if obj.text_status == "ok" and obj.text:
+        if len(obj.text) > MAX_CHARS:
+            raise Unavailable("That document is too long to read at once.")
+        source = {"type": "text", "media_type": "text/plain", "data": obj.text}
+    elif obj.text_status == "scan" and obj.file and obj.file.name.lower().endswith(".pdf"):
+        if obj.file.size > MAX_PDF_BYTES:
+            raise Unavailable("That scan is over 25 MB; Claude can't read it in one go.")
+        with obj.file.open("rb") as fh:
+            source = {"type": "base64", "media_type": "application/pdf",
+                      "data": base64.standard_b64encode(fh.read()).decode()}
+    else:
+        raise Unavailable("Upload the document (PDF or Word) first.")
+    block = {"type": "document", "source": source, "title": title, "citations": {"enabled": True}}
+    if context:
+        block["context"] = context
+    return block
+
+
+def cited_summary(obj, system, prompt, title, context=""):
+    """(blocks, model): Claude's summary of one document, each part citing it (see blocks()). `obj` also needs .pk,
+    .title and .page_at() for the citations."""
+    message = _stream(system, [source_block(obj, title, context), {"type": "text", "text": prompt}], 12000,
+                      {"effort": EFFORT})
+    if message.stop_reason == "max_tokens":
+        raise Unavailable("The summary ran too long and was cut off. Try again.")
+    return blocks(message, [obj]), message.model or MODEL
+
+
 def _save(contract, question, message, docs, user, template=None):
     usage = message.usage
     return ContractAnswer.objects.create(

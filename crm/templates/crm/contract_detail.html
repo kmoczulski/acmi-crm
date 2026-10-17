@@ -155,7 +155,7 @@
         </tr>
       {% empty %}<tr><td class="muted">No dates yet.{% if reads and ai_ready %} Have Claude find them, or add them by hand.{% endif %}</td></tr>{% endfor %}</table>
       <div class="inline-form" style="margin-top:8px">
-        {% if reads and ai_ready %}<form method="post" data-busy="Reading for dates… about a minute">{% csrf_token %}<button class="btn btn-small" name="action" value="find_dates">Find dates with Claude</button></form>{% endif %}
+        {% if reads and ai_ready %}<form method="post" data-busy="Reading for dates… about a minute">{% csrf_token %}<input type="hidden" name="action" value="find_dates"><button class="btn btn-small">Find dates with Claude</button></form>{% endif %}
         <details class="ct-add"><summary class="btn btn-small">Add a date</summary>
           <form method="post" class="fields">{% csrf_token %}<input type="hidden" name="action" value="date_add">{{ date_form.as_p }}<button class="btn-primary">Add</button></form>
         </details>
@@ -165,6 +165,7 @@
     </section>
 
     {% if dd %}{% include "crm/partials/contract_dd.html" %}{% endif %}
+    {% if closing %}{% with add_url=new_approval_url %}{% include "crm/partials/approval_panel.html" %}{% endwith %}{% endif %}
     {% if closing %}{% include "crm/partials/contract_closing.html" %}{% endif %}
 
     {% if owners|length > 1 %}

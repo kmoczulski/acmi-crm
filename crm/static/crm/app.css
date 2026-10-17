@@ -813,5 +813,24 @@ a.cite:hover { background: var(--accent); color: #fff; text-decoration: none; }
 .cl-list .cl-name { flex: 1; }
 .cl-side { margin: 10px 0 2px; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
 .lc-owned { background: var(--good-bg); color: var(--good); border-radius: var(--radius); padding: 4px 8px; margin: 6px 0; font-size: 12px; }
+
+/* Entitlements */
+.pill.en-planned { background: #eef0f3; color: #3c4453; }
+.pill.en-preapp, .pill.en-submitted { background: #e3ecff; color: #1e4fbf; }
+.pill.en-review, .pill.en-hearing { background: var(--warn-bg); color: var(--warn); }
+.pill.en-approved { background: var(--good-bg); color: var(--good); }
+.pill.en-denied, .pill.en-expired { background: var(--bad-bg); color: var(--bad); }
+.pill.en-withdrawn { background: #eef0f3; color: var(--muted); text-decoration: line-through; }
+.en-steps { list-style: none; margin: 0; padding: 0; }
+.en-steps li { display: flex; gap: 10px; align-items: baseline; padding: 6px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
+.en-steps li:last-child { border-bottom: 0; }
+.en-steps .en-date { flex: 0 0 96px; font-weight: 600; }
+.en-steps .en-what { flex: 1; }
+.en-steps li.en-done .en-date, .en-steps li.en-done .en-what b { color: var(--muted); }
+.en-steps li.en-missed .en-date { color: var(--bad); }
+.en-matrix label { font-size: 13px; }
+.en-kinds { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 2px 12px; margin: 8px 0; }
+.en-kinds label { display: flex; gap: 6px; align-items: baseline; font-size: 13px; }
+@media (max-width: 900px) { .en-kinds { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 900px) { .dd-strip, .dd-form { grid-template-columns: 1fr 1fr; } }
 @media print { .ct-print { border: 0; padding: 0; } a.cite { background: none; } }

@@ -1206,3 +1206,24 @@ class SiteTrimTests(TestCase):
             html = self.client.get(f"/land/sites/{self.site.pk}/manage/").content.decode()
         self.assertIn("row-excluded", html)
         self.assertIn('data-trim="%d"' % self.big.pk, html)
+
+
+class FemaLayerLookupTests(TestCase):
+    def test_a_failed_lookup_isnt_retried_on_every_page(self):
+        from crm.land import sources
+
+        saved = dict(sources._fema_layer_cache)
+        self.addCleanup(lambda: (sources._fema_layer_cache.clear(), sources._fema_layer_cache.update(saved)))
+        sources._fema_layer_cache.clear()
+        with mock.patch.object(sources.SESSION, "get", side_effect=OSError("down")) as get, \
+                mock.patch("time.sleep"):
+            self.assertEqual(sources.fema_flood_layer_id(), sources.FEMA_FLOOD_LAYER_DEFAULT)
+            self.assertEqual(get.call_count, 3)
+            self.assertEqual(sources.fema_flood_layer_id(), sources.FEMA_FLOOD_LAYER_DEFAULT)
+            self.assertEqual(get.call_count, 3)  # backed off: no new requests for 10 minutes
+        ok = mock.Mock()
+        ok.json.return_value = {"layers": [{"id": 36, "name": sources.FEMA_FLOOD_LAYER_NAME}]}
+        sources._fema_layer_cache["failed"] -= sources.FEMA_RETRY_AFTER + 1
+        with mock.patch.object(sources.SESSION, "get", return_value=ok):
+            self.assertEqual(sources.fema_flood_layer_id(), 36)
+        self.assertNotIn("failed", sources._fema_layer_cache)

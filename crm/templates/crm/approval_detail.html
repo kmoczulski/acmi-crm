@@ -1,0 +1,145 @@
+{% extends "crm/base.html" %}
+{% load crm_tags %}
+{% block title %}{{ a.title }} · Entitlements · ACMI CRM{% endblock %}
+{% block content %}
+<div class="record-head">
+  <div>
+    <div class="muted lc-small"><a href="{% url 'crm:approval_list' %}">Entitlements</a>{% if a.campus %} › {{ a.campus.code }}{% endif %}</div>
+    <h1>{{ a.title }} <span class="pill en-{{ a.status }}">{{ a.get_status_display }}</span></h1>
+    <div class="muted">{{ a.get_kind_display }}{% if a.jurisdiction %} · {{ a.jurisdiction }}{% endif %}{% if a.case_number %} · case {{ a.case_number }}{% endif %}
+      {% if a.project %} · <a href="{{ a.project.get_absolute_url }}">{{ a.project.name }}</a>{% endif %}
+      {% if a.site %} · <a href="{% url 'crm:land_site_detail' a.site.pk %}">{{ a.site.name }}</a>{% endif %}
+      {% if a.contract %} · <a href="{{ a.contract.get_absolute_url }}">{{ a.contract.title }}</a>{% endif %}</div>
+  </div>
+  <div class="record-nav">
+    <form method="post" class="inline-form">{% csrf_token %}<input type="hidden" name="action" value="status">
+      <select name="status" onchange="this.form.submit()" title="Status">{% for v, l in statuses %}<option value="{{ v }}"{% if v == a.status %} selected{% endif %}>{{ l }}</option>{% endfor %}</select></form>
+    <a class="btn" href="#details">Edit details</a>
+  </div>
+</div>
+
+<div class="dd-strip">
+  <div><div class="label">Next</div>
+    {% if a.missed %}<div class="value overdue">{{ a.missed.0.label }}</div><div class="lc-small overdue">was {{ a.missed.0.date|date:"M j" }}; record what happened</div>
+    {% elif a.next %}<div class="value{% if a.next.left <= 7 %} soon{% endif %}">{{ a.next.label }}</div><div class="muted lc-small">{{ a.next.date|date:"D M j, Y" }}{% if a.next.left == 0 %} · today{% else %} · in {{ a.next.left }} day{{ a.next.left|pluralize }}{% endif %}</div>
+    {% else %}<div class="value muted">{{ a.next_step|default:"Nothing scheduled" }}</div>{% endif %}</div>
+  <div><div class="label">Ball in court</div>
+    {% if a.waiting_on %}<div class="value">{{ a.get_waiting_on_display }}</div><div class="muted lc-small">{% if a.waiting_since %}since {{ a.waiting_since|date:"M j" }}{% if a.waiting_days is not None %} ({{ a.waiting_days }} day{{ a.waiting_days|pluralize }}){% endif %}{% endif %}{% if a.next_step %} · {{ a.next_step }}{% endif %}</div>
+    {% else %}<div class="value muted">–</div>{% if a.next_step %}<div class="lc-small">{{ a.next_step }}</div>{% endif %}{% endif %}</div>
+  <div><div class="label">Needed by</div><div class="value">{{ a.needed_by|date:"M j, Y"|default:"–" }}</div>
+    {% for d in psa_dates %}<div class="lc-small {% if d.date and a.needed_by and d.date < a.needed_by %}overdue{% else %}muted{% endif %}">PSA: {{ d.label }} {{ d.date|date:"M j, Y"|default:"(not fixed)" }}</div>{% endfor %}</div>
+  <div><div class="label">Decision</div>
+    {% if a.approved_on %}<div class="value">{{ a.approved_on|date:"M j, Y" }}</div>{% else %}<div class="value muted">–</div>{% endif %}
+    <div class="muted lc-small">{% if a.expires_on %}<span class="{% if a.expiring_in is not None and a.expiring_in <= 60 %}soon{% endif %}">lapses {{ a.expires_on|date:"M j, Y" }}</span>{% endif %}{% if a.appeal_ends_on %} · appeal period ends {{ a.appeal_ends_on|date:"M j" }}{% endif %}{% if a.submitted_on %}{% if a.expires_on or a.appeal_ends_on %} · {% endif %}submitted {{ a.submitted_on|date:"M j" }}{% endif %}</div></div>
+</div>
+
+<div class="ct-layout">
+  <div>
+    <section class="panel" id="steps">
+      <h3>Steps and hearings</h3>
+      <ol class="en-steps">{% for s in steps %}
+        <li class="{% if s.done %}en-done{% elif s.missed %}en-missed{% else %}en-ahead{% endif %}">
+          <form method="post">{% csrf_token %}<input type="hidden" name="action" value="step_done"><input type="hidden" name="step" value="{{ s.pk }}">
+            <button class="ct-check" title="{% if s.done %}Mark not happened{% else %}Mark it happened{% endif %}">{% if s.done %}✓{% else %}○{% endif %}</button></form>
+          <span class="en-date">{{ s.date|date:"M j, Y" }}</span>
+          <span class="en-what"><b>{{ s.label }}</b>{% if s.missed %} <span class="overdue lc-small">passed; record the outcome</span>{% elif not s.done %} <span class="lc-small {% if s.left <= 7 %}soon{% else %}muted{% endif %}">{% if s.left == 0 %}today{% else %}in {{ s.left }} day{{ s.left|pluralize }}{% endif %}</span>{% endif %}
+            {% if s.note %}<div class="lc-small">{{ s.note|linebreaksbr }}</div>{% endif %}</span>
+          <form method="post">{% csrf_token %}<input type="hidden" name="action" value="step_delete"><input type="hidden" name="step" value="{{ s.pk }}">
+            <button class="btn-link lc-small" onclick="return confirm('Remove this step?')">✕</button></form>
+        </li>
+      {% empty %}<li class="muted">Nothing logged yet: add the pre-application meeting, the submittal, comments and hearings as they're set.</li>{% endfor %}</ol>
+      <form method="post" class="dd-form" style="margin-top:10px">{% csrf_token %}<input type="hidden" name="action" value="step_add">
+        <label>Step <select name="kind">{% for v, l in step_kinds %}<option value="{{ v }}"{% if v == "hearing" %} selected{% endif %}>{{ l }}</option>{% endfor %}</select></label>
+        <label>Date <input type="date" name="date" required></label>
+        <label>Board / meeting <input name="body" placeholder="e.g. Board of Appeals"></label>
+        <label class="dd-wide">Note <input name="note" placeholder="What happened, or what to bring"></label>
+        <div class="dd-wide inline-form"><button class="btn btn-small btn-primary">Add step</button>
+          <label class="lc-small"><input type="checkbox" name="done" value="1"> It already happened</label></div>
+      </form>
+      <p class="muted lc-small" style="margin-bottom:0">A hearing moves the status to Hearing scheduled, a submittal to Submitted, comments to In review; it never moves back.</p>
+    </section>
+
+    <section class="panel" id="conditions">
+      <h3>Conditions of approval</h3>
+      {% if proposed %}
+      <form method="post" class="ct-proposed">{% csrf_token %}
+        <p class="lc-small" style="margin-top:0"><b>Claude found these.</b> Check each against its quote, untick any that are wrong, then keep the rest.</p>
+        <table class="data compact">{% for c in proposed %}
+          <tr><td><input type="checkbox" name="condition" value="{{ c.pk }}" checked></td>
+            <td class="wrap">{{ c.text }}<div class="muted lc-small">{{ c.timing }}{% if c.due_on %} · due {{ c.due_on|date:"M j, Y" }}{% endif %}</div>
+              {% if c.quote %}<details class="lc-small"><summary>{% if c.source_href and c.source_start is not None %}<a href="{{ c.source_href }}" target="_blank" rel="noopener">source</a>{% else %}quote (not found in the text){% endif %}</summary><q>{{ c.quote }}</q></details>{% endif %}</td></tr>
+        {% endfor %}</table>
+        <div class="inline-form"><button class="btn btn-primary btn-small" name="action" value="condition_keep">Keep ticked</button>
+          <button class="btn btn-small" name="action" value="condition_discard" onclick="return confirm('Discard all of Claude\'s suggestions?')">Discard all</button></div>
+      </form>
+      {% endif %}
+      <ul class="cl-list">{% for c in kept %}
+        <li class="cl-{% if c.status == 'met' %}done{% elif c.status == 'na' %}na{% else %}open{% endif %}">
+          <form method="post">{% csrf_token %}<input type="hidden" name="action" value="condition_status"><input type="hidden" name="condition" value="{{ c.pk }}">
+            <button class="ct-check" name="status" value="{% if c.status == 'met' %}open{% else %}met{% endif %}" title="{% if c.status == 'met' %}Mark open{% else %}Mark met{% endif %}">{% if c.status == "met" %}✓{% elif c.status == "na" %}–{% else %}○{% endif %}</button></form>
+          <span class="cl-name">{{ c.text }}{% if c.timing %} <span class="muted lc-small">· {{ c.timing }}</span>{% endif %}
+            {% if c.source_href %} <a class="lc-small" href="{{ c.source_href }}" target="_blank" rel="noopener" title="{{ c.quote|truncatechars:300 }}">source</a>{% endif %}</span>
+          <span class="lc-small {% if c.status == 'open' and c.due_on and c.due_on < today %}overdue{% else %}muted{% endif %}">{{ c.due_on|date:"M j" }}</span>
+          <form method="post">{% csrf_token %}<input type="hidden" name="action" value="condition_status"><input type="hidden" name="condition" value="{{ c.pk }}">
+            <input type="hidden" name="status" value="{% if c.status == 'na' %}open{% else %}na{% endif %}">
+            <button class="btn-link lc-small">{% if c.status == "na" %}applies{% else %}n/a{% endif %}</button></form>
+          <form method="post" onsubmit="return confirm('Remove this condition?')">{% csrf_token %}<input type="hidden" name="action" value="condition_delete"><input type="hidden" name="condition" value="{{ c.pk }}">
+            <button class="btn-link lc-small">✕</button></form>
+        </li>
+      {% empty %}<li class="muted">None yet. Add them from the resolution or approval letter, or have Claude find them in it (Papers, below).</li>{% endfor %}</ul>
+      <details class="ct-add"><summary class="btn btn-small">Add a condition</summary>
+        <form method="post" class="dd-form">{% csrf_token %}<input type="hidden" name="action" value="condition_add">
+          <label class="dd-wide">Condition <input name="text" required placeholder="e.g. Dedicate 10 ft of right-of-way along Route 228"></label>
+          <label>When <input name="timing" placeholder="e.g. Before plat recordation"></label>
+          <label>Due <input type="date" name="due_on"></label>
+          <div class="dd-wide"><button class="btn btn-small btn-primary">Add</button></div>
+        </form></details>
+    </section>
+  </div>
+
+  <div>
+    <section class="panel" id="documents">
+      <h3>Papers</h3>
+      <ul class="ct-chain">{% for d in documents %}
+        <li class="ct-doc"><div><span class="tag">{{ d.get_kind_display }}</span> {% if d.href %}<a href="{{ d.href }}" target="_blank" rel="noopener"><b>{{ d.title }}</b></a>{% else %}<b>{{ d.title }}</b>{% endif %}</div>
+          <div class="muted lc-small">{% if d.dated %}{{ d.dated|date:"M j, Y" }} · {% endif %}{% if d.pages %}{{ d.pages }} page{{ d.pages|pluralize }}{% elif d.text_status == "scan" %}scan{% endif %}</div>
+          {% if d.summary_html %}<details class="dd-summary"><summary>Claude's summary <span class="muted lc-small">· {{ d.summary_at|date:"M j" }}</span></summary>
+            <div class="ct-a">{{ d.summary_html }}</div>
+            {% if d.sources %}<details class="ct-sources"><summary>{{ d.sources|length }} source{{ d.sources|pluralize }}</summary>
+              <ol>{% for src in d.sources %}<li value="{{ src.n }}"><a href="{{ src.href }}" target="_blank" rel="noopener">{% if src.page %}p. {{ src.page }}{% else %}document{% endif %}</a> <q>{{ src.quote|truncatechars:300 }}</q></li>{% endfor %}</ol></details>{% endif %}
+          </details>{% endif %}
+          <div class="inline-form">
+          {% if ai_ready and d.text_status == "ok" or ai_ready and d.text_status == "scan" %}
+            <form method="post" data-busy="Reading… about a minute">{% csrf_token %}<input type="hidden" name="action" value="doc_summarize"><input type="hidden" name="doc" value="{{ d.pk }}">
+              <button class="btn-link lc-small">{% if d.summary %}Summarize again{% else %}Summarize with Claude{% endif %}</button></form>
+            <form method="post" data-busy="Reading for conditions… about a minute">{% csrf_token %}<input type="hidden" name="action" value="doc_conditions"><input type="hidden" name="doc" value="{{ d.pk }}">
+              <button class="btn-link lc-small">Find conditions with Claude</button></form>
+          {% endif %}
+          {% if can_manage %}<form method="post" onsubmit="return confirm('Remove this document?')">{% csrf_token %}<input type="hidden" name="action" value="doc_delete"><input type="hidden" name="doc" value="{{ d.pk }}">
+            <button class="btn-link lc-small">Remove</button></form>{% endif %}
+          </div>
+        </li>
+      {% empty %}<li class="muted lc-small">The application, staff report, comment letters, the resolution or approval letter, plans.</li>{% endfor %}</ul>
+      <details class="ct-add"{% if not documents %} open{% endif %}><summary class="btn btn-small">Add a paper</summary>
+        <form method="post" enctype="multipart/form-data" class="fields">{% csrf_token %}<input type="hidden" name="action" value="doc_upload">
+          {{ doc_form.as_p }}<button class="btn-primary">Upload</button></form></details>
+    </section>
+
+    <section class="panel" id="details">
+      <h3>Details</h3>
+      <form method="post" class="fields">{% csrf_token %}<input type="hidden" name="action" value="details">
+        {{ form.as_p }}<button class="btn-primary">Save</button></form>
+      {% if can_manage %}<form method="post" style="margin-top:12px" onsubmit="return confirm('Delete this approval, its steps, conditions and papers?')">{% csrf_token %}
+        <button class="btn btn-danger btn-small" name="action" value="delete">Delete approval</button></form>{% endif %}
+    </section>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+  // The action rides in a hidden field, so disabling the button doesn't drop it from the post.
+  document.querySelectorAll('form[data-busy]').forEach(f => f.addEventListener('submit', () => {
+    const btn = f.querySelector('button'); btn.disabled = true; btn.textContent = f.dataset.busy;
+  }));
+</script>
+{% endblock %}

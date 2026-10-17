@@ -28,6 +28,8 @@ TX_CITY_LIMITS = (
 PUCT = "https://services6.arcgis.com/N6Lzvtb46cpxThhu/arcgis/rest/services"
 FEMA_NFHL = "https://hazards.fema.gov/arcgis/rest/services/public/NFHL/MapServer"
 FEMA_FLOOD_LAYER_NAME = "Flood Hazard Zones"
+FEMA_FLOOD_LAYER_DEFAULT = 35  # the layer's id as of Oct 2026, for when FEMA can't be reached
+FEMA_RETRY_AFTER = 600  # after a failed lookup, use the last known id for 10 minutes instead of asking again
 _fema_layer_cache = {}
 
 
@@ -38,17 +40,22 @@ def fema_flood_layer_id():
     hit = _fema_layer_cache.get("id")
     if hit and time.time() - hit[1] < 6 * 3600:
         return hit[0]
+    fallback = hit[0] if hit else FEMA_FLOOD_LAYER_DEFAULT
+    # A page that shows the flood layer calls this: while FEMA is down, don't make every page wait on it again.
+    if time.time() - _fema_layer_cache.get("failed", 0) < FEMA_RETRY_AFTER:
+        return fallback
     for attempt in range(3):  # FEMA's server drops connections now and then
         try:
             meta = SESSION.get(FEMA_NFHL, params={"f": "json"}, timeout=20).json()
             layer_id = next(l["id"] for l in meta.get("layers", []) if l.get("name") == FEMA_FLOOD_LAYER_NAME)
             _fema_layer_cache["id"] = (layer_id, time.time())
+            _fema_layer_cache.pop("failed", None)
             return layer_id
         except Exception:
             time.sleep(1.5 * (attempt + 1))
-    # Lookup failed: use the last layer id we saw (and don't remember the guess, so the next call tries again).
-    last = _fema_layer_cache.get("id")
-    return last[0] if last else 28
+    # Lookup failed: use the last layer id we saw, and wait a while before asking FEMA again.
+    _fema_layer_cache["failed"] = time.time()
+    return fallback
 
 
 def fema_flood_url():

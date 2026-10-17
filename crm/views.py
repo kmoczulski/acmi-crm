@@ -15,6 +15,7 @@ from django.views.decorators.http import require_POST
 from . import ai, documents, gcal, meetings, merge, notify, pipeline
 from . import projects as project_tagging
 from .contracts import dates as contract_dates
+from .entitlements import logic as entitlement_logic
 from .forms import (
     CompanyForm, DocumentForm, ListForm, NoteForm, OpportunityContactForm, OpportunityForm, PersonForm, ProjectForm,
     TaskForm, active_users,
@@ -305,6 +306,8 @@ def project_detail(request, pk):
     page = Paginator(acts.filter(is_background=False).order_by("-occurred_at"), 50).get_page(request.GET.get("page"))
     return render(request, "crm/project_detail.html", {
         "project": project, "form": form, "companies": companies, "page": page, "title": "project",
+        "approvals": entitlement_logic.annotate(list(entitlement_logic.with_related(project.approvals.all()))),
+        "matrix": entitlement_logic.MATRIX, "new_approval_url": reverse("crm:approval_create") + f"?project={project.pk}",
     })
 
 

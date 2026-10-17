@@ -2139,3 +2139,203 @@ class ClosingItem(models.Model):
 
     def __str__(self):
         return self.name
+
+
+# ---------------------------------------------------------------------------
+# Entitlements (crm/entitlements/): every approval a project or site needs, its steps, conditions and papers
+# ---------------------------------------------------------------------------
+
+
+class Approval(models.Model):
+    """One entitlement or permit a project or site needs (rezoning, special use, variance, site plan, plat, grading,
+    stormwater, wetlands, the DDESB explosives safety site plan, road access, building permit): the agency and case,
+    where it stands, who has the ball, its dated steps (ApprovalStep), the conditions it came with
+    (ApprovalCondition) and its papers (ApprovalDocument)."""
+
+    class Kind(models.TextChoices):
+        REZONING = "rezoning", "Rezoning"
+        SPECIAL_USE = "special_use", "Special / conditional use permit"
+        VARIANCE = "variance", "Variance"
+        SITE_PLAN = "site_plan", "Site plan"
+        SUBDIVISION = "subdivision", "Subdivision / plat"
+        GRADING = "grading", "Grading / erosion and sediment control"
+        STORMWATER = "stormwater", "Stormwater"
+        WETLANDS = "wetlands", "Wetlands / waters (404 / 401)"
+        FLOODPLAIN = "floodplain", "Floodplain"
+        ESSP = "essp", "DDESB explosives safety site plan"
+        ACCESS = "access", "Road access / entrance permit"
+        UTILITY = "utility", "Utility extension / agreement"
+        ENVIRONMENTAL = "environmental", "Environmental review (NEPA / state)"
+        HISTORIC = "historic", "Historic / cultural (Section 106)"
+        AIR_WATER = "air_water", "Air or water discharge permit"
+        BUILDING = "building", "Building permit"
+        OCCUPANCY = "occupancy", "Certificate of occupancy"
+        OTHER = "other", "Other"
+
+    class Status(models.TextChoices):
+        PLANNED = "planned", "Not filed"
+        PREAPP = "preapp", "Pre-application"
+        SUBMITTED = "submitted", "Submitted"
+        REVIEW = "review", "In review / comments"
+        HEARING = "hearing", "Hearing scheduled"
+        APPROVED = "approved", "Approved"
+        DENIED = "denied", "Denied"
+        WITHDRAWN = "withdrawn", "Withdrawn"
+        EXPIRED = "expired", "Expired"
+
+    OPEN = ("planned", "preapp", "submitted", "review", "hearing")
+
+    title = models.CharField(max_length=200, help_text="e.g. Sign height variance")
+    kind = models.CharField(max_length=14, choices=Kind.choices, default=Kind.OTHER)
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.PLANNED, db_index=True)
+    project = models.ForeignKey(Project, null=True, blank=True, on_delete=models.SET_NULL, related_name="approvals")
+    site = models.ForeignKey(LandSite, null=True, blank=True, on_delete=models.SET_NULL, related_name="approvals",
+                             verbose_name="land site")
+    campus = models.ForeignKey(Campus, null=True, blank=True, on_delete=models.SET_NULL, related_name="approvals")
+    contract = models.ForeignKey(Contract, null=True, blank=True, on_delete=models.SET_NULL, related_name="approvals",
+                                 help_text="The purchase agreement whose approvals contingency it serves")
+    jurisdiction = models.CharField("agency / board", max_length=200, blank=True,
+                                    help_text="e.g. Charles County Board of Appeals, USACE Baltimore District")
+    case_number = models.CharField(max_length=60, blank=True)
+    consultant = models.CharField("engineer / attorney", max_length=200, blank=True)
+    owner = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="approvals",
+                              help_text="Who on the team runs it; gets the reminders")
+    waiting_on = models.CharField("ball in court", max_length=6, choices=CampusUpdate.Waiting.choices, blank=True)
+    waiting_since = models.DateField(null=True, blank=True)
+    next_step = models.CharField(max_length=300, blank=True)
+    needed_by = models.DateField(null=True, blank=True, help_text="When the deal needs it (closing, permits, start of work)")
+    submitted_on = models.DateField(null=True, blank=True)
+    approved_on = models.DateField("decision date", null=True, blank=True)
+    expires_on = models.DateField(null=True, blank=True, help_text="When the approval lapses if not used or extended")
+    appeal_ends_on = models.DateField(null=True, blank=True)
+    budget = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    cost = models.DecimalField("spent", max_digits=12, decimal_places=2, null=True, blank=True)
+    notes = models.TextField(blank=True)
+    created_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-updated_at"]
+
+    def __str__(self):
+        return self.title
+
+    def get_absolute_url(self):
+        return reverse("crm:approval_detail", args=[self.pk])
+
+    @property
+    def is_open(self):
+        return self.status in self.OPEN
+
+    @property
+    def home_label(self):
+        return " / ".join(str(x) for x in [self.campus, self.project or self.site] if x)
+
+
+class ApprovalStep(models.Model):
+    """A dated step in an approval: the pre-application meeting, the submittal, comments, a resubmittal, a hearing, the
+    decision, the end of the appeal period. Steps not yet done are what the dashboard and reminders show."""
+
+    class Kind(models.TextChoices):
+        PREAPP = "preapp", "Pre-application meeting"
+        SUBMITTED = "submitted", "Submitted"
+        COMMENTS = "comments", "Comments received"
+        RESUBMITTED = "resubmitted", "Resubmitted"
+        HEARING = "hearing", "Hearing / meeting"
+        DECISION = "decision", "Decision"
+        APPEAL = "appeal", "Appeal period ends"
+        OTHER = "other", "Other"
+
+    approval = models.ForeignKey(Approval, on_delete=models.CASCADE, related_name="steps")
+    kind = models.CharField(max_length=12, choices=Kind.choices, default=Kind.OTHER)
+    date = models.DateField()
+    body = models.CharField("board / meeting", max_length=200, blank=True, help_text="e.g. Planning Commission")
+    note = models.TextField(blank=True)
+    done = models.BooleanField(default=False, help_text="It happened")
+    created_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["date", "id"]
+
+    def __str__(self):
+        return f"{self.get_kind_display()} {self.date}"
+
+    @property
+    def label(self):
+        return f"{self.get_kind_display()}" + (f" ({self.body})" if self.body else "")
+
+
+class ApprovalDocument(models.Model):
+    """A paper in an approval's file: the application, a staff report, a comment letter, the resolution or approval
+    letter, plans. Text is read on upload so Claude can summarize it and pull out the conditions, with citations."""
+
+    class Kind(models.TextChoices):
+        APPLICATION = "application", "Application"
+        STAFF_REPORT = "staff_report", "Staff report"
+        COMMENTS = "comments", "Comment letter"
+        DECISION = "decision", "Resolution / approval letter"
+        PLANS = "plans", "Plans"
+        OTHER = "other", "Other"
+
+    approval = models.ForeignKey(Approval, on_delete=models.CASCADE, related_name="documents")
+    kind = models.CharField(max_length=12, choices=Kind.choices, default=Kind.OTHER)
+    title = models.CharField(max_length=300)
+    file = models.FileField(upload_to="entitlements/%Y/%m/", blank=True)
+    url = models.URLField("link", max_length=1000, blank=True)
+    dated = models.DateField(null=True, blank=True)
+    text = models.TextField(blank=True, editable=False)
+    page_starts = models.JSONField(default=list, blank=True, editable=False)
+    pages = models.PositiveIntegerField(default=0)
+    text_status = models.CharField(max_length=12, blank=True)
+    summary = models.JSONField(default=list, blank=True, help_text="Claude's cited summary")
+    summary_model = models.CharField(max_length=60, blank=True)
+    summary_at = models.DateTimeField(null=True, blank=True)
+    added_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    added_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = [models.F("dated").asc(nulls_last=True), "id"]
+
+    def __str__(self):
+        return self.title
+
+    @property
+    def href(self):
+        return reverse("crm:approval_file", args=[self.pk]) if self.file else self.url
+
+    def page_at(self, index):
+        from bisect import bisect_right
+
+        return max(1, bisect_right(self.page_starts or [0], index))
+
+
+class ApprovalCondition(models.Model):
+    """A condition an approval came with: what has to be done, before what (plat, building permit, CO) or by when, and
+    whether it's met. Conditions Claude finds in a resolution wait here until someone keeps them."""
+
+    class Status(models.TextChoices):
+        OPEN = "open", "Open"
+        MET = "met", "Met"
+        NA = "na", "Not applicable"
+
+    approval = models.ForeignKey(Approval, on_delete=models.CASCADE, related_name="conditions")
+    text = models.TextField()
+    timing = models.CharField("when", max_length=200, blank=True, help_text="e.g. Before plat recordation; ongoing")
+    due_on = models.DateField(null=True, blank=True)
+    status = models.CharField(max_length=4, choices=Status.choices, default=Status.OPEN)
+    confirmed = models.BooleanField(default=True)
+    source = models.ForeignKey(ApprovalDocument, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    source_start = models.PositiveIntegerField(null=True, blank=True)
+    source_end = models.PositiveIntegerField(null=True, blank=True)
+    quote = models.TextField(blank=True)
+    from_claude = models.BooleanField(default=False)
+    created_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["id"]
+
+    def __str__(self):
+        return self.text[:60]

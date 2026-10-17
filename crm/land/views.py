@@ -7,10 +7,12 @@ from django.contrib import messages
 from django.db.models import Q
 from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, render
+from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 from shapely.geometry import shape
 
+from ..entitlements import logic as entitlement_logic
 from ..models import Activity, Campus, Company, LandCounty, LandSite, Note, Parcel, Project, Task, normalize_key
 from ..permissions import is_manager, manager_required, refuse
 from . import diligence, layers, score, zoning_ref
@@ -1000,6 +1002,8 @@ def site_detail(request, pk):
         "campuses": Campus.objects.all(), "projects": Project.objects.filter(active=True).select_related("campus"),
         "today": date.today(), "contracts": _site_contracts(site),
         "dd": diligence.summary(site) if site.diligence.exists() else None,
+        "approvals": entitlement_logic.annotate(list(entitlement_logic.with_related(site.approvals.all()))),
+        "matrix": entitlement_logic.MATRIX, "new_approval_url": reverse("crm:approval_create") + f"?site={site.pk}",
     })
 
 

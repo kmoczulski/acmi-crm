@@ -857,3 +857,34 @@ critical dates with reminders, negotiation rounds and redlines, and the tie-in t
 - Checked in a browser on the scratch demo database (made-up data); Claude calls are tested with a mocked API.
 - **Merged 2026-10-17:** main at `53afe42`, 276 tests (CI green on Postgres). On the real DB: backup
   `backups/db-2026-10-17-before-diligence.sqlite3`, migration 0036 applied (new tables and the decision fields).
+
+## Built 2026-10-17: the entitlement tracker (next roadmap item; Kellen: "yes, start it")
+
+- **Approvals** (`/entitlements/`, sidebar Development › Entitlements; `crm/entitlements/`, models `Approval`,
+  `ApprovalStep`, `ApprovalCondition`, `ApprovalDocument`, migration 0037): one per rezoning, special use, variance
+  (The Forge's sign), site plan, plat, grading / sediment control, stormwater, wetlands 404 / 401, floodplain, the
+  DDESB explosives safety site plan, road access, utility agreements, environmental or Section 106 review, air / water
+  permits, building permit, CO. Each belongs to a project, a land site or a campus (and can be tied to the PSA whose
+  approvals contingency it serves): agency / board, case number, engineer or attorney, who runs it, ball in court and
+  since when, next step, needed-by date, submitted / decision / expiration / appeal-end dates, budget and spent.
+- **Permit matrix:** "Start a permit matrix" (list page, and the Entitlements panel on a project or site page) adds the
+  usual approvals for a building (site plan, sediment control, stormwater, road access, utilities, building permit)
+  plus whatever else is ticked (rezoning, variance, wetlands, the DDESB site plan, CO).
+- **Steps and hearings:** pre-application meeting, submittal, comments, resubmittal, hearing, decision, appeal end.
+  A hearing moves the status to Hearing scheduled, a submittal to Submitted, comments to In review (forward only).
+  A step that passes without being marked done shows "record the outcome" in red.
+- **Conditions of approval** with when they're due ("before plat", "before CO", a date) and met / not applicable.
+  **Papers** (application, staff report, comment letter, resolution, plans): Claude summarizes one with page
+  citations, and "Find conditions with Claude" pulls the conditions out of a resolution (structured JSON, each quote
+  matched back to the text) as suggestions to keep or discard; it also fills in the expiration and appeal-end dates
+  when the approval has none.
+- **Hooks:** the approval list groups by campus and project with the next hearing and who has the ball; panels on
+  the project, site and contract pages; the dashboard deadlines (tag Entitlement) and a "Coming up · 30 days" panel;
+  bell reminders to whoever runs it (hearings and steps 7 and 1 days ahead, on the day, and once when they pass
+  unrecorded; an approval lapsing 60, 30, 7 and 1 days ahead; conditions with a due date); the campus summary's
+  projects and land lines (status and next step, flags for a hearing within two weeks, a missed step, a lapse within
+  60 days, a denial, conditions due), which the weekly Claude draft picks up.
+- **Also fixed:** the contract page's "Find dates with Claude" button did nothing in a browser (its action rode on the
+  button, which the busy indicator disabled before the post); the action is now a hidden field. The site page looked
+  up FEMA's flood layer id on every render and, when FEMA was down, waited up to about 70 s each time; a failed lookup
+  is now remembered for 10 minutes and the fallback is the current id (35), not the old 28. Tests never call FEMA.

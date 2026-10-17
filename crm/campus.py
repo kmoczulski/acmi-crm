@@ -11,6 +11,7 @@ from datetime import datetime, time, timedelta
 from django.utils import timezone
 
 from .contracts import dates as contract_dates
+from .entitlements import logic as entitlement_logic
 from .land import diligence, tracker
 from .models import Activity, CampusUpdate, LandSite, LandSiteEvent, Meeting, OpportunityStage, Project
 
@@ -114,7 +115,9 @@ def _land(site, today):
     facts = [f"{event.text} ({_fmt_day(_day(event.when))})"] if event else []
     contract_facts, contract_flags = contract_dates.campus_lines(site.contracts.prefetch_related("dates"), today)
     dd_facts, dd_flags = diligence.campus_lines(site, today)
-    facts[:0], flags[:0] = contract_facts + dd_facts, contract_flags + dd_flags  # the agreement, deadlines, DD lead
+    en_facts, en_flags = entitlement_logic.campus_lines(site.approvals.all(), today)
+    facts[:0] = contract_facts + dd_facts + en_facts  # the agreement, deadlines, DD and approvals lead
+    flags[:0] = contract_flags + dd_flags + en_flags
     return {"kind": "land", "obj": site, "name": site.name, "url": site.get_absolute_url(),
             "manage_url": f"/land/sites/{site.pk}/manage/", "status": site.get_status_display(), "update": update,
             "facts": facts, "flags": flags, "owners": owners if len(owners) > 1 else [],
@@ -130,6 +133,8 @@ def _project(project, today):
     flags = []
     if not last_touch or (today - last_touch).days >= QUIET_DAYS:
         flags.append(f"no activity in {(today - last_touch).days} days" if last_touch else "no activity recorded")
+    en_facts, en_flags = entitlement_logic.campus_lines(project.approvals.all(), today)
+    facts[:0], flags[:0] = en_facts, en_flags  # where each approval stands leads
     return {"kind": "project", "obj": project, "name": project.name, "url": project.get_absolute_url(),
             "status": "", "update": update, "facts": facts, "flags": flags,
             "waiting": _waiting_note(update, today), "last_touch": last_touch}

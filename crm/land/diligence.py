@@ -176,33 +176,14 @@ def due(days=14, today=None):
 
 def summarize(item, user=None):
     """Have Claude read the item's report and keep a cited summary on it. Raises contracts.ai.Unavailable."""
-    import base64
-
     from ..contracts import ai
 
-    if item.text_status == "ok" and item.text:
-        source = {"type": "text", "media_type": "text/plain", "data": item.text}
-    elif item.text_status == "scan" and item.file and item.file.name.lower().endswith(".pdf"):
-        if item.file.size > ai.MAX_PDF_BYTES:
-            raise ai.Unavailable("That scan is over 25 MB; Claude can't read it in one go.")
-        with item.file.open("rb") as fh:
-            source = {"type": "base64", "media_type": "application/pdf",
-                      "data": base64.standard_b64encode(fh.read()).decode()}
-    else:
-        raise ai.Unavailable("Upload the report (PDF or Word) first.")
-    if len(item.text) > ai.MAX_CHARS:
-        raise ai.Unavailable("That report is too long to read at once.")
     focus = FOCUS.get(item.ref, "the main findings, recommendations, costs and deadlines, and anything that affects "
                                 "buying or building on the land")
     context = f"{item.block}: {item.name}" + (f" by {item.consultant}" if item.consultant else "")
     prompt = (f"SITE: {item.site.name}" + (f" ({item.site.campus.code} campus)" if item.site.campus_id else "")
               + f"\nREPORT: {item.name}\nPull out {focus}.")
-    content = [{"type": "document", "source": source, "title": item.name, "context": context,
-                "citations": {"enabled": True}}, {"type": "text", "text": prompt}]
-    message = ai._stream(SUMMARY_SYSTEM, content, 12000, {"effort": ai.EFFORT})
-    if message.stop_reason == "max_tokens":
-        raise ai.Unavailable("The summary ran too long and was cut off. Try again.")
-    item.summary = ai.blocks(message, [item])
-    item.summary_model, item.summary_at, item.updated_by = message.model or ai.MODEL, timezone.now(), user
+    item.summary, item.summary_model = ai.cited_summary(item, SUMMARY_SYSTEM, prompt, item.name, context)
+    item.summary_at, item.updated_by = timezone.now(), user
     item.save(update_fields=["summary", "summary_model", "summary_at", "updated_by", "updated_at"])
     return item

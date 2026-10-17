@@ -131,6 +131,33 @@ class ClosingItemAdmin(admin.ModelAdmin):
     list_filter = ("status", "side")
 
 
+class ApprovalStepInline(admin.TabularInline):
+    model = models.ApprovalStep
+    fields = ("kind", "date", "body", "done")
+    extra = 0
+
+
+class ApprovalConditionInline(admin.TabularInline):
+    model = models.ApprovalCondition
+    fields = ("text", "timing", "due_on", "status", "confirmed")
+    extra = 0
+
+
+@admin.register(models.Approval)
+class ApprovalAdmin(admin.ModelAdmin):
+    list_display = ("title", "kind", "status", "jurisdiction", "project", "site", "campus", "owner", "updated_at")
+    list_filter = ("kind", "status", "campus")
+    search_fields = ("title", "jurisdiction", "case_number")
+    raw_id_fields = ("site", "contract")
+    inlines = [ApprovalStepInline, ApprovalConditionInline]
+
+
+@admin.register(models.ApprovalDocument)
+class ApprovalDocumentAdmin(admin.ModelAdmin):
+    list_display = ("title", "kind", "approval", "dated", "pages", "text_status")
+    readonly_fields = ("summary",)
+
+
 @admin.register(models.ContractAnswer)
 class ContractAnswerAdmin(admin.ModelAdmin):
     list_display = ("created_at", "contract", "question", "asked_by", "input_tokens", "output_tokens")

@@ -2,6 +2,7 @@ from django.urls import path
 
 from . import campus_views, views
 from .contracts import views as contract_views
+from .entitlements import views as entitlement_views
 from .land import assignment_views as asg_views
 from .land import brief_views, diligence_views
 from .land import views as land_views
@@ -45,6 +46,11 @@ urlpatterns = [
     path("campuses/<str:code>/", campus_views.campus_summary, name="campus_summary"),
     path("campuses/<str:code>/reports/<int:pk>/", campus_views.campus_report, name="campus_report"),
     path("campuses/updates/<int:pk>/delete/", campus_views.campus_update_delete, name="campus_update_delete"),
+    path("entitlements/", entitlement_views.approval_list, name="approval_list"),
+    path("entitlements/new/", entitlement_views.approval_create, name="approval_create"),
+    path("entitlements/matrix/", entitlement_views.approval_matrix, name="approval_matrix"),
+    path("entitlements/files/<int:doc_pk>/", entitlement_views.approval_file, name="approval_file"),
+    path("entitlements/<int:pk>/", entitlement_views.approval_detail, name="approval_detail"),
     path("contracts/", contract_views.contract_list, name="contract_list"),
     path("contracts/new/", contract_views.contract_create, name="contract_create"),
     path("contracts/templates/", contract_views.template_list, name="contract_templates"),

@@ -1,0 +1,12 @@
+<form method="post" action="{% url 'crm:approval_matrix' %}" class="en-matrix">{% csrf_token %}
+  <input type="hidden" name="back" value="{{ back|default:request.get_full_path }}">
+  {% if for_project %}<input type="hidden" name="project" value="{{ for_project.pk }}">
+  {% elif for_site %}<input type="hidden" name="site" value="{{ for_site.pk }}">
+  {% else %}
+  <label>For <select name="project"><option value="">Project…</option>{% for pr in projects %}<option value="{{ pr.pk }}">{{ pr.name }}{% if pr.campus and pr.campus.code != pr.name %} ({{ pr.campus.code }}){% endif %}</option>{% endfor %}</select></label>
+  <label>or <select name="site"><option value="">Land site…</option>{% for s in sites %}<option value="{{ s.pk }}">{{ s.name }}</option>{% endfor %}</select></label>
+  {% endif %}
+  <div class="en-kinds">{% for kind, title, ticked in matrix %}<label><input type="checkbox" name="kinds" value="{{ kind }}"{% if ticked %} checked{% endif %}> {{ title }}</label>{% endfor %}</div>
+  <button class="btn btn-small btn-primary">Add these approvals</button>
+  <span class="muted lc-small">Ticked: what most buildings need. Add rezoning, a variance, wetlands or the DDESB site plan when the deal needs them.</span>
+</form>

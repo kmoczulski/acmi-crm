@@ -167,6 +167,8 @@
       {% else %}<p class="muted lc-small" style="margin:0">Title, survey, Phase I, geotech, zoning letter and will-serves, with consultants, cost and due dates against the feasibility deadline.</p>{% endif %}
     </section>
 
+    {% with add_url=new_approval_url show_matrix=True for_site=site %}{% include "crm/partials/approval_panel.html" %}{% endwith %}
+
     <section class="panel">
       <h3>Parcels</h3>
       <div class="table-wrap" style="border:0">
