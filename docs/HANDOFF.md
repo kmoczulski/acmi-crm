@@ -923,3 +923,5 @@ lender and investor updates.
   interviews, tag Build).
 - Checked in a browser on the scratch demo database (made-up data, including approving a change order); Claude calls
   are tested with a mocked API.
+- **Merged 2026-10-17:** main at `7378693`, 290 tests (CI green on Postgres). On the real DB: backup
+  `backups/db-2026-10-17-before-build-records.sqlite3`, migration 0038 applied (new tables only).
