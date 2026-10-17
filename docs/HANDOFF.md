@@ -824,3 +824,5 @@ critical dates with reminders, negotiation rounds and redlines, and the tie-in t
 - **Not yet:** a portfolio view across contracts (Notessa's stacking plan and covenant report), a calendar (.ics) feed
   of critical dates, OCR for scans, and auto-numbered Word headings (Word draws the numbers, so cross-references link
   less often in .docx than in PDFs).
+- **Merged 2026-10-17:** main at `8fb1640`, 268 tests (CI green on Postgres). On the real DB: backup
+  `backups/db-2026-10-17-before-contracts.sqlite3`, migration 0035 applied (new tables only; no contracts yet).
