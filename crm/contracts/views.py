@@ -180,6 +180,8 @@ def _post(request, contract):
         form = ContractForm(request.POST, instance=contract)
         if form.is_valid():
             form.save()
+            # Owners picked on a site it no longer belongs to stop getting its dates.
+            contract.parcel_deals.remove(*contract.parcel_deals.exclude(site_id=contract.site_id))
             dates.sync_site(contract, user)
             messages.success(request, "Saved.")
         else:

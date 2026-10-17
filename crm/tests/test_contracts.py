@@ -569,6 +569,11 @@ class SiteTimelineTests(TestCase):
         self.assertEqual((wamsley.milestones.get("psa_signed"), wamsley.status), ("2026-03-02", "contract"))
         self.assertEqual(self.site.milestones, {})  # the site's own timeline is left alone
         self.assertEqual(SiteParcelDeal.objects.get(parcel=self.p2).milestones, {})
+        other = LandSite.objects.create(name="Lake Acton", status="loi")
+        self.post(status="signed", effective_date="2026-03-02", site=other.pk)
+        self.assertFalse(self.c.parcel_deals.exists())  # moved to another site: the old owners drop off
+        other.refresh_from_db()
+        self.assertEqual(other.milestones.get("psa_signed"), "2026-03-02")
 
     def test_dropped_site_keeps_its_status(self):
         self.site.status = "dropped"
