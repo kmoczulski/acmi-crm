@@ -24,8 +24,9 @@ def live(qs=None):
 
 def upcoming(days=30, today=None):
     """{"overdue": [...], "soon": [...]}: missed deadlines, then the next `days` days: contract dates, open diligence
-    items, closing items, and entitlement steps, conditions and lapsing approvals. Each row has date, left, late,
-    label, amount, url, what (the deal), who, tag."""
+    items, closing items, entitlement steps, conditions and lapsing approvals, build milestones and GC interviews.
+    Each row has date, left, late, label, amount, url, what (the deal), who, tag."""
+    from ..build import logic as build_logic
     from ..entitlements import logic as entitlement_logic
     from ..land import diligence
     from . import closing
@@ -43,6 +44,7 @@ def upcoming(days=30, today=None):
         rows.append(SimpleNamespace(date=i.due_on, label=i.name, amount=None, url=i.contract.get_absolute_url()
                                     + "#closing", what=i.contract.title, who=i.contract.owner, tag="Closing"))
     rows += entitlement_logic.due_rows(days, today)
+    rows += build_logic.due_rows(days, today)
     rows.sort(key=lambda r: r.date)
     for r in rows:
         r.left = (r.date - today).days

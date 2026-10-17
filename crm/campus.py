@@ -10,6 +10,7 @@ from datetime import datetime, time, timedelta
 
 from django.utils import timezone
 
+from .build import logic as build_logic
 from .contracts import dates as contract_dates
 from .entitlements import logic as entitlement_logic
 from .land import diligence, tracker
@@ -134,7 +135,8 @@ def _project(project, today):
     if not last_touch or (today - last_touch).days >= QUIET_DAYS:
         flags.append(f"no activity in {(today - last_touch).days} days" if last_touch else "no activity recorded")
     en_facts, en_flags = entitlement_logic.campus_lines(project.approvals.all(), today)
-    facts[:0], flags[:0] = en_facts, en_flags  # where each approval stands leads
+    build_facts, build_flags = build_logic.campus_lines(project, today)
+    facts[:0], flags[:0] = build_facts + en_facts, build_flags + en_flags  # schedule, money and approvals lead
     return {"kind": "project", "obj": project, "name": project.name, "url": project.get_absolute_url(),
             "status": "", "update": update, "facts": facts, "flags": flags,
             "waiting": _waiting_note(update, today), "last_touch": last_touch}

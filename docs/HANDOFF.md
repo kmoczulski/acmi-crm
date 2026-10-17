@@ -890,3 +890,36 @@ critical dates with reminders, negotiation rounds and redlines, and the tie-in t
   is now remembered for 10 minutes and the fallback is the current id (35), not the old 28. Tests never call FEMA.
 - **Merged 2026-10-17:** main at `e3ca2b0`, 285 tests (CI green on Postgres). On the real DB: backup
   `backups/db-2026-10-17-before-entitlements.sqlite3`, migration 0037 applied (new tables only).
+
+## Built 2026-10-17: build records (next roadmap item; Kellen: "yes, start it")
+
+Summaries of what the GC's own system (Procore etc.) holds in detail, one page per project:
+`/projects/<id>/build/` ("Build" panel on the project page; `crm/build/`, models `BuildMilestone`, `TeamMember`,
+`Bid`, `ProjectAnswer`, `BudgetLine`, `ChangeOrder`, `Draw`, migration 0038). The page prints with the logo for
+lender and investor updates.
+
+- **Schedule:** "Start the standard schedule" adds 20 milestones (design: test fit, SD, DD, CDs; procurement: GC
+  RFP, proposals, interviews, GC selected, GMP; construction: NTP, site work, pad ready, foundations, vertical,
+  dry-in, substantial completion, CO; closeout: move-in, rent start, final). Each has baseline, forecast and actual
+  dates; slip = forecast (or actual) minus baseline. A forecast that passes without an actual date shows "record or
+  re-forecast".
+- **Team:** architect, civil, structural, MEP, geotech, surveyor, environmental, the QD / explosives safety
+  consultant, GC, owner's rep, attorney, with contract amount and invoiced to date.
+- **GC selection** (ARA's interviews and downselect): bidders with status (invited → received → interviewed →
+  shortlisted → selected), price, fee %, general conditions, months, interview date, strengths and concerns, and the
+  proposal file. "Select as GC" marks the others still in play Not selected, adds the GC to the team at the bid
+  price, and dates the "GC selected" milestone. **Claude:** "Level the bids" reads every proposal side by side
+  (price, fee, allowances, exclusions, schedule, scope gaps, questions per bidder) with each number cited to its
+  proposal page; "Ask about the proposals" answers a question the same way; "Fill in from the proposal" reads one
+  proposal's price, fee, general conditions and months (structured JSON) into the blank fields and notes the
+  exclusions.
+- **Budget:** "Start the standard budget" adds 16 lines (land, hard, soft, financing, contingency). Original,
+  approved changes, current, committed, paid, forecast (blank = current) and variance, in whole dollars so the
+  columns add up. **Change orders** (reason, amount, schedule days, line; Approve / Reject) add to their line when
+  approved; ones on no line still count in the totals. **Draws:** requested, funded, retainage, status.
+- **Hooks:** the campus summary's project line (next milestone and slip, GC or selection status, budget and
+  forecast, pending change orders; flags for a slip of 14+ days, a forecast over budget, a milestone that passed
+  without a date, a draw waiting 30+ days), and the dashboard deadlines (milestones forecast within two weeks and GC
+  interviews, tag Build).
+- Checked in a browser on the scratch demo database (made-up data, including approving a change order); Claude calls
+  are tested with a mocked API.

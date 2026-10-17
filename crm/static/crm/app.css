@@ -832,5 +832,16 @@ a.cite:hover { background: var(--accent); color: #fff; text-decoration: none; }
 .en-kinds { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 2px 12px; margin: 8px 0; }
 .en-kinds label { display: flex; gap: 6px; align-items: baseline; font-size: 13px; }
 @media (max-width: 900px) { .en-kinds { grid-template-columns: 1fr 1fr; } }
+
+/* Build records */
+tr.bd-phase td { background: #fafbfc; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase;
+  letter-spacing: .04em; padding-top: 8px; }
+tr.bd-done td { color: var(--muted); }
+tr.bd-done td b { font-weight: 500; }
+tr.bd-selected td { background: var(--good-bg); }
+tr.bd-out td { color: var(--muted); }
+tr.bd-total td { font-weight: 700; border-top: 2px solid var(--line); }
+.bd-claude { display: grid; gap: 8px; margin: 12px 0 4px; padding: 10px; background: var(--accent-soft); border-radius: var(--radius); }
+.bd-claude textarea { margin-bottom: 4px; }
 @media (max-width: 900px) { .dd-strip, .dd-form { grid-template-columns: 1fr 1fr; } }
 @media print { .ct-print { border: 0; padding: 0; } a.cite { background: none; } }

@@ -2339,3 +2339,248 @@ class ApprovalCondition(models.Model):
 
     def __str__(self):
         return self.text[:60]
+
+
+# ---------------------------------------------------------------------------
+# Build records (crm/build/): a project's schedule, team, GC selection, budget, change orders and draws. Summaries
+# of what the GC's own system holds in detail.
+# ---------------------------------------------------------------------------
+
+
+class BuildMilestone(models.Model):
+    """A schedule milestone (design, procurement, construction, closeout) with the baseline date it was planned for,
+    today's forecast and the actual date. Slip = forecast (or actual) against the baseline."""
+
+    class Phase(models.TextChoices):
+        DESIGN = "design", "Design"
+        PROCUREMENT = "procurement", "Procurement"
+        CONSTRUCTION = "construction", "Construction"
+        CLOSEOUT = "closeout", "Closeout"
+
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="milestones")
+    phase = models.CharField(max_length=12, choices=Phase.choices, default=Phase.CONSTRUCTION)
+    name = models.CharField(max_length=120)
+    baseline = models.DateField(null=True, blank=True, help_text="The date in the approved schedule")
+    forecast = models.DateField(null=True, blank=True)
+    actual = models.DateField(null=True, blank=True)
+    note = models.CharField(max_length=300, blank=True)
+    position = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        ordering = ["position", "id"]
+
+    def __str__(self):
+        return self.name
+
+    @property
+    def slip(self):
+        """Days late (positive) or early against the baseline; None without both dates."""
+        when = self.actual or self.forecast
+        return (when - self.baseline).days if when and self.baseline else None
+
+
+class TeamMember(models.Model):
+    """A firm on a project's team: architect, civil, structural, MEP, geotech, surveyor, GC, owner's rep, attorney,
+    the explosives safety (QD) consultant. Who, the contract amount and what's been invoiced."""
+
+    class Role(models.TextChoices):
+        ARCHITECT = "architect", "Architect"
+        CIVIL = "civil", "Civil engineer"
+        STRUCTURAL = "structural", "Structural engineer"
+        MEP = "mep", "MEP engineer"
+        GEOTECH = "geotech", "Geotechnical engineer"
+        SURVEYOR = "surveyor", "Surveyor"
+        ENVIRONMENTAL = "environmental", "Environmental consultant"
+        QD = "qd", "Explosives safety / QD consultant"
+        GC = "gc", "General contractor"
+        OWNERS_REP = "owners_rep", "Owner's representative"
+        ATTORNEY = "attorney", "Attorney"
+        OTHER = "other", "Other"
+
+    class Status(models.TextChoices):
+        PROPOSED = "proposed", "Proposed"
+        ENGAGED = "engaged", "Engaged"
+        COMPLETE = "complete", "Complete"
+
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="team")
+    role = models.CharField(max_length=14, choices=Role.choices, default=Role.OTHER)
+    firm = models.CharField(max_length=200)
+    contact = models.CharField(max_length=200, blank=True, help_text="Name, email or phone")
+    fee = models.DecimalField("contract ($)", max_digits=14, decimal_places=2, null=True, blank=True)
+    invoiced = models.DecimalField("invoiced ($)", max_digits=14, decimal_places=2, null=True, blank=True)
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.ENGAGED)
+    notes = models.CharField(max_length=300, blank=True)
+
+    class Meta:
+        ordering = ["role", "firm"]
+
+    def __str__(self):
+        return f"{self.firm} ({self.get_role_display()})"
+
+
+class Bid(models.Model):
+    """A general contractor's proposal for a project: the price, fee, general conditions and schedule, where it stands
+    in the selection (invited → interviewed → shortlisted → selected), strengths and concerns. Upload the proposal and
+    Claude levels the bids side by side, citing each one."""
+
+    class Status(models.TextChoices):
+        INVITED = "invited", "Invited"
+        DECLINED = "declined", "Declined to bid"
+        RECEIVED = "received", "Proposal received"
+        INTERVIEWED = "interviewed", "Interviewed"
+        SHORTLISTED = "shortlisted", "Shortlisted"
+        SELECTED = "selected", "Selected"
+        NOT_SELECTED = "not_selected", "Not selected"
+
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="bids")
+    firm = models.CharField(max_length=200)
+    contact = models.CharField(max_length=200, blank=True)
+    status = models.CharField(max_length=12, choices=Status.choices, default=Status.INVITED)
+    amount = models.DecimalField("price ($)", max_digits=14, decimal_places=2, null=True, blank=True,
+                                 help_text="Lump sum or GMP as proposed")
+    fee_pct = models.DecimalField("fee (%)", max_digits=5, decimal_places=2, null=True, blank=True)
+    general_conditions = models.DecimalField("general conditions ($)", max_digits=14, decimal_places=2, null=True,
+                                             blank=True)
+    duration_months = models.DecimalField("schedule (months)", max_digits=5, decimal_places=1, null=True, blank=True)
+    received_on = models.DateField(null=True, blank=True)
+    interview_on = models.DateField(null=True, blank=True)
+    strengths = models.TextField(blank=True)
+    concerns = models.TextField(blank=True)
+    file = models.FileField("proposal", upload_to="bids/%Y/%m/", blank=True)
+    text = models.TextField(blank=True, editable=False)
+    page_starts = models.JSONField(default=list, blank=True, editable=False)
+    pages = models.PositiveIntegerField(default=0)
+    text_status = models.CharField(max_length=12, blank=True)
+    updated_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = [models.F("amount").asc(nulls_last=True), "firm"]
+
+    def __str__(self):
+        return self.firm
+
+    @property
+    def title(self):  # what citations call the proposal
+        return f"{self.firm} proposal"
+
+    @property
+    def href(self):
+        return reverse("crm:bid_file", args=[self.pk]) if self.file else ""
+
+    def page_at(self, index):
+        from bisect import bisect_right
+
+        return max(1, bisect_right(self.page_starts or [0], index))
+
+
+class ProjectAnswer(models.Model):
+    """Claude's cited answer about a project's GC proposals: the bid leveling, or a question asked about them. Same
+    block format as ContractAnswer."""
+
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="answers")
+    question = models.TextField()
+    blocks = models.JSONField(default=list, blank=True)
+    documents = models.JSONField(default=list, blank=True)
+    model = models.CharField(max_length=60, blank=True)
+    input_tokens = models.PositiveIntegerField(default=0)
+    output_tokens = models.PositiveIntegerField(default=0)
+    asked_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return self.question[:60]
+
+
+class BudgetLine(models.Model):
+    """A line of a project's budget (land, sitework, shell, MEP, soft costs, contingency): the original budget, what's
+    committed and paid, and the forecast at completion. Approved change orders on the line add to its budget."""
+
+    class Group(models.TextChoices):
+        LAND = "land", "Land"
+        HARD = "hard", "Hard costs"
+        SOFT = "soft", "Soft costs"
+        FINANCE = "finance", "Financing"
+        CONTINGENCY = "contingency", "Contingency"
+
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="budget")
+    group = models.CharField(max_length=12, choices=Group.choices, default=Group.HARD)
+    code = models.CharField(max_length=20, blank=True)
+    name = models.CharField(max_length=120)
+    original = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    committed = models.DecimalField(max_digits=14, decimal_places=2, null=True, blank=True,
+                                    help_text="Under contract or purchase order")
+    paid = models.DecimalField("paid to date", max_digits=14, decimal_places=2, null=True, blank=True)
+    forecast = models.DecimalField("forecast at completion", max_digits=14, decimal_places=2, null=True, blank=True,
+                                   help_text="Blank = the current budget")
+    position = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        ordering = ["position", "id"]
+
+    def __str__(self):
+        return f"{self.code} {self.name}".strip()
+
+
+class ChangeOrder(models.Model):
+    """A change to the work: what and why, the cost and days it adds, the budget line it lands on, and whether it's
+    approved. Approved change orders add to their line's current budget."""
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        APPROVED = "approved", "Approved"
+        REJECTED = "rejected", "Rejected"
+
+    class Reason(models.TextChoices):
+        OWNER = "owner", "Owner / tenant change"
+        UNFORESEEN = "unforeseen", "Unforeseen condition"
+        DESIGN = "design", "Design error or omission"
+        AGENCY = "agency", "Code or agency requirement"
+        OTHER = "other", "Other"
+
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="change_orders")
+    number = models.CharField(max_length=20, blank=True)
+    title = models.CharField(max_length=200)
+    reason = models.CharField(max_length=12, choices=Reason.choices, default=Reason.OTHER)
+    amount = models.DecimalField(max_digits=14, decimal_places=2, default=0, help_text="Negative for a credit")
+    days = models.IntegerField("schedule days", default=0)
+    status = models.CharField(max_length=8, choices=Status.choices, default=Status.PENDING)
+    line = models.ForeignKey(BudgetLine, null=True, blank=True, on_delete=models.SET_NULL, related_name="change_orders")
+    submitted_on = models.DateField(null=True, blank=True)
+    decided_on = models.DateField(null=True, blank=True)
+    notes = models.CharField(max_length=300, blank=True)
+
+    class Meta:
+        ordering = ["submitted_on", "id"]
+
+    def __str__(self):
+        return f"CO {self.number} {self.title}".strip()
+
+
+class Draw(models.Model):
+    """A construction draw or pay application: the period, what was requested and funded, and retainage held."""
+
+    class Status(models.TextChoices):
+        DRAFT = "draft", "Draft"
+        SUBMITTED = "submitted", "Submitted"
+        FUNDED = "funded", "Funded"
+
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="draws")
+    number = models.PositiveSmallIntegerField(default=1)
+    period_end = models.DateField(null=True, blank=True)
+    requested = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    funded = models.DecimalField(max_digits=14, decimal_places=2, null=True, blank=True)
+    retainage = models.DecimalField(max_digits=14, decimal_places=2, null=True, blank=True)
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.DRAFT)
+    submitted_on = models.DateField(null=True, blank=True)
+    funded_on = models.DateField(null=True, blank=True)
+    notes = models.CharField(max_length=300, blank=True)
+
+    class Meta:
+        ordering = ["number", "id"]
+
+    def __str__(self):
+        return f"Draw {self.number}"

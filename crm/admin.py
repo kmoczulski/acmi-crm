@@ -158,6 +158,25 @@ class ApprovalDocumentAdmin(admin.ModelAdmin):
     readonly_fields = ("summary",)
 
 
+@admin.register(models.BuildMilestone)
+class BuildMilestoneAdmin(admin.ModelAdmin):
+    list_display = ("project", "phase", "name", "baseline", "forecast", "actual")
+    list_filter = ("project", "phase")
+
+
+@admin.register(models.Bid)
+class BidAdmin(admin.ModelAdmin):
+    list_display = ("project", "firm", "status", "amount", "fee_pct", "duration_months")
+    list_filter = ("project", "status")
+
+
+admin.site.register(models.TeamMember)
+admin.site.register(models.BudgetLine)
+admin.site.register(models.ChangeOrder)
+admin.site.register(models.Draw)
+admin.site.register(models.ProjectAnswer)
+
+
 @admin.register(models.ContractAnswer)
 class ContractAnswerAdmin(admin.ModelAdmin):
     list_display = ("created_at", "contract", "question", "asked_by", "input_tokens", "output_tokens")

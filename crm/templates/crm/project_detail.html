@@ -31,6 +31,16 @@
     </div>
   </aside>
   <section>
+    <section class="panel" id="build">
+      <h3>Build <a href="{% url 'crm:project_build' project.pk %}" style="float:right;text-transform:none;letter-spacing:0">{% if build.empty %}Start{% else %}Open{% endif %}</a></h3>
+      {% if build.empty %}<p class="muted lc-small" style="margin:0">Schedule, team, GC selection, budget, change orders and draws, kept at the summary level.</p>
+      {% else %}
+        {% with m=build.schedule.next %}{% if m %}<div class="row-line"><span>Next: <b>{{ m.name }}</b></span><span class="lc-small">{% firstof m.forecast|date:"M j, Y" m.baseline|date:"M j, Y" %}{% if m.slip and m.slip > 0 %} <span class="overdue">+{{ m.slip }} d</span>{% endif %}</span></div>{% endif %}{% endwith %}
+        {% if build.gc %}<div class="row-line"><span>GC</span><span class="lc-small">{{ build.gc }}</span></div>{% elif build.bids %}<div class="row-line"><span>GC selection</span><span class="lc-small">{{ build.bids_in|length }} proposal{{ build.bids_in|length|pluralize }} in</span></div>{% endif %}
+        {% with t=build.budget.totals %}{% if build.budget.lines %}<div class="row-line"><span>Budget {{ t.current|money }}</span><span class="lc-small {% if t.variance > 0 %}overdue{% endif %}">forecast {{ t.forecast_total|money }}</span></div>{% endif %}{% endwith %}
+        {% if build.pending %}<div class="row-line"><span>Change orders pending</span><span class="lc-small">{{ build.pending|length }} · {{ build.pending_total|money }}</span></div>{% endif %}
+      {% endif %}
+    </section>
     {% with add_url=new_approval_url show_matrix=True for_project=project %}{% include "crm/partials/approval_panel.html" %}{% endwith %}
     <div class="panel">
       <h3>Correspondence</h3>

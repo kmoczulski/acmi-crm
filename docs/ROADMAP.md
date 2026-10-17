@@ -4,9 +4,10 @@
 with CI; the transcript archive in the CRM (waiting on the Granola connector to pull from Granola); the campus Summary
 tab v1 and the weekly update drafted by Claude; Cloud Run jobs and Cloud Storage support in code; the contract &
 critical-dates module, modeled on Notessa (cited answers, abstracts, defined terms and cross-references, redlines,
-reminders); the due-diligence tracker and closing checklist, and the entitlement tracker (2026-10-17). Next: connect
-Granola and start the daily archive, then project and build records. Details in `docs/HANDOFF.md` ("roadmap phase
-1", "contracts and critical dates", "due diligence and the closing checklist", "the entitlement tracker").
+reminders); the due-diligence tracker and closing checklist, the entitlement tracker, and project build records
+(2026-10-17). Next: connect Granola and start the daily archive, then tenant requirements matching and lease abstracts.
+Details in `docs/HANDOFF.md` ("roadmap phase 1", "contracts and critical dates", "due diligence and the closing
+checklist", "the entitlement tracker", "build records").
 
 What to build next, after the audit fixes. Four parts: what blocks going live, the campus summary (Kellen's proposal,
 worked through), the platform seen by a developer who has taken land from sourcing through construction, and the
@@ -144,5 +145,5 @@ consultants as companies with roles and costs, and quick capture from the phone.
 4. Campus summary v1, then the weekly report v2.
 5. Contract and critical dates (the deferred Contract negotiations module). **Built 2026-10-16**, modeled on Notessa.
    Due diligence on ACMI's own deals and the closing checklist: **built 2026-10-17**.
-6. Entitlement tracker (**built 2026-10-17**), then project and build records.
+6. Entitlement tracker, then project and build records (**both built 2026-10-17**).
 7. Flyer intake, landowner letters, comps, and the data clean-ups above.

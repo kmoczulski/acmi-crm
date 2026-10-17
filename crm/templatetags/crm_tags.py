@@ -182,6 +182,15 @@ def money(value):
     return f"${v:,.0f}"
 
 
+@register.filter
+def dollars(value):
+    """$1,234,567 (whole dollars, for budget tables where the columns must add up); blank for nothing."""
+    if value in (None, ""):
+        return ""
+    v = round(float(value))
+    return f"-${-v:,}" if v < 0 else f"${v:,}"
+
+
 EMAIL_KINDS = {"email_sent", "email_received", "reply", "auto_reply", "bounce"}
 
 

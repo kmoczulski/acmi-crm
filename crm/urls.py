@@ -1,6 +1,7 @@
 from django.urls import path
 
 from . import campus_views, views
+from .build import views as build_views
 from .contracts import views as contract_views
 from .entitlements import views as entitlement_views
 from .land import assignment_views as asg_views
@@ -65,6 +66,8 @@ urlpatterns = [
     path("contracts/<int:pk>/read/<int:doc_pk>/span/", contract_views.contract_span, name="contract_span"),
     path("projects/", views.project_list, name="project_list"),
     path("projects/<int:pk>/", views.project_detail, name="project_detail"),
+    path("projects/<int:pk>/build/", build_views.project_build, name="project_build"),
+    path("projects/bids/<int:pk>/file/", build_views.bid_file, name="bid_file"),
     path("tasks/", views.task_list, name="task_list"),
     path("tasks/add/", views.task_add, name="task_add"),
     path("tasks/<int:pk>/toggle/", views.task_toggle, name="task_toggle"),

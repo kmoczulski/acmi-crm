@@ -14,6 +14,7 @@ from django.views.decorators.http import require_POST
 
 from . import ai, documents, gcal, meetings, merge, notify, pipeline
 from . import projects as project_tagging
+from .build import logic as build_logic
 from .contracts import dates as contract_dates
 from .entitlements import logic as entitlement_logic
 from .forms import (
@@ -308,6 +309,7 @@ def project_detail(request, pk):
         "project": project, "form": form, "companies": companies, "page": page, "title": "project",
         "approvals": entitlement_logic.annotate(list(entitlement_logic.with_related(project.approvals.all()))),
         "matrix": entitlement_logic.MATRIX, "new_approval_url": reverse("crm:approval_create") + f"?project={project.pk}",
+        "build": build_logic.status(project),
     })
 
 
