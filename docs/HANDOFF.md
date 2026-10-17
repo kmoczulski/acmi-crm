@@ -855,3 +855,5 @@ critical dates with reminders, negotiation rounds and redlines, and the tie-in t
   The campus summary adds "due diligence: N of M cleared, K issues" and flags for issues, late items and a
   feasibility crunch, so the weekly Claude draft picks them up.
 - Checked in a browser on the scratch demo database (made-up data); Claude calls are tested with a mocked API.
+- **Merged 2026-10-17:** main at `53afe42`, 276 tests (CI green on Postgres). On the real DB: backup
+  `backups/db-2026-10-17-before-diligence.sqlite3`, migration 0036 applied (new tables and the decision fields).
