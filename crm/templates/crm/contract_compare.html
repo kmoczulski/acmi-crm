@@ -1,0 +1,36 @@
+{% extends "crm/base.html" %}
+{% block title %}Redline · {{ contract.title }} · ACMI CRM{% endblock %}
+{% block content %}
+<div class="record-head">
+  <div>
+    <div class="muted lc-small"><a href="{% url 'crm:contract_list' %}">Contracts</a> › <a href="{{ contract.get_absolute_url }}">{{ contract.title }}</a></div>
+    <h1>Redline</h1>
+  </div>
+</div>
+<form method="get" class="inline-form panel">
+  <label>From <select name="a">{% for d in docs %}<option value="{{ d.pk }}"{% if d.pk == a.pk %} selected{% endif %}>{{ forloop.counter }}. {{ d.title }}</option>{% endfor %}</select></label>
+  <label>to <select name="b">{% for d in docs %}<option value="{{ d.pk }}"{% if d.pk == b.pk %} selected{% endif %}>{{ forloop.counter }}. {{ d.title }}</option>{% endfor %}</select></label>
+  <button class="btn">Compare</button>
+  {% if stats.changes is not None %}<span class="muted lc-small">{{ stats.changes }} change{{ stats.changes|pluralize }} · {{ stats.inserted }} word{{ stats.inserted|pluralize }} added · {{ stats.deleted }} removed</span>{% endif %}
+</form>
+{% if a and b and ai_ready %}
+<form method="post" action="{{ contract.get_absolute_url }}" class="inline-form" data-busy="Reading both… under a minute" style="margin-bottom:12px">{% csrf_token %}
+  <input type="hidden" name="action" value="ask"><input type="hidden" name="docs" value="{{ a.pk }}"><input type="hidden" name="docs" value="{{ b.pk }}">
+  <input type="hidden" name="question" value="{{ question }} (Document 1: {{ a.title }}; document 2: {{ b.title }}.)">
+  <button class="btn btn-primary">Have Claude explain the changes</button>
+  <span class="muted lc-small">Lists each change, what it means for ACMI, and anything that looks unintended, with citations.</span>
+</form>
+{% endif %}
+<section class="panel">
+  {% if stats.too_long %}<p class="muted">These documents are too long to compare here.</p>
+  {% elif body %}<div class="rl">{{ body }}</div>
+  {% else %}<p class="muted">Pick two different documents with text to compare.</p>{% endif %}
+</section>
+{% endblock %}
+{% block scripts %}
+<script>
+  document.querySelectorAll('form[data-busy]').forEach(f => f.addEventListener('submit', () => {
+    const btn = f.querySelector('button'); btn.disabled = true; btn.textContent = f.dataset.busy;
+  }));
+</script>
+{% endblock %}

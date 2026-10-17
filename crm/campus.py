@@ -2,14 +2,15 @@
 has been, plus a daily feed and the weekly update as email text.
 
 Lines are assembled from what the CRM already holds (a deal's stage and next step, the last email each way, meetings,
-land milestones and per-owner deals, project email tags) and from CampusUpdate rows the team adds for things that
-happened off-system. Nothing here is written by AI.
+land milestones and per-owner deals, contracts and their critical dates, project email tags) and from CampusUpdate rows
+the team adds for things that happened off-system. Nothing here is written by AI.
 """
 from collections import defaultdict
 from datetime import datetime, time, timedelta
 
 from django.utils import timezone
 
+from .contracts import dates as contract_dates
 from .land import tracker
 from .models import Activity, CampusUpdate, LandSite, LandSiteEvent, Meeting, OpportunityStage, Project
 
@@ -85,6 +86,8 @@ def _tenant(opp, today):
     no_reply = any(f.startswith("no reply") for f in flags)  # already says how long it has been quiet
     if not no_reply and (not last_touch or (today - last_touch).days >= QUIET_DAYS):
         flags.append(f"no activity in {(today - last_touch).days} days" if last_touch else "no activity recorded")
+    contract_facts, contract_flags = contract_dates.campus_lines(opp.contracts.prefetch_related("dates"), today)
+    facts[:0], flags[:0] = contract_facts, contract_flags  # the agreement and its deadlines lead
     return {"kind": "tenant", "obj": opp, "name": opp.company.name, "url": opp.get_absolute_url(),
             "status": opp.get_stage_display(), "update": update, "facts": facts, "flags": flags,
             "waiting": _waiting_note(update, today), "last_touch": last_touch}
@@ -109,6 +112,8 @@ def _land(site, today):
     if not last_touch or (today - last_touch).days >= QUIET_DAYS:
         flags.append(f"no activity in {(today - last_touch).days} days" if last_touch else "no activity recorded")
     facts = [f"{event.text} ({_fmt_day(_day(event.when))})"] if event else []
+    contract_facts, contract_flags = contract_dates.campus_lines(site.contracts.prefetch_related("dates"), today)
+    facts[:0], flags[:0] = contract_facts, contract_flags  # the agreement and its deadlines lead
     return {"kind": "land", "obj": site, "name": site.name, "url": site.get_absolute_url(),
             "manage_url": f"/land/sites/{site.pk}/manage/", "status": site.get_status_display(), "update": update,
             "facts": facts, "flags": flags, "owners": owners if len(owners) > 1 else [],

@@ -770,3 +770,57 @@ archive first, then the Summary tab, then the weekly Claude draft; next module a
   `acmi-crm-send` and `acmi-crm-sync` jobs and documents the Cloud Scheduler line. `ACMI_GCS_BUCKET` puts uploads and
   outreach attachments in Cloud Storage (`django-storages[google]`, only imported when the bucket is set). None of this
   has run in Google Cloud yet (billing is still off).
+
+## Built 2026-10-16 (late night): contracts and critical dates, modeled on Notessa
+
+Kellen: build the contract module inside the CRM, and "add in Notessa functionality; that's the program I want to
+emulate". Notessa (notessa.ai) reads commercial real-estate agreements: it links amendments to the original, answers
+with citations to the exact language, shows defined terms and cross-references in place, and runs reusable review
+templates (lease / loan / JV abstracts). This module does that inside the CRM and adds what a developer needs on top:
+critical dates with reminders, negotiation rounds and redlines, and the tie-in to land sites and campuses.
+
+- **Contracts** (`/contracts/`, sidebar Development › Contracts; `crm/contracts/`; models `Contract`,
+  `ContractDocument`, `ContractDate`, `ContractAnswer`, `ContractTemplate`, migration 0035): one per LOI, PSA, option,
+  lease, PDA / DMA, JV, loan, easement, design / construction contract or NDA: counterparty, our entity, land site (and
+  which owners of an assemblage it covers), campus, tenant deal, price, acres, effective date, ball in court and since
+  when, next step, counsel, who runs it. "New contract" on a site's page starts one for that site. The list shows each
+  contract's next date, how long the ball has sat with someone, and the next 60 days of deadlines.
+- **Agreement file:** upload PDF or Word; the text is read on upload with page numbers (`crm/contracts/text.py`; a
+  scan keeps only the PDF, which Claude can read but the reader can't). Signed documents form the chain in date order
+  (original, amendments, amended and restated (earlier ones show as superseded), side letters, notices, exhibits,
+  estoppels). Drafts are negotiation rounds, marked sent by us or them.
+- **Reader** (`/contracts/<id>/read/<doc>/`): page by page, defined terms open their definition (and any later
+  redefinition) in a side panel; "Section 5.2" links open that section beside the text (in an amendment, "Section 5.2 of
+  the Agreement" opens the original's); "§ 5.2 changed by First Amendment" badges on the original; a section outline;
+  `?hl=start-end` marks the passage a citation points to. All pattern matching, no AI.
+- **Ask Claude:** a question box with quick questions. Claude Opus 5.5 reads the signed documents (or the latest draft
+  while negotiating) as plain-text documents with the Citations API on, in order, each labeled with its type, date and
+  whether it was superseded; CRM facts and today's date go after the cached documents (5-minute prompt cache). The
+  citations come back as character ranges in our own text, so the numbered chips show the quote and open the reader at
+  the exact passage. Answers are kept (pin, open, print) with the tokens used.
+- **Abstracts:** 8 built-in templates in `crm/contracts/methods.py` (land PSA, LOI, lease, development agreement, JV,
+  loan, termination and exit rights, risk review). A template is a list of points plus how to write it up, like
+  Notessa's methods; "Copy" on the Abstract templates page makes ACMI's own. The abstract page is printable, with the
+  logo and every source quoted.
+- **Critical dates:** by hand, or "Find dates with Claude" (structured JSON at effort high; citations can't be combined
+  with structured output, so each quote is matched back to the text for its "source" link, or marked not found). Claude's
+  dates wait as suggestions until someone keeps them. Kept dates show on the contract, the list, the dashboard (next 14
+  days and missed), the land site page and the campus summary (facts, plus flags within 14 days or missed, so the weekly
+  Claude draft mentions them). Whoever runs the contract (else whoever created it) gets a bell reminder 30, 14, 7 and 1
+  days ahead, on the day, and once when missed (`contracts/dates.py reminders`, from the daily `notify.due_sweep`); a
+  moved date is reminded again.
+- **Site timeline:** for an LOI, PSA or option on a site, our first draft out, signing (status Signed + effective date),
+  the feasibility end and the closing date (once Closed) fill the site's milestones, or the covered owners' parcel
+  deals, logged "(from <contract>)". The status only moves forward (`tracker.apply_milestones`).
+- **Redline** (`/contracts/<id>/compare/`): any two documents, word by word (`crm/contracts/compare.py`), laid out on
+  the newer one's lines so PDF re-wrapping isn't a change; "Have Claude explain the changes" asks about just those two.
+- **Permissions:** everyone signed in reads, uploads, asks and adds dates; Managers delete contracts and documents; a
+  kept date can be deleted by whoever added it or a Manager.
+- **Cost:** about $0.15-0.30 for a first question on a 60-page agreement at Opus 5.5 prices, a few cents for follow-ups
+  within five minutes; abstracts run longer (1-3 minutes, within the 600 s gunicorn / 900 s Cloud Run timeouts).
+- **Checked** in a browser on a scratch database with made-up contracts (list, contract page, citation pop-up, reader
+  terms and section links, amendment badge, redline, templates, dashboard and site panels); Claude calls are covered by
+  tests with a mocked API. No real agreement has gone through Claude yet.
+- **Not yet:** a portfolio view across contracts (Notessa's stacking plan and covenant report), a calendar (.ics) feed
+  of critical dates, OCR for scans, and auto-numbered Word headings (Word draws the numbers, so cross-references link
+  less often in .docx than in PDFs).

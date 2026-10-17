@@ -895,6 +895,7 @@ class Notification(models.Model):
         REPLY = "reply", "Reply received"
         STAGE = "stage", "Deal stage changed"
         MEETING = "meeting", "Meeting"
+        DEADLINE = "deadline", "Contract deadline"
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="notifications")
     kind = models.CharField(max_length=12, choices=Kind.choices)
@@ -1769,3 +1770,257 @@ class AssignmentSite(models.Model):
 
     def __str__(self):
         return f"{self.assignment} · {self.site}"
+
+
+# ---------------------------------------------------------------------------
+# Contracts (crm/contracts/): the agreement file, its critical dates, and Claude's cited answers
+# ---------------------------------------------------------------------------
+
+
+class Contract(models.Model):
+    """One agreement and everything signed or exchanged under it, modeled on Notessa: the original, its amendments,
+    restatements, side letters and negotiation drafts in order (ContractDocument), the dates nobody can miss
+    (ContractDate), and Claude's answers and abstracts, each pointing back to the exact language (ContractAnswer)."""
+
+    class Kind(models.TextChoices):
+        LOI = "loi", "Letter of intent"
+        PSA = "psa", "Purchase and sale agreement"
+        OPTION = "option", "Option to purchase"
+        LEASE = "lease", "Lease"
+        PDA = "pda", "Development agreement (PDA / DMA)"
+        JV = "jv", "JV / operating agreement"
+        LOAN = "loan", "Loan agreement"
+        EASEMENT = "easement", "Easement / REA"
+        SERVICES = "services", "Design / construction contract"
+        NDA = "nda", "NDA"
+        OTHER = "other", "Other"
+
+    class Status(models.TextChoices):
+        DRAFTING = "drafting", "Drafting"
+        NEGOTIATING = "negotiating", "Negotiating"
+        SIGNED = "signed", "Signed"
+        CLOSED = "closed", "Closed / complete"
+        TERMINATED = "terminated", "Terminated"
+
+    OPEN_STATUSES = ("drafting", "negotiating", "signed")
+
+    title = models.CharField(max_length=200, help_text="e.g. Wamsley PSA")
+    kind = models.CharField(max_length=10, choices=Kind.choices, default=Kind.PSA)
+    status = models.CharField(max_length=12, choices=Status.choices, default=Status.NEGOTIATING, db_index=True)
+    counterparty = models.CharField(max_length=200, blank=True, help_text="Seller, landlord, tenant, county, lender…")
+    our_entity = models.CharField("our entity", max_length=200, blank=True, help_text="The ACMI entity that signs")
+    company = models.ForeignKey(Company, null=True, blank=True, on_delete=models.SET_NULL, related_name="contracts")
+    opportunity = models.ForeignKey(Opportunity, null=True, blank=True, on_delete=models.SET_NULL,
+                                    related_name="contracts", verbose_name="tenant deal")
+    campus = models.ForeignKey(Campus, null=True, blank=True, on_delete=models.SET_NULL, related_name="contracts")
+    site = models.ForeignKey(LandSite, null=True, blank=True, on_delete=models.SET_NULL, related_name="contracts")
+    parcel_deals = models.ManyToManyField(
+        SiteParcelDeal, blank=True, related_name="contracts",
+        help_text="The owners' parcels it covers, when it is one owner's deal inside an assemblage",
+    )
+    price = models.DecimalField("price / value ($)", max_digits=14, decimal_places=2, null=True, blank=True)
+    acres = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    effective_date = models.DateField(null=True, blank=True, help_text="When it was signed or took effect")
+    waiting_on = models.CharField("ball in court", max_length=6, choices=CampusUpdate.Waiting.choices, blank=True)
+    waiting_since = models.DateField(null=True, blank=True)
+    next_step = models.CharField(max_length=300, blank=True)
+    counsel = models.CharField(max_length=200, blank=True, help_text="Our lawyer on it")
+    owner = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="contracts",
+                              help_text="Who on the team runs it; gets the deadline reminders")
+    notes = models.TextField(blank=True)
+    created_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-updated_at"]
+
+    def __str__(self):
+        return self.title
+
+    def get_absolute_url(self):
+        return reverse("crm:contract_detail", args=[self.pk])
+
+    @property
+    def is_open(self):
+        return self.status in self.OPEN_STATUSES
+
+    @property
+    def home_label(self):
+        return " / ".join(str(x) for x in [self.campus, self.site] if x)
+
+
+class ContractDocument(models.Model):
+    """One document in a contract's file. Signed documents form the chain the terms come from: the original, then
+    amendments in date order, where an amended and restated agreement replaces everything before it. Drafts are the
+    negotiation rounds. Text is pulled out on upload (crm/contracts/text.py) for the reader, compare and Claude."""
+
+    class Kind(models.TextChoices):
+        ORIGINAL = "original", "Original agreement"
+        AMENDMENT = "amendment", "Amendment"
+        RESTATED = "restated", "Amended and restated agreement"
+        SIDE_LETTER = "side_letter", "Side letter"
+        ASSIGNMENT = "assignment", "Assignment / assumption"
+        NOTICE = "notice", "Notice / extension / waiver"
+        EXHIBIT = "exhibit", "Exhibit / schedule"
+        ESTOPPEL = "estoppel", "Estoppel / SNDA"
+        DRAFT = "draft", "Draft (negotiation round)"
+        OTHER = "other", "Other"
+
+    class Sender(models.TextChoices):
+        NONE = "", "–"
+        US = "us", "Us"
+        THEM = "them", "Them"
+
+    class TextStatus(models.TextChoices):
+        NONE = "", "Not read"
+        OK = "ok", "Text read"
+        SCAN = "scan", "Scanned (no text layer)"
+        UNSUPPORTED = "unsupported", "File type not readable"
+        ERROR = "error", "Could not read"
+
+    contract = models.ForeignKey(Contract, on_delete=models.CASCADE, related_name="documents")
+    kind = models.CharField(max_length=12, choices=Kind.choices, default=Kind.ORIGINAL)
+    title = models.CharField(max_length=300)
+    file = models.FileField(upload_to="contracts/%Y/%m/", blank=True)
+    url = models.URLField("link", max_length=1000, blank=True, help_text="Where the signed copy lives (Drive)")
+    dated = models.DateField("dated", null=True, blank=True,
+                             help_text="Effective date of a signed document; the day a draft was sent")
+    sent_by = models.CharField(max_length=4, choices=Sender.choices, blank=True, help_text="Drafts: who sent it")
+    summary = models.TextField(blank=True, help_text="What it does, or what changed in this round")
+    text = models.TextField(blank=True, editable=False)
+    page_starts = models.JSONField(default=list, blank=True, editable=False,
+                                   help_text="Character offset where each page starts in `text`")
+    pages = models.PositiveIntegerField(default=0)
+    text_status = models.CharField(max_length=12, choices=TextStatus.choices, blank=True)
+    position = models.PositiveSmallIntegerField(default=0, help_text="Order among documents with the same date")
+    added_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    added_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = [models.F("dated").asc(nulls_last=True), "position", "id"]
+
+    def __str__(self):
+        return self.title
+
+    @property
+    def is_draft(self):
+        return self.kind == self.Kind.DRAFT
+
+    @property
+    def href(self):
+        return reverse("crm:contract_file", args=[self.pk]) if self.file else self.url
+
+    def page_at(self, index):
+        """1-based page holding character `index` of the text."""
+        from bisect import bisect_right
+
+        return max(1, bisect_right(self.page_starts or [0], index))
+
+
+class ContractTemplate(models.Model):
+    """A reusable review method, as in Notessa: the points an abstract covers, in order, and how to write them up.
+    Built-in ones (crm/contracts/methods.py) follow the code; the team can copy one and make it its own."""
+
+    key = models.CharField(max_length=40, blank=True, db_index=True, help_text="Built-in template key; blank = team-made")
+    name = models.CharField(max_length=120)
+    description = models.CharField(max_length=300, blank=True)
+    kinds = models.JSONField(default=list, blank=True, help_text="Contract kinds it suits; empty = any")
+    points = models.JSONField(default=list, blank=True, help_text='[{"label": ..., "ask": ...}] in order')
+    instructions = models.TextField(blank=True, help_text="How to write it up (tone, length, what to flag)")
+    created_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["name"]
+        constraints = [models.UniqueConstraint(fields=["key"], condition=~models.Q(key=""),
+                                               name="contract_template_key_unique")]
+
+    def __str__(self):
+        return self.name
+
+    @property
+    def builtin(self):
+        return bool(self.key)
+
+
+class ContractAnswer(models.Model):
+    """Claude's cited answer to a question about a contract, or an abstract from a template. `blocks` keeps the answer
+    as Claude wrote it, with the passages each part rests on:
+    [{"text": ..., "cites": [{"doc": id, "title": ..., "start": .., "end": .., "page": .., "quote": ..}]}]."""
+
+    contract = models.ForeignKey(Contract, on_delete=models.CASCADE, related_name="answers")
+    template = models.ForeignKey(ContractTemplate, null=True, blank=True, on_delete=models.SET_NULL,
+                                 related_name="answers")
+    question = models.TextField(help_text="The question asked, or the template's name")
+    blocks = models.JSONField(default=list, blank=True)
+    documents = models.JSONField(default=list, blank=True, help_text='[{"id": .., "title": ..}] what Claude read')
+    model = models.CharField(max_length=60, blank=True)
+    input_tokens = models.PositiveIntegerField(default=0)
+    output_tokens = models.PositiveIntegerField(default=0)
+    cache_read_tokens = models.PositiveIntegerField(default=0)
+    pinned = models.BooleanField(default=False, help_text="Keep it at the top of the contract")
+    asked_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-pinned", "-created_at"]
+
+    def __str__(self):
+        return self.question[:60]
+
+    @property
+    def is_abstract(self):
+        return self.template_id is not None or self.question.startswith("Abstract: ")  # template since deleted
+
+    @property
+    def text(self):
+        return "".join(b.get("text", "") for b in self.blocks or [])
+
+
+class ContractDate(models.Model):
+    """A date the team can't miss: a deposit due or going hard, the end of feasibility, title objections, closing, an
+    extension or renewal notice. The contract's owner is reminded 30, 14, 7 and 1 days ahead (crm/notify.py)."""
+
+    class Kind(models.TextChoices):
+        DEPOSIT = "deposit", "Deposit due"
+        HARD = "hard", "Deposit goes hard"
+        FEASIBILITY = "feasibility", "Feasibility / due diligence ends"
+        TITLE = "title", "Title / survey objections"
+        APPROVAL = "approval", "Approvals / entitlements"
+        NOTICE = "notice", "Notice deadline"
+        EXTENSION = "extension", "Extension / renewal option"
+        CLOSING = "closing", "Closing"
+        EXPIRATION = "expiration", "Expiration"
+        PAYMENT = "payment", "Payment / rent"
+        COVENANT = "covenant", "Covenant / reporting"
+        OTHER = "other", "Other"
+
+    contract = models.ForeignKey(Contract, on_delete=models.CASCADE, related_name="dates")
+    kind = models.CharField(max_length=12, choices=Kind.choices, default=Kind.OTHER)
+    label = models.CharField(max_length=200)
+    date = models.DateField(null=True, blank=True, db_index=True,
+                            help_text="Empty while it hangs on an event (e.g. 30 days after approvals)")
+    amount = models.DecimalField(max_digits=14, decimal_places=2, null=True, blank=True)
+    rule = models.CharField("how it's set", max_length=300, blank=True, help_text="e.g. 30 days after the Effective Date")
+    confirmed = models.BooleanField(default=True, help_text="Dates Claude found wait here until someone keeps them")
+    done = models.BooleanField(default=False)
+    done_at = models.DateTimeField(null=True, blank=True)
+    done_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    source = models.ForeignKey(ContractDocument, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    source_start = models.PositiveIntegerField(null=True, blank=True)
+    source_end = models.PositiveIntegerField(null=True, blank=True)
+    quote = models.TextField(blank=True, help_text="The language that sets the date")
+    from_claude = models.BooleanField(default=False)
+    created_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["done", models.F("date").asc(nulls_last=True), "id"]
+
+    def __str__(self):
+        return f"{self.label} ({self.date or 'date not fixed'})"
+
+    def days_left(self, today=None):
+        return (self.date - (today or timezone.localdate())).days if self.date else None

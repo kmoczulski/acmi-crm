@@ -36,6 +36,38 @@ def ensure_deals(site):
     site.parcel_deals.exclude(parcel__in=parcels).delete()
 
 
+def apply_milestones(target, dates, user=None, why=""):
+    """Set milestone dates on a site, or on one parcel's deal, from elsewhere (a contract: crm/contracts/dates.py).
+    Logs each change on the site and moves the status forward to match, never back; a dropped site stays dropped.
+    Returns how many dates changed."""
+    from ..models import LandSiteEvent
+
+    site = target if isinstance(target, LandSite) else target.site
+    labels = {key: label for key, label, _ in LandSite.MILESTONES}
+    whose = "" if isinstance(target, LandSite) else f" ({(target.parcel.owner_name or 'parcel').strip().title()})"
+    note = f" ({why})" if why else ""
+    milestones, changed = dict(target.milestones or {}), 0
+    for key, when in dates.items():
+        if key in labels and milestones.get(key) != when.isoformat():
+            milestones[key] = when.isoformat()
+            changed += 1
+            LandSiteEvent.objects.create(site=site, user=user, kind="milestone",
+                                         text=f"{labels[key]}{whose}: {when:%b} {when.day}, {when.year}{note}"[:500])
+    if not changed:
+        return 0
+    target.milestones = milestones
+    fields = ["milestones", "updated_at"]
+    implied = target.status_for_milestones()
+    if implied and target.status != LandSite.Status.DROPPED and STAGE_ORDER.index(implied) < STAGE_ORDER.index(target.status):
+        old = STAGE_LABEL.get(target.status, target.status)
+        target.status = implied
+        fields.append("status")
+        LandSiteEvent.objects.create(site=site, user=user, kind="status",
+                                     text=f"Status{whose} {old} → {STAGE_LABEL[implied]}{note}"[:500])
+    target.save(update_fields=fields)
+    return changed
+
+
 def missing_deals(site):
     """True when some parcel in the site has no deal row yet (sites saved before deal rows were made on write)."""
     return site.parcels.exclude(pk__in=site.parcel_deals.values("parcel_id")).exists()

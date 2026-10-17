@@ -2,9 +2,10 @@
 
 **Status (2026-10-16, night):** Kellen took the recommendations. Done: the audit fixes and roles; the repo on GitHub
 with CI; the transcript archive in the CRM (waiting on the Granola connector to pull from Granola); the campus Summary
-tab v1 and the weekly update drafted by Claude; Cloud Run jobs and Cloud Storage support in code. Next: connect
-Granola and start the daily archive, then the contract & critical-dates module. Details in `docs/HANDOFF.md`
-("roadmap phase 1").
+tab v1 and the weekly update drafted by Claude; Cloud Run jobs and Cloud Storage support in code; the contract &
+critical-dates module, modeled on Notessa (cited answers, abstracts, defined terms and cross-references, redlines,
+reminders). Next: connect Granola and start the daily archive, then the due-diligence tracker and closing checklist.
+Details in `docs/HANDOFF.md` ("roadmap phase 1" and "contracts and critical dates").
 
 What to build next, after the audit fixes. Four parts: what blocks going live, the campus summary (Kellen's proposal,
 worked through), the platform seen by a developer who has taken land from sourcing through construction, and the
@@ -140,6 +141,6 @@ consultants as companies with roles and costs, and quick capture from the phone.
 2. **Start the transcript archive now:** the 30-day window keeps closing.
 3. Go-live blockers: roles, Cloud Run jobs, file storage. Then deploy to hub.acmigroup.com.
 4. Campus summary v1, then the weekly report v2.
-5. Contract and critical dates (the deferred Contract negotiations module).
+5. Contract and critical dates (the deferred Contract negotiations module). **Built 2026-10-16**, modeled on Notessa.
 6. Entitlement tracker, then project and build records.
 7. Flyer intake, landowner letters, comps, and the data clean-ups above.

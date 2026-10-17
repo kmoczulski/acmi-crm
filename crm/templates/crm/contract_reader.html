@@ -1,0 +1,81 @@
+{% extends "crm/base.html" %}
+{% load crm_tags %}
+{% block title %}{{ doc.title }} · {{ contract.title }} · ACMI CRM{% endblock %}
+{% block content %}
+<div class="record-head">
+  <div>
+    <div class="muted lc-small"><a href="{% url 'crm:contract_list' %}">Contracts</a> › <a href="{{ contract.get_absolute_url }}">{{ contract.title }}</a></div>
+    <h1>{{ doc.title }}</h1>
+    <div class="muted">{{ doc.get_kind_display }}{% if doc.dated %} · {{ doc.dated|date:"M j, Y" }}{% endif %}{% if doc.pages %} · {{ doc.pages }} page{{ doc.pages|pluralize }}{% endif %}
+      {% if base %} · amends <a href="{% url 'crm:contract_reader' contract.pk base.pk %}">{{ base.title }}</a>{% endif %}
+      {% if changed %} · <span title="Badges in the text show where later amendments changed a section">{{ changed }} section{{ changed|pluralize }} changed later</span>{% endif %}</div>
+  </div>
+  <div class="record-nav">
+    {% if doc.href %}<a class="btn" href="{{ doc.href }}" target="_blank" rel="noopener">Original file</a>{% endif %}
+    <a class="btn" href="{{ contract.get_absolute_url }}#ask">Ask Claude</a>
+  </div>
+</div>
+<div class="cr-docs">{% for d in docs %}{% if d.text %}<a class="chip{% if d.pk == doc.pk %} active{% endif %}" href="{% url 'crm:contract_reader' contract.pk d.pk %}">{{ forloop.counter }}. {{ d.title|truncatechars:40 }}</a>{% endif %}{% endfor %}</div>
+
+<div class="cr-layout">
+  <article class="panel cr-doc">
+    {% if body %}{{ body }}{% elif doc.text_status == "scan" %}
+      <p class="muted">This is a scan with no text layer, so the reader can't show it. Claude can still read it: ask on the contract page. <a href="{{ doc.href }}" target="_blank" rel="noopener">Open the PDF</a>.</p>
+    {% else %}<p class="muted">No text could be read from this file.</p>{% endif %}
+  </article>
+  <aside class="cr-side">
+    <section class="panel cr-panel" id="cr-panel">
+      <h3 id="cr-panel-title">How to read</h3>
+      <div id="cr-panel-body" class="lc-small">
+        <p><span class="cr-term">Dotted words</span> are defined terms: click one to see its definition (and how a later document changed it).</p>
+        <p><a class="cr-xref" href="#">Section links</a> open the section they point to, here or in the agreement an amendment changes.</p>
+        <p>{{ glossary|length }} defined term{{ glossary|length|pluralize }} found.</p>
+      </div>
+    </section>
+    {% if outline %}<section class="panel cr-outline">
+      <h3>Sections</h3>
+      <ul>{% for num, head in outline %}<li><a href="#s-{{ num }}">{{ head|truncatechars:60 }}</a></li>{% endfor %}</ul>
+    </section>{% endif %}
+  </aside>
+</div>
+{{ glossary|json_script:"cr-glossary" }}
+{% endblock %}
+{% block scripts %}
+<script>
+  (function () {
+    const glossary = JSON.parse(document.getElementById('cr-glossary').textContent);
+    const title = document.getElementById('cr-panel-title');
+    const body = document.getElementById('cr-panel-body');
+    const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+    function show(heading, nodes) {
+      title.textContent = heading;
+      body.replaceChildren(...nodes);
+      document.getElementById('cr-panel').scrollIntoView({block: 'nearest'});
+    }
+    document.addEventListener('click', e => {
+      const term = e.target.closest('.cr-doc .cr-term');
+      if (term) {
+        const defs = glossary[term.dataset.term] || [];
+        const nodes = defs.map((d, i) => {
+          const box = el('div', 'cr-def');
+          const head = el('div', 'muted', (defs.length > 1 ? (i === defs.length - 1 ? 'In force · ' : 'Earlier · ') : '') + d.title + ' ');
+          const go = el('a', null, 'go to it'); go.href = d.href; head.appendChild(go);
+          box.append(head, el('blockquote', null, d.text));
+          return box;
+        });
+        show(term.dataset.term, nodes.length ? nodes : [el('p', 'muted', 'Definition not found.')]);
+        return;
+      }
+      const ref = e.target.closest('.cr-doc .cr-xref');
+      if (ref && !(e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        fetch(ref.dataset.span).then(r => r.json()).then(s => {
+          const head = el('div', 'muted', s.title + ', p. ' + s.page + ' ');
+          const go = el('a', null, 'go to it'); go.href = s.href; head.appendChild(go);
+          show('Section ' + ref.dataset.num, [head, el('blockquote', 'cr-section', s.text)]);
+        });
+      }
+    });
+  })();
+</script>
+{% endblock %}

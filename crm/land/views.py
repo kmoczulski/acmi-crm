@@ -984,8 +984,19 @@ def site_detail(request, pk):
         "owners": len({d.parcel.owner_name for d in tr["included"]}), "milestones": site.milestone_rows(),
         "events": site.events.select_related("user")[:100], "statuses": LandSite.Status.choices,
         "campuses": Campus.objects.all(), "projects": Project.objects.filter(active=True).select_related("campus"),
-        "today": date.today(),
+        "today": date.today(), "contracts": _site_contracts(site),
     })
+
+
+def _site_contracts(site):
+    """The site's contracts with their next open date, for the Contracts panel."""
+    from ..contracts import dates as contract_dates
+
+    contracts = list(site.contracts.select_related("owner"))
+    nxt = contract_dates.next_dates(contracts)
+    for c in contracts:
+        c.next = nxt.get(c.pk)
+    return contracts
 
 
 

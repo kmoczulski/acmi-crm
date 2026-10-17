@@ -87,3 +87,38 @@ class CampusUpdateAdmin(admin.ModelAdmin):
 class CampusReportAdmin(admin.ModelAdmin):
     list_display = ("week_of", "campus", "status", "sent_by", "sent_at")
     list_filter = ("campus", "status")
+
+
+class ContractDocumentInline(admin.TabularInline):
+    model = models.ContractDocument
+    fields = ("kind", "title", "dated", "sent_by", "file", "pages", "text_status")
+    readonly_fields = ("pages", "text_status")
+    extra = 0
+
+
+class ContractDateInline(admin.TabularInline):
+    model = models.ContractDate
+    fields = ("kind", "label", "date", "amount", "confirmed", "done")
+    extra = 0
+
+
+@admin.register(models.Contract)
+class ContractAdmin(admin.ModelAdmin):
+    list_display = ("title", "kind", "status", "counterparty", "site", "campus", "owner", "updated_at")
+    list_filter = ("kind", "status", "campus")
+    search_fields = ("title", "counterparty")
+    raw_id_fields = ("site", "opportunity", "company")
+    filter_horizontal = ("parcel_deals",)
+    inlines = [ContractDocumentInline, ContractDateInline]
+
+
+@admin.register(models.ContractTemplate)
+class ContractTemplateAdmin(admin.ModelAdmin):
+    list_display = ("name", "key", "updated_at")
+
+
+@admin.register(models.ContractAnswer)
+class ContractAnswerAdmin(admin.ModelAdmin):
+    list_display = ("created_at", "contract", "question", "asked_by", "input_tokens", "output_tokens")
+    list_filter = ("contract",)
+    readonly_fields = ("blocks", "documents")

@@ -1,6 +1,7 @@
 from django.urls import path
 
 from . import campus_views, views
+from .contracts import views as contract_views
 from .land import assignment_views as asg_views
 from .land import brief_views
 from .land import views as land_views
@@ -44,6 +45,18 @@ urlpatterns = [
     path("campuses/<str:code>/", campus_views.campus_summary, name="campus_summary"),
     path("campuses/<str:code>/reports/<int:pk>/", campus_views.campus_report, name="campus_report"),
     path("campuses/updates/<int:pk>/delete/", campus_views.campus_update_delete, name="campus_update_delete"),
+    path("contracts/", contract_views.contract_list, name="contract_list"),
+    path("contracts/new/", contract_views.contract_create, name="contract_create"),
+    path("contracts/templates/", contract_views.template_list, name="contract_templates"),
+    path("contracts/templates/new/", contract_views.template_edit, name="contract_template_new"),
+    path("contracts/templates/<int:pk>/", contract_views.template_edit, name="contract_template_edit"),
+    path("contracts/files/<int:doc_pk>/", contract_views.contract_file, name="contract_file"),
+    path("contracts/<int:pk>/", contract_views.contract_detail, name="contract_detail"),
+    path("contracts/<int:pk>/delete/", contract_views.contract_delete, name="contract_delete"),
+    path("contracts/<int:pk>/compare/", contract_views.contract_compare, name="contract_compare"),
+    path("contracts/<int:pk>/answers/<int:answer_pk>/", contract_views.contract_answer, name="contract_answer"),
+    path("contracts/<int:pk>/read/<int:doc_pk>/", contract_views.contract_reader, name="contract_reader"),
+    path("contracts/<int:pk>/read/<int:doc_pk>/span/", contract_views.contract_span, name="contract_span"),
     path("projects/", views.project_list, name="project_list"),
     path("projects/<int:pk>/", views.project_detail, name="project_detail"),
     path("tasks/", views.task_list, name="task_list"),

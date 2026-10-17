@@ -1,0 +1,224 @@
+{% extends "crm/base.html" %}
+{% load crm_tags humanize %}
+{% block title %}{{ contract.title }} · Contracts · ACMI CRM{% endblock %}
+{% block content %}
+<div class="record-head">
+  <div>
+    <div class="muted lc-small"><a href="{% url 'crm:contract_list' %}">Contracts</a>{% if contract.campus %} › {{ contract.campus.code }}{% endif %}</div>
+    <h1>{{ contract.title }} <span class="pill ct-{{ contract.status }}">{{ contract.get_status_display }}</span></h1>
+    <div class="muted">{{ contract.get_kind_display }}{% if contract.counterparty %} with {{ contract.counterparty }}{% endif %}{% if contract.our_entity %} · {{ contract.our_entity }}{% endif %}
+      {% if contract.site %} · <a href="{% url 'crm:land_site_detail' contract.site.pk %}">{{ contract.site.name }}</a>{% endif %}
+      {% if contract.opportunity %} · <a href="{{ contract.opportunity.get_absolute_url }}">{{ contract.opportunity.company.name }} deal</a>{% endif %}
+      {% if contract.price %} · {{ contract.price|money }}{% endif %}{% if contract.acres %} · {{ contract.acres|floatformat:1|intcomma }} ac{% endif %}
+      {% if contract.effective_date %} · effective {{ contract.effective_date|date:"M j, Y" }}{% endif %}</div>
+  </div>
+  <div class="record-nav">
+    {% if compare_pair|length == 2 %}<a class="btn" href="{% url 'crm:contract_compare' contract.pk %}?a={{ compare_pair.0.pk }}&b={{ compare_pair.1.pk }}">Redline</a>{% endif %}
+    <a class="btn" href="#details">Edit details</a>
+  </div>
+</div>
+
+{% if contract.waiting_on or contract.next_step or contract.counsel %}
+<div class="ct-strip">
+  {% if contract.waiting_on %}<span><b>{{ contract.get_waiting_on_display }}</b>{% if contract.waiting_since %} since {{ contract.waiting_since|date:"M j" }} ({{ contract.waiting_since|timesince }}){% endif %}</span>{% endif %}
+  {% if contract.next_step %}<span><b>Next:</b> {{ contract.next_step }}</span>{% endif %}
+  {% if contract.counsel %}<span><b>Counsel:</b> {{ contract.counsel }}</span>{% endif %}
+  {% if contract.owner %}<span><b>Runs it:</b> {{ contract.owner|username }}</span>{% endif %}
+</div>
+{% endif %}
+
+<div class="ct-layout">
+  <div>
+    <section class="panel" id="ask">
+      <h3>Ask about this contract</h3>
+      {% if not reads %}
+        <p class="muted" style="margin:0">Upload the agreement (PDF or Word) under <a href="#documents">Agreement file</a> to ask questions about it.</p>
+      {% elif not ai_ready %}
+        <p class="muted" style="margin:0">Add ANTHROPIC_API_KEY to .env to ask Claude about it. The reader, defined terms and redlines work without it.</p>
+      {% else %}
+        <form method="post" class="ct-ask" data-busy="Reading the documents… usually under a minute">{% csrf_token %}<input type="hidden" name="action" value="ask">
+          <textarea name="question" rows="2" required placeholder="e.g. When does the deposit go hard, and what do we lose if we walk after that?"></textarea>
+          <div class="ct-quick">
+            <button type="button" class="chip" data-q="What are the critical dates and deadlines, and what happens if each is missed?">Critical dates</button>
+            <button type="button" class="chip" data-q="How much is the deposit, when is it due, and when does it go hard (non-refundable)?">Deposits</button>
+            <button type="button" class="chip" data-q="Every way ACMI can terminate this agreement: the deadline, the notice, and what happens to money paid.">Our exit rights</button>
+            <button type="button" class="chip" data-q="When is closing, and can it be extended? On what notice and at what cost?">Closing and extensions</button>
+            <button type="button" class="chip" data-q="What did each amendment change? Give the current terms next to the original ones.">What amendments changed</button>
+          </div>
+          <div class="inline-form"><button class="btn btn-primary">Ask Claude</button>
+            <span class="muted lc-small">Reads {% for d in reads %}{{ d.title }}{% if not forloop.last %}, {% endif %}{% endfor %}. Every answer cites the language it rests on; check it before relying on it.</span></div>
+        </form>
+      {% endif %}
+      {% for a in answers %}
+        <article class="ct-answer{% if a.pinned %} pinned{% endif %}" id="answer-{{ a.pk }}">
+          <div class="ct-q"><b>{{ a.question }}</b>
+            <span class="muted lc-small">· {% if a.asked_by %}{{ a.asked_by|username }}, {% endif %}{{ a.created_at|date:"M j, g:i a" }}</span>
+            <span class="spacer"></span>
+            <form method="post">{% csrf_token %}<input type="hidden" name="answer" value="{{ a.pk }}"><button class="btn-link lc-small" name="action" value="pin">{% if a.pinned %}Unpin{% else %}Pin{% endif %}</button>
+              <a class="lc-small" href="{% url 'crm:contract_answer' contract.pk a.pk %}">Open</a>
+              <button class="btn-link lc-small" name="action" value="answer_delete" onclick="return confirm('Delete this answer?')">Delete</button></form>
+          </div>
+          <div class="ct-a">{{ a.html }}</div>
+          {% if a.sources %}<details class="ct-sources"><summary>{{ a.sources|length }} source{{ a.sources|pluralize }}</summary>
+            <ol>{% for s in a.sources %}<li value="{{ s.n }}"><a href="{{ s.href }}">{{ s.title }}{% if s.page %}, p. {{ s.page }}{% endif %}</a> <q>{{ s.quote|truncatechars:400 }}</q></li>{% endfor %}</ol>
+          </details>{% endif %}
+        </article>
+      {% endfor %}
+    </section>
+
+    <section class="panel" id="abstracts">
+      <h3>Abstracts</h3>
+      {% if reads and ai_ready %}
+      <form method="post" class="inline-form" data-busy="Writing the abstract… one to three minutes">{% csrf_token %}<input type="hidden" name="action" value="template">
+        <select name="template">{% for t in templates %}<option value="{{ t.pk }}">{{ t.name }}</option>{% endfor %}</select>
+        <button class="btn">Write abstract</button>
+        <a class="lc-small" href="{% url 'crm:contract_templates' %}">Templates</a>
+      </form>
+      <p class="muted lc-small">A one-page summary of the agreement as amended, point by point from the template, every term cited. Make your own template for how ACMI reviews a deal.</p>
+      {% endif %}
+      <ul class="clist">{% for a in abstracts %}
+        <li><a href="{% url 'crm:contract_answer' contract.pk a.pk %}">{{ a.question }}</a> <span class="muted lc-small">· {{ a.created_at|date:"M j, Y" }}{% if a.asked_by %} · {{ a.asked_by|username }}{% endif %}</span></li>
+      {% empty %}<li class="muted">None yet.</li>{% endfor %}</ul>
+    </section>
+  </div>
+
+  <div>
+    <section class="panel" id="documents">
+      <h3>Agreement file</h3>
+      <ol class="ct-chain">{% for d in signed %}
+        <li class="ct-doc{% if d.superseded_by %} superseded{% endif %}">
+          <div><span class="tag">{{ d.get_kind_display }}</span> {% if d.text %}<a href="{% url 'crm:contract_reader' contract.pk d.pk %}"><b>{{ d.title }}</b></a>{% else %}<b>{{ d.title }}</b>{% endif %}</div>
+          <div class="muted lc-small">{% if d.dated %}{{ d.dated|date:"M j, Y" }}{% else %}undated{% endif %}{% if d.pages %} · {{ d.pages }} page{{ d.pages|pluralize }}{% endif %}
+            {% if d.text_status == "scan" %} · <span title="Claude can read the PDF; the reader can't">scan</span>{% elif d.text_status and d.text_status != "ok" %} · {{ d.get_text_status_display }}{% endif %}
+            {% if d.superseded_by %} · replaced by {{ d.superseded_by.title }}{% endif %}
+            {% if d.href %} · <a href="{{ d.href }}" target="_blank" rel="noopener">file</a>{% endif %}</div>
+          {% if d.summary %}<div class="lc-small">{{ d.summary }}</div>{% endif %}
+          {% include "crm/partials/contract_doc_edit.html" %}
+        </li>
+      {% empty %}<li class="muted">No signed documents yet.</li>{% endfor %}</ol>
+
+      <h4 class="ct-sub">Negotiation rounds</h4>
+      <ol class="ct-chain">{% for d in drafts %}
+        <li class="ct-doc">
+          <div><span class="tag ct-from-{{ d.sent_by|default:'none' }}">{% if d.sent_by %}{{ d.get_sent_by_display }}{% else %}Draft{% endif %}</span> {% if d.text %}<a href="{% url 'crm:contract_reader' contract.pk d.pk %}">{{ d.title }}</a>{% else %}{{ d.title }}{% endif %}</div>
+          <div class="muted lc-small">{% if d.dated %}sent {{ d.dated|date:"M j, Y" }}{% endif %}{% if d.pages %} · {{ d.pages }} page{{ d.pages|pluralize }}{% endif %}
+            {% if d.prev %} · <a href="{% url 'crm:contract_compare' contract.pk %}?a={{ d.prev.pk }}&b={{ d.pk }}">redline vs. previous</a>{% endif %}
+            {% if d.href %} · <a href="{{ d.href }}" target="_blank" rel="noopener">file</a>{% endif %}</div>
+          {% if d.summary %}<div class="lc-small">{{ d.summary }}</div>{% endif %}
+          {% include "crm/partials/contract_doc_edit.html" %}
+        </li>
+      {% empty %}<li class="muted lc-small">Drafts traded during negotiation go here, oldest first; any two can be redlined.</li>{% endfor %}</ol>
+
+      <details class="ct-add"{% if not docs %} open{% endif %}><summary class="btn btn-small">Add a document</summary>
+        <form method="post" enctype="multipart/form-data" class="fields">{% csrf_token %}<input type="hidden" name="action" value="upload">
+          {{ doc_form.as_p }}
+          <button class="btn-primary">Upload</button>
+        </form>
+        <p class="muted lc-small">Signed documents build the agreement in order (original, amendments, restatements, side letters). Drafts are negotiation rounds.
+          Text is read from PDFs and Word files; a scanned PDF still goes to Claude, but the reader needs a text layer.</p>
+      </details>
+    </section>
+
+    <section class="panel" id="dates">
+      <h3>Critical dates</h3>
+      {% if proposed %}
+      <form method="post" class="ct-proposed">{% csrf_token %}
+        <p class="lc-small" style="margin-top:0"><b>Claude found these.</b> Check each against its source, untick any that are wrong, then keep the rest. Nothing is reminded until it's kept.</p>
+        <table class="data compact">{% for d in proposed %}
+          <tr><td><input type="checkbox" name="date_id" value="{{ d.pk }}" checked></td>
+            <td>{% if d.date %}{{ d.date|date:"M j, Y" }}{% else %}<span class="muted">not fixed</span>{% endif %}</td>
+            <td class="wrap">{{ d.label }}{% if d.amount %} · {{ d.amount|money }}{% endif %}<div class="muted lc-small">{{ d.rule }}</div>
+              {% if d.quote %}<details class="lc-small"><summary>{% if d.source_href %}<a href="{{ d.source_href }}">source</a>{% else %}quote (not found in the text){% endif %}</summary><q>{{ d.quote }}</q></details>{% endif %}</td></tr>
+        {% endfor %}</table>
+        <div class="inline-form"><button class="btn btn-primary btn-small" name="action" value="date_keep">Keep ticked</button>
+          <button class="btn btn-small" name="action" value="date_discard" formnovalidate onclick="return confirm('Discard all of Claude\'s suggestions?')">Discard all</button></div>
+      </form>
+      {% endif %}
+      <table class="data compact ct-dates">{% for d in dates %}
+        <tr class="{% if d.done %}ct-done{% elif d.left is not None and d.left < 0 %}overdue-row{% endif %}">
+          <td><form method="post">{% csrf_token %}<input type="hidden" name="action" value="date_done"><input type="hidden" name="date_id" value="{{ d.pk }}">
+            <button class="ct-check" title="{% if d.done %}Mark not done{% else %}Mark done{% endif %}">{% if d.done %}✓{% else %}○{% endif %}</button></form></td>
+          <td>{% if d.date %}<b>{{ d.date|date:"M j, Y" }}</b>{% if not d.done %}<div class="lc-small {% if d.left < 0 %}overdue{% elif d.left <= 7 %}soon{% else %}muted{% endif %}">{% if d.left < 0 %}{{ d.late }} day{{ d.late|pluralize }} late{% elif d.left == 0 %}today{% else %}in {{ d.left }} day{{ d.left|pluralize }}{% endif %}</div>{% endif %}{% else %}<span class="muted">not fixed</span>{% endif %}</td>
+          <td class="wrap">{{ d.label }}{% if d.amount %} · {{ d.amount|money }}{% endif %}
+            {% if d.rule %}<div class="muted lc-small">{{ d.rule }}</div>{% endif %}
+            {% if d.source_href %}<a class="lc-small" href="{{ d.source_href }}" title="{{ d.quote|truncatechars:300 }}">source</a>{% endif %}
+            <details class="lc-small ct-edit"><summary>edit</summary>
+              <form method="post" class="fields">{% csrf_token %}<input type="hidden" name="action" value="date_edit"><input type="hidden" name="date_id" value="{{ d.pk }}">
+                <label>Type <select name="kind">{% for v, l in date_kinds %}<option value="{{ v }}"{% if v == d.kind %} selected{% endif %}>{{ l }}</option>{% endfor %}</select></label>
+                <label>Label <input name="label" value="{{ d.label }}"></label>
+                <label>Date <input type="date" name="date" value="{{ d.date|date:'Y-m-d' }}"></label>
+                <label>Amount ($) <input name="amount" value="{{ d.amount|default_if_none:'' }}"></label>
+                <label>How it's set <input name="rule" value="{{ d.rule }}"></label>
+                <button class="btn btn-small btn-primary">Save</button>
+                <button class="btn-link lc-small" name="action" value="date_delete" formnovalidate onclick="return confirm('Delete this date?')">Delete</button>
+              </form></details></td>
+        </tr>
+      {% empty %}<tr><td class="muted">No dates yet.{% if reads and ai_ready %} Have Claude find them, or add them by hand.{% endif %}</td></tr>{% endfor %}</table>
+      <div class="inline-form" style="margin-top:8px">
+        {% if reads and ai_ready %}<form method="post" data-busy="Reading for dates… about a minute">{% csrf_token %}<button class="btn btn-small" name="action" value="find_dates">Find dates with Claude</button></form>{% endif %}
+        <details class="ct-add"><summary class="btn btn-small">Add a date</summary>
+          <form method="post" class="fields">{% csrf_token %}<input type="hidden" name="action" value="date_add">{{ date_form.as_p }}<button class="btn-primary">Add</button></form>
+        </details>
+      </div>
+      <p class="muted lc-small" style="margin-bottom:0">{% if contract.owner %}{{ contract.owner|username }} gets{% else %}Whoever runs it gets{% endif %} a reminder 30, 14, 7 and 1 days before each open date.
+        {% if contract.site %}Signing, feasibility and closing dates also go on the site's deal timeline.{% endif %}</p>
+    </section>
+
+    {% if owners|length > 1 %}
+    <section class="panel">
+      <h3>Owners it covers</h3>
+      <form method="post">{% csrf_token %}<input type="hidden" name="action" value="parcels">
+        {% for g in owners %}<label class="ct-owner"><input type="checkbox" name="deals" value="{{ g.ids }}"{% if g.checked %} checked{% endif %}> {{ g.owner }} <span class="muted lc-small">{{ g.acres|floatformat:1 }} ac</span></label>{% endfor %}
+        <p class="muted lc-small">{{ contract.site.name }} is an assemblage. Tick the owners this agreement covers and its dates go on their parcels' deals; leave all unticked for the whole site.</p>
+        <button class="btn btn-small">Save</button>
+      </form>
+    </section>
+    {% endif %}
+
+    <section class="panel" id="details">
+      <h3>Details</h3>
+      <form method="post" class="fields">{% csrf_token %}<input type="hidden" name="action" value="details">
+        {{ form.as_p }}
+        <button class="btn-primary">Save</button>
+      </form>
+      {% if can_manage %}<form method="post" action="{% url 'crm:contract_delete' contract.pk %}" style="margin-top:12px" onsubmit="return confirm('Delete this contract, its documents, dates and answers?')">{% csrf_token %}
+        <button class="btn btn-danger btn-small">Delete contract</button></form>{% endif %}
+    </section>
+  </div>
+</div>
+
+<div id="cite-pop" class="cite-pop" hidden>
+  <div class="cite-where"></div>
+  <blockquote class="cite-quote"></blockquote>
+  <a class="cite-open btn btn-small" href="#">Open in the reader</a>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+  document.querySelectorAll('.ct-quick .chip').forEach(b => b.addEventListener('click', () => {
+    const box = b.closest('form').querySelector('textarea');
+    box.value = b.dataset.q;
+    box.focus();
+  }));
+  document.querySelectorAll('form[data-busy]').forEach(f => f.addEventListener('submit', () => {
+    const btn = f.querySelector('button:not([type=button])');
+    if (btn) { btn.disabled = true; btn.textContent = f.dataset.busy; }
+  }));
+  // Citation chips: show the quoted language in place; ctrl/cmd-click opens the reader.
+  const pop = document.getElementById('cite-pop');
+  document.addEventListener('click', e => {
+    const chip = e.target.closest('a.cite');
+    if (!chip) { if (!e.target.closest('#cite-pop')) pop.hidden = true; return; }
+    if (e.metaKey || e.ctrlKey) return;
+    e.preventDefault();
+    pop.querySelector('.cite-where').textContent = '[' + chip.dataset.n + '] ' + chip.dataset.where;
+    pop.querySelector('.cite-quote').textContent = chip.dataset.quote || '(no quote)';
+    pop.querySelector('.cite-open').href = chip.href;
+    const r = chip.getBoundingClientRect();
+    pop.hidden = false;
+    pop.style.top = (window.scrollY + r.bottom + 6) + 'px';
+    pop.style.left = Math.max(8, Math.min(window.scrollX + r.left - 20, window.scrollX + document.documentElement.clientWidth - pop.offsetWidth - 8)) + 'px';
+  });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') pop.hidden = true; });
+</script>
+{% endblock %}

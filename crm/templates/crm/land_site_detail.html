@@ -150,6 +150,15 @@
   </div>
 
   <div>
+    <section class="panel" id="contracts">
+      <h3>Contracts <a href="{% url 'crm:contract_create' %}?site={{ site.pk }}" style="float:right;text-transform:none;letter-spacing:0">New contract</a></h3>
+      {% for c in contracts %}
+        <div class="row-line"><span><a href="{{ c.get_absolute_url }}">{{ c.title }}</a> <span class="pill ct-{{ c.status }}">{{ c.get_status_display }}</span>
+          {% if c.waiting_on %}<span class="muted lc-small">{{ c.get_waiting_on_display }}</span>{% endif %}</span>
+          <span class="lc-small">{% if c.next %}<span class="{% if c.next.left < 0 %}overdue{% elif c.next.left <= 7 %}soon{% endif %}">{{ c.next.label }} · {{ c.next.date|date:"M j" }}</span>{% endif %}</span></div>
+      {% empty %}<p class="muted lc-small" style="margin:0">No LOI or purchase agreement yet. Add one to track its documents and deadlines; its signing, feasibility and closing dates fill in the deal timeline.</p>{% endfor %}
+    </section>
+
     <section class="panel">
       <h3>Parcels</h3>
       <div class="table-wrap" style="border:0">

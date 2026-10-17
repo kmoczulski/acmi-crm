@@ -14,6 +14,7 @@ from django.views.decorators.http import require_POST
 
 from . import ai, documents, gcal, meetings, merge, notify, pipeline
 from . import projects as project_tagging
+from .contracts import dates as contract_dates
 from .forms import (
     CompanyForm, DocumentForm, ListForm, NoteForm, OpportunityContactForm, OpportunityForm, PersonForm, ProjectForm,
     TaskForm, active_users,
@@ -408,6 +409,7 @@ def home(request):
         "changes": pipeline.changes_since(7),
         "suggestions": pipeline.suggestions(limit=40),
         "week": week_calendar(request),
+        "deadlines": contract_dates.upcoming(14, today),
     })
 
 
