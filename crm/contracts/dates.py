@@ -1,6 +1,7 @@
 """Critical dates across contracts: what's coming up, daily reminders, the land site's deal timeline, and the lines
 the campus summary shows."""
 from datetime import timedelta
+from types import SimpleNamespace
 
 from django.db.models import Q
 from django.utils import timezone
@@ -21,14 +22,25 @@ def live(qs=None):
     return qs.filter(confirmed=True, done=False, date__isnull=False, contract__status__in=Contract.OPEN_STATUSES)
 
 
-def upcoming(days=30, today=None, contracts=None):
-    """{"overdue": [...], "soon": [...]}: missed dates, then the next `days` days, across open contracts."""
+def upcoming(days=30, today=None):
+    """{"overdue": [...], "soon": [...]}: missed deadlines, then the next `days` days: contract dates, open diligence
+    items and closing items. Each row has date, left, late, label, amount, url, what (the deal), who, tag."""
+    from ..land import diligence
+    from . import closing
+
     today = today or timezone.localdate()
-    qs = live().filter(date__lte=today + timedelta(days=days))
-    if contracts is not None:
-        qs = qs.filter(contract__in=contracts)
-    rows = list(qs.select_related("contract", "contract__site", "contract__campus", "contract__owner")
-                .order_by("date", "id"))
+    rows = []
+    qs = live().filter(date__lte=today + timedelta(days=days)).select_related("contract", "contract__owner")
+    for d in qs:
+        rows.append(SimpleNamespace(date=d.date, label=d.label, amount=d.amount, url=d.contract.get_absolute_url()
+                                    + "#dates", what=d.contract.title, who=d.contract.owner, tag=""))
+    for i in diligence.due(days, today):
+        rows.append(SimpleNamespace(date=i.due_on, label=i.name, amount=None, url=f"/land/sites/{i.site_id}/diligence/"
+                                    f"#dd-{i.pk}", what=i.site.name, who=i.owner, tag="DD"))
+    for i in closing.due(days, today):
+        rows.append(SimpleNamespace(date=i.due_on, label=i.name, amount=None, url=i.contract.get_absolute_url()
+                                    + "#closing", what=i.contract.title, who=i.contract.owner, tag="Closing"))
+    rows.sort(key=lambda r: r.date)
     for r in rows:
         r.left = (r.date - today).days
         r.late = -r.left
@@ -93,15 +105,17 @@ def milestone_dates(contract):
     feasibility = [d.date for d in dates if d.kind == ContractDate.Kind.FEASIBILITY]
     if feasibility:
         out["feasibility_end"] = max(feasibility)
-    closing = [d.date for d in dates if d.kind == ContractDate.Kind.CLOSING]
+    closing = [d for d in dates if d.kind == ContractDate.Kind.CLOSING]
     if c.status == Contract.Status.CLOSED and closing:
-        out["closed"] = max(closing)
+        done = [d.date for d in closing if d.done]  # the day it actually closed, over a planned or outside date
+        out["closed"] = max(done) if done else max(d.date for d in closing)
     return out
 
 
 def sync_site(contract, user=None):
-    """Put the contract's dates on its site's deal timeline, or on the owners' parcel deals it covers. Sets or moves
-    only the milestones it settles, never clears one, and the status only moves forward. Returns dates changed."""
+    """Put the contract's dates on its site's deal timeline. A contract for the whole site sets the site and every
+    included parcel's deal; one for some owners (parcel_deals) sets only theirs. Sets or moves only the milestones it
+    settles, never clears one, and statuses only move forward. Returns dates changed."""
     from ..land.tracker import apply_milestones
 
     if not contract.site_id:
@@ -109,8 +123,14 @@ def sync_site(contract, user=None):
     dates = milestone_dates(contract)
     if not dates:
         return 0
-    targets = list(contract.parcel_deals.select_related("parcel", "site")) or [contract.site]
-    return sum(apply_milestones(t, dates, user, why=f"from {contract.title}") for t in targets)
+    why = f"from {contract.title}"
+    picked = list(contract.parcel_deals.select_related("parcel", "site"))
+    if picked:
+        return sum(apply_milestones(t, dates, user, why=why) for t in picked)
+    changed = apply_milestones(contract.site, dates, user, why=why)
+    for deal in contract.site.parcel_deals.filter(included=True).select_related("parcel", "site"):
+        apply_milestones(deal, dates, user, why=why, log=False)  # the whole site: logged once, above
+    return changed
 
 
 # ---------------------------------------------------------------------------

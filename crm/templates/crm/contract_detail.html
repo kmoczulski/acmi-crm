@@ -164,6 +164,9 @@
         {% if contract.site %}Signing, feasibility and closing dates also go on the site's deal timeline.{% endif %}</p>
     </section>
 
+    {% if dd %}{% include "crm/partials/contract_dd.html" %}{% endif %}
+    {% if closing %}{% include "crm/partials/contract_closing.html" %}{% endif %}
+
     {% if owners|length > 1 %}
     <section class="panel">
       <h3>Owners it covers</h3>

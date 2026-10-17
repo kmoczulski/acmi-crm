@@ -159,6 +159,14 @@
       {% empty %}<p class="muted lc-small" style="margin:0">No LOI or purchase agreement yet. Add one to track its documents and deadlines; its signing, feasibility and closing dates fill in the deal timeline.</p>{% endfor %}
     </section>
 
+    <section class="panel" id="diligence">
+      <h3>Due diligence <a href="{% url 'crm:land_site_diligence' site.pk %}" style="float:right;text-transform:none;letter-spacing:0">{% if dd %}Open{% else %}Start{% endif %}</a></h3>
+      {% if dd %}
+        <div><b>{{ dd.cleared }} of {{ dd.count }}</b> cleared{% if dd.issues %} · <span class="overdue">{{ dd.issues|length }} issue{{ dd.issues|length|pluralize }}</span>{% endif %} · {{ dd.open|length }} open{% if dd.budget %} <span class="muted lc-small">· budget {{ dd.budget|money }}</span>{% endif %}</div>
+        {% if dd.end %}<div class="lc-small">Feasibility ends {{ dd.end|date:"M j" }}{% if dd.at_risk %} · <span class="overdue">{{ dd.at_risk|length }} at risk</span>{% endif %}</div>{% endif %}
+      {% else %}<p class="muted lc-small" style="margin:0">Title, survey, Phase I, geotech, zoning letter and will-serves, with consultants, cost and due dates against the feasibility deadline.</p>{% endif %}
+    </section>
+
     <section class="panel">
       <h3>Parcels</h3>
       <div class="table-wrap" style="border:0">

@@ -82,7 +82,7 @@
 
     {% if deadlines.overdue or deadlines.soon %}
     <div class="panel">
-      <h3>Contract deadlines · next {{ deadlines.days }} days <a href="{% url 'crm:contract_list' %}" style="float:right;text-transform:none;letter-spacing:0">Contracts</a></h3>
+      <h3>Deadlines · next {{ deadlines.days }} days <a href="{% url 'crm:contract_list' %}" style="float:right;text-transform:none;letter-spacing:0">Contracts</a></h3>
       {% include "crm/partials/contract_deadlines.html" with d=deadlines %}
     </div>
     {% endif %}

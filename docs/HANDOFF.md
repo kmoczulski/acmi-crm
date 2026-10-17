@@ -826,3 +826,32 @@ critical dates with reminders, negotiation rounds and redlines, and the tie-in t
   less often in .docx than in PDFs).
 - **Merged 2026-10-17:** main at `8fb1640`, 268 tests (CI green on Postgres). On the real DB: backup
   `backups/db-2026-10-17-before-contracts.sqlite3`, migration 0035 applied (new tables only; no contracts yet).
+
+## Built 2026-10-17: due diligence and the closing checklist (next roadmap item; Kellen: "yes, start it")
+
+- **Due diligence** per site (`/land/sites/<id>/diligence/`, "Due diligence" panel on the site page and the contract
+  page; `crm/land/diligence.py`, `diligence_views.py`, model `DiligenceItem`, migration 0036). Starts from the same
+  checklist the client reports use (`assignments.CHECKLIST`): "Standard" (14 items: ALTA survey, title commitment,
+  easements, existing leases, zoning letter and use, Phase I, wetlands, species, cultural resources, borings, electric,
+  water / sewer will-serves, road access) or the full 44. Each item: status (Not started → Ordered → Received →
+  Reviewed: clear / issue, or Waived), consultant, who chases it, budget and invoiced, ordered / due / received dates
+  (filled in when the status moves), findings, the report (PDF / Word, text read for Claude) or a link. Status changes
+  are logged on the site.
+- **The deadline** is the end of the feasibility period: the kept "Feasibility ends" date on the site's open PSA or
+  option, else the site's milestone. Items due after it, or late, or anything still open within 14 days of it, list as
+  "At risk". The strip shows progress, budget / invoiced / committed (ordered, not yet invoiced), and the **feasibility
+  decision** (proceed / extend / terminate, with a note), which is kept on the contract and logged on the site.
+- **Claude** summarizes an uploaded report with citations to its pages (Citations API; focus per item, e.g. RECs and
+  Phase II for a Phase I, Schedule B exceptions for a title commitment); the chips open the PDF at the cited page.
+- **Closing checklist** on a PSA or option (contract page; `crm/contracts/closing.py`, model `ClosingItem`): 18
+  standard items by side (us, seller, title / escrow, lender, after closing), due on the kept closing date (the
+  clean-up 30 days after), done / not needed, your own items. **Mark closed** sets the closing date to the actual day,
+  the contract to Closed, and through the timeline sync the site and every parcel's deal to Acquired (a whole-site
+  contract now sets the parcel deals too, logged once on the site). The parcel card then says "Owned by <our entity>
+  since <date>" (county records catch up later).
+- **Deadlines:** the dashboard panel (now "Deadlines") and the contracts list mix contract dates, diligence items
+  (tag DD) and closing items. Bell reminders: diligence items to whoever chases them (else the contract's owner) 7
+  and 1 days ahead, on the day and once late (not once received); closing items to the contract's owner the same way.
+  The campus summary adds "due diligence: N of M cleared, K issues" and flags for issues, late items and a
+  feasibility crunch, so the weekly Claude draft picks them up.
+- Checked in a browser on the scratch demo database (made-up data); Claude calls are tested with a mocked API.

@@ -780,4 +780,38 @@ a.cite:hover { background: var(--accent); color: #fff; text-decoration: none; }
 .rl-same summary { display: inline; cursor: pointer; color: var(--muted); font-family: system-ui, sans-serif; font-size: 12px; }
 .rl-same[open] summary { display: none; }
 @media (max-width: 1100px) { .ct-layout, .cr-layout { grid-template-columns: 1fr; } .cr-side { position: static; max-height: none; } }
+
+/* Due diligence and closing */
+.print-only { display: none; }
+@media print { .print-only { display: inline; } .dd-more { display: none; } }
+.dd-strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
+.dd-strip > div { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; }
+.dd-strip .label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+.dd-strip .value { font-size: 18px; font-weight: 600; margin: 2px 0; }
+.dd-strip .fields select, .dd-strip .fields textarea { width: 100%; margin: 4px 0; }
+.dd-risk { border-color: #f1d9a8; background: #fffbea; }
+.dd-risk ul { margin: 0; padding-left: 18px; }
+.dd-table td { vertical-align: top; }
+.dd-table tr.dd-clear td:nth-child(2) b { color: var(--good); }
+.dd-table tr.dd-issue td:nth-child(2) b { color: var(--bad); }
+.dd-table tr.dd-waived td { color: var(--muted); }
+.dd-table tr.dd-late td:first-child { box-shadow: inset 3px 0 var(--bad); }
+.dd-table tr.dd-more td { border-top: 0; padding-top: 0; }
+.dd-status { font-size: 12px; padding: 2px 4px; }
+.dd-findings { margin-top: 3px; max-width: 520px; }
+.dd-form { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px 12px; margin: 6px 0; }
+.dd-form label { display: flex; flex-direction: column; font-size: 12px; color: var(--muted); }
+.dd-form .dd-wide { grid-column: 1 / -1; }
+.dd-summary { margin: 4px 0; }
+.dd-summary > summary { cursor: pointer; color: var(--accent); font-size: 12px; }
+.dd-claude { display: inline-block; margin-left: 10px; }
+.cl-list { list-style: none; margin: 0; padding: 0; }
+.cl-list li { display: flex; gap: 8px; align-items: baseline; padding: 4px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
+.cl-list li:last-child { border-bottom: 0; }
+.cl-list li.cl-done .cl-name { color: var(--muted); text-decoration: line-through; }
+.cl-list li.cl-na .cl-name { color: var(--muted); }
+.cl-list .cl-name { flex: 1; }
+.cl-side { margin: 10px 0 2px; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+.lc-owned { background: var(--good-bg); color: var(--good); border-radius: var(--radius); padding: 4px 8px; margin: 6px 0; font-size: 12px; }
+@media (max-width: 900px) { .dd-strip, .dd-form { grid-template-columns: 1fr 1fr; } }
 @media print { .ct-print { border: 0; padding: 0; } a.cite { background: none; } }

@@ -1,0 +1,49 @@
+{% load crm_tags %}<section class="panel" id="closing">
+  <h3>Closing checklist{% if closing.total %} <span class="muted" style="text-transform:none;letter-spacing:0;font-weight:400">· {{ closing.done }} of {{ closing.total }} done</span>{% endif %}</h3>
+  {% if not closing.items %}
+    <form method="post">{% csrf_token %}<input type="hidden" name="action" value="closing_start">
+      <p class="muted lc-small" style="margin-top:0">Deliverables from each side, the money, recording and the clean-up after, due on the closing date.</p>
+      <button class="btn btn-small">Start the closing checklist</button></form>
+  {% else %}
+    {% for side, rows in closing.groups %}
+      <div class="cl-side">{{ side }}</div>
+      <ul class="cl-list">{% for i in rows %}
+        <li class="cl-{{ i.status }}">
+          <form method="post">{% csrf_token %}<input type="hidden" name="action" value="closing_status"><input type="hidden" name="item" value="{{ i.pk }}">
+            <button class="ct-check" name="status" value="{% if i.status == 'done' %}open{% else %}done{% endif %}" title="{% if i.status == 'done' %}Mark open{% else %}Mark done{% endif %}">{% if i.status == "done" %}✓{% elif i.status == "na" %}–{% else %}○{% endif %}</button></form>
+          <span class="cl-name">{{ i.name }}{% if i.responsible %} <span class="muted lc-small">· {{ i.responsible }}</span>{% endif %}{% if i.notes %}<div class="muted lc-small">{{ i.notes }}</div>{% endif %}</span>
+          <span class="lc-small {% if i.late %}overdue{% else %}muted{% endif %}">{% if i.status == "done" %}{{ i.done_on|date:"M j" }}{% elif i.due_on %}{{ i.due_on|date:"M j" }}{% endif %}</span>
+          <details class="ct-edit lc-small"><summary>edit</summary>
+            <form method="post" class="fields">{% csrf_token %}<input type="hidden" name="action" value="closing_edit"><input type="hidden" name="item" value="{{ i.pk }}">
+              <label>Item <input name="name" value="{{ i.name }}"></label>
+              <label>Side <select name="side">{% for v, l in closing_sides %}<option value="{{ v }}"{% if v == i.side %} selected{% endif %}>{{ l }}</option>{% endfor %}</select></label>
+              <label>Who delivers it <input name="responsible" value="{{ i.responsible }}"></label>
+              <label>Due <input type="date" name="due_on" value="{{ i.due_on|date:'Y-m-d' }}"></label>
+              <label>Notes <input name="notes" value="{{ i.notes }}"></label>
+              <button class="btn btn-small btn-primary">Save</button>
+            </form>
+            <form method="post" class="inline-form">{% csrf_token %}<input type="hidden" name="action" value="closing_status"><input type="hidden" name="item" value="{{ i.pk }}">
+              <button class="btn-link lc-small" name="status" value="{% if i.status == 'na' %}open{% else %}na{% endif %}">{% if i.status == "na" %}Needed after all{% else %}Not needed{% endif %}</button>
+              {% if can_manage %}<button class="btn-link lc-small" name="action" value="closing_delete" onclick="return confirm('Remove this item?')">Remove</button>{% endif %}</form>
+          </details>
+        </li>
+      {% endfor %}</ul>
+    {% endfor %}
+    <details class="ct-add"><summary class="btn btn-small">Add an item</summary>
+      <form method="post" class="fields">{% csrf_token %}<input type="hidden" name="action" value="closing_add">
+        <label>Item <input name="name" required></label>
+        <label>Side <select name="side">{% for v, l in closing_sides %}<option value="{{ v }}">{{ l }}</option>{% endfor %}</select></label>
+        <label>Who delivers it <input name="responsible"></label>
+        <label>Due <input type="date" name="due_on"></label>
+        <button class="btn btn-small btn-primary">Add</button>
+      </form>
+    </details>
+  {% endif %}
+  {% if contract.status != "closed" and contract.status != "terminated" %}
+    <form method="post" class="inline-form" style="margin-top:10px" onsubmit="return confirm('Mark this purchase closed?{% if contract.site %} The site and its parcels become Acquired.{% endif %}')">{% csrf_token %}<input type="hidden" name="action" value="close">
+      <label class="lc-small">Closed on <input type="date" name="closed_on" value="{{ today|date:'Y-m-d' }}"></label>
+      <button class="btn btn-small{% if closing.total and not closing.pre_open %} btn-primary{% endif %}">Mark closed</button>
+      {% if closing.pre_open %}<span class="muted lc-small">{{ closing.pre_open|length }} pre-closing item{{ closing.pre_open|length|pluralize }} still open</span>{% endif %}
+    </form>
+  {% endif %}
+</section>

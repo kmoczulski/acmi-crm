@@ -9,6 +9,7 @@
     <button type="button" class="lc-close btn-link" title="Close">✕</button>
   </div>
   {% if p.killers %}<div class="lc-killers">{% for k in p.killers %}<div>⛔ {{ k }}</div>{% endfor %}</div>{% endif %}
+  {% for site, closed, entity in owned %}<div class="lc-owned">Owned by {{ entity }}{% if closed %} since {{ closed|date:"M j, Y" }}{% endif %} · <a href="{% url 'crm:land_site_detail' site.pk %}">{{ site.name }}</a> (county records update later)</div>{% endfor %}
 
   <form class="lc-status" method="post" action="{% url 'crm:land_parcel_status' p.pk %}" data-card-form>{% csrf_token %}
     {% for value, label in statuses %}{% if value %}

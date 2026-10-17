@@ -3,7 +3,7 @@ from django.urls import path
 from . import campus_views, views
 from .contracts import views as contract_views
 from .land import assignment_views as asg_views
-from .land import brief_views
+from .land import brief_views, diligence_views
 from .land import views as land_views
 from .mail import views as mail_views
 from .news import views as news_views
@@ -127,6 +127,8 @@ urlpatterns = [
     path("g/<str:token>/<int:entry_pk>/", asg_views.guest_report, name="guest_report"),
     path("land/sites/", land_views.sites_page, name="land_sites_page"),
     path("land/sites/<int:pk>/manage/", land_views.site_detail, name="land_site_detail"),
+    path("land/sites/<int:pk>/diligence/", diligence_views.site_diligence, name="land_site_diligence"),
+    path("land/diligence/<int:pk>/file/", diligence_views.diligence_file, name="land_diligence_file"),
     path("land/sites/<int:pk>/trim/", land_views.site_trim, name="land_site_trim"),
     path("land/sites.json", land_views.sites_json, name="land_sites"),
     path("land/sites.geojson", land_views.sites_geojson, name="land_sites_geojson"),

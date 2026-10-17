@@ -13,7 +13,7 @@ from shapely.geometry import shape
 
 from ..models import Activity, Campus, Company, LandCounty, LandSite, Note, Parcel, Project, Task, normalize_key
 from ..permissions import is_manager, manager_required, refuse
-from . import layers, score, zoning_ref
+from . import diligence, layers, score, zoning_ref
 from .lookup import identify, run_checks
 from .sources import LIMIT_LAYERS, STORED_LAYERS
 
@@ -172,9 +172,23 @@ def near_rows(parcel):
     return rows
 
 
+def _owned(parcel):
+    """ACMI's closed purchases of this parcel: [(site, closing date, buying entity)]."""
+    from datetime import date
+
+    out = []
+    for deal in parcel.site_deals.filter(status=LandSite.Status.ACQUIRED).select_related("site"):
+        entity = (deal.site.contracts.filter(status="closed").exclude(our_entity="")
+                  .values_list("our_entity", flat=True).first())
+        raw = (deal.milestones or {}).get("closed")
+        out.append((deal.site, date.fromisoformat(raw) if raw else None, entity or "ACMI"))
+    return out
+
+
 def _card(request, parcel, live=None):
     checks = (parcel.checks or {}) if parcel else {}
     return render(request, "crm/partials/land_card.html", {
+        "owned": _owned(parcel) if parcel else [],
         "p": parcel, "live": live, "checks": checks, "near_rows": near_rows(parcel) if parcel else [],
         "zoning_ref": zoning_ref.district_for(parcel) if parcel else None,
         "land_use": score.land_use_label(parcel.state_land_use) if parcel else "",
@@ -985,6 +999,7 @@ def site_detail(request, pk):
         "events": site.events.select_related("user")[:100], "statuses": LandSite.Status.choices,
         "campuses": Campus.objects.all(), "projects": Project.objects.filter(active=True).select_related("campus"),
         "today": date.today(), "contracts": _site_contracts(site),
+        "dd": diligence.summary(site) if site.diligence.exists() else None,
     })
 
 

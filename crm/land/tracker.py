@@ -36,10 +36,10 @@ def ensure_deals(site):
     site.parcel_deals.exclude(parcel__in=parcels).delete()
 
 
-def apply_milestones(target, dates, user=None, why=""):
+def apply_milestones(target, dates, user=None, why="", log=True):
     """Set milestone dates on a site, or on one parcel's deal, from elsewhere (a contract: crm/contracts/dates.py).
-    Logs each change on the site and moves the status forward to match, never back; a dropped site stays dropped.
-    Returns how many dates changed."""
+    Logs each change on the site (unless `log` is off: a whole-site contract logs once, on the site) and moves the
+    status forward to match, never back; a dropped site stays dropped. Returns how many dates changed."""
     from ..models import LandSiteEvent
 
     site = target if isinstance(target, LandSite) else target.site
@@ -51,8 +51,9 @@ def apply_milestones(target, dates, user=None, why=""):
         if key in labels and milestones.get(key) != when.isoformat():
             milestones[key] = when.isoformat()
             changed += 1
-            LandSiteEvent.objects.create(site=site, user=user, kind="milestone",
-                                         text=f"{labels[key]}{whose}: {when:%b} {when.day}, {when.year}{note}"[:500])
+            if log:
+                LandSiteEvent.objects.create(site=site, user=user, kind="milestone",
+                                             text=f"{labels[key]}{whose}: {when:%b} {when.day}, {when.year}{note}"[:500])
     if not changed:
         return 0
     target.milestones = milestones
@@ -62,8 +63,9 @@ def apply_milestones(target, dates, user=None, why=""):
         old = STAGE_LABEL.get(target.status, target.status)
         target.status = implied
         fields.append("status")
-        LandSiteEvent.objects.create(site=site, user=user, kind="status",
-                                     text=f"Status{whose} {old} → {STAGE_LABEL[implied]}{note}"[:500])
+        if log:
+            LandSiteEvent.objects.create(site=site, user=user, kind="status",
+                                         text=f"Status{whose} {old} → {STAGE_LABEL[implied]}{note}"[:500])
     target.save(update_fields=fields)
     return changed
 

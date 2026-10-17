@@ -117,6 +117,20 @@ class ContractTemplateAdmin(admin.ModelAdmin):
     list_display = ("name", "key", "updated_at")
 
 
+@admin.register(models.DiligenceItem)
+class DiligenceItemAdmin(admin.ModelAdmin):
+    list_display = ("site", "ref", "name", "status", "consultant", "due_on", "budget", "cost")
+    list_filter = ("status", "site")
+    search_fields = ("name", "consultant", "findings")
+    readonly_fields = ("summary",)
+
+
+@admin.register(models.ClosingItem)
+class ClosingItemAdmin(admin.ModelAdmin):
+    list_display = ("contract", "side", "name", "status", "due_on", "done_on")
+    list_filter = ("status", "side")
+
+
 @admin.register(models.ContractAnswer)
 class ContractAnswerAdmin(admin.ModelAdmin):
     list_display = ("created_at", "contract", "question", "asked_by", "input_tokens", "output_tokens")

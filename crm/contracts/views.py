@@ -1,6 +1,7 @@
 """Contract pages: the list with every deadline, one contract's file (documents, dates, questions, abstracts), the
 reader with defined terms and cross-references, redlines between drafts, and the review templates."""
 import re
+from datetime import date
 
 from django.contrib import messages
 from django.db.models import Count, Max
@@ -12,11 +13,13 @@ from django.utils.safestring import mark_safe
 from django.views.decorators.http import require_POST
 
 from ..ai import enabled as ai_enabled
+from ..land import diligence
 from ..models import (
-    Campus, Contract, ContractAnswer, ContractDate, ContractDocument, ContractTemplate, LandSite, Opportunity,
+    Campus, ClosingItem, Contract, ContractAnswer, ContractDate, ContractDocument, ContractTemplate, LandSite,
+    Opportunity,
 )
 from ..permissions import is_manager, manager_required, refuse
-from . import ai, compare, dates, methods
+from . import ai, closing, compare, dates, methods
 from . import text as textmod
 from .forms import ContractForm, DateForm, DocumentForm, TemplateForm
 
@@ -160,7 +163,11 @@ def contract_detail(request, pk):
     drafts = [d for d in docs if d.is_draft]
     for prev, d in zip(drafts, drafts[1:]):
         d.prev = prev if prev.text and d.text else None
+    purchase = contract.kind in (Contract.Kind.PSA, Contract.Kind.OPTION)
     return render(request, "crm/contract_detail.html", {
+        "dd": diligence.summary(contract.site, today, contract=contract) if purchase and contract.site_id else None,
+        "closing": closing.progress(contract, today) if purchase else None, "today": today,
+        "closing_sides": ClosingItem.Side.choices, "closing_statuses": ClosingItem.Status.choices,
         "contract": contract, "form": ContractForm(instance=contract), "doc_form": DocumentForm(),
         "date_form": DateForm(), "signed": [d for d in docs if not d.is_draft], "drafts": drafts,
         "docs": docs, "dates": [d for d in all_dates if d.confirmed], "proposed": [d for d in all_dates if not d.confirmed],
@@ -294,6 +301,51 @@ def _post(request, contract):
                              if found else "Claude found no dates that aren't already listed.")
         except ai.Unavailable as exc:
             messages.error(request, str(exc))
+    elif action == "closing_start":
+        anchor = "closing"
+        n = closing.start(contract)
+        messages.success(request, f"Added {n} closing item{'s' if n != 1 else ''}." if n else "Already there.")
+    elif action in ("closing_add", "closing_edit"):
+        anchor = "closing"
+        item = (get_object_or_404(ClosingItem, pk=request.POST.get("item"), contract=contract)
+                if action == "closing_edit" else ClosingItem(contract=contract, position=(
+                    contract.closing_items.aggregate(m=Max("position"))["m"] or 0) + 1))
+        name = (request.POST.get("name") or "").strip()[:200]
+        if not name:
+            messages.error(request, "Give the closing item a name.")
+        else:
+            item.name = name
+            item.side = request.POST.get("side") if request.POST.get("side") in ClosingItem.Side.values else item.side
+            item.responsible = (request.POST.get("responsible") or "").strip()[:120]
+            item.notes = (request.POST.get("notes") or "").strip()[:300]
+            try:
+                item.due_on = date.fromisoformat(request.POST["due_on"]) if request.POST.get("due_on") else None
+            except ValueError:
+                item.due_on = None
+            item.save()
+    elif action == "closing_status":
+        anchor = "closing"
+        item = get_object_or_404(ClosingItem, pk=request.POST.get("item"), contract=contract)
+        status = request.POST.get("status", "")
+        if status in ClosingItem.Status.values:
+            item.status = status
+            item.done_on, item.done_by = ((timezone.localdate(), user) if status == ClosingItem.Status.DONE
+                                          else (None, None))
+            item.save(update_fields=["status", "done_on", "done_by"])
+    elif action == "closing_delete":
+        anchor = "closing"
+        if not is_manager(user):
+            return refuse(request)
+        get_object_or_404(ClosingItem, pk=request.POST.get("item"), contract=contract).delete()
+    elif action == "close":
+        anchor = "closing"
+        try:
+            on = date.fromisoformat(request.POST.get("closed_on") or "")
+        except ValueError:
+            on = timezone.localdate()
+        closing.close(contract, on, user)
+        messages.success(request, f"Closed on {on:%b} {on.day}, {on.year}." + (
+            " The site and its parcels are marked Acquired." if contract.site_id else ""))
     elif action in ("pin", "answer_delete"):
         answer = get_object_or_404(ContractAnswer, pk=request.POST.get("answer"), contract=contract)
         if action == "pin":

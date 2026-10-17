@@ -895,7 +895,7 @@ class Notification(models.Model):
         REPLY = "reply", "Reply received"
         STAGE = "stage", "Deal stage changed"
         MEETING = "meeting", "Meeting"
-        DEADLINE = "deadline", "Contract deadline"
+        DEADLINE = "deadline", "Deadline"
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="notifications")
     kind = models.CharField(max_length=12, choices=Kind.choices)
@@ -1802,6 +1802,12 @@ class Contract(models.Model):
         CLOSED = "closed", "Closed / complete"
         TERMINATED = "terminated", "Terminated"
 
+    class Decision(models.TextChoices):
+        NONE = "", "Not decided"
+        PROCEED = "proceed", "Proceed (deposit goes hard)"
+        EXTEND = "extend", "Extend feasibility"
+        TERMINATE = "terminate", "Terminate"
+
     OPEN_STATUSES = ("drafting", "negotiating", "signed")
 
     title = models.CharField(max_length=200, help_text="e.g. Wamsley PSA")
@@ -1828,6 +1834,11 @@ class Contract(models.Model):
     owner = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="contracts",
                               help_text="Who on the team runs it; gets the deadline reminders")
     notes = models.TextField(blank=True)
+    decision = models.CharField("feasibility decision", max_length=10, choices=Decision.choices, blank=True,
+                                help_text="The go / no-go at the end of due diligence")
+    decision_on = models.DateField(null=True, blank=True)
+    decision_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    decision_note = models.TextField(blank=True)
     created_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -2024,3 +2035,107 @@ class ContractDate(models.Model):
 
     def days_left(self, today=None):
         return (self.date - (today or timezone.localdate())).days if self.date else None
+
+
+class DiligenceItem(models.Model):
+    """One due-diligence item on a site ACMI is buying (title commitment, ALTA survey, Phase I, geotech, zoning letter,
+    will-serves…): who is doing it, what it costs, when it was ordered, is due and came in, and what it found. A site
+    starts from the standard checklist the client reports use (crm/land/diligence.py). The report itself can be
+    uploaded; Claude summarizes it with citations to its pages."""
+
+    class Status(models.TextChoices):
+        TODO = "todo", "Not started"
+        ORDERED = "ordered", "Ordered"
+        RECEIVED = "received", "Received, to review"
+        CLEAR = "clear", "Reviewed: clear"
+        ISSUE = "issue", "Reviewed: issue"
+        WAIVED = "waived", "Waived / N/A"
+
+    OPEN = ("todo", "ordered", "received")
+
+    site = models.ForeignKey(LandSite, on_delete=models.CASCADE, related_name="diligence")
+    contract = models.ForeignKey(Contract, null=True, blank=True, on_delete=models.SET_NULL, related_name="diligence",
+                                 help_text="The agreement whose feasibility period it has to finish in")
+    ref = models.CharField(max_length=8, blank=True, help_text="Checklist reference, e.g. D-1")
+    block = models.CharField(max_length=60, default="Other")
+    name = models.CharField(max_length=200)
+    how = models.CharField("deliverable / how verified", max_length=200, blank=True)
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.TODO, db_index=True)
+    consultant = models.CharField(max_length=200, blank=True, help_text="Firm doing it (title company, surveyor…)")
+    owner = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+",
+                              help_text="Who on the team chases it; gets the reminders")
+    budget = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    cost = models.DecimalField("invoiced", max_digits=12, decimal_places=2, null=True, blank=True)
+    ordered_on = models.DateField(null=True, blank=True)
+    due_on = models.DateField(null=True, blank=True)
+    received_on = models.DateField(null=True, blank=True)
+    findings = models.TextField(blank=True)
+    file = models.FileField("report", upload_to="diligence/%Y/%m/", blank=True)
+    url = models.URLField("link", max_length=1000, blank=True)
+    text = models.TextField(blank=True, editable=False)
+    page_starts = models.JSONField(default=list, blank=True, editable=False)
+    pages = models.PositiveIntegerField(default=0)
+    text_status = models.CharField(max_length=12, blank=True)
+    summary = models.JSONField(default=list, blank=True, help_text="Claude's cited summary of the report")
+    summary_model = models.CharField(max_length=60, blank=True)
+    summary_at = models.DateTimeField(null=True, blank=True)
+    position = models.PositiveSmallIntegerField(default=0)
+    updated_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["position", "id"]
+
+    def __str__(self):
+        return f"{self.site} · {self.name}"
+
+    @property
+    def is_open(self):
+        return self.status in self.OPEN
+
+    @property
+    def title(self):  # what citations call the report
+        return self.name
+
+    @property
+    def href(self):
+        return reverse("crm:land_diligence_file", args=[self.pk]) if self.file else self.url
+
+    def page_at(self, index):
+        from bisect import bisect_right
+
+        return max(1, bisect_right(self.page_starts or [0], index))
+
+
+class ClosingItem(models.Model):
+    """One thing that has to happen to close a purchase, or right after it: each side's deliverables, the money,
+    recording, and the clean-up (title policy, tax accounts, insurance). Defaults in crm/contracts/closing.py."""
+
+    class Side(models.TextChoices):
+        BUYER = "buyer", "Us (buyer)"
+        SELLER = "seller", "Seller"
+        TITLE = "title", "Title / escrow"
+        LENDER = "lender", "Lender"
+        POST = "post", "After closing"
+
+    class Status(models.TextChoices):
+        OPEN = "open", "Open"
+        DONE = "done", "Done"
+        NA = "na", "Not needed"
+
+    contract = models.ForeignKey(Contract, on_delete=models.CASCADE, related_name="closing_items")
+    side = models.CharField(max_length=8, choices=Side.choices, default=Side.BUYER)
+    name = models.CharField(max_length=200)
+    responsible = models.CharField(max_length=120, blank=True, help_text="Who delivers it (person or firm)")
+    due_on = models.DateField(null=True, blank=True)
+    status = models.CharField(max_length=6, choices=Status.choices, default=Status.OPEN)
+    done_on = models.DateField(null=True, blank=True)
+    done_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    notes = models.CharField(max_length=300, blank=True)
+    position = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        ordering = ["position", "id"]
+
+    def __str__(self):
+        return self.name
