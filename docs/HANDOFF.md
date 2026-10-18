@@ -989,3 +989,6 @@ lender and investor updates.
   values are kept in their session.
 - Checked in a browser on the scratch demo database (made-up owners): logging, the site page, a reprint, and the
   letters and labels PDFs. Claude is tested with a mocked API.
+- **Merged 2026-10-18:** main at `71a9109`, 320 tests (CI green on Postgres). On the real DB: backup
+  `backups/db-2026-10-18-before-flyers-letters.sqlite3`, migration 0040 applied (new tables and blank fields only). The
+  built-in letters are created the first time someone opens a site's letters page.
