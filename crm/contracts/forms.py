@@ -1,7 +1,9 @@
 from django import forms
 
 from ..forms import StyledForm, UserChoiceField, active_users
-from ..models import Campus, Contract, ContractDate, ContractDocument, ContractTemplate, LandSite, Opportunity
+from ..models import (
+    Campus, Contract, ContractDate, ContractDocument, ContractTemplate, LandSite, LeaseTerms, Opportunity,
+)
 
 MAX_UPLOAD_MB = 60
 
@@ -104,6 +106,15 @@ class DateForm(forms.ModelForm):
             data["label"] = ContractDate.Kind(data["kind"]).label
             self.instance.label = data["label"]
         return data
+
+
+class LeaseTermsForm(forms.ModelForm):
+    class Meta:
+        model = LeaseTerms
+        fields = ["premises_sf", "land_acres", "commencement", "rent_start", "expiration", "base_rent",
+                  "escalation_pct", "free_months", "renewals", "renewal_years", "renewal_notice_months",
+                  "security_deposit", "ti_allowance", "guarantor"]
+        widgets = {"commencement": _date(), "rent_start": _date(), "expiration": _date()}
 
 
 class TemplateForm(forms.ModelForm):

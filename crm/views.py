@@ -17,6 +17,7 @@ from . import projects as project_tagging
 from .build import logic as build_logic
 from .contracts import dates as contract_dates
 from .entitlements import logic as entitlement_logic
+from .tenants import fit as tenant_fit
 from .forms import (
     CompanyForm, DocumentForm, ListForm, NoteForm, OpportunityContactForm, OpportunityForm, PersonForm, ProjectForm,
     TaskForm, active_users,
@@ -24,7 +25,7 @@ from .forms import (
 from .models import (
     DOCUMENT_CATEGORIES, OPEN_STAGES, STAGE_ORDER, AISummary, Activity, Attachment, Campus, Comment, Company, CompanyStatus, DealSuggestionDismissal, Document,
     List, ListEntry, Note, ObjectType, Opportunity, OpportunityContact, OpportunityStage, Person, Project, SavedView,
-    CalendarSync, Meeting, Notification, Task,
+    CalendarSync, Meeting, Notification, Task, TenantNeeds,
 )
 from .permissions import manager_required
 from .pipeline import risk_reasons
@@ -648,7 +649,13 @@ def opportunity_detail(request, pk):
         messages.error(request, "Fix the errors below.")
     activities = Activity.objects.filter(Q(opportunity=opp) | Q(company=opp.company))
     contacts = opp.contacts.select_related("person")
+    needs = TenantNeeds.objects.filter(opportunity=opp).first()
+    agreements = list(opp.contracts.all())
+    nxt = contract_dates.next_dates(agreements)
+    for c in agreements:
+        c.next = nxt.get(c.pk)
     return render(request, "crm/opportunity_detail.html", {
+        "needs": needs, "qd_buildings": tenant_fit.buildings(needs), "agreements": agreements,
         "record": opp,
         "opp": opp,
         "form": form,

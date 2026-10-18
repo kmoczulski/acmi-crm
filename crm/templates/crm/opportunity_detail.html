@@ -59,6 +59,20 @@
         <div class="sub">{{ opp.company.strongest_connection_user|username }}{% if opp.company.connection_strength %} · {{ opp.company.connection_strength }}{% endif %}</div></div>
       <div class="card"><div class="label">Next meeting</div><div class="value">{{ opp.company.next_interaction_at|date:"M j"|default:"—" }}</div></div>
     </div>
+    <div class="grid-2">
+      <section class="panel" id="fit">
+        <h3>Site fit <a href="{% url 'crm:opportunity_fit' opp.pk %}" style="float:right;text-transform:none;letter-spacing:0">Rank sites</a></h3>
+        <div class="lc-small">{% if opp.acreage_need %}{{ opp.acreage_need|floatformat:"-1" }} ac{% else %}acres not set{% endif %} · {% if opp.power_need_mw %}{{ opp.power_need_mw|floatformat:"-1" }} MW{% else %}MW not set{% endif %}{% if needs.needs_rail %} · rail{% endif %}{% if needs.needs_gas %} · gas{% endif %}</div>
+        {% for b in qd_buildings %}<div class="lc-small muted">{{ b.name }}: {{ b.hd }}, {{ b.newqd|floatformat:0|intcomma }} lb, IBD {{ b.dist.ibd|floatformat:0|intcomma }} ft ({{ b.dist.ibd_acres|floatformat:0 }} ac arc)</div>{% empty %}<div class="lc-small muted">No explosives cases yet.</div>{% endfor %}
+        <p class="muted lc-small" style="margin-bottom:0">Ranks every saved site on net usable acres, whether the explosives arcs close on the property, power, rail, gas and control.</p>
+      </section>
+      <section class="panel" id="agreements">
+        <h3>Agreements <a href="{% url 'crm:contract_create' %}?opportunity={{ opp.pk }}" style="float:right;text-transform:none;letter-spacing:0">New LOI / lease</a></h3>
+        {% for c in agreements %}<div class="row-line"><span><a href="{{ c.get_absolute_url }}">{{ c.title }}</a> <span class="pill ct-{{ c.status }}">{{ c.get_status_display }}</span></span>
+          <span class="lc-small">{% if c.next %}<span class="{% if c.next.left < 0 %}overdue{% elif c.next.left <= 7 %}soon{% endif %}">{{ c.next.label }} · {{ c.next.date|date:"M j" }}</span>{% endif %}</span></div>
+        {% empty %}<p class="muted lc-small" style="margin:0">No LOI, PDA or lease yet.</p>{% endfor %}
+      </section>
+    </div>
     {% include "crm/partials/tasks_notes.html" %}
     {% include "crm/partials/comments.html" %}
     <div class="panel"><h3>Activity <span class="muted" style="text-transform:none;letter-spacing:0">(this deal and {{ opp.company.name }})</span></h3>{% include "crm/partials/timeline.html" %}</div>

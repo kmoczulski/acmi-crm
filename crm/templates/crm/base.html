@@ -54,6 +54,7 @@
       <details class="nav-sub" data-key="contracts">
         <summary><a href="{% url 'crm:contract_list' %}" class="nav-1 {% if '/contracts/' in p and '/contracts/templates/' not in p %}active{% endif %}">Contracts</a></summary>
         <a href="{% url 'crm:contract_templates' %}" class="nav-2 {% if '/contracts/templates/' in p %}active{% endif %}">Abstract templates</a>
+        <a href="{% url 'crm:rent_roll' %}" class="nav-2 {% if '/leases/' in p %}active{% endif %}">Rent roll</a>
       </details>
     </details>
 

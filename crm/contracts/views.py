@@ -17,12 +17,13 @@ from ..entitlements import logic as entitlement_logic
 from ..land import diligence
 from ..models import (
     Campus, ClosingItem, Contract, ContractAnswer, ContractDate, ContractDocument, ContractTemplate, LandSite,
-    Opportunity,
+    LeaseTerms, Opportunity,
 )
 from ..permissions import is_manager, manager_required, refuse
 from . import ai, closing, compare, dates, methods
 from . import text as textmod
-from .forms import ContractForm, DateForm, DocumentForm, TemplateForm
+from ..tenants import leases
+from .forms import ContractForm, DateForm, DocumentForm, LeaseTermsForm, TemplateForm
 
 INLINE_TYPES = (".pdf", ".png", ".jpg", ".jpeg", ".gif", ".webp")
 COMPARE_QUESTION = ("What changed between these two documents? List each change in order with the section, what it "
@@ -166,6 +167,7 @@ def contract_detail(request, pk):
         d.prev = prev if prev.text and d.text else None
     purchase = contract.kind in (Contract.Kind.PSA, Contract.Kind.OPTION)
     return render(request, "crm/contract_detail.html", {
+        "lease": _lease_context(contract, today) if contract.kind == Contract.Kind.LEASE else None,
         "approvals": (entitlement_logic.annotate(list(entitlement_logic.with_related(contract.approvals.all())), today)
                       if purchase else []),
         "new_approval_url": reverse("crm:approval_create") + f"?contract={contract.pk}",
@@ -181,6 +183,22 @@ def contract_detail(request, pk):
         "date_kinds": ContractDate.Kind.choices, "can_manage": is_manager(request.user),
         "compare_pair": drafts[-2:] if len(drafts) >= 2 else [d for d in docs if d.text][-2:],
     })
+
+
+def _lease_context(contract, today):
+    """The lease's terms, what they add up to today, and links to the language Claude found each term in."""
+    terms = leases.terms_for(contract)
+    sources = []
+    for field, src in ((terms.sources if terms else None) or {}).items():
+        if src.get("doc") and src.get("start") is not None:
+            href = _reader_url(contract.pk, src["doc"], src["start"], src["end"])
+        else:
+            href = ""
+        sources.append({"label": LeaseTerms._meta.get_field(field).verbose_name, "quote": src.get("quote", ""),
+                        "note": src.get("note", ""), "href": href})
+    return {"terms": terms, "form": LeaseTermsForm(instance=terms or LeaseTerms(contract=contract)),
+            "rent_now": leases.rent_now(terms, today), "notice": leases.notice_deadline(terms),
+            "years_left": leases.years_left(terms, today), "sources": sources}
 
 
 def _post(request, contract):
@@ -303,6 +321,26 @@ def _post(request, contract):
             messages.success(request, f"Claude found {len(found)} date{'s' if len(found) != 1 else ''}. "
                                       "Check each against its source, then keep the right ones."
                              if found else "Claude found no dates that aren't already listed.")
+        except ai.Unavailable as exc:
+            messages.error(request, str(exc))
+    elif action == "lease_terms":
+        anchor = "lease"
+        form = LeaseTermsForm(request.POST, instance=leases.terms_for(contract) or LeaseTerms(contract=contract))
+        if form.is_valid():
+            terms = form.save(commit=False)
+            terms.updated_by = user
+            terms.save()
+            leases.sync_dates(contract, terms, user)
+            messages.success(request, "Saved the lease terms; expiration, renewal notice and rent start are on the "
+                                      "critical dates.")
+        else:
+            messages.error(request, "Not saved: " + " ".join(" ".join(v) for v in form.errors.values()))
+    elif action == "lease_read":
+        anchor = "lease"
+        try:
+            filled = leases.read_terms(contract, user)
+            messages.success(request, f"Claude filled in {', '.join(filled)}. Check each against its source."
+                             if filled else "Nothing new: the terms are already filled in or not in the lease.")
         except ai.Unavailable as exc:
             messages.error(request, str(exc))
     elif action == "closing_start":

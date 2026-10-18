@@ -843,5 +843,16 @@ tr.bd-out td { color: var(--muted); }
 tr.bd-total td { font-weight: 700; border-top: 2px solid var(--line); }
 .bd-claude { display: grid; gap: 8px; margin: 12px 0 4px; padding: 10px; background: var(--accent-soft); border-radius: var(--radius); }
 .bd-claude textarea { margin-bottom: 4px; }
+
+/* Tenant site fit */
+.tf-score { display: inline-block; min-width: 34px; padding: 2px 6px; border-radius: 99px; font-weight: 700;
+  text-align: center; background: var(--good-bg); color: var(--good); }
+.tf-score.tf-fails { background: #eef0f3; color: var(--muted); }
+.tf-checks { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; font-size: 12px; }
+.tf-checks li::before { display: inline-block; width: 14px; font-weight: 700; }
+.tf-checks li.tf-ok::before { content: "✓"; color: var(--good); }
+.tf-checks li.tf-no::before { content: "✕"; color: var(--bad); }
+.tf-checks li.tf-maybe::before { content: "?"; color: var(--warn); }
+.tf-checks li.tf-no b { color: var(--bad); }
 @media (max-width: 900px) { .dd-strip, .dd-form { grid-template-columns: 1fr 1fr; } }
 @media print { .ct-print { border: 0; padding: 0; } a.cite { background: none; } }

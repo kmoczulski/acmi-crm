@@ -925,3 +925,29 @@ lender and investor updates.
   are tested with a mocked API.
 - **Merged 2026-10-17:** main at `7378693`, 290 tests (CI green on Postgres). On the real DB: backup
   `backups/db-2026-10-17-before-build-records.sqlite3`, migration 0038 applied (new tables only).
+
+## Built 2026-10-18: tenant site fit, lease terms and the rent roll (Kellen: "continue")
+
+- **Site fit** (`/opportunities/<id>/fit/`, "Site fit" panel on the deal page; `crm/tenants/fit.py`, model
+  `TenantNeeds`, migration 0039). A deal's acres and MW come from its details; the needs add the explosives cases
+  (one row per building: hazard division, NEWQD, magazine or operating building, square feet) and rail / gas. Every
+  saved site with land (the deal's campus only, or "All sites") is checked: net usable acres (from the parcels' live
+  checks, scaled to trimmed portions), whether the IBD arcs close on the property (the QD planner places the
+  buildings on the site's outline, same engine as the site planner), power (10 MW and up wants a transmission line
+  within 3 mi; smaller loads a substation within 5 mi), rail and gas distances (the buy-box score's bands), and
+  control (under contract or owned passes; anything else is neutral, not a failure). Sites sort by failed checks,
+  then the deal's campus, then a 0-100 score weighting acres and arcs most. The arc check is a screen: confirm with a
+  siting engineer.
+- **Lease terms** (contract page, for leases; `crm/tenants/leases.py`, model `LeaseTerms`): premises sf and acres,
+  commencement, rent start, expiration, first-year base rent, annual escalation, free rent, renewal options, notice
+  months, security, TI allowance, guarantor. Typed in, or "Read the terms with Claude" (structured JSON over the lease
+  as amended; fills only blank fields, each with the quote it came from, linked into the reader). Saving the terms
+  puts the expiration, renewal notice deadline and rent commencement on the contract's critical dates (marked "From
+  the lease terms" and kept in step; a date someone kept by hand of the same kind is left alone; past ones go in as
+  done), so the usual reminders cover them.
+- **Rent roll** (`/leases/`, sidebar Contracts › Rent roll): signed leases by campus with sf, rent start, expiration
+  and years left, rent today (first-year rent stepped up each full lease year), $/sf, bumps, options and the renewal
+  notice deadline (red within 18 months); totals with the rent-weighted WALT. Prints with the logo.
+- **Deal page:** an Agreements panel lists the deal's LOIs, PDAs and leases with their next dates ("New LOI / lease").
+- Checked in a browser on the scratch demo database (made-up sites, deal and lease); Claude is tested with a mocked
+  API.

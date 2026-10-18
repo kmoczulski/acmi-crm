@@ -1,0 +1,46 @@
+{% extends "crm/base.html" %}
+{% load crm_tags humanize %}
+{% block title %}Rent roll · ACMI CRM{% endblock %}
+{% block content %}
+{% include "crm/partials/report_logo.html" %}
+<div class="page-head">
+  <div><div class="muted lc-small no-print"><a href="{% url 'crm:contract_list' %}">Contracts</a></div>
+    <h1>Rent roll{% if campus %} · {{ campus.code }}{% endif %}</h1>
+    <div class="muted lc-small">Signed leases as of {{ roll.today|date:"M j, Y" }}</div></div>
+  <form method="get" class="inline-form no-print"><select name="campus" onchange="this.form.submit()"><option value="">Every campus</option>{% for c in campuses %}<option value="{{ c.code }}"{% if campus and c.pk == campus.pk %} selected{% endif %}>{{ c.code }}</option>{% endfor %}</select></form>
+  <span class="spacer"></span>
+  <button type="button" class="btn no-print" onclick="window.print()">Print / PDF</button>
+</div>
+
+<div class="dd-strip">
+  <div><div class="label">Leases</div><div class="value">{{ roll.totals.count }}</div></div>
+  <div><div class="label">Leased</div><div class="value">{{ roll.totals.sf|intcomma }} sf</div></div>
+  <div><div class="label">Annual base rent</div><div class="value">{{ roll.totals.rent|dollars|default:"–" }}</div><div class="muted lc-small">today, with escalations</div></div>
+  <div><div class="label">WALT</div><div class="value">{% if roll.totals.walt is not None %}{{ roll.totals.walt }} yrs{% else %}–{% endif %}</div><div class="muted lc-small">weighted by rent</div></div>
+</div>
+
+{% for campus_code, rows in roll.groups %}
+<section class="panel">
+  <h3>{{ campus_code }}</h3>
+  <table class="data compact">
+    <thead><tr><th>Tenant</th><th class="num">Sf</th><th>Rent starts</th><th>Expires</th><th class="num">Rent today</th><th class="num">$/sf</th><th class="num">Bumps</th><th>Options</th><th>Renewal notice</th></tr></thead>
+    <tbody>{% for r in rows %}<tr>
+      <td class="wrap"><a href="{{ r.contract.get_absolute_url }}#lease"><b>{{ r.tenant }}</b></a><div class="muted lc-small">{{ r.contract.title }}</div></td>
+      {% if r.terms %}
+      <td class="num">{{ r.terms.premises_sf|default_if_none:""|intcomma }}</td>
+      <td class="lc-small">{{ r.terms.rent_start|date:"M j, Y"|default:"–" }}</td>
+      <td class="lc-small {% if r.expiring %}soon{% endif %}">{{ r.terms.expiration|date:"M j, Y"|default:"–" }}{% if r.years_left %}<div class="muted">{{ r.years_left }} yrs left</div>{% endif %}</td>
+      <td class="num">{{ r.rent|dollars }}</td>
+      <td class="num">{% if r.psf %}${{ r.psf }}{% endif %}</td>
+      <td class="num">{% if r.terms.escalation_pct is not None %}{{ r.terms.escalation_pct|floatformat:"-2" }}%{% endif %}</td>
+      <td class="lc-small">{% if r.terms.renewals %}{{ r.terms.renewals }} × {{ r.terms.renewal_years|floatformat:"-1" }} yrs{% else %}–{% endif %}</td>
+      <td class="lc-small {% if r.notice_soon %}overdue{% endif %}">{{ r.notice|date:"M j, Y"|default:"–" }}</td>
+      {% else %}<td colspan="8" class="muted lc-small">No terms yet: open the lease to type them in or have Claude read them.</td>{% endif %}
+    </tr>{% endfor %}</tbody>
+  </table>
+</section>
+{% empty %}
+<section class="panel"><p class="muted" style="margin:0">No signed leases yet. A lease shows here once its contract is marked Signed.</p></section>
+{% endfor %}
+<p class="muted lc-small">Rent today is the first-year base rent stepped up by the escalation for each full lease year since rent commencement. A renewal notice deadline in the next 18 months is in red; an expiration in the next two years is highlighted.</p>
+{% endblock %}

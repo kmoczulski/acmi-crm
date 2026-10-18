@@ -164,6 +164,7 @@
         {% if contract.site %}Signing, feasibility and closing dates also go on the site's deal timeline.{% endif %}</p>
     </section>
 
+    {% if lease %}{% include "crm/partials/contract_lease.html" %}{% endif %}
     {% if dd %}{% include "crm/partials/contract_dd.html" %}{% endif %}
     {% if closing %}{% with add_url=new_approval_url %}{% include "crm/partials/approval_panel.html" %}{% endwith %}{% endif %}
     {% if closing %}{% include "crm/partials/contract_closing.html" %}{% endif %}

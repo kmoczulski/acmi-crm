@@ -4,6 +4,7 @@ from . import campus_views, views
 from .build import views as build_views
 from .contracts import views as contract_views
 from .entitlements import views as entitlement_views
+from .tenants import views as tenant_views
 from .land import assignment_views as asg_views
 from .land import brief_views, diligence_views
 from .land import views as land_views
@@ -30,6 +31,8 @@ urlpatterns = [
     path("opportunities/", views.opportunity_board, name="opportunity_board"),
     path("opportunities/new/", views.opportunity_create, name="opportunity_create"),
     path("opportunities/<int:pk>/", views.opportunity_detail, name="opportunity_detail"),
+    path("opportunities/<int:pk>/fit/", tenant_views.opportunity_fit, name="opportunity_fit"),
+    path("leases/", tenant_views.rent_roll, name="rent_roll"),
     path("opportunities/<int:pk>/delete/", views.opportunity_delete, name="opportunity_delete"),
     path("opportunities/<int:pk>/stage/", views.opportunity_set_stage, name="opportunity_set_stage"),
     path("opportunities/<int:pk>/contacts/", views.opportunity_contact_add, name="opportunity_contact_add"),

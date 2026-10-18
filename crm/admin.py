@@ -175,6 +175,13 @@ admin.site.register(models.BudgetLine)
 admin.site.register(models.ChangeOrder)
 admin.site.register(models.Draw)
 admin.site.register(models.ProjectAnswer)
+admin.site.register(models.TenantNeeds)
+
+
+@admin.register(models.LeaseTerms)
+class LeaseTermsAdmin(admin.ModelAdmin):
+    list_display = ("contract", "premises_sf", "rent_start", "expiration", "base_rent", "escalation_pct")
+    readonly_fields = ("sources",)
 
 
 @admin.register(models.ContractAnswer)

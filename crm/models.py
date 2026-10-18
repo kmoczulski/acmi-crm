@@ -2584,3 +2584,56 @@ class Draw(models.Model):
 
     def __str__(self):
         return f"Draw {self.number}"
+
+
+# ---------------------------------------------------------------------------
+# Tenants (crm/tenants/): what a tenant's program needs from a site, and the terms of signed leases
+# ---------------------------------------------------------------------------
+
+
+class TenantNeeds(models.Model):
+    """What a tenant's program needs from a site beyond the deal's acres, square feet and MW: the explosives (QD)
+    cases its buildings carry, and rail or gas service. Drives the site fit ranking (crm/tenants/fit.py)."""
+
+    opportunity = models.OneToOneField(Opportunity, on_delete=models.CASCADE, related_name="needs")
+    qd_cases = models.JSONField(default=list, blank=True,
+                                help_text='[{"name", "hd", "newqd", "kind", "sqft"}], one per explosives building')
+    needs_rail = models.BooleanField(default=False)
+    needs_gas = models.BooleanField("needs natural gas", default=False)
+    notes = models.TextField(blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Needs: {self.opportunity}"
+
+
+class LeaseTerms(models.Model):
+    """The business terms of a lease, for the rent roll: premises, dates, rent and escalations, renewal options,
+    security and TI. Typed in, or read from the lease (as amended) by Claude, keeping the language behind each term
+    in `sources` ({field: {"doc", "quote", "start", "end"}})."""
+
+    contract = models.OneToOneField(Contract, on_delete=models.CASCADE, related_name="lease_terms")
+    premises_sf = models.PositiveIntegerField("premises (sf)", null=True, blank=True)
+    land_acres = models.DecimalField("land (acres)", max_digits=10, decimal_places=2, null=True, blank=True)
+    commencement = models.DateField(null=True, blank=True)
+    rent_start = models.DateField("rent commencement", null=True, blank=True)
+    expiration = models.DateField(null=True, blank=True)
+    base_rent = models.DecimalField("annual base rent ($)", max_digits=14, decimal_places=2, null=True, blank=True,
+                                    help_text="In the first lease year")
+    escalation_pct = models.DecimalField("annual escalation (%)", max_digits=5, decimal_places=2, null=True,
+                                         blank=True)
+    free_months = models.PositiveSmallIntegerField("free rent (months)", null=True, blank=True)
+    renewals = models.PositiveSmallIntegerField("renewal options", null=True, blank=True)
+    renewal_years = models.DecimalField("years each", max_digits=4, decimal_places=1, null=True, blank=True)
+    renewal_notice_months = models.PositiveSmallIntegerField("renewal notice (months before expiration)", null=True,
+                                                             blank=True)
+    security_deposit = models.DecimalField("security deposit / LC ($)", max_digits=14, decimal_places=2, null=True,
+                                           blank=True)
+    ti_allowance = models.DecimalField("TI allowance ($)", max_digits=14, decimal_places=2, null=True, blank=True)
+    guarantor = models.CharField(max_length=200, blank=True)
+    sources = models.JSONField(default=dict, blank=True)
+    updated_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Lease terms: {self.contract}"
