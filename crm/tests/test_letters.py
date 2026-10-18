@@ -107,8 +107,7 @@ class FlyerTests(TestCase):
         self.assertContains(page, f"/land/sites/{self.site.pk}/flyer/")
         file = self.client.get(f"/land/sites/{self.site.pk}/flyer/")
         self.assertTrue(file["Content-Disposition"].startswith("inline"))
-        self.assertEqual(b"".join(file.streaming_content), b"%PDF-1.4 x")
-        file.close()
+        self.assertEqual(b"".join(file.streaming_content), b"%PDF-1.4 x")  # read it out; closing ends the DB link
 
     @override_settings(MEDIA_ROOT=tempfile.mkdtemp())
     def test_upload_without_claude_still_keeps_the_flyer(self):
