@@ -10,6 +10,17 @@
   </div>
   <div class="record-nav"><a class="btn" href="{% url 'crm:land_site_brief' site.pk %}">Open the brief</a></div>
 </div>
+<section class="panel" id="flyer">
+  <h3>Broker flyer</h3>
+  {% if site.flyer %}<p class="lc-small" style="margin-top:0"><a href="{% url 'crm:land_site_flyer' site.pk %}" target="_blank" rel="noopener">{{ flyer_name }}</a>
+    {% if site.flyer_read_at %}<span class="muted">· read by Claude {{ site.flyer_read_at|date:"M j, g:i a" }}</span>{% endif %}</p>{% endif %}
+  <form method="post" enctype="multipart/form-data" class="inline-form" data-busy="Reading the flyer… about a minute">{% csrf_token %}
+    <input type="hidden" name="action" value="flyer">
+    <input type="file" name="flyer" accept=".pdf,.png,.jpg,.jpeg,.webp" required>
+    <button class="btn btn-primary btn-small">{% if ai_ready %}Upload and read with Claude{% else %}Upload{% endif %}</button>
+  </form>
+  <p class="muted lc-small" style="margin-bottom:0">{% if ai_ready %}Claude fills the blank fields below from the flyer and checks each of its claims (acres, zoning, floodplain, utilities, distances) against what the app found. Nothing you've typed is overwritten.{% else %}Add ANTHROPIC_API_KEY to .env to have Claude read flyers.{% endif %}</p>
+</section>
 <form method="post" class="listing-form">{% csrf_token %}
 <section class="panel">
   <h3>The listing</h3>
@@ -66,4 +77,12 @@
   .lst-actions { margin: 4px 0 40px; display: flex; gap: 8px; }
   @media (max-width: 800px) { .lst-grid { grid-template-columns: 1fr; } }
 </style>
+{% endblock %}
+{% block scripts %}
+<script>
+  // The action rides in a hidden field, so disabling the button doesn't drop it from the post.
+  document.querySelectorAll('form[data-busy]').forEach(f => f.addEventListener('submit', () => {
+    const btn = f.querySelector('button'); btn.disabled = true; btn.textContent = f.dataset.busy;
+  }));
+</script>
 {% endblock %}

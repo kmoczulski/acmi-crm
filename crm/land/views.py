@@ -1002,6 +1002,7 @@ def site_detail(request, pk):
         "campuses": Campus.objects.all(), "projects": Project.objects.filter(active=True).select_related("campus"),
         "today": date.today(), "contracts": _site_contracts(site),
         "dd": diligence.summary(site) if site.diligence.exists() else None,
+        "letters_logged": site.letters.count(), "last_letter": site.letters.first(),
         "approvals": entitlement_logic.annotate(list(entitlement_logic.with_related(site.approvals.all()))),
         "matrix": entitlement_logic.MATRIX, "new_approval_url": reverse("crm:approval_create") + f"?site={site.pk}",
     })

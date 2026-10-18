@@ -189,3 +189,15 @@ class ContractAnswerAdmin(admin.ModelAdmin):
     list_display = ("created_at", "contract", "question", "asked_by", "input_tokens", "output_tokens")
     list_filter = ("contract",)
     readonly_fields = ("blocks", "documents")
+
+
+@admin.register(models.LetterTemplate)
+class LetterTemplateAdmin(admin.ModelAdmin):
+    list_display = ("name", "key", "created_by", "updated_at")
+
+
+@admin.register(models.LandownerLetter)
+class LandownerLetterAdmin(admin.ModelAdmin):
+    list_display = ("sent_on", "site", "owner_name", "method", "sent_by")
+    list_filter = ("method", "site")
+    search_fields = ("owner_name", "mailing")

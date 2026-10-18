@@ -1,12 +1,13 @@
 """Site brief pages: one site (/land/sites/<id>/brief/), several side by side (/land/briefs/?ids=1,2,3), the aerial
 images they print, and PDF downloads of both (?format=pdf)."""
 from django.contrib import messages
-from django.http import Http404, HttpResponse
+from django.http import FileResponse, Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
 
+from ..ai import enabled as ai_enabled
 from ..models import LandSite
-from . import briefs, listing, score
+from . import briefs, flyer, listing, score
 
 
 def _build(site, refresh=False):
@@ -84,6 +85,8 @@ def site_listing(request, pk):
     from .views import _log
 
     site = get_object_or_404(LandSite, pk=pk)
+    if request.method == "POST" and request.POST.get("action") == "flyer":
+        return _flyer_upload(request, site)
     if request.method == "POST":
         site.listing = listing.parse(request.POST)
         site.save(update_fields=["listing", "updated_at"])
@@ -92,4 +95,54 @@ def site_listing(request, pk):
         return redirect("crm:land_site_brief", pk=site.pk)
     return render(request, "crm/land_site_listing.html", {
         "site": site, "l": listing.form_rows(site.listing), "text_fields": listing.TEXT_FIELDS,
-        "list_fields": listing.LIST_FIELDS, "statuses": listing.CLAIM_STATUSES})
+        "list_fields": listing.LIST_FIELDS, "statuses": listing.CLAIM_STATUSES, "ai_ready": ai_enabled(),
+        "flyer_name": site.flyer.name.rsplit("/", 1)[-1] if site.flyer else ""})
+
+
+def _flyer_upload(request, site):
+    """Keep the flyer on the site and, with Claude set up, read it into the listing (blank fields only)."""
+    from ..contracts.ai import Unavailable
+    from .views import _log
+
+    upload = request.FILES.get("flyer")
+    if not upload:
+        messages.error(request, "Choose the flyer file first.")
+        return redirect("crm:land_site_listing", pk=site.pk)
+    if upload.size > flyer.MAX_BYTES:
+        messages.error(request, "Flyers up to 25 MB.")
+        return redirect("crm:land_site_listing", pk=site.pk)
+    if not upload.name.lower().endswith(flyer.SUFFIXES):
+        messages.error(request, flyer.WRONG_TYPE)
+        return redirect("crm:land_site_listing", pk=site.pk)
+    data = upload.read()
+    upload.seek(0)
+    if site.flyer:
+        site.flyer.delete(save=False)
+    site.flyer.save(upload.name, upload, save=False)
+    site.save(update_fields=["flyer", "updated_at"])
+    _log(site, request.user, "edit", f"Broker flyer uploaded ({upload.name})")
+    if not ai_enabled():
+        messages.success(request, "Flyer saved. Add ANTHROPIC_API_KEY to .env to have Claude read it.")
+        return redirect("crm:land_site_listing", pk=site.pk)
+    try:
+        filled = flyer.read(site, data, upload.name, request.user)
+    except Unavailable as exc:
+        messages.error(request, f"Flyer saved, but Claude couldn't read it: {exc}")
+        return redirect("crm:land_site_listing", pk=site.pk)
+    _log(site, request.user, "edit", "Listing details filled from the flyer by Claude")
+    messages.success(request, ("Claude filled in: " + ", ".join(filled) + ". Check them below, then save.")
+                     if filled else "Claude found nothing new in the flyer: the fields were already filled in.")
+    return redirect("crm:land_site_listing", pk=site.pk)
+
+
+def site_flyer(request, pk):
+    """The site's broker flyer, for signed-in users (PDFs and images open in the browser)."""
+    site = get_object_or_404(LandSite, pk=pk)
+    if not site.flyer:
+        raise Http404
+    try:
+        fh = site.flyer.open("rb")
+    except (FileNotFoundError, OSError):
+        raise Http404("That file is no longer on the server.")
+    name = site.flyer.name.rsplit("/", 1)[-1]
+    return FileResponse(fh, as_attachment=not name.lower().endswith(flyer.SUFFIXES), filename=name)

@@ -6,7 +6,7 @@ from .contracts import views as contract_views
 from .entitlements import views as entitlement_views
 from .tenants import views as tenant_views
 from .land import assignment_views as asg_views
-from .land import brief_views, diligence_views
+from .land import brief_views, diligence_views, letter_views
 from .land import views as land_views
 from .mail import views as mail_views
 from .news import views as news_views
@@ -149,6 +149,8 @@ urlpatterns = [
     path("land/sites/<int:pk>/aerial.jpg", brief_views.site_aerial, name="land_site_aerial"),
     path("land/briefs/", brief_views.briefs_page, name="land_briefs"),
     path("land/sites/<int:pk>/listing/", brief_views.site_listing, name="land_site_listing"),
+    path("land/sites/<int:pk>/flyer/", brief_views.site_flyer, name="land_site_flyer"),
+    path("land/sites/<int:pk>/letters/", letter_views.site_letters, name="land_site_letters"),
     path("land/sites/<int:pk>/", land_views.site_json, name="land_site"),
     path("land/sites/<int:pk>/delete/", land_views.site_delete, name="land_site_delete"),
     path("land/parcel/<int:pk>/qd/", land_views.qd_design, name="land_qd_design"),

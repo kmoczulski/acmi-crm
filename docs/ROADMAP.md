@@ -5,10 +5,11 @@ with CI; the transcript archive in the CRM (waiting on the Granola connector to 
 tab v1 and the weekly update drafted by Claude; Cloud Run jobs and Cloud Storage support in code; the contract &
 critical-dates module, modeled on Notessa (cited answers, abstracts, defined terms and cross-references, redlines,
 reminders); the due-diligence tracker and closing checklist, the entitlement tracker, project build records (2026-10-17),
-and tenant site fit with lease terms and the rent roll (2026-10-18). The pro forma stays in Excel, separate from the
-CRM, and investor updates are skipped for now (Kellen, 2026-10-18). Next: connect Granola and start the daily archive,
-then item 7 below (flyer intake, landowner letters, comps). Details in `docs/HANDOFF.md` ("roadmap phase 1", "contracts and critical
-dates", "due diligence and the closing checklist", "the entitlement tracker", "build records", "tenant site fit").
+tenant site fit with lease terms and the rent roll, and flyer intake with landowner letters (2026-10-18). The pro forma
+stays in Excel, separate from the CRM, and investor updates are skipped for now (Kellen, 2026-10-18). Next: connect
+Granola and start the daily archive, then the rest of item 7 below (sale comps, the data clean-ups). Details in
+`docs/HANDOFF.md` ("roadmap phase 1", "contracts and critical dates", "due diligence and the closing checklist", "the
+entitlement tracker", "build records", "tenant site fit", "flyer intake and landowner letters").
 
 What to build next, after the audit fixes. Four parts: what blocks going live, the campus summary (Kellen's proposal,
 worked through), the platform seen by a developer who has taken land from sourcing through construction, and the
@@ -102,9 +103,10 @@ an **archive that runs daily**: each meeting's transcript and notes saved once, 
 What someone who has sourced, contracted, closed, entitled and built would look for, against what exists today.
 
 - **Source.** *Have:* parcel search across 17 counties, buy-box score, overlays, live checks, assemblages, owners,
-  Pursue → company and task, site briefs. *Add:* **flyer intake** (drop a broker PDF, Claude fills the listing details
-  and the claims table, which are typed by hand today), **landowner letters** (mail merge to the mailing addresses, with
-  logo), off-market signals (long holds, estates, tax-delinquent where counties publish it), **sale comps** per area.
+  Pursue → company and task, site briefs, **flyer intake** (drop a broker PDF; Claude fills the listing details and
+  checks the flyer's claims) and **landowner letters** (mail merge with logo, labels, a mail-house CSV, and a log that
+  dates Owner contacted), both built 2026-10-18. *Add:* off-market signals (long holds, estates, tax-delinquent where
+  counties publish it), **sale comps** per area.
 - **Pursue → contract.** *Have:* site milestones, per-owner deals, documents. *Add:* the deferred **Contract
   negotiations** module: LOI / PSA terms (price, deposits, feasibility period, closing date, extensions, contingencies),
   redline rounds with ball in court, and a **critical-dates engine**: deposits going hard, feasibility end, extension
@@ -149,4 +151,4 @@ consultants as companies with roles and costs, and quick capture from the phone.
 6. Entitlement tracker, then project and build records (**both built 2026-10-17**). Tenant requirements matching
    and lease terms with the rent roll (**built 2026-10-18**). No pro forma (it stays in Excel); investor updates
    skipped for now.
-7. Flyer intake, landowner letters, comps, and the data clean-ups above.
+7. Flyer intake and landowner letters (**built 2026-10-18**). Then comps, and the data clean-ups above.

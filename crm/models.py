@@ -1572,6 +1572,8 @@ class LandSite(models.Model):
     milestones = models.JSONField(default=dict, blank=True, help_text="{milestone key: 'YYYY-MM-DD'} (see MILESTONES)")
     site_plan = models.JSONField(default=dict, blank=True, help_text="Quick site plan inputs (zone, overrides, program)")
     listing = models.JSONField(default=dict, blank=True, help_text="Facts from the broker flyer or listing (see crm/land/briefs.py LISTING_KEYS)")
+    flyer = models.FileField("broker flyer", upload_to="flyers/%Y/%m/", blank=True)
+    flyer_read_at = models.DateTimeField(null=True, blank=True, help_text="When Claude last read the flyer")
     created_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -2637,3 +2639,57 @@ class LeaseTerms(models.Model):
 
     def __str__(self):
         return f"Lease terms: {self.contract}"
+
+
+# ---------------------------------------------------------------------------
+# Landowner letters (crm/land/letters.py): mail-merged letters to a site's owners, and a log of what went out
+# ---------------------------------------------------------------------------
+
+
+class LetterTemplate(models.Model):
+    """A landowner letter's text with merge fields: {owner}, {property}, {parcels}, {acres}, {county}, {site},
+    {date}, {sender}, {sender_title}, {sender_phone}, {sender_email}. Built-in ones are kept by crm/land/letters.py;
+    the team edits copies or adds its own."""
+
+    key = models.CharField(max_length=40, blank=True, db_index=True, help_text="Built-in template key; blank = team-made")
+    name = models.CharField(max_length=120)
+    body = models.TextField()
+    created_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["name"]
+        constraints = [models.UniqueConstraint(fields=["key"], condition=~models.Q(key=""),
+                                               name="letter_template_key_unique")]
+
+    def __str__(self):
+        return self.name
+
+
+class LandownerLetter(models.Model):
+    """One letter to one owner about a site: the name and address it went to, the parcels it was about, the template,
+    the letter as sent, and when and how it went. Logging letters as sent also dates "Owner contacted"."""
+
+    class Method(models.TextChoices):
+        MAIL = "mail", "First-class mail"
+        CERTIFIED = "certified", "Certified mail"
+        HAND = "hand", "Hand-delivered"
+        EMAIL = "email", "Email"
+
+    site = models.ForeignKey(LandSite, on_delete=models.CASCADE, related_name="letters")
+    owner_name = models.CharField(max_length=255)
+    mailing = models.CharField(max_length=400, help_text="The address block it went to")
+    parcels = models.JSONField(default=list, blank=True, help_text="Parcel ids the letter was about")
+    template = models.ForeignKey(LetterTemplate, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    body = models.TextField(blank=True, help_text="The letter as it went out, merge fields filled in")
+    method = models.CharField(max_length=10, choices=Method.choices, default=Method.MAIL)
+    sent_on = models.DateField(default=timezone.localdate)
+    sent_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    notes = models.CharField(max_length=300, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-sent_on", "-id"]
+
+    def __str__(self):
+        return f"Letter to {self.owner_name} ({self.sent_on})"

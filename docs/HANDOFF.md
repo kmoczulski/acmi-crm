@@ -954,3 +954,38 @@ lender and investor updates.
   API.
 - **Merged 2026-10-18:** main at `71c1080`, 296 tests (CI green on Postgres). On the real DB: backup
   `backups/db-2026-10-18-before-tenant-fit.sqlite3`, migration 0039 applied (new tables only).
+
+## Built 2026-10-18: flyer intake and landowner letters (roadmap item 7; Kellen: "yes, start it")
+
+- **Flyer intake** (Listing details page, "Broker flyer" panel; `crm/land/flyer.py`, fields `LandSite.flyer` and
+  `flyer_read_at`, migration 0040). Upload the broker's flyer (PDF or PNG/JPG/WebP, up to 25 MB); it stays on the
+  site (`/land/sites/<id>/flyer/` opens it). With Claude on, Claude reads it (structured JSON) into the listing
+  details: location, size, price, taxes, zoning per the flyer, parcel numbers, concept plan, access, highlights,
+  market, nearby, documents, utilities, brokers and drive times. It also checks the flyer's claims (acres, zoning,
+  floodplain, wetlands, utilities, distances) against the CRM's facts for the site's parcels, one row per claim with a
+  status. It fills blank fields only, adds utilities by type that aren't there yet, and appends claims the table
+  doesn't already have, so reading a flyer twice changes nothing. Without the API key the flyer is still kept.
+- **Landowner letters** (`/land/sites/<id>/letters/`, "Landowner letters" panel on the site page;
+  `crm/land/letters.py`, `crm/land/letter_views.py`, models `LetterTemplate` and `LandownerLetter`):
+  - **Recipients:** one row per owner and mailing address from the appraisal roll (included parcels only), so an
+    owner with three parcels gets one letter about all three. Owners with no mailing address are listed but can't be
+    ticked.
+  - **Names:** title-cased for the letters ("SMITH FAMILY TRUST LLC ETAL" becomes "Smith Family Trust LLC et al";
+    names typed in mixed case stay as typed). Each owner has an editable "Dear" line, since rolls often list names
+    last-first.
+  - **The letter:** two built-in letters, a first letter and a follow-up, kept in step with the code. "Save as
+    template" keeps a team copy. Merge fields are {owner}, {property}, {parcels}, {acres} (deeded acres where the
+    roll has them), {county}, {site}, {date} and {sender}, {sender_title}, {sender_phone}, {sender_email}. A
+    misspelled field, or a sender detail the letter uses but that is blank, stops the letters and says why.
+  - **Outputs:** a letters PDF (one page per owner, logo letterhead, date and address block); a print view (also the
+    fallback when Chrome is missing); Avery 5160 labels in capitals, which can start partway into a used sheet; and a
+    mail-house CSV (with a byte-order mark for Excel, and formula-proofed cells).
+  - **Logging what went out:** keeps each letter as merged, with method, date and notes. It dates "Owner contacted"
+    on those owners' parcel deals and on the site, where the first contact counts (a letter logged late with an
+    earlier date moves the date back). Statuses move forward to Owner outreach, never back. The same batch logged
+    twice on one day is logged once. The history lists each letter with a reprint. The sender or a Manager can take
+    one out of the log; dates stay.
+- The sender details default to the outreach settings' title and phone for the outreach sender. Each person's last
+  values are kept in their session.
+- Checked in a browser on the scratch demo database (made-up owners): logging, the site page, a reprint, and the
+  letters and labels PDFs. Claude is tested with a mocked API.

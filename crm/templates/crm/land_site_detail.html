@@ -167,6 +167,13 @@
       {% else %}<p class="muted lc-small" style="margin:0">Title, survey, Phase I, geotech, zoning letter and will-serves, with consultants, cost and due dates against the feasibility deadline.</p>{% endif %}
     </section>
 
+    <section class="panel" id="letters">
+      <h3>Landowner letters <a href="{% url 'crm:land_site_letters' site.pk %}" style="float:right;text-transform:none;letter-spacing:0">{% if letters_logged %}Open{% else %}Write{% endif %}</a></h3>
+      {% if letters_logged %}
+        <div><b>{{ letters_logged }}</b> letter{{ letters_logged|pluralize }} sent · last {{ last_letter.sent_on|date:"M j" }} to {{ last_letter.owner_name }}</div>
+      {% else %}<p class="muted lc-small" style="margin:0">A mail-merged letter to each owner, with mailing labels and a mail-house CSV. Logging them dates Owner contacted.</p>{% endif %}
+    </section>
+
     {% with add_url=new_approval_url show_matrix=True for_site=site %}{% include "crm/partials/approval_panel.html" %}{% endwith %}
 
     <section class="panel">
