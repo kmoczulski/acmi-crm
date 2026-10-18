@@ -25,6 +25,7 @@ than buy HubSpot, Attio or Pipedrive.
 | Address | **hub.acmigroup.com** (chosen 2026-10-14); needs a DNS record, the Cloud Run domain mapping, and the URL added to the OAuth client + `DJANGO_ALLOWED_HOSTS` / `CSRF_TRUSTED_ORIGINS` |
 | Go-live | In progress 2026-10-14: gcloud + gh signed in; project is under the acmigroup.com org but **billing is off** (no billing account; budget doc `docs/ACMI_CRM_Hosting_Budget.docx` written for team approval, ~$30-45/mo). Prod edits made (WhiteNoise, Dockerfile, cloudbuild.yaml, cron endpoint also syncs calendar), 114 tests pass; git initialized, **nothing committed or pushed yet** |
 | Attio | Used as a design reference only (trial workspace `acmi-properties`). Copy behaviour, never code |
+| Pro forma | Stays in Excel, separate from the CRM (2026-10-18); the CRM's build records stay at the summary level |
 
 ## Phases
 

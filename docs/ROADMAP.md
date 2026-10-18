@@ -5,8 +5,9 @@ with CI; the transcript archive in the CRM (waiting on the Granola connector to 
 tab v1 and the weekly update drafted by Claude; Cloud Run jobs and Cloud Storage support in code; the contract &
 critical-dates module, modeled on Notessa (cited answers, abstracts, defined terms and cross-references, redlines,
 reminders); the due-diligence tracker and closing checklist, the entitlement tracker, project build records (2026-10-17),
-and tenant site fit with lease terms and the rent roll (2026-10-18). Next: connect Granola and start the daily archive,
-then the pro forma and investor updates. Details in `docs/HANDOFF.md` ("roadmap phase 1", "contracts and critical
+and tenant site fit with lease terms and the rent roll (2026-10-18). The pro forma stays in Excel, separate from the
+CRM (Kellen, 2026-10-18). Next: connect Granola and start the daily archive; investor updates rolled up from the campus
+summaries are undecided. Details in `docs/HANDOFF.md` ("roadmap phase 1", "contracts and critical
 dates", "due diligence and the closing checklist", "the entitlement tracker", "build records", "tenant site fit").
 
 What to build next, after the audit fixes. Four parts: what blocks going live, the campus summary (Kellen's proposal,
@@ -123,8 +124,8 @@ What someone who has sourced, contracted, closed, entitled and built would look 
 - **Lease and deliver.** *Have:* opportunities with stages, stakeholders, LOI / PDA documents. *Add:* tenant
   **requirements matching** (acres, MW, explosives class and quantity → the QD planner → which site fits), lease
   abstracts and their critical dates (rent start, options, TI).
-- **Portfolio and investors.** *Have:* the investor pipeline report. *Add:* a **pro forma** per project (land, hard and
-  soft cost, yield, IRR), and investor updates rolled up from the campus summaries.
+- **Portfolio and investors.** *Have:* the investor pipeline report. *Add:* investor updates rolled up from the campus
+  summaries. (The pro forma per project stays in Excel, separate from the CRM: Kellen, 2026-10-18.)
 
 Across every stage: **one timeline per project**, ball in court everywhere, **critical dates in one calendar**,
 consultants as companies with roles and costs, and quick capture from the phone.
@@ -146,5 +147,6 @@ consultants as companies with roles and costs, and quick capture from the phone.
 5. Contract and critical dates (the deferred Contract negotiations module). **Built 2026-10-16**, modeled on Notessa.
    Due diligence on ACMI's own deals and the closing checklist: **built 2026-10-17**.
 6. Entitlement tracker, then project and build records (**both built 2026-10-17**). Tenant requirements matching
-   and lease terms with the rent roll (**built 2026-10-18**). Pro forma and investor updates next.
+   and lease terms with the rent roll (**built 2026-10-18**). No pro forma (it stays in Excel); investor updates
+   undecided.
 7. Flyer intake, landowner letters, comps, and the data clean-ups above.
