@@ -951,3 +951,5 @@ lender and investor updates.
 - **Deal page:** an Agreements panel lists the deal's LOIs, PDAs and leases with their next dates ("New LOI / lease").
 - Checked in a browser on the scratch demo database (made-up sites, deal and lease); Claude is tested with a mocked
   API.
+- **Merged 2026-10-18:** main at `71c1080`, 296 tests (CI green on Postgres). On the real DB: backup
+  `backups/db-2026-10-18-before-tenant-fit.sqlite3`, migration 0039 applied (new tables only).
