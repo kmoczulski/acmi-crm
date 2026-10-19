@@ -1,7 +1,96 @@
-# ACMI CRM: Handoff (as of 2026-10-14, night)
+# ACMI CRM: Handoff (as of 2026-10-18, evening)
 
 Read this first when picking the project up in a new chat, along with
-`attio_spec.md` in this folder.
+`attio_spec.md` in this folder. Start with "Pick up here"; the dated sections after it are the history.
+
+## Pick up here (2026-10-18, evening)
+
+**Where things stand**
+- `main` has everything below; the last code commit is `71a9109`, pushed to `kmoczulski/acmi-crm`. 320 tests pass and
+  CI is green on Postgres. No worktrees or branches are open, and nothing is half-built.
+- The real database (`db.sqlite3`, about 600 MB) is migrated through `0040_flyers_letters`. Latest backup:
+  `backups/db-2026-10-18-before-flyers-letters.sqlite3`.
+- `ANTHROPIC_API_KEY` is set in `.env`, so the Claude features run for real. `ACMI_TRANSCRIPT_DIR` is not set yet.
+- Built since the audit, each with its own section below: roadmap phase 1 (GitHub and CI, the transcript archive, the
+  campus summary with Claude's weekly draft, Cloud Run plumbing); contracts and critical dates, modeled on Notessa;
+  due diligence and the closing checklist; the entitlement tracker; build records; tenant site fit, lease terms and
+  the rent roll; flyer intake and landowner letters. `docs/ROADMAP.md` has the plan these came from.
+
+**Next, in order**
+1. **Granola (time-sensitive: Granola only keeps 30 days).**
+   - Kellen connects the Granola connector in Claude (Settings › Connectors). Its tools are `list_meetings`,
+     `get_meetings`, `get_meeting_transcript` and `query_granola`.
+   - Then backfill the last 30 days into the CRM and set up a daily scheduled task. The task pulls Granola meetings
+     and transcripts into `data/imports/granola/<date>.json` (the format is at the top of `crm/meetings.py`), then
+     runs `manage.py import_meetings <file>` and `manage.py export_transcripts`. Details are under "roadmap phase 1" ›
+     Transcript archive.
+   - A direct sync from the CRM, with no Claude in the middle, needs the Granola API, which needs Granola's Business
+     or Enterprise plan ([docs](https://docs.granola.ai/help-center/sharing/integrations/granola-api)). That's
+     Kellen's call.
+2. **Sale comps per area, and off-market signals** (long holds, estates, tax-delinquent where counties publish it):
+   the rest of roadmap item 7.
+3. **Owner-data gaps:** Hays has values for 42% of parcels and Charles has mailing addresses for 66%. Fill them from
+   assessor files with `load_owners`. This matters for landowner letters: an owner with no mailing address can't be
+   written to.
+4. **Go-live once billing is on:** Cloud Run jobs and Scheduler, Cloud Storage, hub.acmigroup.com (`docs/ROADMAP.md`
+   section 1).
+
+**Decided; don't reopen**
+- The pro forma stays in Excel, separate from the CRM. Never build or propose one.
+- Investor updates are skipped for now.
+- The contracts module emulates Notessa (notessa.ai): cited answers, the amendment chain, defined terms, templates.
+
+**Waiting on Kellen**
+- Connect Granola (above).
+- Confirm who stays a Manager (Admin › Groups). Everyone with an account is one today.
+- Pick a restricted shared-drive folder for `ACMI_TRANSCRIPT_DIR`. Transcripts can hold NDA material, and Maryland
+  needs all-party consent to record.
+- Set a retention rule for `backups/`: 15 full copies, 5.4 GB.
+- Change the Gmail app password, turn on device encryption on the laptop, and encrypt the Google tokens at rest.
+- Turn billing on in Google Cloud so the app can be deployed.
+- Read the built-in landowner letters (`BUILTINS` in `crm/land/letters.py`) before the first mailing. They describe
+  ACMI as developing "industrial campuses for advanced manufacturing companies" and don't name defense or
+  energetics.
+- The first real flyer upload is the first live test of Claude reading a flyer (the tests mock the API).
+- From earlier and still unconfirmed: the Attio trial syncs Kellen's mailbox and calendar (turn it off?), and what
+  "the project" Kellen created on 2026-10-13 was.
+
+**How to work in this repo**
+- **Code changes go in a worktree.** The Windows task "ACMI CRM mail sync" runs the main folder's code against the
+  real database every 15 minutes. Work on a branch in `.claude/worktrees/<name>`, never in the main folder.
+  Docs-only notes like this one can go straight on main.
+- **Commit, CI, merge:**
+  1. Commit as Kellen (`git -c user.name="Kellen Moczulski" -c user.email="kmoczulski@acmigroup.com" commit ...`)
+     with a `Co-Authored-By: Claude ...` line.
+  2. Push the branch and wait for CI (`gh run watch <id> --repo kmoczulski/acmi-crm --exit-status`).
+  3. On main, `git merge --ff-only`, then push.
+  4. Remove the worktree and the branch, locally and on GitHub.
+- **Before a migration or any data write on the real database,** back it up with SQLite's backup API, which is safe
+  while the mail sync writes:
+  ```
+  .venv/Scripts/python.exe -c "import sqlite3; s = sqlite3.connect('file:db.sqlite3?mode=ro', uri=True); d = sqlite3.connect('backups/db-YYYY-MM-DD-before-WHAT.sqlite3'); s.backup(d); d.close(); s.close()"
+  ```
+  Then run `manage.py migrate crm` and add a "Merged" line to the module's section here.
+- **Tests:** `.venv/Scripts/python.exe manage.py test crm` takes about a minute. The tests mock the Anthropic client.
+  In a test, read a `FileResponse` out (`b"".join(r.streaming_content)`); calling `.close()` on it ends the Postgres
+  connection in CI.
+- **Standing rules:**
+  - Query the real database read-only, and report counts, not contents.
+  - Never print `.env` values.
+  - Every report carries the ACMI logo (`crm/partials/report_logo.html`).
+  - Transcripts are Managers-only.
+  - Writes to live data, and anything that goes out (email, posts), wait for Kellen's OK.
+  - Say what a `db.sqlite3` file is before deleting it.
+  - Keep tool installs out of `.venv`.
+- **Browser checks:** point a throwaway settings file at a scratch database with made-up data (plus a middleware that
+  signs a demo user in), add a temporary `.claude/launch.json` entry, and remove all of it afterwards. Templates only
+  reload when the server restarts under `--noreload`. Download buttons (PDF, CSV) are easier to check with Django's
+  test client than in the browser.
+- **Claude in the app** (`crm/contracts/ai.py` is the model to copy):
+  - Model `claude-opus-5-5`, streamed, with `get_final_message()`.
+  - Effort is set through `output_config` (medium).
+  - The server-side refusal fallback beta is on.
+  - Citations don't mix with structured outputs, so structured calls drop citations and anchor their quotes in code.
 
 ## Goal
 
@@ -20,12 +109,14 @@ than buy HubSpot, Attio or Pipedrive.
 | Sign-in | Google sign-in, internal Workspace app, acmigroup.com accounts only |
 | Code | Private GitHub repo; Cloud Run deploys from it |
 | Email (phase 2) | Per-user Gmail API via Google sign-in, replacing the shared app password |
-| Granola (phase 3) | Granola API if the plan has one; otherwise a daily scheduled Claude task pushes meetings in |
+| Granola (phase 3) | Granola API if the plan has one; otherwise a daily scheduled Claude task pushes meetings in. 2026-10-18: the API needs Granola Business or Enterprise, so for now it's the Claude connector plus a daily task (waiting on Kellen to connect it) |
 | Land search (phase 4) | **Built 2026-10-14.** Texas Triangle (suburban/rural counties, not the big metros) + Charles Co. MD. Parcels are a local copy (state publishes once a year); utilities, flood, wetlands, HUBZone, EPA are live per parcel |
 | Address | **hub.acmigroup.com** (chosen 2026-10-14); needs a DNS record, the Cloud Run domain mapping, and the URL added to the OAuth client + `DJANGO_ALLOWED_HOSTS` / `CSRF_TRUSTED_ORIGINS` |
-| Go-live | In progress 2026-10-14: gcloud + gh signed in; project is under the acmigroup.com org but **billing is off** (no billing account; budget doc `docs/ACMI_CRM_Hosting_Budget.docx` written for team approval, ~$30-45/mo). Prod edits made (WhiteNoise, Dockerfile, cloudbuild.yaml, cron endpoint also syncs calendar), 114 tests pass; git initialized, **nothing committed or pushed yet** |
+| Go-live | In progress 2026-10-14: gcloud + gh signed in; project is under the acmigroup.com org but **billing is off** (no billing account; budget doc `docs/ACMI_CRM_Hosting_Budget.docx` written for team approval, ~$30-45/mo). Prod edits made (WhiteNoise, Dockerfile, cloudbuild.yaml, cron endpoint also syncs calendar). Since 2026-10-16 the code is on GitHub with CI; as of 2026-10-18 **nothing is deployed** (billing still off) |
 | Attio | Used as a design reference only (trial workspace `acmi-properties`). Copy behaviour, never code |
 | Pro forma | Stays in Excel, separate from the CRM (2026-10-18); the CRM's build records stay at the summary level |
+| Contracts | Built inside the CRM, modeled on Notessa (2026-10-16), instead of the separate tool deferred earlier |
+| Investor updates | Skipped for now (2026-10-18) |
 
 ## Phases
 
@@ -51,7 +142,7 @@ than buy HubSpot, Attio or Pipedrive.
 - Kellen installed or created: Node.js + REA (`npx rea-agents setup`), Attio
   trial, and "a project" (2026-10-13; confirm whether that's the Google Cloud
   project, the GitHub repo or something else).
-- Still to confirm: GitHub CLI (`gh`) + `gh auth login`, Google Cloud CLI.
+- GitHub CLI (`gh`) and the Google Cloud CLI are installed and signed in (2026-10-14).
 
 ## Phase 1 status (2026-10-13)
 
@@ -504,19 +595,18 @@ in the shared drive (Tenancy > Elbit 26 Defense > Site Assessment).
 
 ## Backlog
 
-1. AI summaries: need an Anthropic API key in .env (console.anthropic.com).
+1. ~~AI summaries: need an Anthropic API key in .env.~~ The key is set (checked 2026-10-18).
 2. Never sent a real batch from the CRM yet: first run = test send, then a small batch.
 3. Land search next: more Texas Triangle counties (`load_parcels <names>`, ~1 min each for rural ones); zoning
    maps for Texas cities and other MD counties; directional ECM arcs; QD building rotation and custom footprints;
    hosted version needs the parcel table in Postgres (PostGIS optional) and the Valhalla server choice revisited
    (self-host or a paid router for heavy use).
-4. **After the CRM is final:** separate project-management tool for contract
-   negotiations (not part of the CRM). Kellen explicitly deferred it.
+4. ~~**After the CRM is final:** separate project-management tool for contract
+   negotiations (not part of the CRM).~~ Superseded: Kellen chose to build contracts inside the CRM (2026-10-16).
 
 ## Open items
 
-- Attio trial is syncing Kellen's mailbox and calendar. He may want it turned off.
-- Confirm what "the project" Kellen created is, and get its ID or URL.
+The current list is under "Pick up here" at the top (2026-10-18).
 
 ## Built 2026-10-16: Fayetteville, NC (Cumberland County)
 
