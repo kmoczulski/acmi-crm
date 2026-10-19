@@ -262,6 +262,13 @@ def sfha_zones(zones):
     return [z for z in zones or [] if z[:1] in ("A", "V")]
 
 
+def maps_url(query):
+    """A Google Maps link for a lat,lng pair or an address."""
+    from urllib.parse import quote_plus
+
+    return "https://www.google.com/maps/search/?api=1&query=" + quote_plus(query)
+
+
 def build(site, refresh=False):
     """Everything the brief page prints, as plain dicts."""
     pairs = trim.parts(site)  # [(deal, shape)] included parcels, trimmed to the portion the site needs
@@ -439,10 +446,12 @@ def build(site, refresh=False):
             "acres": round(acres[p.pk], 1), "zoning": (p.zoning or "").split(" / ")[0] or "-",
             "authority": z.get("authority", ""), "use": score.land_use_label(p.state_land_use) or "",
             "mail": ", ".join(x for x in [p.mail_city, p.mail_state] if x), "value": p.land_value or p.market_value,
+            "address": p.situs_address, "map": maps_url(f"{p.lat:.6f},{p.lon:.6f}"),
         })
+    biggest = max(parcels, key=lambda p: acres[p.pk])
     return {
         "parcel_rows": parcel_rows, "listing": listing_mod.display(site.listing),
-        "hide": brief_options.hidden(site), "extras": brief_options.extras(site),
+        "map_url": maps_url(f"{biggest.lat:.6f},{biggest.lon:.6f}"), "hide": brief_options.hidden(site), "extras": brief_options.extras(site),
         "site": site, "parcels": parcels, "n_parcels": len(parcels), "gross": round(gross, 1), "net": net,
         "flood": flood, "flood_zones": zones, "wetlands": wet, "owners": owners, "zoning": zoning, "industrial_pct": industrial_pct,
         "near": near, "electric": electric, "water": water, "sewer": sewer,

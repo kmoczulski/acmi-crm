@@ -4,7 +4,7 @@
   <div class="brief-head">
     <div>
       <h1>{{ b.site.name }}</h1>
-      <p class="sub">{{ b.counties|join:" · " }} · {{ b.jurisdictions|join:" · " }}<br>
+      <p class="sub">{{ b.counties|join:" · " }} · {{ b.jurisdictions|join:" · " }} · <a href="{{ b.map_url }}" target="_blank" rel="noopener">View on Google Maps ↗</a><br>
         <b>{{ b.gross|floatformat:1|intcomma }} ac gross</b>{% if b.net is not None %} · <b>~{{ b.net|floatformat:0|intcomma }} ac net usable</b> <span class="small">(after floodplain and wetlands)</span>{% endif %}
         · {{ b.n_parcels }} parcel{{ b.n_parcels|pluralize }} · {{ b.owners|length }} owner{{ b.owners|length|pluralize }}</p>
     </div>

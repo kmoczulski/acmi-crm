@@ -873,6 +873,14 @@ class SiteBriefTests(TestCase):
         self.assertEqual([len(c) for c in cover_pages(list(range(7)))], [3, 3, 1])
         self.assertEqual(cover_pages([]), [])
 
+    def test_addresses_link_to_google_maps_and_flyer_note_follows_the_flyer(self):
+        from crm.land import briefs
+
+        with mock.patch.object(briefs, "run_checks_many"):
+            page = self.client.get(f"/land/sites/{self.site.pk}/brief/")
+        self.assertContains(page, "https://www.google.com/maps/search/?api=1&amp;query=32.9")
+        self.assertNotContains(page, "Flyer facts are the broker")
+
     def test_comparison_pages_and_rows_can_be_removed(self):
         from crm.land import briefs
 

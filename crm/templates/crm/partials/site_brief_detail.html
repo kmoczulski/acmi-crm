@@ -3,15 +3,15 @@
   <div class="brief-top">{% include "crm/partials/report_logo.html" with width="105" %}<span>{{ b.site.name|truncatechars:70 }} · parcels and listing details</span></div>
   {% if "parcels" not in b.hide %}<h2>Parcels in this site ({{ b.n_parcels }}, {{ b.gross|floatformat:1|intcomma }} ac)</h2>
   <table class="parcel-table">
-    <tr><th>Parcel no.</th><th>Owner</th><th class="num">Acres</th><th>Zoning</th><th>Land use</th><th>Owner mails to</th><th class="num">Land value</th></tr>
-    {% for r in b.parcel_rows %}<tr><td class="nowrap">{{ r.apn }}</td><td>{{ r.owner|default:"Not listed" }}</td><td class="num">{{ r.acres|floatformat:1|intcomma }}</td><td class="nowrap"><b>{{ r.zoning }}</b>{% if r.authority %} <span class="muted">{{ r.authority|truncatechars:22 }}</span>{% endif %}</td><td>{{ r.use }}</td><td>{{ r.mail }}</td><td class="num">{% if r.value %}${{ r.value|intcomma }}{% else %}N/A{% endif %}</td></tr>{% endfor %}
+    <tr><th>Parcel no.</th><th>Site address</th><th>Owner</th><th class="num">Acres</th><th>Zoning</th><th>Land use</th><th>Owner mails to</th><th class="num">Land value</th></tr>
+    {% for r in b.parcel_rows %}<tr><td class="nowrap">{{ r.apn }}</td><td><a href="{{ r.map }}" target="_blank" rel="noopener">{{ r.address|default:"Open in Maps" }}</a></td><td>{{ r.owner|default:"Not listed" }}</td><td class="num">{{ r.acres|floatformat:1|intcomma }}</td><td class="nowrap"><b>{{ r.zoning }}</b>{% if r.authority %} <span class="muted">{{ r.authority|truncatechars:22 }}</span>{% endif %}</td><td>{{ r.use }}</td><td>{{ r.mail }}</td><td class="num">{% if r.value %}${{ r.value|intcomma }}{% else %}N/A{% endif %}</td></tr>{% endfor %}
   </table>{% endif %}
   {% with l=b.listing %}
   {% if "flyer" not in b.hide %}<h2>From the listing flyer <span class="muted">· {% if l.source %}{{ l.source }}{% else %}source N/A{% endif %}</span></h2>
   <div class="brief-cols">
     <div>
       <table>
-        <tr><th>Location</th><td>{{ l.location|default:"N/A" }}</td></tr>
+        <tr><th>Location</th><td>{% if l.location %}<a href="https://www.google.com/maps/search/?api=1&amp;query={{ l.location|urlencode }}" target="_blank" rel="noopener">{{ l.location }}</a>{% else %}N/A{% endif %}</td></tr>
         <tr><th>Size</th><td>{{ l.size|default:"N/A" }}</td></tr>
         <tr><th>Price</th><td>{{ l.price|default:"N/A" }}</td></tr>
         <tr><th>Taxes</th><td>{{ l.taxes|default:"N/A" }}</td></tr>
@@ -42,5 +42,5 @@
     {% for c in l.claims_check %}<tr><td>{{ c.claim }}</td><td>{{ c.found|default:"N/A" }}</td><td class="status"><span class="pill-tag {% if c.status == 'confirmed' %}good{% elif c.status == 'differs' %}bad{% elif c.status == 'note' or c.status == 'partly confirmed' %}warn{% else %}unchecked{% endif %}">{{ c.status|default:"not checked" }}</span></td></tr>{% endfor %}
   </table>{% else %}<div class="small">N/A</div>{% endif %}{% endif %}
   {% endwith %}
-  <div class="brief-foot">Flyer facts are the broker's statements, reproduced for reference and not verified except where the table above says so.</div>
+  {% if "flyer" not in b.hide %}<div class="brief-foot">Flyer facts are the broker's statements, reproduced for reference and not verified except where the table above says so.</div>{% endif %}
 </article>{% endif %}
