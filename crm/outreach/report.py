@@ -1,7 +1,10 @@
 """Weekly outreach report (replaces send_weekly_report.py), built from the CRM.
 
-Week = Monday to Sunday. "Outreach emails" are campaign sends (workbook-era or
-from the CRM's send queue): emails with a campaign set.
+Week = Monday to Sunday. It covers prospecting outreach only:
+- campaign sends (workbook-era or from the CRM's send queue): emails with a campaign set, and
+- news outreach: the news-review drafts that were approved and then sent from Gmail.
+Companies that are already ACMI's (tenants, signed LOI / lease / DMA, a signed or closed contract) are left out,
+and a response only counts when it came back on an outreach email's own thread.
 """
 from collections import Counter, defaultdict
 from datetime import datetime, time, timedelta
@@ -9,7 +12,9 @@ from datetime import datetime, time, timedelta
 from django.template.loader import render_to_string
 from django.utils import timezone
 
-from crm.models import Activity, Company, NewsScan, Priority
+from django.db.models import Q
+
+from crm.models import Activity, Company, CompanyStatus, Contract, NewsItem, NewsScan, OpportunityStage, Priority
 
 RESPONSE_ORDER = ["Responded", "Meeting Scheduled", "Referred", "Follow Up", "Not Interested",
                   "Out of Office Reply", "Automated Reply", "Undeliverable", "No Reply"]
@@ -27,11 +32,56 @@ def week_bounds(day=None):
     return start, start + timedelta(days=7)
 
 
+SIGNED_STAGES = (OpportunityStage.LOI_SIGNED, OpportunityStage.LEASE_NEGOTIATION, OpportunityStage.SIGNED)
+
+
+def already_ours():
+    """Companies past prospecting: tenants, a signed LOI / lease / DMA, or a signed or closed contract."""
+    return set(Company.objects.filter(
+        Q(status=CompanyStatus.TENANT) | Q(opportunities__stage__in=SIGNED_STAGES)
+        | Q(contracts__status__in=[Contract.Status.SIGNED, Contract.Status.CLOSED])
+    ).values_list("pk", flat=True))
+
+
+def _news_filter(since):
+    """Sent emails that are approved news-review drafts: same company, the draft's subject."""
+    q = Q(pk__in=[])
+    for company_id, subject in (NewsItem.objects.filter(decision=NewsItem.Decision.PROCEED, company__isnull=False,
+                                                        scan__imported_at__gte=since)
+                                .exclude(draft_subject="").values_list("company_id", "draft_subject")):
+        q |= Q(company_id=company_id, summary__icontains=subject.strip()[:200])
+    return q
+
+
+def outreach_sends(start, end):
+    """(campaign and news outreach emails sent in [start, end), how many went to companies already ACMI's)."""
+    sent = Activity.objects.filter(kind=Activity.Kind.EMAIL_SENT, occurred_at__gte=start, occurred_at__lt=end)
+    rows = list(sent.filter(~Q(campaign="") | _news_filter(start - timedelta(days=60)))
+                .select_related("person", "company").distinct())
+    ours = already_ours()
+    kept = [a for a in rows if a.company_id not in ours]
+    for a in kept:
+        a.stream = "Campaign" if a.campaign else "News"
+    return kept, len(rows) - len(kept)
+
+
+def _thread_status(rows):
+    """{person or company key: latest response outcome on the outreach emails' own threads (after the send)}."""
+    threads = {a.thread_id: a for a in rows if a.thread_id}
+    out = {}
+    if threads:
+        replies = (Activity.objects.filter(kind__in=Activity.RESPONSE_KINDS, thread_id__in=list(threads))
+                   .order_by("occurred_at", "id"))
+        for r in replies:
+            send = threads[r.thread_id]
+            if r.occurred_at >= send.occurred_at and r.outcome:
+                out[send.person_id or ("c", send.company_id)] = r.outcome
+    return out
+
+
 def build(day=None):
     start, end = week_bounds(day)
-    sends = (Activity.objects.filter(kind=Activity.Kind.EMAIL_SENT, occurred_at__gte=start, occurred_at__lt=end)
-             .exclude(campaign="").select_related("person", "company"))
-    rows = list(sends)
+    rows, left_out = outreach_sends(start, end)
     by_person = defaultdict(list)
     for a in rows:
         by_person[a.person_id or ("c", a.company_id)].append(a)
@@ -46,14 +96,13 @@ def build(day=None):
         if a.company_id:
             companies_by_tier[tier_of(a)].add(a.company_id)
 
-    # Each person's status: their latest response since their first send this week, else No Reply.
+    # Each person's status: the latest response on their outreach threads, else what the workbook recorded on the
+    # send itself, else No Reply. Replies about other business (a tenant's building, a signed deal) don't count.
+    on_thread = _thread_status(rows)
     status_of, status_tier = {}, {}
     for key, acts in by_person.items():
-        first = min(a.occurred_at for a in acts)
-        person = acts[0].person
-        status = "No Reply"
-        if person and person.last_response and person.last_response_at and person.last_response_at >= first:
-            status = person.last_response
+        status = on_thread.get(key) or next((a.outcome for a in acts if a.outcome and a.outcome != "No Reply"
+                                             and a.source == Activity.Source.IMPORT), "No Reply")
         status_of[key], status_tier[key] = status, tier_of(acts[0])
     summary = []
     for status in RESPONSE_ORDER:
@@ -88,14 +137,18 @@ def build(day=None):
     for tier in company_rows:
         company_rows[tier].sort(key=lambda r: (r["status"] == "No Reply", r["company"].name))
 
+    # Positive replies this week on any outreach email's thread (the email may have gone out in an earlier week).
+    outreach_threads = (Activity.objects.filter(kind=Activity.Kind.EMAIL_SENT).exclude(thread_id="")
+                        .filter(~Q(campaign="") | _news_filter(start - timedelta(days=120))).values("thread_id"))
     replies = (Activity.objects.filter(kind=Activity.Kind.REPLY, occurred_at__gte=start, occurred_at__lt=end,
-                                       outcome__in=POSITIVE)
+                                       outcome__in=POSITIVE, thread_id__in=outreach_threads)
+               .exclude(company_id__in=already_ours())
                .select_related("person", "company").prefetch_related("projects").order_by("-occurred_at"))
-    campaigns = Counter(a.campaign for a in rows)
+    campaigns = Counter(a.campaign for a in rows if a.campaign)
     return {
         "start": start, "end": end - timedelta(days=1),
         "campaigns": [c for c, _ in campaigns.most_common()],
-        "emails": len(rows),
+        "emails": len(rows), "news_emails": sum(1 for a in rows if a.stream == "News"), "left_out": left_out,
         "companies": len({a.company_id for a in rows if a.company_id}),
         "tiers": [{"tier": t, "emails": emails_by_tier.get(t, 0), "companies": len(companies_by_tier.get(t, ()))}
                   for t in TIERS],

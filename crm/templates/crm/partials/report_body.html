@@ -3,10 +3,11 @@
   <div style="background:#1f3a5f;color:#fff;padding:14px 18px;border-radius:6px">
     <div style="font-size:18px;font-weight:bold">WEEKLY OUTREACH REPORT</div>
     <div style="font-size:13px;opacity:.85">{{ r.start|date:"M j" }} – {{ r.end|date:"M j, Y" }}{% if r.campaigns %} · {{ r.campaigns|join:", " }}{% endif %}</div>
+    {% if r.left_out %}<div style="font-size:11px;opacity:.75">Campaign and news outreach only; {{ r.left_out }} email{{ r.left_out|pluralize }} to tenants and companies with signed deals left out.</div>{% endif %}
   </div>
   <table style="width:100%;border-collapse:separate;border-spacing:8px;margin:8px -8px">
     <tr>
-      <td style="background:#f6f7f9;border-radius:6px;padding:10px"><div style="font-size:11px;color:#6b7280">EMAILS SENT</div><div style="font-size:22px;font-weight:bold">{{ r.emails }}</div></td>
+      <td style="background:#f6f7f9;border-radius:6px;padding:10px"><div style="font-size:11px;color:#6b7280">EMAILS SENT</div><div style="font-size:22px;font-weight:bold">{{ r.emails }}</div><div style="font-size:11px;color:#6b7280">campaign{% if r.news_emails %} + {{ r.news_emails }} news{% endif %}</div></td>
       <td style="background:#f6f7f9;border-radius:6px;padding:10px"><div style="font-size:11px;color:#6b7280">COMPANIES</div><div style="font-size:22px;font-weight:bold">{{ r.companies }}</div></td>
       {% for t in r.tiers %}<td style="background:#f6f7f9;border-radius:6px;padding:10px"><div style="font-size:11px;color:#6b7280">{{ t.tier|upper }}</div><div style="font-size:22px;font-weight:bold">{{ t.emails }}</div><div style="font-size:11px;color:#6b7280">{{ t.companies }} companies</div></td>{% endfor %}
       <td style="background:#f6f7f9;border-radius:6px;padding:10px"><div style="font-size:11px;color:#6b7280">POSITIVE RESPONSE RATE</div><div style="font-size:22px;font-weight:bold">{{ r.response_rate }}%</div></td>

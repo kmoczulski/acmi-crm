@@ -195,8 +195,9 @@ class OutreachTests(TestCase):
     def test_weekly_report(self):
         now = timezone.now()
         Activity.objects.create(kind="email_sent", occurred_at=now, person=self.ben, company=self.co, summary="x",
-                                campaign="Fall", source="gmail", source_id="a")
-        Person.objects.filter(pk=self.ben.pk).update(last_response="Responded", last_response_at=now + timedelta(hours=1))
+                                campaign="Fall", source="gmail", source_id="a", thread_id="t1")
+        Activity.objects.create(kind="reply", occurred_at=now + timedelta(hours=1), person=self.ben, company=self.co,
+                                summary="Re: x", outcome="Responded", source="gmail", source_id="b", thread_id="t1")
         r = report.build(timezone.localdate())
         self.assertEqual((r["emails"], r["companies"]), (1, 1))
         self.assertEqual(r["summary"][0]["status"], "Responded")
@@ -204,3 +205,30 @@ class OutreachTests(TestCase):
         with patch("crm.outreach.sender.Smtp", FakeSmtp):
             report.send(r, self.user, ["simon@acmigroup.com"])
         self.assertIn("WEEKLY OUTREACH REPORT", FakeSmtp.sent[-1].get_body(("html",)).get_content())
+
+    def test_weekly_report_is_campaign_and_news_outreach_only(self):
+        from crm.models import CompanyStatus, NewsItem, NewsScan, Opportunity
+
+        now = timezone.now()
+        tenant = Company.objects.create(name="Tenant Co", status=CompanyStatus.TENANT)
+        signed = Company.objects.create(name="Signed Co")
+        Opportunity.objects.create(name="Building 2", company=signed, stage="signed")
+        news_co = Company.objects.create(name="NewsCo")
+        amy = Person.objects.create(first_name="Amy", email="amy@newsco.com", company=news_co)
+        for i, co in enumerate((tenant, signed)):
+            Activity.objects.create(kind="email_sent", occurred_at=now, company=co, summary="Campaign email",
+                                    campaign="Fall", source="gmail", source_id=f"c{i}")
+        # one-to-one email about a tenant's building, and a reply to it: not outreach
+        Activity.objects.create(kind="email_sent", occurred_at=now, person=self.ben, company=self.co,
+                                summary="Email to Ben: Building 2 punch list", source="gmail", source_id="d", thread_id="t9")
+        Activity.objects.create(kind="reply", occurred_at=now + timedelta(hours=1), person=self.ben, company=self.co,
+                                summary="Re: punch list", outcome="Responded", source="gmail", source_id="e", thread_id="t9")
+        scan = NewsScan.objects.create(path="/x", file_name="x")
+        NewsItem.objects.create(scan=scan, kind="board", company_name="NewsCo", company=news_co, decision="proceed",
+                                draft_subject="Congrats on the Navy award")
+        Activity.objects.create(kind="email_sent", occurred_at=now, person=amy, company=news_co,
+                                summary="Email to Amy: Congrats on the Navy award", source="gmail", source_id="f")
+        r = report.build(timezone.localdate())
+        self.assertEqual((r["emails"], r["news_emails"], r["left_out"]), (1, 1, 2))  # the news email only
+        self.assertEqual(r["positive_replies"], [])  # the punch-list reply isn't outreach
+        self.assertEqual(r["summary"][0]["status"], "No Reply")
