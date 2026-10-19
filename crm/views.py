@@ -288,6 +288,27 @@ def project_list(request):
         "groups": groups, "other": other, "loose_sites": loose_sites, "form": form, "campus_form": campus_form})
 
 
+def campus_edit(request, pk):
+    from .forms import CampusForm
+
+    campus = get_object_or_404(Campus, pk=pk)
+    old_code, old_name = campus.code, campus.name
+    form = CampusForm(request.POST or None, instance=campus)
+    if request.method == "POST" and form.is_valid():
+        campus = form.save()
+        # The campus's own project is named for its code: keep the two together.
+        home = Project.objects.filter(campus=campus, parent__isnull=True, name=old_code).first()
+        if home and campus.code != old_code:
+            home.name = campus.code
+            home.keywords = [campus.code if k == old_code else campus.name if k == old_name else k for k in home.keywords]
+            home.save()
+            project_tagging.tag()
+        messages.success(request, f"Saved {campus.code}.")
+        return redirect("crm:project_list")
+    return render(request, "crm/form.html", {
+        "form": form, "title": f"Edit campus {old_code}", "cancel": reverse("crm:project_list")})
+
+
 def project_detail(request, pk):
     project = get_object_or_404(Project.objects.select_related("parent", "campus"), pk=pk)
     form = ProjectForm(request.POST or None, instance=project)
@@ -700,6 +721,15 @@ def opportunity_contact_remove(request, pk):
     contact = get_object_or_404(OpportunityContact, pk=pk)
     contact.delete()
     return redirect(contact.opportunity)
+
+
+@require_POST
+def opportunity_toggle_report(request, pk):
+    opp = get_object_or_404(Opportunity, pk=pk)
+    opp.investor_report = not opp.investor_report
+    opp.save()
+    messages.success(request, f"{opp.name} {'added to' if opp.investor_report else 'removed from'} the investor report.")
+    return redirect(_safe_next(request, opp.get_absolute_url()))
 
 
 @require_POST
