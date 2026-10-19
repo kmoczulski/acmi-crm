@@ -22,7 +22,11 @@ investor report tables share one column grid; **Pursue on a parcel now only sets
 don't belong in the CRM, so no company, note or task; the 6 companies and 7 tasks made earlier were deleted, backup
 `backups/db-2026-10-19-before-landowner-cleanup.sqlite3`); "Add to project" on the parcel card and a Land sites panel
 on the project page. Granola: the connector is on Granola's free plan, so transcripts aren't available, only notes
-and summaries; nothing imported yet.
+and summaries. Imported 2026-10-19: the last 30 days (60 meetings, Sep 21 to Oct 16) from `data/imports/granola/2026-10-19-b*.json`
+(59 on the calendar; summaries condensed, Next Steps verbatim; backup `backups/db-2026-10-19-before-granola-import.sqlite3`).
+No daily task yet. 25 attendee domains (Greystar, Fortress, Hoar, Walton, the county...) have no company, so those
+meetings don't reach a company timeline. Also merged (`4721171`): tick sites on the Sites page and click Compare
+selected; the briefs page has a Choose sites panel.
 
 **Next, in order**
 1. **Granola (time-sensitive: Granola only keeps 30 days).**
