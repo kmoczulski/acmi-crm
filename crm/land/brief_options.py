@@ -23,7 +23,12 @@ MAX_EXTRAS = 8
 
 
 def hidden(site):
-    return {k for k in (site.brief_options or {}).get("hide", []) if k in SECTION_KEYS}
+    """Sections left out. A site nobody has laid out yet and that has no listing facts (raw land, not marketed) starts
+    without the flyer sections; saving the layout page makes the choice explicit."""
+    opts = site.brief_options or {}
+    if "hide" not in opts:
+        return {"flyer", "claims"} if not any((site.listing or {}).values()) and not site.flyer else set()
+    return {k for k in opts["hide"] if k in SECTION_KEYS}
 
 
 def extras(site):

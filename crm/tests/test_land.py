@@ -1071,7 +1071,12 @@ class SiteBriefTests(TestCase):
     def test_listing_form_round_trips_and_blanks_print_as_na(self):
         from crm.land import listing
 
-        # a site with nothing entered still prints every row, as N/A
+        # raw land with no listing facts starts without the flyer sections...
+        with mock.patch.object(briefs_module(), "run_checks_many"):
+            self.assertNotContains(self.client.get(f"/land/sites/{self.site.pk}/brief/"), "From the listing flyer")
+        # ...and once they're switched on, a site with nothing entered still prints every row, as N/A
+        self.site.brief_options = {"hide": []}
+        self.site.save()
         with mock.patch.object(briefs_module(), "run_checks_many"):
             page = self.client.get(f"/land/sites/{self.site.pk}/brief/")
         self.assertContains(page, "From the listing flyer")

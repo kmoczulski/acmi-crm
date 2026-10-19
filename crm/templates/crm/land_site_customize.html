@@ -9,7 +9,7 @@
 <form method="post" class="report-layout">{% csrf_token %}
   <section class="panel">
     <h3>Sections</h3>
-    <p class="muted lc-small" style="margin-top:0">Untick a section to leave it out of this site's brief, comparison pages and PDF. Saved per site.</p>
+    <p class="muted lc-small" style="margin-top:0">Untick a section to leave it out of this site's brief (the flyer sections start off for sites with no listing details), comparison pages and PDF. Saved per site.</p>
     <div class="rl-sections">{% for key, label, page, on in sections %}
       <label class="rl-row"><input type="checkbox" name="show" value="{{ key }}"{% if on %} checked{% endif %}><span>{{ label }}</span><span class="muted lc-small">{{ page }}</span></label>{% endfor %}
     </div>
