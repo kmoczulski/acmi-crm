@@ -19,8 +19,6 @@
   <div class="card"><div class="label">Sent today</div><div class="value">{{ sent_today }}</div><div class="sub">cap {{ settings.daily_cap }}</div></div>
   <div class="card"><div class="label">Templates in campaign</div><div class="value">{{ templates|length }}</div>
     <div class="sub">{% for t in templates %}{{ t.template_id }}{% if not forloop.last %}, {% endif %}{% empty %}<span class="overdue">none: nothing will send</span>{% endfor %}</div></div>
-  <div class="card"><div class="label">Attachments</div><div class="value">{{ files|length }}</div>
-    <div class="sub">{% for f in files %}{{ f.name }}{% if not forloop.last %}, {% endif %}{% empty %}off{% endfor %}</div></div>
   <div class="card"><div class="label">Rules</div><div class="sub" style="color:var(--text)">Cooldown {{ settings.cooldown_days }}d · max {{ settings.max_touches }} touches · {{ settings.delay_seconds }}s between emails</div></div>
 </div>
 

@@ -40,7 +40,7 @@
         </details>
         {% if converted %}<small class="tpl-note">This template was written as HTML. The text above is a plain-text copy of it. If you don't change it, the original HTML stays as it is; edit it and the email is rebuilt from the text.</small>{% endif %}
       </div>
-      <div class="tpl-f tpl-attach">{{ form.attachment.errors }}<label for="id_attachment">PDF to include in the email</label>{{ form.attachment }}<small class="muted">Sent as an attachment with every email from this template{% if global_files %}, along with {{ global_files|join:", " }}{% endif %}. PDF only, up to 15 MB.</small></div>
+      <div class="tpl-f tpl-attach">{{ form.attachment.errors }}<label for="id_attachment">PDF to include in the email</label>{{ form.attachment }}<small class="muted">Sent as an attachment with every email from this template. PDF only, up to 15 MB.</small></div>
       <details class="tpl-adv"><summary>Generated HTML and plain text</summary>
         <div class="tpl-f">{{ form.body_html.errors }}<label for="{{ form.body_html.id_for_label }}">HTML</label>{{ form.body_html }}<small class="muted">{{ form.body_html.help_text }}</small></div>
         <div class="tpl-f">{{ form.body_plain.errors }}<label for="{{ form.body_plain.id_for_label }}">Plain text</label>{{ form.body_plain }}<small class="muted">{{ form.body_plain.help_text }}</small></div>

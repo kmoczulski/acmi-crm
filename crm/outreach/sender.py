@@ -17,7 +17,7 @@ from django.db.models import Max
 from django.utils import timezone
 
 from crm import interactions
-from crm.models import Activity, Mailbox, OutreachFile, OutreachSettings, SendBatch, SendItem, suppress_history
+from crm.models import Activity, Mailbox, OutreachSettings, SendBatch, SendItem, suppress_history
 
 SMTP_HOST = "smtp.gmail.com"
 SMTP_PORT = 587
@@ -55,30 +55,8 @@ def compose(template, person, greeting, settings=None):
     return subject, body_html, plain
 
 
-def attachments(settings=None):
-    """The active outreach files. A missing one stops the send (SendError) rather than letting every email go out
-    without it, which is what happens on a server whose disk doesn't have the uploads."""
-    settings = settings or OutreachSettings.load()
-    if not settings.include_attachments:
-        return []
-    files, missing = [], []
-    for f in OutreachFile.objects.filter(active=True):
-        try:
-            with f.file.open("rb") as fh:
-                data = fh.read()
-        except (FileNotFoundError, OSError, ValueError):
-            missing.append(f.file.name.rsplit("/", 1)[-1] or str(f))
-            continue
-        ctype, _ = mimetypes.guess_type(f.file.name)
-        files.append((f.file.name.rsplit("/", 1)[-1], data, ctype or "application/octet-stream"))
-    if missing:
-        raise SendError(f"Attachment file missing: {', '.join(missing)}. Upload it again or switch it off in the "
-                        "outreach settings (or untick 'include attachments').")
-    return files
-
-
 def template_files(template):
-    """The PDF uploaded on the template itself. Always sent with that template, whatever the global attachment setting."""
+    """The PDF uploaded on the template itself. """
     if not template or not template.attachment:
         return []
     name = template.attachment.name.rsplit("/", 1)[-1]
@@ -166,7 +144,7 @@ def send_test(user, template, person, to_addr):
         raise SendError("Connect your mailbox on the Mail page first.")
     subject, body_html, plain = compose(template, person, greeting_for(person), settings)
     msg = build_message(mailbox, to_addr, f"[TEST] {subject}", body_html, plain,
-                        attachments(settings) + template_files(template), settings)
+                        template_files(template), settings)
     with Smtp(mailbox) as smtp:
         smtp.send(msg)
 
@@ -194,8 +172,7 @@ def run_batch(batch_id, sleep=time.sleep, resume=False):
     try:
         if mailbox is None:
             raise SendError("Connect your mailbox on the Mail page first.")
-        files = attachments(settings)  # before anything is sent: a missing brochure fails the batch up front
-        own_files = {}  # each template's own PDF, read once per batch
+        own_files = {}  # each template's PDF, read before anything is sent so a missing one fails the batch up front
         for tpl in {i.template for i in batch.items.filter(status=SendItem.Status.PENDING).select_related("template") if i.template}:
             own_files[tpl.pk] = template_files(tpl)
         with Smtp(mailbox) as smtp:
@@ -213,7 +190,7 @@ def run_batch(batch_id, sleep=time.sleep, resume=False):
                     continue  # another sender already has this one
                 subject, body_html, plain = compose(item.template, item.person, greeting_for(item.person), settings)
                 msg = build_message(mailbox, item.email, subject, body_html, plain,
-                                     files + own_files.get(item.template_id, []), settings)
+                                     own_files.get(item.template_id, []), settings)
                 try:
                     smtp.send(msg)
                 except (smtplib.SMTPException, OSError) as exc:

@@ -41,7 +41,6 @@ class OutreachTests(TestCase):
         Mailbox.objects.create(user=self.user, email=ME)
         self.settings = OutreachSettings.load()
         self.settings.current_campaign = "Fall"
-        self.settings.include_attachments = False
         self.settings.save()
         EmailTemplate.objects.create(template_id="T1", name="Fall defense", campaign="Fall", priority="High",
                                      sector_match="defense", subject="Hi {company}",

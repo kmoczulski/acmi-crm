@@ -11,7 +11,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from crm.forms import UserChoiceField, active_users
-from crm.models import EmailTemplate, Mailbox, OutreachFile, OutreachSettings, Person, SendBatch, SendItem
+from crm.models import EmailTemplate, Mailbox, OutreachSettings, Person, SendBatch, SendItem
 from crm.cloudrun import JobError
 from crm.permissions import manager_required
 
@@ -98,7 +98,6 @@ def outreach_home(request):
         "preview": preview,
         "skipped": [(outreach_queue.SKIP_LABELS.get(k, k), n) for k, n in skipped.most_common()],
         "templates": EmailTemplate.objects.filter(campaign=settings.current_campaign, active=True),
-        "files": OutreachFile.objects.filter(active=True) if settings.include_attachments else [],
         "sent_today": sent_today,
         "remaining_today": max(0, settings.daily_cap - sent_today),
         "batches": SendBatch.objects.select_related("created_by")[:10],
@@ -236,9 +235,7 @@ def template_edit(request, pk=None):
         preview = {"person": person, "subject": subject, "html": html}
     return render(request, "crm/outreach_template_edit.html", {
         "form": form, "template": template, "preview": preview, "converted": form.started_from_html,
-        "people": _sample_people(), "sample": person.pk if person else "", "mailbox": _mailbox(request.user),
-        "global_files": [f.name for f in OutreachFile.objects.filter(active=True)]
-        if OutreachSettings.load().include_attachments else []})
+        "people": _sample_people(), "sample": person.pk if person else "", "mailbox": _mailbox(request.user),})
 
 
 @require_POST

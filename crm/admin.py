@@ -63,7 +63,6 @@ admin.site.register(models.Project)
 admin.site.register(models.NewsScan)
 admin.site.register(models.NewsItem)
 admin.site.register(models.OutreachSettings)
-admin.site.register(models.OutreachFile)
 admin.site.register(models.SendBatch)
 admin.site.register(models.SendItem)
 

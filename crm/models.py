@@ -1299,7 +1299,6 @@ class OutreachSettings(models.Model):
     skip_recent_replies_days = models.PositiveIntegerField(
         default=30, help_text="Skip anyone who replied within this many days (0 = off)"
     )
-    include_attachments = models.BooleanField(default=True)
     delay_seconds = models.PositiveIntegerField(default=5, help_text="Pause between emails")
     daily_cap = models.PositiveIntegerField(default=500, help_text="Most emails one person may send per day")
     sender_name = models.CharField(max_length=120, default="Kellen Moczulski")
@@ -1321,21 +1320,6 @@ class OutreachSettings(models.Model):
     def load(cls):
         obj, _ = cls.objects.get_or_create(pk=1)
         return obj
-
-
-class OutreachFile(models.Model):
-    """A file attached to every outreach email (brochures, flyers)."""
-
-    name = models.CharField(max_length=200)
-    file = models.FileField(upload_to="outreach/")
-    active = models.BooleanField(default=True)
-    position = models.PositiveSmallIntegerField(default=0)
-
-    class Meta:
-        ordering = ["position", "name"]
-
-    def __str__(self):
-        return self.name
 
 
 class SendBatch(models.Model):

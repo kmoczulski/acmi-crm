@@ -137,7 +137,6 @@ class OutreachDoubleSendTests(TestCase):
         self.user = User.objects.create(username="kellen", email="k@acmigroup.com")
         Mailbox.objects.create(user=self.user, email="k@acmigroup.com")
         settings = OutreachSettings.load()
-        settings.include_attachments = False
         settings.save()
         t = EmailTemplate.objects.create(template_id="T1", name="t", campaign="Fall", subject="Hi", body_html="<p>x</p>")
         self.people = [Person.objects.create(first_name=f"P{i}", email=f"p{i}@firehawk.com") for i in range(3)]
@@ -483,19 +482,13 @@ class AttachmentAndDocumentTests(TestCase):
         override.enable()
         self.addCleanup(override.disable)
 
-    def test_missing_attachment_fails_the_batch_before_sending(self):
+    def test_missing_template_pdf_fails_the_batch_before_sending(self):
         from django.core.files.base import ContentFile
 
-        from crm.models import OutreachFile
-
         Mailbox.objects.create(user=self.user, email="k@acmigroup.com")
-        settings = OutreachSettings.load()
-        settings.include_attachments = True
-        settings.save()
-        f = OutreachFile(active=True)
-        f.file.save("brochure.pdf", ContentFile(b"%PDF-1.4"), save=True)
-        f.file.storage.delete(f.file.name)  # the server's disk lost it
-        t = EmailTemplate.objects.create(template_id="T1", name="t", campaign="Fall", subject="Hi", body_html="x")
+        t = EmailTemplate(template_id="T1", name="t", campaign="Fall", subject="Hi", body_html="x")
+        t.attachment.save("brochure.pdf", ContentFile(b"%PDF-1.4"), save=True)
+        t.attachment.storage.delete(t.attachment.name)  # the server's disk lost it
         p = Person.objects.create(first_name="Ben", email="ben@firehawk.com")
         batch = SendBatch.objects.create(created_by=self.user, campaign="Fall")
         SendItem.objects.create(batch=batch, person=p, template=t, email=p.email)
