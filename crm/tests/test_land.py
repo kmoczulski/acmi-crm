@@ -408,17 +408,74 @@ class SiteManagementTests(TestCase):
         self.site.refresh_from_db()
         self.assertEqual((self.site.name, self.site.status, self.site.parcels.count()), ("Airport Land", "loi", 0))
         texts = " | ".join(self.site.events.values_list("text", flat=True))
-        for bit in ("Renamed", "Met the County", "Removed parcel", "LOI / negotiating"):
+        for bit in ("Renamed", "Removed parcel", "LOI / negotiating"):
             self.assertIn(bit, texts)
+        self.assertEqual(list(self.site.comments.values_list("body", flat=True)), ["Met the County"])  # notes are comments now
         self.assertTrue(Parcel.objects.filter(pk=p.pk).exists())  # the parcel itself stays in land search
 
-    def test_sites_page_timeline_and_order(self):
-        LandSite.objects.create(name="ETC", status="contract", campus=self.campus, milestones={"psa_signed": "2026-06-22"})
+    def test_sites_page_order_and_card_opens(self):
+        etc = LandSite.objects.create(name="ETC", status="contract", campus=self.campus, milestones={"psa_signed": "2026-06-22"})
         self.site.milestones = {"contacted": "2026-02-06"}
         self.site.save()
         html = self.client.get("/land/sites/").content.decode()
-        self.assertIn("Deal timelines", html)
+        self.assertNotIn("Deal timelines", html)  # the timeline lives on each site's card now
         self.assertLess(html.index(">ETC<"), html.index(">Livingston Rd<"))  # contract before outreach
+        self.assertIn(f'data-card-url="/land/sites/{etc.pk}/card/"', html)
+
+    def test_site_card_shows_the_deal_and_takes_comments_tasks_and_stage(self):
+        from datetime import date, time
+
+        from crm.models import Contract, Notification, Opportunity, Task
+
+        other = get_user_model().objects.create_user("simon", first_name="Simon", password="x")
+        Contract.objects.create(title="Wamsley PSA", kind="psa", status="signed", site=self.site, counterparty="Wamsley",
+                                price=1200000, next_step="Order the ALTA survey")
+        from crm.models import Company
+
+        Opportunity.objects.create(name="Energetics plant", company=Company.objects.create(name="Firehawk"), campus=self.campus,
+                                   stage="qualified", acreage_need=80)
+        url = f"/land/sites/{self.site.pk}/card/"
+        card = self.client.get(url)
+        for text in ("Wamsley PSA", "$1,200,000", "Order the ALTA survey", "Energetics plant", "Owner contacted",
+                     "Open site page", "No summary yet"):
+            self.assertContains(card, text)
+        self.client.post(url, {"action": "comment", "text": "Called the seller @simon"})
+        self.assertTrue(Notification.objects.filter(user=other, kind="mention").exists())
+        r = self.client.post(url, {"action": "task_add", "title": "Send LOI", "due_date": "2026-11-02", "due_time": "14:30",
+                                   "assignee": other.pk})
+        t = Task.objects.get(title="Send LOI")
+        self.assertEqual((t.site, t.due_date, t.due_time, t.assignee), (self.site, date(2026, 11, 2), time(14, 30), other))
+        self.assertContains(r, "Called the seller")
+        self.assertEqual(self.site.comments.count(), 1)
+        self.assertContains(r, "2:30 PM")
+        self.client.post(url, {"action": "task_toggle", "task": t.pk})
+        t.refresh_from_db()
+        self.assertTrue(t.done)
+        self.client.post(url, {"action": "status", "status": "loi"})
+        self.site.refresh_from_db()
+        self.assertEqual(self.site.status, "loi")
+        # owner, tenant link, labels, critical dates, board
+        self.client.post(url, {"action": "people", "owner": other.pk, "team": [other.pk, self.user.pk]})
+        self.site.refresh_from_db()
+        self.assertEqual((self.site.owner, self.site.team.count()), (other, 2))
+        opp = Opportunity.objects.get(name="Energetics plant")
+        self.client.post(url, {"action": "tenant_link", "opportunity": opp.pk})
+        self.assertIn(self.site, opp.land_sites.all())
+        self.client.post(url, {"action": "task_add", "title": "Title objections", "label": "legal"})
+        from crm.models import ContractDate
+
+        ContractDate.objects.create(contract=Contract.objects.get(title="Wamsley PSA"), kind="feasibility",
+                                    label="Feasibility Period Expiration", date=date(2026, 12, 1))
+        card = self.client.get(url)
+        self.assertContains(card, "Feasibility Period Expiration")
+        self.assertContains(card, 'tl-legal')
+        board = self.client.get("/land/sites/?view=board")
+        self.assertContains(board, 'data-status="loi"')
+        self.assertContains(self.client.get("/land/sites/?mine=1"), "Livingston Rd")  # on the team
+        self.assertEqual(self.site.get_absolute_url(), f"/land/sites/{self.site.pk}/manage/")
+        with mock.patch.dict(os.environ, {"ANTHROPIC_API_KEY": ""}):
+            r = self.client.post(url, {"action": "summary"})
+        self.assertContains(r, "ANTHROPIC_API_KEY")
 
     def test_incentives_check_lists_programs(self):
         from shapely.geometry import box

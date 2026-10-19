@@ -60,10 +60,13 @@ def watchers(comment):
     if comment.opportunity_id:
         people.add(comment.opportunity.owner)
         people.update(comment.opportunity.team.all())
-    if comment.company_id and not comment.opportunity_id and not comment.task_id:
+    if comment.site_id:
+        people.add(comment.site.owner)
+        people.update(comment.site.team.all())
+    if comment.company_id and not comment.opportunity_id and not comment.task_id and not comment.site_id:
         people.add(comment.company.owner)
     people.update(c.author for c in Comment.objects.filter(
-        company=comment.company_id, opportunity=comment.opportunity_id, task=comment.task_id,
+        company=comment.company_id, opportunity=comment.opportunity_id, task=comment.task_id, site=comment.site_id,
     ).exclude(pk=comment.pk).select_related("author")[:20])
     return {p for p in people if p}
 
@@ -102,6 +105,23 @@ def reply_received(activity):
     for u in people - {None}:
         send(u, Notification.Kind.REPLY, f"{who} ({company.name}) replied: {activity.summary[:120]}",
              company.get_absolute_url() + "?tab=activity", None, key=f"reply:{activity.pk}:{u.pk}")
+
+
+def timed_sweep(user, now=None):
+    """Tasks with a time: a reminder 15 minutes ahead and one when the time arrives. Runs on every poll."""
+    from datetime import timedelta
+
+    now = now or timezone.localtime()
+    today = now.date()
+    for t in Task.objects.filter(assignee=user, done=False, due_date=today, due_time__isnull=False):
+        at = t.due_at
+        when = f"{t.due_time:%I:%M %p}".lstrip("0")
+        if at <= now:
+            send(user, Notification.Kind.DUE, f"Due now ({when}): {t.title}", t.get_absolute_url(), None,
+                 key=f"due-at:{t.pk}:{today}:{t.due_time:%H%M}")
+        elif at - now <= timedelta(minutes=15):
+            send(user, Notification.Kind.DUE, f"Due at {when}: {t.title}", t.get_absolute_url(), None,
+                 key=f"due-soon:{t.pk}:{today}:{t.due_time:%H%M}")
 
 
 def due_sweep(user):

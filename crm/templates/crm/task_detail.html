@@ -7,7 +7,7 @@
     <input type="checkbox" {% if task.done %}checked{% endif %} onchange="this.form.submit()" title="Mark done" style="width:18px;height:18px"></form>
   <h1 class="{% if task.done %}done{% endif %}">{{ task.title }}</h1>
   {% if task.repeat %}<span class="tag" title="Repeats">↻ {{ task.get_repeat_display }}</span>{% endif %}
-  {% if task.due_date %}<span class="{% if task.is_overdue %}overdue{% endif %}">Due {{ task.due_date|date:"D M j, Y" }}</span>{% endif %}
+  {% if task.due_date %}<span class="{% if task.is_overdue %}overdue{% endif %}">Due {{ task.due_date|date:"D M j, Y" }}{% if task.due_time %} at {{ task.due_time|time:"g:i A" }}{% endif %}</span>{% endif %}
   <div class="record-nav"><a href="{% url 'crm:task_list' %}">All tasks</a></div>
 </div>
 <div class="record">

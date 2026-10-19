@@ -13,7 +13,7 @@
 <div class="panel">
   <form method="post" action="{% url 'crm:task_add' %}" class="inline-form">{% csrf_token %}
     <input type="hidden" name="next" value="{{ request.get_full_path }}">
-    {{ task_form.title }} {{ task_form.due_date }} {{ task_form.assignee }} {{ task_form.repeat }}
+    {{ task_form.title }} {{ task_form.due_date }} {{ task_form.due_time }} {{ task_form.assignee }} {{ task_form.repeat }}
     <button class="btn-primary">Add task</button>
   </form>
   <p class="muted" style="font-size:12px;margin:6px 0 0">Tasks tied to a company or person are added from that record's page.</p>

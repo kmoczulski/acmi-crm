@@ -18,7 +18,7 @@
     {% if p.status %}<button name="status" value="" class="btn btn-small" title="Back to not reviewed">Clear</button>{% endif %}
     <input name="reason" placeholder="Reason (optional)" class="lc-reason">
   </form>
-  <div class="lc-asm"><a href="#" data-asm-toggle="{{ p.pk }}">+ Add to assemblage</a>{% for s in p.sites.all %} · Site: <a href="{{ s.get_absolute_url }}">{{ s.name }}</a>{% endfor %}</div>
+  <div class="lc-asm"><a href="#" data-asm-toggle="{{ p.pk }}">+ Add to assemblage</a>{% for s in p.sites.all %} · Site: <a href="{{ s.map_url }}">{{ s.name }}</a>{% endfor %}</div>
   <form class="lc-asm" method="post" action="{% url 'crm:land_parcel_to_project' p.pk %}" data-card-form>{% csrf_token %}
     <select name="project" required><option value="">Add to project…</option>{% for pr in projects %}<option value="{{ pr.pk }}">{{ pr.name }}{% if pr.campus %} ({{ pr.campus.code }}){% endif %}</option>{% endfor %}</select>
     <button class="btn btn-small">Add</button>{% for s in p.sites.all %}{% if s.project %} · in <a href="{{ s.project.get_absolute_url }}">{{ s.project.name }}</a>{% endif %}{% endfor %}

@@ -1094,3 +1094,38 @@ lender and investor updates.
 - **Merged 2026-10-18:** main at `71a9109`, 320 tests (CI green on Postgres). On the real DB: backup
   `backups/db-2026-10-18-before-flyers-letters.sqlite3`, migration 0040 applied (new tables and blank fields only). The
   built-in letters are created the first time someone opens a site's letters page.
+
+## Built 2026-10-19: Sites as Trello-style cards, task times, live alerts, sidebar regrouped
+
+Kellen asked for the Sites page to be reworked around a Trello-style card, with Trello's features brought into the
+app, and for the sidebar to be organised properly with the map kept separate from sites.
+
+- **Sites page** (`/land/sites/`): the deal-timeline Gantt at the top is gone. The page has two views, "By campus"
+  (grouped cards) and "Board" (one column per stage; dragging a card to another column changes its stage), plus a
+  "My sites" filter (owner or team). Each card shows open checklist items, comments, linked tenants, the deal clock
+  and avatars for the owner and team.
+- **Site card pop-up** (`/land/sites/<id>/card/`, `crm/land/site_card.py`, `card_views.py`,
+  `partials/site_card.html`): it opens in place. It shows key facts, the AI summary (Claude, stored in
+  `LandSite.ai_summary`, refreshed on demand and flagged stale once new activity arrives), the milestone timeline,
+  the critical dates from contracts, contracts, tenants (with a picker to link one), diligence and approvals, a
+  checklist (site tasks with a label, date and time) and comments. The sidebar has stage, owner, landowners, zoning
+  and deal-killers. "Open site page" goes one level deeper. `?card=<id>` opens a card from a link.
+- **Structure**: `LandSite.owner` / `team` (owner defaults to the creator, via migration).
+  `Opportunity.land_sites` links tenant deals to sites directly. `Comment.site` replaces site notes: the migration
+  copied the old note events into comments, and the change log no longer shows notes. `Task.site` and `Task.label`
+  hold the Trello categories (deal info, legal, civil, architecture, program / procurement, land use, critical
+  date). `LandSite.get_absolute_url` is now the site page; `site.map_url` is the map.
+- **Milestones** were already filled in from contracts (signing, feasibility, closing: `crm/contracts`), so no change
+  was needed there.
+- **Task times**: `Task.due_time` (optional). The task forms, meeting action items and the site checklist take a
+  time, and a task counts as overdue once its time passes. `notify.timed_sweep` sends "Due at …" 15 minutes ahead
+  and "Due now" at the time.
+- **Browser alerts**: `static/crm/alerts.js` on every page polls `/notifications/poll/` every 30 s. It updates the
+  bell, plays a chime, shows an in-page toast or, when the tab is hidden, a desktop notification. Each person turns
+  these on per browser on the Notifications page (desktop on/off, sound on/off, test).
+- **Sidebar**: Dashboard, Notifications, Tasks and Meetings sit at the top. Then Land (Sites, Map, Client searches,
+  Entitlements), Tenants (Tenant deals, Rent roll, Investor report), Campuses (Campus summary, Projects, Contracts,
+  Abstract templates), Contacts (Companies, People, Lists, Possible duplicates) and Outreach.
+- **Trello**: the team's MEIH board uses lists per deal (Land Sites, Critical Dates, Deal and Design, Contacts and
+  Consultants) and the labels above; critical dates carry times. Not yet brought in: contacts and consultants per
+  campus, and importing the existing Trello cards.

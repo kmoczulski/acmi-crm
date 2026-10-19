@@ -11,7 +11,7 @@
   <div class="record-nav">
     <a class="btn" href="{% url 'crm:land_site_listing' site.pk %}">Listing details</a>
     <a class="btn" href="{% url 'crm:land_site_brief' site.pk %}">Site brief (aerial, PDF)</a>
-    <a class="btn" href="{{ site.get_absolute_url }}">Open on map</a>
+    <a class="btn" href="{{ site.map_url }}">Open on map</a>
   </div>
 </div>
 
@@ -26,7 +26,7 @@
       <div class="tb-pop ml-panel" id="sm-layer-list"></div>
     </details>
     <button type="button" class="tb-btn" id="sm-fit">Fit to site</button>
-    <a class="tb-btn" href="{{ site.get_absolute_url }}">Open in land search ↗</a>
+    <a class="tb-btn" href="{{ site.map_url }}">Open in land search ↗</a>
   </div>
   <div class="trim-bar" id="trim-bar" hidden>
     <b id="trim-title">Trim parcel</b>
@@ -129,6 +129,26 @@
     </section>
 
     <section class="panel">
+      <h3>Who runs it</h3>
+      <form method="post" class="fields">{% csrf_token %}<input type="hidden" name="action" value="people">
+        <p><label>Owner<select name="owner"><option value="">Nobody</option>{% for u in users %}<option value="{{ u.pk }}"{% if u.pk == site.owner_id %} selected{% endif %}>{{ u.get_full_name|default:u.username }}</option>{% endfor %}</select></label></p>
+        <p class="team-picks"><span class="lc-small muted">Team</span>{% for u in users %}<label class="chip-check"><input type="checkbox" name="team" value="{{ u.pk }}"{% if u.pk in team_ids %} checked{% endif %}> {{ u.first_name|default:u.username }}</label>{% endfor %}</p>
+        <button class="btn btn-small">Save</button>
+      </form>
+    </section>
+
+    <section class="panel">
+      <h3>Tenants</h3>
+      {% for o in tenants %}<div class="tenant-row"><a href="{{ o.get_absolute_url }}"><b>{{ o.company.name|default:o.name }}</b></a> <span class="tag">{{ o.get_stage_display }}</span>
+        <div class="muted lc-small">{{ o.name }}{% if o.acreage_need %} · {{ o.acreage_need|floatformat:0 }} ac{% endif %}{% if o.sq_ft_need %} · {{ o.sq_ft_need }} sf{% endif %}{% if o.power_need_mw %} · {{ o.power_need_mw|floatformat:0 }} MW{% endif %}</div>
+        <form method="post" class="inline-unlink">{% csrf_token %}<input type="hidden" name="action" value="tenant_unlink"><input type="hidden" name="opportunity" value="{{ o.pk }}"><button class="btn-link lc-small">Unlink</button></form></div>
+      {% empty %}<p class="muted lc-small">No tenant deals linked to this site.</p>{% endfor %}
+      {% if tenant_choices %}<form method="post" class="inline-form" style="margin-top:8px">{% csrf_token %}<input type="hidden" name="action" value="tenant_link">
+        <select name="opportunity">{% for o in tenant_choices %}<option value="{{ o.pk }}">{{ o.company.name|default:"" }} · {{ o.name }}{% if o in unlinked_campus %} (at {{ site.campus.code }}){% endif %}</option>{% endfor %}</select>
+        <button class="btn btn-small">Link tenant deal</button></form>{% endif %}
+    </section>
+
+    <section class="panel">
       <h3>Milestone dates</h3>
       <form method="post" class="milestone-form">{% csrf_token %}<input type="hidden" name="action" value="milestones">
         {% for m in milestones %}
@@ -200,11 +220,10 @@
       </div>
     </section>
 
+    {% include "crm/partials/comments.html" %}
+
     <section class="panel">
-      <h3>Activity</h3>
-      <form method="post" class="note-add">{% csrf_token %}<input type="hidden" name="action" value="note">
-        <input name="text" placeholder="Add an update, e.g. Seller countered on price" required><button class="btn btn-small">Add</button>
-      </form>
+      <h3>Change log</h3>
       <ul class="site-events">{% for e in events %}
         <li class="ev-{{ e.kind }}"><span class="muted lc-small">{{ e.when|date:"M j, Y" }}{% if e.user %} · {{ e.user.get_full_name|default:e.user.username }}{% endif %}</span><div>{{ e.text }}</div></li>
       {% empty %}<li class="muted">No changes logged yet.</li>{% endfor %}</ul>

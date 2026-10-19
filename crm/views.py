@@ -818,7 +818,7 @@ def task_toggle(request, pk):
         nxt = task.next_due()
         if nxt:
             Task.objects.create(
-                title=task.title, notes=task.notes, due_date=nxt, assignee=task.assignee, company=task.company,
+                title=task.title, notes=task.notes, due_date=nxt, due_time=task.due_time, assignee=task.assignee, company=task.company,
                 person=task.person, opportunity=task.opportunity, repeat=task.repeat, repeat_until=task.repeat_until,
                 created_by=task.created_by,
             )
@@ -830,7 +830,9 @@ def task_toggle(request, pk):
 def comment_add(request):
     body = request.POST.get("body", "").strip()
     target = {}
-    for field, model in (("task", Task), ("opportunity", Opportunity), ("company", Company)):
+    from .models import LandSite
+
+    for field, model in (("task", Task), ("opportunity", Opportunity), ("site", LandSite), ("company", Company)):
         if value := request.POST.get(field):
             target[field] = get_object_or_404(model, pk=value)
     if not body or not target:
@@ -868,6 +870,25 @@ def notification_open(request, pk):
         n.read_at = timezone.now()
         n.save(update_fields=["read_at"])
     return redirect(n.url if n.url.startswith("/") else reverse("crm:notification_list"))
+
+
+def notification_poll(request):
+    """For the browser's live alerts (static/crm/alerts.js): unread count and anything newer than ?after=."""
+    from django.http import JsonResponse
+
+    from . import notify
+
+    notify.timed_sweep(request.user)  # tasks whose time has come
+    unread = Notification.objects.filter(user=request.user, read_at__isnull=True)
+    try:
+        after = int(request.GET.get("after") or 0)
+    except ValueError:
+        after = 0
+    latest = Notification.objects.filter(user=request.user).order_by("-id").values_list("id", flat=True).first() or 0
+    items = [{"id": n.pk, "kind": n.get_kind_display(), "text": n.text,
+              "url": reverse("crm:notification_open", args=[n.pk])}
+             for n in unread.filter(id__gt=after).order_by("id")[:10]] if after else []
+    return JsonResponse({"unread": unread.count(), "latest": latest, "items": items})
 
 
 @require_POST
@@ -1257,10 +1278,11 @@ def meeting_make_task(request, pk):
             owner = next((u for u in active_users() if (u.first_name or "").lower() == first or u.username == first), None)
         assignee = get_object_or_404(type(request.user), pk=request.POST["assignee"]) if request.POST.get("assignee") else (owner or request.user)
         due = request.POST.get("due_date") or None
+        due_time = request.POST.get("due_time") or None
         company = m.companies.first()
         task = Task.objects.create(
             title=item["title"][:300], notes=(item.get("detail", "") + f"\n\nFrom meeting: {m.title} ({m.start:%b %d}) {m.url}").strip(),
-            due_date=due, assignee=assignee, company=company, meeting=m, created_by=request.user,
+            due_date=due, due_time=due_time if due else None, assignee=assignee, company=company, meeting=m, created_by=request.user,
         )
         items = list(m.action_items)
         items[index] = {**item, "task_id": task.pk}

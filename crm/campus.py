@@ -119,8 +119,7 @@ def _land(site, today):
     en_facts, en_flags = entitlement_logic.campus_lines(site.approvals.all(), today)
     facts[:0] = contract_facts + dd_facts + en_facts  # the agreement, deadlines, DD and approvals lead
     flags[:0] = contract_flags + dd_flags + en_flags
-    return {"kind": "land", "obj": site, "name": site.name, "url": site.get_absolute_url(),
-            "manage_url": f"/land/sites/{site.pk}/manage/", "status": site.get_status_display(), "update": update,
+    return {"kind": "land", "obj": site, "name": site.name, "url": site.get_absolute_url(), "status": site.get_status_display(), "update": update,
             "facts": facts, "flags": flags, "owners": owners if len(owners) > 1 else [],
             "waiting": _waiting_note(update, today), "last_touch": last_touch}
 

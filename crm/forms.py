@@ -190,9 +190,10 @@ class TaskForm(StyledForm):
 
     class Meta:
         model = Task
-        fields = ["title", "due_date", "assignee", "repeat", "repeat_until", "notes"]
+        fields = ["title", "label", "due_date", "due_time", "assignee", "repeat", "repeat_until", "notes"]
         widgets = {
             "due_date": forms.DateInput(attrs={"type": "date"}),
+            "due_time": forms.TimeInput(attrs={"type": "time", "title": "Time (optional)"}, format="%H:%M"),
             "repeat_until": forms.DateInput(attrs={"type": "date"}),
         }
 
@@ -202,6 +203,7 @@ class TaskForm(StyledForm):
         if not full:  # the one-line "add task" form
             del self.fields["repeat_until"]
             del self.fields["notes"]
+            del self.fields["label"]
             self.fields["repeat"].widget.attrs["title"] = "Repeat"
 
 

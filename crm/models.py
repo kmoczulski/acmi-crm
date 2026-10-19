@@ -424,6 +424,8 @@ class Opportunity(TrackedModel):
         "on investor report", default=False, help_text="Show on the pipeline report sent to capital partners",
     )
     people = models.ManyToManyField(Person, blank=True, related_name="opportunities", through="OpportunityContact")
+    land_sites = models.ManyToManyField("LandSite", blank=True, related_name="tenant_deals",
+                                        help_text="The land sites this tenant is considering or committed to")
     notes = models.TextField(blank=True)
     trello_url = models.URLField(max_length=500, blank=True)
     source_key = models.CharField(max_length=120, null=True, blank=True, unique=True, editable=False,
@@ -683,15 +685,29 @@ class Repeat(models.TextChoices):
 
 
 class Task(models.Model):
+    class Label(models.TextChoices):  # the categories the team's Trello boards use
+        NONE = "", "No label"
+        DEAL = "deal", "Deal info"
+        LEGAL = "legal", "Legal"
+        CIVIL = "civil", "Civil"
+        ARCHITECTURE = "architecture", "Architecture"
+        PROGRAM = "program", "Program / procurement"
+        LAND_USE = "land_use", "Land use"
+        CRITICAL = "critical", "Critical date"
+
     title = models.CharField(max_length=300)
+    label = models.CharField(max_length=12, choices=Label.choices, blank=True)
     notes = models.TextField(blank=True)
     due_date = models.DateField(null=True, blank=True, db_index=True)
+    due_time = models.TimeField(null=True, blank=True, help_text="Optional time on the due date; you get a reminder then")
     done = models.BooleanField(default=False, db_index=True)
     done_at = models.DateTimeField(null=True, blank=True)
     assignee = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="tasks")
     company = models.ForeignKey(Company, null=True, blank=True, on_delete=models.CASCADE, related_name="tasks")
     person = models.ForeignKey(Person, null=True, blank=True, on_delete=models.CASCADE, related_name="tasks")
     opportunity = models.ForeignKey(Opportunity, null=True, blank=True, on_delete=models.CASCADE, related_name="tasks")
+    site = models.ForeignKey("LandSite", null=True, blank=True, on_delete=models.CASCADE, related_name="tasks",
+                             help_text="The land site this task is for (the site card's checklist)")
     repeat = models.CharField(max_length=10, choices=Repeat.choices, blank=True,
                               help_text="When this is ticked done, the next one is created")
     repeat_until = models.DateField(null=True, blank=True, help_text="Stop repeating after this date")
@@ -708,10 +724,24 @@ class Task(models.Model):
 
     @property
     def is_overdue(self):
-        return not self.done and self.due_date and self.due_date < timezone.localdate()
+        if self.done or not self.due_date:
+            return False
+        today = timezone.localdate()
+        if self.due_date < today:
+            return True
+        return bool(self.due_date == today and self.due_time and self.due_time < timezone.localtime().time())
+
+    @property
+    def due_at(self):
+        """The due date and time as an aware datetime (None without a time)."""
+        from datetime import datetime
+
+        if not (self.due_date and self.due_time):
+            return None
+        return timezone.make_aware(datetime.combine(self.due_date, self.due_time))
 
     def record(self):
-        return self.opportunity or self.person or self.company
+        return self.opportunity or self.person or self.company or self.site
 
     def get_absolute_url(self):
         return reverse("crm:task_detail", args=[self.pk])
@@ -866,13 +896,14 @@ class CalendarSync(models.Model):
 
 
 class Comment(models.Model):
-    """Trello-style comment on a company, deal or task. @first-name mentions notify that person."""
+    """Trello-style comment on a company, deal, task or land site. @first-name mentions notify that person."""
 
     body = models.TextField()
     author = models.ForeignKey(User, null=True, on_delete=models.SET_NULL, related_name="comments")
     company = models.ForeignKey(Company, null=True, blank=True, on_delete=models.CASCADE, related_name="comments")
     opportunity = models.ForeignKey(Opportunity, null=True, blank=True, on_delete=models.CASCADE, related_name="comments")
     task = models.ForeignKey(Task, null=True, blank=True, on_delete=models.CASCADE, related_name="comments")
+    site = models.ForeignKey("LandSite", null=True, blank=True, on_delete=models.CASCADE, related_name="comments")
     mentions = models.ManyToManyField(User, blank=True, related_name="mentioned_in")
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -883,7 +914,7 @@ class Comment(models.Model):
         return self.body[:60]
 
     def record(self):
-        return self.task or self.opportunity or self.company
+        return self.task or self.opportunity or self.site or self.company
 
 
 class Notification(models.Model):
@@ -1552,12 +1583,16 @@ class LandSite(models.Model):
     campus = models.ForeignKey(Campus, null=True, blank=True, on_delete=models.SET_NULL, related_name="land_sites")
     project = models.ForeignKey(Project, null=True, blank=True, on_delete=models.SET_NULL, related_name="land_sites")
     status = models.CharField(max_length=10, choices=Status.choices, default=Status.PROSPECT, db_index=True)
+    owner = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="owned_sites",
+                              help_text="Who on the team runs this site")
+    team = models.ManyToManyField(User, blank=True, related_name="site_teams", help_text="Everyone working the site")
     parcels = models.ManyToManyField(Parcel, blank=True, related_name="sites")
     notes = models.TextField(blank=True)
     qd_design = models.JSONField(default=dict, blank=True, help_text="QD site layout on the assembled boundary")
     milestones = models.JSONField(default=dict, blank=True, help_text="{milestone key: 'YYYY-MM-DD'} (see MILESTONES)")
     site_plan = models.JSONField(default=dict, blank=True, help_text="Quick site plan inputs (zone, overrides, program)")
     listing = models.JSONField(default=dict, blank=True, help_text="Facts from the broker flyer or listing (see crm/land/briefs.py LISTING_KEYS)")
+    ai_summary = models.JSONField(default=dict, blank=True, help_text="Claude's summary for the site card (crm/land/site_card.py)")
     brief_options = models.JSONField(default=dict, blank=True, help_text='Brief layout: {"hide": [section keys], "extras": [{"title", "body"}]} (see crm/land/brief_options.py)')
     flyer = models.FileField("broker flyer", upload_to="flyers/%Y/%m/", blank=True)
     flyer_read_at = models.DateTimeField(null=True, blank=True, help_text="When Claude last read the flyer")
@@ -1633,6 +1668,10 @@ class LandSite(models.Model):
                                             else len(cls.STATUS_ORDER), s.name.lower()))
 
     def get_absolute_url(self):
+        return reverse("crm:land_site_detail", args=[self.pk])
+
+    @property
+    def map_url(self):
         return reverse("crm:land_search") + f"?site={self.pk}"
 
     @property

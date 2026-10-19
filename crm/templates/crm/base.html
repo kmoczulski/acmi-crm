@@ -11,51 +11,49 @@
   <nav class="sidebar">
     <a class="brand" href="{% url 'crm:home' %}">{% if LOGO %}<img src="{% static LOGO %}?v={{ ASSET_VERSION }}" alt="ACMI Properties">{% else %}ACMI CRM{% endif %}</a>
     {% with p=request.path %}
-    <a href="{% url 'crm:notification_list' %}" class="nav-bell {% if '/notifications/' in p %}active{% endif %}">🔔 Notifications{% if unread_notifications %} <span class="tag tag-alert">{{ unread_notifications }}</span>{% endif %}</a>
     <a href="{% url 'crm:home' %}" class="nav-top {% if p == '/' %}active{% endif %}">Dashboard</a>
+    <a href="{% url 'crm:notification_list' %}" class="nav-top nav-bell {% if '/notifications/' in p %}active{% endif %}">Notifications{% if unread_notifications %} <span class="tag tag-alert">{{ unread_notifications }}</span>{% endif %}</a>
+    <a href="{% url 'crm:task_list' %}" class="nav-top {% if '/tasks/' in p %}active{% endif %}">Tasks{% if my_due_count %} <span class="tag">{{ my_due_count }}</span>{% endif %}</a>
+    <a href="{% url 'crm:meeting_list' %}" class="nav-top {% if '/meetings/' in p %}active{% endif %}">Meetings</a>
+
+    <details class="nav-sec" data-key="land" open>
+      <summary>Land</summary>
+      <a href="{% url 'crm:land_sites_page' %}" class="nav-1 {% if '/land/sites/' in p or '/land/briefs/' in p %}active{% endif %}">Sites</a>
+      <a href="{% url 'crm:land_search' %}" class="nav-1 {% if p == '/land/' or '/land/parcel/' in p %}active{% endif %}">Map</a>
+      <a href="{% url 'crm:assignments' %}" class="nav-1 {% if '/land/assignments/' in p %}active{% endif %}">Client searches</a>
+      <a href="{% url 'crm:approval_list' %}" class="nav-1 {% if '/entitlements/' in p %}active{% endif %}">Entitlements</a>
+    </details>
+
+    <details class="nav-sec" data-key="tenants" open>
+      <summary>Tenants</summary>
+      <a href="{% url 'crm:opportunity_board' %}" class="nav-1 {% if '/opportunities/' in p %}active{% endif %}">Tenant deals</a>
+      <a href="{% url 'crm:rent_roll' %}" class="nav-1 {% if '/leases/' in p %}active{% endif %}">Rent roll</a>
+      <a href="{% url 'crm:pipeline_report' %}" class="nav-1 {% if '/reports/pipeline' in p %}active{% endif %}">Investor report</a>
+    </details>
+
+    <details class="nav-sec" data-key="campuses" open>
+      <summary>Campuses</summary>
+      <a href="{% url 'crm:campus_index' %}" class="nav-1 {% if '/campuses/' in p %}active{% endif %}">Campus summary</a>
+      <a href="{% url 'crm:project_list' %}" class="nav-1 {% if '/projects/' in p %}active{% endif %}">Projects</a>
+      <a href="{% url 'crm:contract_list' %}" class="nav-1 {% if '/contracts/' in p and '/contracts/templates/' not in p %}active{% endif %}">Contracts</a>
+      <a href="{% url 'crm:contract_templates' %}" class="nav-2 {% if '/contracts/templates/' in p %}active{% endif %}">Abstract templates</a>
+    </details>
 
     <details class="nav-sec" data-key="crm" open>
-      <summary>CRM</summary>
-      <details class="nav-sub" data-key="companies">
-        <summary><a href="{% url 'crm:company_list' %}" class="nav-1 {% if '/companies/' in p and 'duplicates' not in p %}active{% endif %}">Companies</a></summary>
-        <a href="{% url 'crm:duplicates' %}" class="nav-2 {% if 'duplicates' in p %}active{% endif %}">Possible duplicates</a>
-      </details>
+      <summary>Contacts</summary>
+      <a href="{% url 'crm:company_list' %}" class="nav-1 {% if '/companies/' in p and 'duplicates' not in p %}active{% endif %}">Companies</a>
       <a href="{% url 'crm:person_list' %}" class="nav-1 {% if '/people/' in p %}active{% endif %}">People</a>
-      <details class="nav-sub" data-key="opportunities">
-        <summary><a href="{% url 'crm:opportunity_board' %}" class="nav-1 {% if '/opportunities/' in p %}active{% endif %}">Opportunities</a></summary>
-        <a href="{% url 'crm:pipeline_report' %}" class="nav-2 {% if '/reports/pipeline' in p %}active{% endif %}">Investor report</a>
-      </details>
-      <a href="{% url 'crm:meeting_list' %}" class="nav-1 {% if '/meetings/' in p %}active{% endif %}">Meetings</a>
-      <a href="{% url 'crm:task_list' %}" class="nav-1 {% if '/tasks/' in p %}active{% endif %}">Tasks{% if my_due_count %} <span class="tag">{{ my_due_count }}</span>{% endif %}</a>
       <a href="{% url 'crm:list_index' %}" class="nav-1 {% if '/lists/' in p %}active{% endif %}">Lists</a>
-      <a href="{% url 'crm:project_list' %}" class="nav-1 {% if '/projects/' in p %}active{% endif %}">Projects</a>
+      <a href="{% url 'crm:duplicates' %}" class="nav-2 {% if 'duplicates' in p %}active{% endif %}">Possible duplicates</a>
     </details>
 
     <details class="nav-sec" data-key="outreach" open>
       <summary>Outreach</summary>
-      <details class="nav-sub" data-key="sendqueue">
-        <summary><a href="{% url 'crm:outreach_home' %}" class="nav-1 {% if p == '/outreach/' or '/batches/' in p or p == '/outreach/settings/' %}active{% endif %}">Send queue</a></summary>
-        <a href="{% url 'crm:template_list' %}" class="nav-2 {% if '/outreach/templates' in p %}active{% endif %}">Templates</a>
-        <a href="{% url 'crm:weekly_report' %}" class="nav-2 {% if '/reports/weekly' in p %}active{% endif %}">Weekly report</a>
-      </details>
-      <a href="{% url 'crm:news_home' %}" class="nav-1 {% if '/news/' in p %}active{% endif %}">News review{% if news_open_count %} <span class="tag">{{ news_open_count }}</span>{% endif %}</a>
+      <a href="{% url 'crm:outreach_home' %}" class="nav-1 {% if p == '/outreach/' or '/batches/' in p or p == '/outreach/settings/' %}active{% endif %}">Send queue</a>
+      <a href="{% url 'crm:template_list' %}" class="nav-1 {% if '/outreach/templates' in p %}active{% endif %}">Email templates</a>
       <a href="{% url 'crm:mail' %}" class="nav-1 {% if '/mail/' in p %}active{% endif %}">Mail review{% if mail_queue_count %} <span class="tag">{{ mail_queue_count }}</span>{% endif %}</a>
-    </details>
-
-    <details class="nav-sec" data-key="development" open>
-      <summary>Development</summary>
-      <a href="{% url 'crm:campus_index' %}" class="nav-1 {% if '/campuses/' in p %}active{% endif %}">Campus summary</a>
-      <details class="nav-sub" data-key="land">
-        <summary><a href="{% url 'crm:land_search' %}" class="nav-1 {% if p == '/land/' %}active{% endif %}">Land search</a></summary>
-        <a href="{% url 'crm:land_sites_page' %}" class="nav-2 {% if '/land/sites/' in p %}active{% endif %}">Sites</a>
-        <a href="{% url 'crm:assignments' %}" class="nav-2 {% if '/land/assignments/' in p %}active{% endif %}">Client searches</a>
-      </details>
-      <a href="{% url 'crm:approval_list' %}" class="nav-1 {% if '/entitlements/' in p %}active{% endif %}">Entitlements</a>
-      <details class="nav-sub" data-key="contracts">
-        <summary><a href="{% url 'crm:contract_list' %}" class="nav-1 {% if '/contracts/' in p and '/contracts/templates/' not in p %}active{% endif %}">Contracts</a></summary>
-        <a href="{% url 'crm:contract_templates' %}" class="nav-2 {% if '/contracts/templates/' in p %}active{% endif %}">Abstract templates</a>
-        <a href="{% url 'crm:rent_roll' %}" class="nav-2 {% if '/leases/' in p %}active{% endif %}">Rent roll</a>
-      </details>
+      <a href="{% url 'crm:news_home' %}" class="nav-1 {% if '/news/' in p %}active{% endif %}">News review{% if news_open_count %} <span class="tag">{{ news_open_count }}</span>{% endif %}</a>
+      <a href="{% url 'crm:weekly_report' %}" class="nav-1 {% if '/reports/weekly' in p %}active{% endif %}">Weekly report</a>
     </details>
 
     {% if user.is_staff %}
@@ -150,5 +148,7 @@
   document.querySelectorAll('dialog[data-open-on-load]').forEach(d => d.showModal());
 </script>
 {% block scripts %}{% endblock %}
+{% if request.user.is_authenticated %}<div id="alerts-config" hidden data-poll="{% url 'crm:notification_poll' %}" data-icon="{% static 'crm/logo_blue.png' %}"></div>
+<script src="{% static 'crm/alerts.js' %}?v={{ ASSET_VERSION }}"></script>{% endif %}
 </body>
 </html>

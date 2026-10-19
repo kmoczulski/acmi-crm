@@ -7,6 +7,7 @@ from .entitlements import views as entitlement_views
 from .tenants import views as tenant_views
 from .land import assignment_views as asg_views
 from .land import brief_views, diligence_views, letter_views
+from .land import card_views as land_card_views
 from .land import views as land_views
 from .mail import views as mail_views
 from .news import views as news_views
@@ -81,6 +82,7 @@ urlpatterns = [
     path("comments/<int:pk>/delete/", views.comment_delete, name="comment_delete"),
     path("notifications/", views.notification_list, name="notification_list"),
     path("notifications/<int:pk>/", views.notification_open, name="notification_open"),
+    path("notifications/poll/", views.notification_poll, name="notification_poll"),
     path("notifications/read-all/", views.notification_read_all, name="notification_read_all"),
     path("meetings/", views.meeting_list, name="meeting_list"),
     path("meetings/sync/", views.calendar_sync_now, name="calendar_sync_now"),
@@ -142,6 +144,7 @@ urlpatterns = [
     path("g/<str:token>/<int:entry_pk>/", asg_views.guest_report, name="guest_report"),
     path("land/sites/", land_views.sites_page, name="land_sites_page"),
     path("land/sites/<int:pk>/manage/", land_views.site_detail, name="land_site_detail"),
+    path("land/sites/<int:pk>/card/", land_card_views.site_card_view, name="land_site_card"),
     path("land/sites/<int:pk>/diligence/", diligence_views.site_diligence, name="land_site_diligence"),
     path("land/diligence/<int:pk>/file/", diligence_views.diligence_file, name="land_diligence_file"),
     path("land/sites/<int:pk>/trim/", land_views.site_trim, name="land_site_trim"),

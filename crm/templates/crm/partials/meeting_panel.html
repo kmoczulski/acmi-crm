@@ -31,7 +31,7 @@
                 <option value="">{% if i.owner %}{{ i.owner }} (from notes){% else %}Me{% endif %}</option>
                 {% for u in users %}<option value="{{ u.pk }}">{{ u.get_full_name|default:u.username }}</option>{% endfor %}
               </select>
-              <input type="date" name="due_date" style="font-size:12px">
+              <input type="date" name="due_date" style="font-size:12px"> <input type="time" name="due_time" style="font-size:12px" title="Time (optional)">
               <button class="btn-small">Make task</button>
             </form>
           {% endif %}

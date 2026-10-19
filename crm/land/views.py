@@ -3,6 +3,7 @@ import csv
 import json
 
 from django.contrib import messages
+from django.contrib.auth import get_user_model
 from django.db.models import Q
 from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -579,7 +580,7 @@ def _site_json(site):
         "campus": site.campus_id, "project": site.project_id, "home": site.home_label, "notes": site.notes,
         "parcels": [p.pk for p in parcels], "excluded": sorted(excluded), "acres": acres,
         "owners": owners, "has_qd": bool((site.qd_design or {}).get("buildings")),
-        "url": site.get_absolute_url(), "deal_clock": _deal_clock(site),
+        "url": site.map_url, "page_url": site.get_absolute_url(), "deal_clock": _deal_clock(site),
     }
 
 
@@ -767,12 +768,16 @@ def sites_page(request):
     from collections import Counter
 
     status = request.GET.get("status", "active")
-    every = LandSite.objects.select_related("campus", "project").prefetch_related("parcels__county", "events")
+    view = "board" if request.GET.get("view") == "board" else "campus"
+    mine = request.GET.get("mine") == "1"
+    every = LandSite.objects.select_related("campus", "project", "owner").prefetch_related("parcels__county", "events", "team")
+    if mine:
+        every = every.filter(Q(owner=request.user) | Q(team=request.user) | Q(created_by=request.user, owner__isnull=True)).distinct()
     # Dropped sites always go to the Archive at the bottom, not the campus / project groups.
     sites = every.exclude(status=LandSite.Status.DROPPED)
     stage_n = Counter(sites.values_list("status", flat=True))
     stage_chips = [(v, l, stage_n[v]) for v, l in LandSite.Status.choices if v != LandSite.Status.DROPPED]
-    if status in LandSite.Status.values and status != LandSite.Status.DROPPED:
+    if view == "campus" and status in LandSite.Status.values and status != LandSite.Status.DROPPED:
         sites = sites.filter(status=status)
     archive = []
     for s in sorted(every.filter(status=LandSite.Status.DROPPED), key=lambda x: x.updated_at, reverse=True):
@@ -795,7 +800,9 @@ def sites_page(request):
         for p in parcels:
             label = (p.zoning.split(" / ")[0] if p.zoning else "") or score.land_use_label(p.state_land_use) or "—"
             zoning[label] += p.acres
-        killers = sorted({k for p in parcels for k in (p.killers or [])})
+        from .site_card import killer_lines
+
+        killers = killer_lines(parcels)
         checked = [p for p in parcels if (p.checks or {}).get("net_usable")]
         net = sum(p.checks["net_usable"]["acres"] for p in checked) if checked and len(checked) == len(parcels) else None
         values = [p.market_value for p in parcels if p.market_value]
@@ -808,6 +815,8 @@ def sites_page(request):
             "value": sum(values) if values else None, "has_qd": bool((s.qd_design or {}).get("buildings")),
             "note": (s.notes or "").strip().splitlines()[0][:220] if s.notes else "",
             "progress": tracker.progress(s) if len({(p.owner_name or "").upper() for p in parcels}) > 1 else [],
+            "open_tasks": s.tasks.filter(done=False).count(), "comments": s.comments.count(),
+            "tenants": s.tenant_deals.count(), "team": list(s.team.all()),
         })
     groups = {}
     for r in rows:
@@ -822,8 +831,12 @@ def sites_page(request):
         g["acres"] = round(sum(r["acres"] for r in live), 1)
         g["count"] = len(g["rows"])
         g["by_status"] = [(label, g["by_status"][label]) for _, label in LandSite.Status.choices if g["by_status"][label]]
+    board = [{"value": v, "label": l, "rows": [r for r in rows if r["site"].status == v]}
+             for v, l in LandSite.Status.choices if v != LandSite.Status.DROPPED]
+    for col in board:
+        col["acres"] = round(sum(r["acres"] for r in col["rows"]), 1)
     return render(request, "crm/land_sites.html", {
-        "groups": ordered, "status": status, "timeline": _timeline(rows), "archive": archive,
+        "groups": ordered, "status": status, "archive": archive, "view": view, "mine": mine, "board": board,
         "stage_chips": stage_chips, "stage_values": [c[0] for c in stage_chips], "active_count": sum(stage_n.values()),
         "total": len(rows), "total_acres": round(sum(r["acres"] for r in rows), 1),
     })
@@ -943,10 +956,21 @@ def site_detail(request, pk):
             _log(site, request.user, "parcel",
                  f"{scope}: {deal.get_status_display()}" + (f"; {', '.join(changes)}" if changes else ""))
             messages.success(request, f"Updated {scope}.")
-        elif action == "note":
+        elif action == "note":  # older form name: now a comment
             text = (request.POST.get("text") or "").strip()
             if text:
-                _log(site, request.user, "note", text)
+                from .site_card import add_comment
+
+                add_comment(site, request.user, text)
+        elif action == "people":
+            from .site_card import save_people
+
+            save_people(site, request.POST, request.user)
+            messages.success(request, "Saved.")
+        elif action in ("tenant_link", "tenant_unlink"):
+            from .site_card import link_tenant
+
+            link_tenant(site, request.POST.get("opportunity"), request.user, unlink=action == "tenant_unlink")
         elif action == "include_parcel":
             from ..models import SiteParcelDeal
 
@@ -1000,7 +1024,11 @@ def site_detail(request, pk):
         "incentive_programs": incentives.public(), "fema_flood_layer": fema_flood_layer_id(),
         "site": site, "parcels": parcels, "acres": tr["total_acres"],
         "owners": len({d.parcel.owner_name for d in tr["included"]}), "milestones": site.milestone_rows(),
-        "events": site.events.select_related("user")[:100], "statuses": LandSite.Status.choices,
+        "events": site.events.exclude(kind="note").select_related("user")[:100], "statuses": LandSite.Status.choices,
+        "comments": site.comments.select_related("author", "task", "opportunity")[:100], "comment_target": ("site", site.pk),
+        "users": get_user_model().objects.filter(is_active=True).order_by("first_name", "username"),
+        "team_ids": set(site.team.values_list("pk", flat=True)),
+        **_tenant_context(site),
         "campuses": Campus.objects.all(), "projects": Project.objects.filter(active=True).select_related("campus"),
         "today": date.today(), "contracts": _site_contracts(site),
         "dd": diligence.summary(site) if site.diligence.exists() else None,
@@ -1008,6 +1036,13 @@ def site_detail(request, pk):
         "approvals": entitlement_logic.annotate(list(entitlement_logic.with_related(site.approvals.all()))),
         "matrix": entitlement_logic.MATRIX, "new_approval_url": reverse("crm:approval_create") + f"?site={site.pk}",
     })
+
+
+def _tenant_context(site):
+    from .site_card import campus_tenants, link_choices, tenants
+
+    linked = tenants(site)
+    return {"tenants": linked, "tenant_choices": link_choices(site, linked), "unlinked_campus": campus_tenants(site, linked)}
 
 
 def _site_contracts(site):
@@ -1062,57 +1097,6 @@ def site_trim(request, pk):
     if len(out["pieces"]) < 2:
         out["warning"] = "That line doesn't cut the parcel in two. Start and end it outside the parcel's edge."
     return JsonResponse(out)
-
-
-def _timeline(rows):
-    """Gantt-style rows for sites with milestone dates: positions as % of a shared date axis."""
-    from datetime import date, timedelta
-
-    items = []
-    for r in rows:
-        site = r["site"]
-        if site.status == "dropped":
-            continue
-        dated = [m for m in site.milestone_rows() if m["date"]]
-        if not dated:  # fall back to the earliest parcel-level dates
-            from datetime import date as _d
-
-            seen = {}
-            for deal in site.parcel_deals.all():
-                for k, v in (deal.milestones or {}).items():
-                    seen[k] = min(seen.get(k, v), v)
-            dated = [{"key": k, "label": dict((a, b) for a, b, _ in LandSite.MILESTONES)[k], "date": _d.fromisoformat(v),
-                      "gap": None} for k, v in sorted(seen.items(), key=lambda kv: kv[1])]
-        if dated:
-            items.append((site, dated))
-    if not items:
-        return None
-    today = date.today()
-    start = min(m["date"] for _, dated in items for m in dated) - timedelta(days=20)
-    end = max(today, max(m["date"] for _, dated in items for m in dated)) + timedelta(days=30)
-    span = (end - start).days or 1
-    pct = lambda d: round(100 * (d - start).days / span, 2)  # noqa: E731
-    months, cur = [], date(start.year, start.month, 1)
-    while cur <= end:
-        if cur >= start:
-            months.append({"label": cur.strftime("%b %Y" if cur.month == 1 or not months else "%b"), "pct": pct(cur)})
-        cur = date(cur.year + (cur.month == 12), cur.month % 12 + 1, 1)
-    out = []
-    for site, dated in sorted(items, key=lambda x: (LandSite.STATUS_ORDER.index(x[0].status), x[1][0]["date"])):
-        first, last = dated[0]["date"], dated[-1]["date"]
-        done = site.status == "acquired"
-        parcel_pts = []
-        for d in site.parcel_deals.select_related("parcel"):
-            for m in d.milestone_rows():
-                if m["date"] and start <= m["date"] <= end:
-                    parcel_pts.append({**m, "pct": pct(m["date"]), "owner": (d.parcel.owner_name or "").title()})
-        out.append({
-            "site": site, "start": pct(first), "width": max(0.6, pct(last if done else today) - pct(first)),
-            "parcel_points": parcel_pts,
-            "points": [{**m, "pct": pct(m["date"])} for m in dated],
-            "days": ((last if done else today) - first).days,
-        })
-    return {"rows": out, "months": months, "today": pct(today)}
 
 
 def _plan_target(data):

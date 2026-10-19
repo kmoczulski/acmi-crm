@@ -187,7 +187,8 @@ class TaskAndCommentTests(TestCase):
 
     def test_sidebar_tree(self):
         r = self.client.get(reverse("crm:home"))
-        for label in ("Dashboard", "Possible duplicates", "Investor report", "Meetings", "Mail review", "Land search"):
+        for label in ("Dashboard", "Possible duplicates", "Investor report", "Meetings", "Mail review", ">Sites<", ">Map<",
+                      "Tenant deals", "Rent roll"):
             self.assertContains(r, label)
 
 
@@ -228,3 +229,53 @@ class DashboardTests(TestCase):
         r = self.client.get(reverse("crm:home") + "?days=14")
         self.assertContains(r, "Reply from Ken: last week")
         self.assertContains(r, "last 14 days")
+
+
+class TaskTimeAndLiveAlertTests(TestCase):
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+
+        self.user = get_user_model().objects.create_user("kellen", first_name="Kellen", password="x")
+        self.client.force_login(self.user)
+
+    def test_task_time_reminders_and_the_poll_endpoint(self):
+        from datetime import datetime, time, timedelta
+
+        from django.utils import timezone
+
+        from crm import notify
+        from crm.models import Notification, Task
+
+        now = timezone.localtime()
+        soon = (now + timedelta(minutes=10)).time().replace(second=0, microsecond=0)
+        t = Task.objects.create(title="Call Dave", due_date=now.date(), due_time=soon, assignee=self.user)
+        if soon < now.time():  # the 10 minutes ran past midnight
+            return
+        first = self.client.get("/notifications/poll/").json()
+        self.assertEqual(first["items"], [])  # nothing replayed without ?after=
+        n = Notification.objects.get(user=self.user)
+        self.assertIn("Due at", n.text)
+        notify.timed_sweep(self.user, now=timezone.make_aware(datetime.combine(now.date(), soon)) + timedelta(minutes=1))
+        self.assertEqual(Notification.objects.filter(user=self.user).count(), 2)
+        notify.timed_sweep(self.user, now=timezone.make_aware(datetime.combine(now.date(), soon)) + timedelta(minutes=2))
+        self.assertEqual(Notification.objects.filter(user=self.user).count(), 2)  # keyed: no repeats
+        poll = self.client.get(f"/notifications/poll/?after={n.pk}").json()
+        self.assertEqual(poll["unread"], 2)
+        self.assertEqual(len(poll["items"]), 1)
+        self.assertIn("Due now", poll["items"][0]["text"])
+        self.assertTrue(t.is_overdue is False or t.due_time < timezone.localtime().time())
+
+    def test_task_form_takes_a_time(self):
+        from crm.models import Task
+
+        self.client.post("/tasks/add/", {"title": "Site visit", "due_date": "2026-11-05", "due_time": "09:15",
+                                         "assignee": self.user.pk})
+        t = Task.objects.filter(title="Site visit").first()
+        self.assertIsNotNone(t)
+        self.assertEqual(f"{t.due_time:%H:%M}", "09:15")
+        self.assertContains(self.client.get(t.get_absolute_url()), "9:15 AM")
+
+    def test_alert_script_is_on_every_page(self):
+        r = self.client.get("/notifications/")
+        self.assertContains(r, "alerts.js")
+        self.assertContains(r, "Desktop notifications")
