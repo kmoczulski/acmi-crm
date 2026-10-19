@@ -8,7 +8,7 @@
 </div>
 <div class="grid-2 tpl-edit">
   <div class="panel">
-    <form method="post" class="fields" id="tpl-form">{% csrf_token %}{{ form.non_field_errors }}
+    <form method="post" enctype="multipart/form-data" class="fields" id="tpl-form">{% csrf_token %}{{ form.non_field_errors }}
       <div class="tpl-meta">{% for f in form %}{% if f.name in "template_id name campaign priority sector_match active" %}<div class="tpl-f">{{ f.errors }}<label for="{{ f.id_for_label }}">{{ f.label }}</label>{{ f }}{% if f.help_text %}<small class="muted">{{ f.help_text }}</small>{% endif %}</div>{% endif %}{% endfor %}</div>
       <div class="tpl-f">{{ form.subject.errors }}<label for="{{ form.subject.id_for_label }}">Subject</label>{{ form.subject }}</div>
       <div class="tpl-f">
@@ -40,15 +40,21 @@
         </details>
         {% if converted %}<small class="tpl-note">This template was written as HTML. The text above is a plain-text copy of it. If you don't change it, the original HTML stays as it is; edit it and the email is rebuilt from the text.</small>{% endif %}
       </div>
+      <div class="tpl-f tpl-attach">{{ form.attachment.errors }}<label for="id_attachment">PDF to include in the email</label>{{ form.attachment }}<small class="muted">Sent as an attachment with every email from this template{% if global_files %}, along with {{ global_files|join:", " }}{% endif %}. PDF only, up to 15 MB.</small></div>
       <details class="tpl-adv"><summary>Generated HTML and plain text</summary>
         <div class="tpl-f">{{ form.body_html.errors }}<label for="{{ form.body_html.id_for_label }}">HTML</label>{{ form.body_html }}<small class="muted">{{ form.body_html.help_text }}</small></div>
         <div class="tpl-f">{{ form.body_plain.errors }}<label for="{{ form.body_plain.id_for_label }}">Plain text</label>{{ form.body_plain }}<small class="muted">{{ form.body_plain.help_text }}</small></div>
       </details>
-      <button class="btn-primary">Save</button>
+      <div class="tpl-actions">
+        <button class="btn-primary" name="action" value="save">Save</button>
+        <button class="btn" name="action" value="test"{% if not mailbox %} disabled title="Connect your mailbox on the Mail page first"{% endif %}>Save and send me a test{% if mailbox %} <span class="muted">({{ mailbox.email }})</span>{% endif %}</button>
+      </div>
     </form>
   </div>
   <div class="panel tpl-preview">
-    <h3>Preview <span class="muted lc-small" id="pv-who">{% if preview %}for {{ preview.person }}{% endif %}</span></h3>
+    <h3>Preview</h3>
+    <p class="tpl-who"><label for="sample">Filled in for</label>
+      <select id="sample" name="sample" form="tpl-form">{% for p in people %}<option value="{{ p.pk }}"{% if p.pk == sample %} selected{% endif %}>{{ p }}{% if p.company %}, {{ p.company.name }}{% endif %}</option>{% endfor %}</select></p>
     <p style="margin-top:0"><strong>Subject:</strong> <span id="pv-subject">{{ preview.subject }}</span></p>
     <iframe id="pv-frame" sandbox srcdoc="{{ preview.html|default:'' }}" title="Email preview"></iframe>
     <p class="muted lc-small" style="margin-bottom:0">Updates as you type, with a real contact's name filled in and your signature underneath.</p>
@@ -104,14 +110,14 @@
       const mine = ++seq;
       try {
         const r = await fetch("{% url 'crm:template_preview' %}", {method: 'POST', headers: {'X-CSRFToken': token, 'Content-Type': 'application/x-www-form-urlencoded'},
-          body: new URLSearchParams({body_source: box.value, subject: subj.value})});
+          body: new URLSearchParams({body_source: box.value, subject: subj.value, sample: document.getElementById('sample')?.value || ''})});
         if (!r.ok || mine !== seq) return;
         const d = await r.json();
         frame.srcdoc = d.html; document.getElementById('pv-subject').textContent = d.subject;
-        if (d.person) document.getElementById('pv-who').textContent = 'for ' + d.person;
       } catch (err) { /* the saved preview stays */ }
     }, 250);
   }
+  document.getElementById('sample')?.addEventListener('change', refresh);
   box.addEventListener('input', refresh); subj.addEventListener('input', refresh);
   if (box.value.trim()) refresh();
 })();

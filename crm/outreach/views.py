@@ -2,9 +2,11 @@ from datetime import date
 
 from django import forms
 from django.contrib import messages
+from django.core.files.uploadedfile import UploadedFile
 from django.db import transaction
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
@@ -43,7 +45,7 @@ class TemplateForm(forms.ModelForm):
     class Meta:
         model = EmailTemplate
         fields = ["template_id", "name", "campaign", "priority", "sector_match", "subject", "body_source", "body_html",
-                  "body_plain", "active"]
+                  "body_plain", "attachment", "active"]
         widgets = {"body_html": forms.Textarea(attrs={"rows": 8}), "body_plain": forms.Textarea(attrs={"rows": 6})}
 
     def __init__(self, *args, **kwargs):
@@ -53,6 +55,16 @@ class TemplateForm(forms.ModelForm):
         self.initial["body_source"] = inst.body_source or (richtext.from_html(inst.body_html) if self.started_from_html else "")
         self.fields["body_html"].help_text = "Generated from the email body above. Edit it only if you clear the email body."
         self.fields["body_plain"].help_text = "Generated from the email body above."
+
+    def clean_attachment(self):
+        f = self.cleaned_data.get("attachment")
+        if isinstance(f, UploadedFile):  # a fresh upload; an already-saved file is left alone
+            if not f.name.lower().endswith(".pdf") or f.read(5) != b"%PDF-":
+                raise forms.ValidationError("Upload a PDF file.")
+            f.seek(0)
+            if f.size > 15 * 1024 * 1024:
+                raise forms.ValidationError("PDFs up to 15 MB: mail servers often refuse larger attachments.")
+        return f
 
     def save(self, commit=True):
         obj = super().save(commit=False)
@@ -185,32 +197,54 @@ def template_list(request):
     })
 
 
+def _sample_people(limit=12):
+    """Contacts to see the template filled in for: the next people in the send queue."""
+    queue, _ = outreach_queue.build(limit=limit)
+    people = [e.person for e in queue]
+    return people or list(Person.objects.exclude(email=None)[:limit])
+
+
+def _pick_person(raw):
+    people = _sample_people()
+    return next((p for p in people if str(p.pk) == str(raw)), people[0] if people else None)
+
+
 @manager_required
 def template_edit(request, pk=None):
     template = get_object_or_404(EmailTemplate, pk=pk) if pk else None
-    form = TemplateForm(request.POST or None, instance=template)
+    form = TemplateForm(request.POST or None, request.FILES or None, instance=template)
+    sample = request.POST.get("sample") or request.GET.get("sample")
     if request.method == "POST" and form.is_valid():
         template = form.save()
-        messages.success(request, "Template saved.")
-        return redirect("crm:template_edit", pk=template.pk)
+        if request.POST.get("action") == "test":
+            mailbox = _mailbox(request.user)
+            person = _pick_person(sample)
+            try:
+                if not person:
+                    raise SendError("There's nobody with an email address to render the test for.")
+                send_test(request.user, template, person, mailbox.email if mailbox else "")
+                messages.success(request, f"Saved, and a test sent to {mailbox.email}, filled in for {person}. Check your inbox.")
+            except (SendError, OSError) as exc:
+                messages.error(request, f"Saved, but the test didn't send: {exc}")
+        else:
+            messages.success(request, "Template saved.")
+        return redirect(reverse("crm:template_edit", args=[template.pk]) + (f"?sample={sample}" if sample else ""))
     preview = None
-    person = _sample_person() if template else None
+    person = _pick_person(sample) if template else None
     if person:
         subject, html, _ = compose(template, person, outreach_queue.greeting_for(person))
         preview = {"person": person, "subject": subject, "html": html}
-    return render(request, "crm/outreach_template_edit.html", {"form": form, "template": template, "preview": preview,
-                                                                "converted": form.started_from_html})
-
-
-def _sample_person():
-    queue, _ = outreach_queue.build(limit=1)
-    return queue[0].person if queue else Person.objects.exclude(email=None).first()
+    return render(request, "crm/outreach_template_edit.html", {
+        "form": form, "template": template, "preview": preview, "converted": form.started_from_html,
+        "people": _sample_people(), "sample": person.pk if person else "", "mailbox": _mailbox(request.user),
+        "global_files": [f.name for f in OutreachFile.objects.filter(active=True)]
+        if OutreachSettings.load().include_attachments else []})
 
 
 @require_POST
 def template_preview(request):
     """The email as it will be sent, from the unsaved editor text, for the live preview."""
-    person = _sample_person()
+    person = _pick_person(request.POST.get("sample"))
     if not person:
         return JsonResponse({"html": "<p>Add a person with an email address to preview.</p>", "subject": ""})
     draft = EmailTemplate(subject=request.POST.get("subject", ""), body_source=request.POST.get("body_source", ""))

@@ -939,3 +939,7 @@ tr.bd-total td { font-weight: 700; border-top: 2px solid var(--line); }
 .tpl-keys table { border-collapse: collapse; margin-top: 4px; }
 .tpl-keys td { padding: 3px 12px 3px 0; vertical-align: top; }
 .tpl-keys code { background: #eef1f5; padding: 1px 5px; border-radius: 4px; }
+.tpl-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.tpl-who { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; font-size: 13px; }
+.tpl-who select { flex: 1; min-width: 0; }
+.tpl-attach input[type=file] { font-size: 13px; }

@@ -165,6 +165,34 @@ class OutreachTests(TestCase):
         self.assertIn("Hi Ben, <em>hello</em>", data["html"])
         self.assertEqual(data["subject"], "S Firehawk")
 
+    def test_template_pdf_is_sent_and_a_test_goes_out_from_the_editor(self):
+        import tempfile
+
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from django.test import override_settings
+
+        self.client.force_login(self.user)
+        t = EmailTemplate.objects.get(template_id="T1")
+        url = f"/outreach/templates/{t.pk}/"
+        base = {"template_id": "T1", "name": "Fall defense", "campaign": "Fall", "priority": "High", "sector_match": "defense",
+                "subject": "Hi {company}", "body_source": "{greeting}, see the brochure", "active": "on"}
+        with tempfile.TemporaryDirectory() as media, override_settings(MEDIA_ROOT=media):
+            bad = self.client.post(url, {**base, "attachment": SimpleUploadedFile("x.pdf", b"not a pdf")})
+            self.assertContains(bad, "Upload a PDF file")
+            pdf = SimpleUploadedFile("Brochure.pdf", b"%PDF-1.4 fake")
+            FakeSmtp.sent = []
+            with patch("crm.outreach.sender.Smtp", FakeSmtp):
+                r = self.client.post(url, {**base, "attachment": pdf, "action": "test", "sample": str(self.ben.pk)})
+            self.assertEqual(r.status_code, 302)
+            t.refresh_from_db()
+            self.assertTrue(t.attachment.name.endswith(".pdf"))
+            msg = FakeSmtp.sent[-1]
+            self.assertTrue(msg["Subject"].startswith("[TEST] Hi Firehawk"))
+            self.assertIn("Brochure", [p.get_filename() or "" for p in msg.iter_attachments()][0])
+            page = self.client.get(url)
+            self.assertContains(page, "Save and send me a test")
+            self.assertContains(page, "PDF to include in the email")
+
     def test_weekly_report(self):
         now = timezone.now()
         Activity.objects.create(kind="email_sent", occurred_at=now, person=self.ben, company=self.co, summary="x",

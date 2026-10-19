@@ -1033,6 +1033,7 @@ class EmailTemplate(models.Model):
     body_source = models.TextField(blank=True, help_text="Plain-text body written in the editor; when set it generates body_html and body_plain (see crm/outreach/richtext.py)")
     body_html = models.TextField(blank=True)
     body_plain = models.TextField(blank=True)
+    attachment = models.FileField(upload_to="outreach/templates/", blank=True, help_text="A PDF sent with this template's emails, on top of the attachments every email gets")
     active = models.BooleanField(default=True)
 
     class Meta:

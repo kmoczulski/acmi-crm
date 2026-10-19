@@ -77,6 +77,19 @@ def attachments(settings=None):
     return files
 
 
+def template_files(template):
+    """The PDF uploaded on the template itself. Always sent with that template, whatever the global attachment setting."""
+    if not template or not template.attachment:
+        return []
+    name = template.attachment.name.rsplit("/", 1)[-1]
+    try:
+        with template.attachment.open("rb") as fh:
+            data = fh.read()
+    except (FileNotFoundError, OSError, ValueError):
+        raise SendError(f"The PDF on template {template.template_id} ({name}) is missing. Upload it again on the template.")
+    return [(name, data, mimetypes.guess_type(name)[0] or "application/pdf")]
+
+
 def build_message(mailbox, to_addr, subject, body_html, plain, files, settings):
     msg = EmailMessage()
     msg["From"] = formataddr((settings.sender_name, mailbox.email))
@@ -152,7 +165,8 @@ def send_test(user, template, person, to_addr):
     if mailbox is None:
         raise SendError("Connect your mailbox on the Mail page first.")
     subject, body_html, plain = compose(template, person, greeting_for(person), settings)
-    msg = build_message(mailbox, to_addr, f"[TEST] {subject}", body_html, plain, attachments(settings), settings)
+    msg = build_message(mailbox, to_addr, f"[TEST] {subject}", body_html, plain,
+                        attachments(settings) + template_files(template), settings)
     with Smtp(mailbox) as smtp:
         smtp.send(msg)
 
@@ -181,6 +195,9 @@ def run_batch(batch_id, sleep=time.sleep, resume=False):
         if mailbox is None:
             raise SendError("Connect your mailbox on the Mail page first.")
         files = attachments(settings)  # before anything is sent: a missing brochure fails the batch up front
+        own_files = {}  # each template's own PDF, read once per batch
+        for tpl in {i.template for i in batch.items.filter(status=SendItem.Status.PENDING).select_related("template") if i.template}:
+            own_files[tpl.pk] = template_files(tpl)
         with Smtp(mailbox) as smtp:
             for item in batch.items.filter(status=SendItem.Status.PENDING).select_related("person__company", "template"):
                 batch.refresh_from_db(fields=["stop_requested"])
@@ -195,7 +212,8 @@ def run_batch(batch_id, sleep=time.sleep, resume=False):
                         status=SendItem.Status.SENDING):
                     continue  # another sender already has this one
                 subject, body_html, plain = compose(item.template, item.person, greeting_for(item.person), settings)
-                msg = build_message(mailbox, item.email, subject, body_html, plain, files, settings)
+                msg = build_message(mailbox, item.email, subject, body_html, plain,
+                                     files + own_files.get(item.template_id, []), settings)
                 try:
                     smtp.send(msg)
                 except (smtplib.SMTPException, OSError) as exc:
