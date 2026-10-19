@@ -52,17 +52,24 @@ def site_brief(request, pk):
 
 def briefs_page(request):
     """Comparison cover page plus a brief per site. ?ids=1,2,3 (default: every site that isn't dropped)."""
-    ids = [int(i) for i in request.GET.get("ids", "").split(",") if i.strip().isdigit()]
+    # ?ids=1,2,3 or the site picker's repeated ?ids=1&ids=2
+    ids = [int(i) for raw in request.GET.getlist("ids") for i in raw.split(",") if i.strip().isdigit()]
     sites = LandSite.objects.filter(pk__in=ids) if ids else LandSite.objects.exclude(status=LandSite.Status.DROPPED)
     if request.method == "POST":  # "Re-run live checks"
         for s in sites:
             _build(s, refresh=True)
         return redirect(request.get_full_path())
-    built = [b for b in (_build(s) for s in sites) if b]
+    pairs = [(s, _build(s)) for s in sites]
+    built = [b for _, b in pairs if b]
+    skipped = [s for s, b in pairs if not b]  # a site with no parcels mapped can't be briefed
     built.sort(key=lambda b: b["ranking"])
     if built and request.GET.get("format") == "pdf":
         return _pdf(request, built, briefs.export_name())
+    picked = {b["site"].pk for b in built}
+    picker = [(s, s.pk in picked) for s in
+              LandSite.objects.select_related("campus", "project").exclude(status=LandSite.Status.DROPPED)]
     return render(request, "crm/land_briefs.html", {"briefs": built, "ids": ",".join(str(b["site"].pk) for b in built),
+                                                     "picker": picker, "skipped": skipped,
                                                      "definitions": briefs.definitions(built), "method": score.methodology(),
                                                      "zoning": briefs.zoning_sections(built)})
 

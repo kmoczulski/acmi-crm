@@ -6,7 +6,7 @@
   <h1>Prospective sites</h1>
   <span class="muted">{{ total }} active site{{ total|pluralize }} · {{ total_acres|floatformat:0|intcomma }} ac{% if archive %} · {{ archive|length }} archived{% endif %}</span>
   <span class="spacer"></span>
-  <a class="btn" href="{% url 'crm:land_briefs' %}" title="Comparison page plus a one-page brief with aerial per site">Compare &amp; print briefs</a>
+  <a class="btn" href="{% url 'crm:land_briefs' %}" title="Comparison page plus a one-page brief with aerial per site, for every active site. Tick sites below to pick some.">Compare all sites</a>
   <a class="btn" href="{% url 'crm:land_search' %}">Open the map</a>
 </div>
 <nav class="stage-filter" aria-label="Filter by deal stage">
@@ -44,6 +44,14 @@
 </section>
 {% endif %}
 
+<form method="get" action="{% url 'crm:land_briefs' %}" id="compare-form">
+<div class="compare-bar no-print" style="position:sticky;top:0;z-index:5;display:flex;gap:10px;align-items:center;padding:8px 12px;margin:0 0 12px;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius)">
+  <b id="compare-count">0 selected</b>
+  <span class="muted lc-small">Tick sites to compare them side by side with a brief for each.</span>
+  <span class="spacer" style="flex:1"></span>
+  <button type="button" class="btn btn-small" id="compare-clear">Clear</button>
+  <button class="btn btn-primary" id="compare-go" disabled>Compare selected</button>
+</div>
 {% for g in groups %}
 <section class="panel campus-card">
   <div class="campus-head">
@@ -55,9 +63,10 @@
   </div>
   <div class="table-wrap" style="border:0;border-radius:0">
     <table class="data sites-table sites-active">
-      <thead><tr><th>Status</th><th>Site</th><th class="num">Acres</th><th class="num">Parcels</th><th>Owners</th><th>Zoning</th><th class="num">Best score</th><th>Flags</th><th>Latest</th></tr></thead>
+      <thead><tr><th><input type="checkbox" data-group-all title="Select every site in this group" aria-label="Select every site in this group"></th><th>Status</th><th>Site</th><th class="num">Acres</th><th class="num">Parcels</th><th>Owners</th><th>Zoning</th><th class="num">Best score</th><th>Flags</th><th>Latest</th></tr></thead>
       <tbody>{% for r in g.rows %}
         <tr>
+          <td><input type="checkbox" name="ids" value="{{ r.site.pk }}" data-compare aria-label="Compare {{ r.site.name }}"></td>
           <td><span class="pill site-{{ r.site.status }}">{{ r.site.get_status_display }}</span>{% if r.clock %}<div class="deal-day" title="Days since the first dated milestone">{{ r.clock }}</div>{% endif %}</td>
           <td class="wrap"><a href="{% url 'crm:land_site_detail' r.site.pk %}"><b>{{ r.site.name }}</b></a> <a href="{{ r.site.get_absolute_url }}" class="lc-small" title="Open on the map">map ↗</a> <a href="{% url 'crm:land_site_brief' r.site.pk %}" class="lc-small" title="One-page brief with aerial">brief ↗</a>
             {% if r.progress %}<div class="sites-progress" title="{% for b in r.progress %}{{ b.label }}: {{ b.acres }} ac ({{ b.parcels }}){% if not forloop.last %} · {% endif %}{% endfor %}">{% for b in r.progress %}<span class="acq-seg site-{{ b.stage }}" style="width:{{ b.pct }}%"></span>{% endfor %}</div>{% endif %}
@@ -77,6 +86,31 @@
 {% empty %}
 <div class="panel"><p class="muted">No active sites{% if status != "active" %} at this stage{% endif %}. Build one on the map: Assemble, click parcels, then Save as site.</p></div>
 {% endfor %}
+</form>
+<script>
+(function () {
+  const form = document.getElementById('compare-form');
+  if (!form) return;
+  const boxes = () => [...form.querySelectorAll('input[data-compare]')];
+  const update = () => {
+    const n = boxes().filter(b => b.checked).length;
+    document.getElementById('compare-count').textContent = n + ' selected';
+    document.getElementById('compare-go').disabled = n < 1;
+    form.querySelectorAll('input[data-group-all]').forEach(a => {
+      const mine = [...a.closest('table').querySelectorAll('input[data-compare]')];
+      a.checked = mine.length > 0 && mine.every(b => b.checked);
+    });
+  };
+  form.addEventListener('change', e => {
+    if (e.target.matches('input[data-group-all]')) {
+      e.target.closest('table').querySelectorAll('input[data-compare]').forEach(b => { b.checked = e.target.checked; });
+    }
+    update();
+  });
+  document.getElementById('compare-clear').addEventListener('click', () => { boxes().forEach(b => { b.checked = false; }); update(); });
+  update();
+})();
+</script>
 
 {% if archive %}
 <details class="panel archive" id="archive">

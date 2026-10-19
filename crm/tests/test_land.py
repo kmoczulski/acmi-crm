@@ -837,6 +837,26 @@ class SiteBriefTests(TestCase):
         self.assertEqual(b["flags"][0]["kind"], "bad")  # red flags sort first
         self.assertTrue(b["hubzone"])
 
+    def test_pick_sites_to_compare_from_the_sites_page_and_the_briefs_page(self):
+        from crm.land import briefs
+
+        other = LandSite.objects.create(name="AZ - Petersen Park")
+        self.assertContains(self.client.get("/land/sites/"), f'name="ids" value="{other.pk}"')
+        with mock.patch.object(briefs, "run_checks_many"):
+            # The sites page sends repeated ids; one site only, then both.
+            one = self.client.get("/land/briefs/", {"ids": [self.site.pk]})
+            both = self.client.get(f"/land/briefs/?ids={self.site.pk}&ids={other.pk}")
+        self.assertEqual(len(one.context["briefs"]), 1)
+        self.assertEqual(len(both.context["briefs"]), 1)  # a site with no parcels can't be briefed...
+        self.assertContains(both, "Left out, no parcels mapped yet")  # ...and the page says so
+        self.assertContains(both, "AZ - Petersen Park")
+        self.assertContains(both, "Choose sites")
+        self.assertEqual(sorted(on for _, on in one.context["picker"]), [False, True])
+        other.parcels.set([self.a])
+        with mock.patch.object(briefs, "run_checks_many"):
+            two = self.client.get(f"/land/briefs/?ids={self.site.pk}&ids={other.pk}")
+        self.assertEqual(len(two.context["briefs"]), 2)
+
     def test_pages_render_and_aerial_is_a_jpeg(self):
         from crm.land import briefs
 

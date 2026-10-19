@@ -10,6 +10,16 @@
   <a class="btn btn-primary" href="?ids={{ ids }}&amp;format=pdf" title="Downloads one PDF: comparison, a page per site, and the notes">Save as PDF</a>
   <button class="btn" onclick="window.print()">Print</button>
 </div>
+<details class="panel no-print"{% if not briefs %} open{% endif %}>
+  <summary><b>Choose sites</b> <span class="muted lc-small">{{ briefs|length }} in this comparison</span></summary>
+  <form method="get" style="margin-top:8px">
+    <div style="columns:2 280px;column-gap:24px">{% for s, on in picker %}
+      <label style="display:block;break-inside:avoid;padding:2px 0"><input type="checkbox" name="ids" value="{{ s.pk }}"{% if on %} checked{% endif %}> {{ s.name }} <span class="muted lc-small">{{ s.home_label }} · {{ s.get_status_display }}</span></label>
+    {% empty %}<p class="muted">No sites yet.</p>{% endfor %}</div>
+    <p style="margin:10px 0 0"><button class="btn btn-primary">Update comparison</button> <a class="btn" href="{% url 'crm:land_briefs' %}">All active sites</a></p>
+  </form>
+</details>
+{% if skipped %}<p class="panel no-print lc-small" style="border-left:3px solid var(--warn, #f0a500)">Left out, no parcels mapped yet: {% for s in skipped %}<a href="{% url 'crm:land_site_detail' s.pk %}">{{ s.name }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}. Add parcels to them on the map to include them.</p>{% endif %}
 {% if briefs %}
 {% include "crm/partials/brief_cover.html" %}
 {% for b in briefs %}{% include "crm/partials/site_brief.html" %}{% include "crm/partials/site_brief_detail.html" %}{% endfor %}
