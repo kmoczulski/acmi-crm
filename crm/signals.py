@@ -21,3 +21,11 @@ def reply_notification(sender, instance, created, **kwargs):
         from .notify import reply_received
 
         reply_received(instance)
+
+
+@receiver(post_save, sender="crm.ChoiceOption")
+@receiver(post_delete, sender="crm.ChoiceOption")
+def dropdown_edited(sender, **kwargs):
+    from . import choices
+
+    choices.clear()

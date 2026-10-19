@@ -16,7 +16,7 @@
           <details class="ct-edit lc-small"><summary>edit</summary>
             <form method="post" class="fields">{% csrf_token %}<input type="hidden" name="action" value="closing_edit"><input type="hidden" name="item" value="{{ i.pk }}">
               <label>Item <input name="name" value="{{ i.name }}"></label>
-              <label>Side <select name="side">{% for v, l in closing_sides %}<option value="{{ v }}"{% if v == i.side %} selected{% endif %}>{{ l }}</option>{% endfor %}</select></label>
+              <label>Side <select name="side">{% for v, l in closing_sides|offer:i.side %}<option value="{{ v }}"{% if v == i.side %} selected{% endif %}>{{ l }}</option>{% endfor %}</select></label>
               <label>Who delivers it <input name="responsible" value="{{ i.responsible }}"></label>
               <label>Due <input type="date" name="due_on" value="{{ i.due_on|date:'Y-m-d' }}"></label>
               <label>Notes <input name="notes" value="{{ i.notes }}"></label>
@@ -32,7 +32,7 @@
     <details class="ct-add"><summary class="btn btn-small">Add an item</summary>
       <form method="post" class="fields">{% csrf_token %}<input type="hidden" name="action" value="closing_add">
         <label>Item <input name="name" required></label>
-        <label>Side <select name="side">{% for v, l in closing_sides %}<option value="{{ v }}">{{ l }}</option>{% endfor %}</select></label>
+        <label>Side <select name="side">{% for v, l in closing_sides|offer %}<option value="{{ v }}">{{ l }}</option>{% endfor %}</select></label>
         <label>Who delivers it <input name="responsible"></label>
         <label>Due <input type="date" name="due_on"></label>
         <button class="btn btn-small btn-primary">Add</button>

@@ -62,7 +62,7 @@
     <section class="panel">
       <h3>Log what went out</h3>
       <div class="lt-grid">
-        <label>How<select name="method">{% for v, l in methods %}<option value="{{ v }}">{{ l }}</option>{% endfor %}</select></label>
+        <label>How<select name="method">{% for v, l in methods|offer %}<option value="{{ v }}">{{ l }}</option>{% endfor %}</select></label>
         <label>Sent on<input type="date" name="sent_on" value="{{ today|date:'Y-m-d' }}" max="{{ today|date:'Y-m-d' }}"></label>
         <label class="lt-wide">Notes<input name="notes" maxlength="300" placeholder="e.g. certified, receipts in the site folder"></label>
       </div>

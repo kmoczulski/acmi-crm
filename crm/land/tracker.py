@@ -9,7 +9,17 @@ from collections import OrderedDict
 from ..models import LandSite, SiteParcelDeal
 
 STAGE_ORDER = LandSite.STATUS_ORDER  # furthest first; dropped last
-STAGE_LABEL = dict(LandSite.Status.choices)
+class _StageLabels:
+    """Site stage labels, read live so renames in Settings → Dropdown lists show up."""
+
+    def __getitem__(self, k):
+        return dict(LandSite.Status.choices)[k]
+
+    def get(self, k, default=None):
+        return dict(LandSite.Status.choices).get(k, default)
+
+
+STAGE_LABEL = _StageLabels()
 
 
 def _new_deal(site, parcel, single_owner):

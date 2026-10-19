@@ -144,7 +144,7 @@
             {% if d.source_href %}<a class="lc-small" href="{{ d.source_href }}" title="{{ d.quote|truncatechars:300 }}">source</a>{% endif %}
             <details class="lc-small ct-edit"><summary>edit</summary>
               <form method="post" class="fields">{% csrf_token %}<input type="hidden" name="action" value="date_edit"><input type="hidden" name="date_id" value="{{ d.pk }}">
-                <label>Type <select name="kind">{% for v, l in date_kinds %}<option value="{{ v }}"{% if v == d.kind %} selected{% endif %}>{{ l }}</option>{% endfor %}</select></label>
+                <label>Type <select name="kind">{% for v, l in date_kinds|offer:d.kind %}<option value="{{ v }}"{% if v == d.kind %} selected{% endif %}>{{ l }}</option>{% endfor %}</select></label>
                 <label>Label <input name="label" value="{{ d.label }}"></label>
                 <label>Date <input type="date" name="date" value="{{ d.date|date:'Y-m-d' }}"></label>
                 <label>Amount ($) <input name="amount" value="{{ d.amount|default_if_none:'' }}"></label>

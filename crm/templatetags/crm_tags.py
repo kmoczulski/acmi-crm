@@ -257,3 +257,11 @@ def as_json(value):
     import json
 
     return json.dumps(value or {})
+
+
+@register.filter
+def offer(option_list, current=None):
+    """{% for v, l in statuses|offer:site.status %}: a dropdown's options without the ones hidden in Settings."""
+    from crm.choices import visible
+
+    return visible(option_list, current)

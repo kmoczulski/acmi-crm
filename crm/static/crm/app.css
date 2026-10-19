@@ -1057,3 +1057,17 @@ tr.bd-total td { font-weight: 700; border-top: 2px solid var(--line); }
 .scard-date .sd-left { color: var(--muted); font-size: 12px; white-space: nowrap; }
 .scard-date.soon .sd-left { color: #c77700; font-weight: 600; }
 .scard-date.late .sd-left { color: #c62828; font-weight: 600; }
+
+/* Settings: dropdown lists */
+.dd-areas { display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 14px; align-items: start; }
+.dd-area h3 { margin-top: 0; }
+.dd-row { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; padding: 7px 8px; margin: 0 -8px; border-radius: 8px; color: var(--text); text-decoration: none; }
+.dd-row:hover { background: #f4f6f9; text-decoration: none; }
+.dd-row + .dd-row { border-top: 1px solid #f0f2f5; }
+.dd-used { display: block; margin-top: 1px; }
+.tag-open { background: #e3f5ea; color: #1a7a40; }
+.dd-table input[name^=label_] { width: 100%; box-sizing: border-box; }
+.dd-table tr.dd-hidden td { background: #f6f7f9; color: var(--muted); }
+.dd-table tr.dd-hidden input[name^=label_] { color: var(--muted); text-decoration: line-through; }
+.dd-new input { width: 320px; max-width: 100%; margin-left: 6px; }
+.dd-actions { margin-bottom: 0; }

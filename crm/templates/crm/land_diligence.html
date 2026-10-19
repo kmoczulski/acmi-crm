@@ -30,7 +30,7 @@
     {% else %}<div class="value muted">Not decided</div>{% endif %}
     {% if s.contract %}<details class="no-print lc-small"><summary>{% if s.contract.decision %}change{% else %}record the decision{% endif %}</summary>
       <form method="post" class="fields">{% csrf_token %}<input type="hidden" name="action" value="decision">
-        <select name="decision">{% for v, l in decisions %}<option value="{{ v }}"{% if v == s.contract.decision %} selected{% endif %}>{{ l }}</option>{% endfor %}</select>
+        <select name="decision">{% for v, l in decisions|offer:s.contract.decision %}<option value="{{ v }}"{% if v == s.contract.decision %} selected{% endif %}>{{ l }}</option>{% endfor %}</select>
         <textarea name="decision_note" rows="2" placeholder="Why (issues found, price, terms)">{{ s.contract.decision_note }}</textarea>
         <button class="btn btn-small btn-primary">Save</button></form></details>{% endif %}</div>
 </div>
@@ -68,7 +68,7 @@
         <td class="wrap"><b>{{ i.name }}</b>{% if i.how %}<div class="muted lc-small">{{ i.how }}</div>{% endif %}
           {% if i.findings %}<div class="lc-small dd-findings">{{ i.findings|linebreaksbr }}</div>{% endif %}</td>
         <td><form method="post" class="no-print">{% csrf_token %}<input type="hidden" name="action" value="status"><input type="hidden" name="item" value="{{ i.pk }}">
-            <select name="status" class="dd-status" onchange="this.form.submit()">{% for v, l in statuses %}<option value="{{ v }}"{% if v == i.status %} selected{% endif %}>{{ l }}</option>{% endfor %}</select></form>
+            <select name="status" class="dd-status" onchange="this.form.submit()">{% for v, l in statuses|offer:i.status %}<option value="{{ v }}"{% if v == i.status %} selected{% endif %}>{{ l }}</option>{% endfor %}</select></form>
           <span class="print-only">{{ i.get_status_display }}</span>
           {% if i.owner %}<div class="muted lc-small">{{ i.owner|username }}</div>{% endif %}</td>
         <td class="wrap lc-small">{{ i.consultant|default:"–" }}{% if i.ordered_on %}<div class="muted">ordered {{ i.ordered_on|date:"M j" }}</div>{% endif %}</td>
@@ -89,7 +89,7 @@
             <label>Item <input name="name" value="{{ i.name }}" required></label>
             <label>Group <input name="block" value="{{ i.block }}" required></label>
             <label>Deliverable / how verified <input name="how" value="{{ i.how }}"></label>
-            <label>Status <select name="status">{% for v, l in statuses %}<option value="{{ v }}"{% if v == i.status %} selected{% endif %}>{{ l }}</option>{% endfor %}</select></label>
+            <label>Status <select name="status">{% for v, l in statuses|offer:i.status %}<option value="{{ v }}"{% if v == i.status %} selected{% endif %}>{{ l }}</option>{% endfor %}</select></label>
             <label>Consultant <input name="consultant" value="{{ i.consultant }}"></label>
             <label>Chased by <select name="owner"><option value="">–</option>{% for u in users %}<option value="{{ u.pk }}"{% if u.pk == i.owner_id %} selected{% endif %}>{{ u|username }}</option>{% endfor %}</select></label>
             <label>Budget ($) <input name="budget" value="{{ i.budget|default_if_none:'' }}"></label>
@@ -121,7 +121,7 @@
     <label>Item <input name="name" required placeholder="e.g. Traffic impact study"></label>
     <label>Group <input name="block" value="Other" required></label>
     <label>Consultant <input name="consultant"></label>
-    <label>Status <select name="status">{% for v, l in statuses %}<option value="{{ v }}">{{ l }}</option>{% endfor %}</select></label>
+    <label>Status <select name="status">{% for v, l in statuses|offer %}<option value="{{ v }}">{{ l }}</option>{% endfor %}</select></label>
     <label>Due <input type="date" name="due_on"></label>
     <label>Budget ($) <input name="budget"></label>
     <div class="dd-wide"><button class="btn btn-small btn-primary">Add</button></div>

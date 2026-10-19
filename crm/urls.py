@@ -6,6 +6,7 @@ from .contracts import views as contract_views
 from .entitlements import views as entitlement_views
 from .tenants import views as tenant_views
 from .land import assignment_views as asg_views
+from . import settings_views
 from .land import brief_views, diligence_views, letter_views
 from .land import card_views as land_card_views
 from .land import views as land_views
@@ -80,6 +81,8 @@ urlpatterns = [
     path("tasks/<int:pk>/", views.task_detail, name="task_detail"),
     path("comments/add/", views.comment_add, name="comment_add"),
     path("comments/<int:pk>/delete/", views.comment_delete, name="comment_delete"),
+    path("settings/", settings_views.settings_home, name="settings_home"),
+    path("settings/dropdowns/<str:key>/", settings_views.dropdown_edit, name="dropdown_edit"),
     path("notifications/", views.notification_list, name="notification_list"),
     path("notifications/<int:pk>/", views.notification_open, name="notification_open"),
     path("notifications/poll/", views.notification_poll, name="notification_poll"),

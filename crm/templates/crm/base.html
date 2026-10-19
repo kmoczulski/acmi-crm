@@ -56,10 +56,12 @@
       <a href="{% url 'crm:weekly_report' %}" class="nav-1 {% if '/reports/weekly' in p %}active{% endif %}">Weekly report</a>
     </details>
 
-    {% if user.is_staff %}
+    {% if IS_MANAGER or user.is_staff %}
     <details class="nav-sec" data-key="settings">
       <summary>Settings</summary>
-      <a href="/admin/" class="nav-1">Admin</a>
+      {% if IS_MANAGER %}<a href="{% url 'crm:settings_home' %}" class="nav-1 {% if '/settings/' in p %}active{% endif %}">Dropdown lists</a>
+      <a href="{% url 'crm:outreach_settings' %}" class="nav-1 {% if p == '/outreach/settings/' %}active{% endif %}">Outreach settings</a>{% endif %}
+      {% if user.is_staff %}<a href="/admin/" class="nav-1">Admin</a>{% endif %}
     </details>
     {% endif %}
     {% endwith %}

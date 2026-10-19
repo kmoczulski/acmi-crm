@@ -2719,3 +2719,24 @@ class LandownerLetter(models.Model):
 
     def __str__(self):
         return f"Letter to {self.owner_name} ({self.sent_on})"
+
+
+class ChoiceOption(models.Model):
+    """An edit to one option of a dropdown list (Settings → Dropdown lists, crm/choices.py): a new label, position or
+    hidden flag for a built-in option, or an option added by the team."""
+
+    list_key = models.CharField(max_length=80, db_index=True, help_text="The list, e.g. LandSite.Status")
+    value = models.CharField(max_length=40)
+    label = models.CharField(max_length=200, blank=True)
+    position = models.PositiveSmallIntegerField(null=True, blank=True)
+    hidden = models.BooleanField(default=False, help_text="Not offered for new records")
+    added = models.BooleanField(default=False, help_text="Added by the team (not built in)")
+    updated_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["list_key", "position", "id"]
+        constraints = [models.UniqueConstraint(fields=["list_key", "value"], name="choice_option_unique")]
+
+    def __str__(self):
+        return f"{self.list_key}: {self.label or self.value}"

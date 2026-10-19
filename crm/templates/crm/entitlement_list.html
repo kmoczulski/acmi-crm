@@ -7,7 +7,7 @@
   <form method="get" class="inline-form">
     <select name="show" onchange="this.form.submit()"><option value="active">Active</option><option value="all"{% if show == "all" %} selected{% endif %}>All, incl. withdrawn and denied</option></select>
     <select name="campus" onchange="this.form.submit()"><option value="">Every campus</option>{% for c in campuses %}<option value="{{ c.code }}"{% if c.code|lower == campus|lower %} selected{% endif %}>{{ c.code }}</option>{% endfor %}</select>
-    <select name="kind" onchange="this.form.submit()"><option value="">Every kind</option>{% for v, l in kinds %}<option value="{{ v }}"{% if v == kind %} selected{% endif %}>{{ l }}</option>{% endfor %}</select>
+    <select name="kind" onchange="this.form.submit()"><option value="">Every kind</option>{% for v, l in kinds|offer:kind %}<option value="{{ v }}"{% if v == kind %} selected{% endif %}>{{ l }}</option>{% endfor %}</select>
   </form>
   <span class="spacer"></span>
   <button type="button" class="btn" onclick="document.getElementById('matrix').toggleAttribute('hidden')">Start a permit matrix</button>
