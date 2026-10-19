@@ -3,6 +3,7 @@ from datetime import date
 from django import forms
 from django.contrib import messages
 from django.db import transaction
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
@@ -13,6 +14,7 @@ from crm.cloudrun import JobError
 from crm.permissions import manager_required
 
 from . import queue as outreach_queue
+from . import richtext
 from . import report as weekly
 from .sender import SendError, compose, send_test, start_in_background, stop_batch
 
@@ -34,11 +36,36 @@ class SettingsForm(forms.ModelForm):
 
 
 class TemplateForm(forms.ModelForm):
+    body_source = forms.CharField(
+        required=False, label="Email body", widget=forms.Textarea(attrs={"rows": 14, "id": "id_body_source"}),
+        help_text="Plain text. A blank line starts a new paragraph. Use the toolbar for bold, italic, links and bullets.")
+
     class Meta:
         model = EmailTemplate
-        fields = ["template_id", "name", "campaign", "priority", "sector_match", "subject", "body_html", "body_plain",
-                  "active"]
-        widgets = {"body_html": forms.Textarea(attrs={"rows": 10}), "body_plain": forms.Textarea(attrs={"rows": 8})}
+        fields = ["template_id", "name", "campaign", "priority", "sector_match", "subject", "body_source", "body_html",
+                  "body_plain", "active"]
+        widgets = {"body_html": forms.Textarea(attrs={"rows": 8}), "body_plain": forms.Textarea(attrs={"rows": 6})}
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        inst = self.instance
+        self.started_from_html = bool(inst.pk and not inst.body_source and inst.body_html)
+        self.initial["body_source"] = inst.body_source or (richtext.from_html(inst.body_html) if self.started_from_html else "")
+        self.fields["body_html"].help_text = "Generated from the email body above. Edit it only if you clear the email body."
+        self.fields["body_plain"].help_text = "Generated from the email body above."
+
+    def save(self, commit=True):
+        obj = super().save(commit=False)
+        src = (self.cleaned_data.get("body_source") or "").strip()
+        untouched = self.started_from_html and src == (self.initial["body_source"] or "").strip()
+        if src and not untouched:  # the editor owns the body; an untouched conversion keeps the original HTML
+            obj.body_source = src
+            obj.body_html, obj.body_plain = richtext.to_html(src), richtext.to_plain(src)
+        else:
+            obj.body_source = ""  # blank, or the untouched conversion of the old HTML
+        if commit:
+            obj.save()
+        return obj
 
 
 def _mailbox(user):
@@ -167,13 +194,29 @@ def template_edit(request, pk=None):
         messages.success(request, "Template saved.")
         return redirect("crm:template_edit", pk=template.pk)
     preview = None
-    if template:
-        queue, _ = outreach_queue.build(limit=1)
-        person = queue[0].person if queue else Person.objects.exclude(email=None).first()
-        if person:
-            subject, html, _ = compose(template, person, outreach_queue.greeting_for(person))
-            preview = {"person": person, "subject": subject, "html": html}
-    return render(request, "crm/outreach_template_edit.html", {"form": form, "template": template, "preview": preview})
+    person = _sample_person() if template else None
+    if person:
+        subject, html, _ = compose(template, person, outreach_queue.greeting_for(person))
+        preview = {"person": person, "subject": subject, "html": html}
+    return render(request, "crm/outreach_template_edit.html", {"form": form, "template": template, "preview": preview,
+                                                                "converted": form.started_from_html})
+
+
+def _sample_person():
+    queue, _ = outreach_queue.build(limit=1)
+    return queue[0].person if queue else Person.objects.exclude(email=None).first()
+
+
+@require_POST
+def template_preview(request):
+    """The email as it will be sent, from the unsaved editor text, for the live preview."""
+    person = _sample_person()
+    if not person:
+        return JsonResponse({"html": "<p>Add a person with an email address to preview.</p>", "subject": ""})
+    draft = EmailTemplate(subject=request.POST.get("subject", ""), body_source=request.POST.get("body_source", ""))
+    draft.body_html, draft.body_plain = richtext.to_html(draft.body_source), richtext.to_plain(draft.body_source)
+    subject, html, _ = compose(draft, person, outreach_queue.greeting_for(person))
+    return JsonResponse({"html": html, "subject": subject, "person": str(person)})
 
 
 def weekly_report(request):

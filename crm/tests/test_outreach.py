@@ -132,6 +132,39 @@ class OutreachTests(TestCase):
                     "/outreach/settings/", "/reports/weekly/"):
             self.assertEqual(self.client.get(url).status_code, 200, url)
 
+    def test_plain_text_converts_to_email_html(self):
+        from crm.outreach import richtext
+
+        src = "{greeting},\n\nSee **bold**, _italic_ and [site](https://a.com/x_y?q=1&b=2) <b>\n\n- one\n- two"
+        html = richtext.to_html(src)
+        self.assertEqual(html, '<p>{greeting},</p><p>See <strong>bold</strong>, <em>italic</em> and '
+                               '<a href="https://a.com/x_y?q=1&amp;b=2">site</a> &lt;b&gt;</p><ul><li>one</li><li>two</li></ul>')
+        self.assertIn("site (https://a.com/x_y?q=1&b=2)", richtext.to_plain(src))
+        self.assertNotIn("**", richtext.to_plain(src))
+        self.assertNotIn("<a ", richtext.to_html("[x](javascript:alert(1))"))  # only http(s) and mailto links
+
+    def test_template_editor_saves_from_text_keeps_old_html_and_previews_live(self):
+        self.client.force_login(self.user)
+        old = EmailTemplate.objects.get(template_id="T1")
+        url = f"/outreach/templates/{old.pk}/"
+        page = self.client.get(url)
+        self.assertContains(page, "data-wrap")  # the formatting toolbar
+        self.assertContains(page, "This template was written as HTML")
+        fields = {"template_id": "T1", "name": "Fall defense", "campaign": "Fall", "priority": "High", "sector_match": "defense",
+                  "subject": "Hi {company}", "body_source": page.context["form"].initial["body_source"],
+                  "body_html": old.body_html, "body_plain": old.body_plain, "active": "on"}
+        self.client.post(url, fields)  # saved without touching the text: original HTML stays
+        old.refresh_from_db()
+        self.assertEqual((old.body_html, old.body_source), ("<p>{greeting},</p><p>About {sector}</p>", ""))
+        self.client.post(url, {**fields, "body_source": "{greeting},\n\nA **quick** note"})
+        old.refresh_from_db()
+        self.assertEqual(old.body_html, "<p>{greeting},</p><p>A <strong>quick</strong> note</p>")
+        self.assertEqual(old.body_plain, "{greeting},\n\nA quick note")
+        r = self.client.post("/outreach/templates/preview/", {"body_source": "Hi {first_name}, _hello_", "subject": "S {company}"})
+        data = r.json()
+        self.assertIn("Hi Ben, <em>hello</em>", data["html"])
+        self.assertEqual(data["subject"], "S Firehawk")
+
     def test_weekly_report(self):
         now = timezone.now()
         Activity.objects.create(kind="email_sent", occurred_at=now, person=self.ben, company=self.co, summary="x",

@@ -1030,6 +1030,7 @@ class EmailTemplate(models.Model):
                                 help_text="Blank = any priority")
     sector_match = models.CharField(max_length=120, blank=True, help_text="Part of the sector, or * for any")
     subject = models.CharField(max_length=300)
+    body_source = models.TextField(blank=True, help_text="Plain-text body written in the editor; when set it generates body_html and body_plain (see crm/outreach/richtext.py)")
     body_html = models.TextField(blank=True)
     body_plain = models.TextField(blank=True)
     active = models.BooleanField(default=True)

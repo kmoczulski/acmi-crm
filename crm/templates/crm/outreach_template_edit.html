@@ -6,14 +6,114 @@
   <span class="spacer"></span>
   <a class="btn" href="{% url 'crm:template_list' %}">All templates</a>
 </div>
-<div class="grid-2">
-  <div class="panel"><form method="post" class="fields">{% csrf_token %}{{ form.as_p }}<button class="btn-primary">Save</button></form></div>
+<div class="grid-2 tpl-edit">
   <div class="panel">
-    <h3>Preview{% if preview %} for {{ preview.person }}{% endif %}</h3>
-    {% if preview %}
-      <p style="margin-top:0"><strong>Subject:</strong> {{ preview.subject }}</p>
-      <iframe sandbox srcdoc="{{ preview.html }}" style="width:100%;height:520px;border:1px solid var(--line);border-radius:6px;background:#fff"></iframe>
-    {% else %}<p class="muted">Save the template to see a preview.</p>{% endif %}
+    <form method="post" class="fields" id="tpl-form">{% csrf_token %}{{ form.non_field_errors }}
+      <div class="tpl-meta">{% for f in form %}{% if f.name in "template_id name campaign priority sector_match active" %}<div class="tpl-f">{{ f.errors }}<label for="{{ f.id_for_label }}">{{ f.label }}</label>{{ f }}{% if f.help_text %}<small class="muted">{{ f.help_text }}</small>{% endif %}</div>{% endif %}{% endfor %}</div>
+      <div class="tpl-f">{{ form.subject.errors }}<label for="{{ form.subject.id_for_label }}">Subject</label>{{ form.subject }}</div>
+      <div class="tpl-f">
+        {{ form.body_source.errors }}
+        <label for="id_body_source">Email body</label>
+        <div class="fmt-bar" role="toolbar" aria-label="Formatting">
+          <button type="button" data-wrap="**" title="Bold (Ctrl+B)"><b>B</b></button>
+          <button type="button" data-wrap="_" title="Italic (Ctrl+I)"><i>I</i></button>
+          <button type="button" data-link title="Link (Ctrl+K)">Link</button>
+          <button type="button" data-list="- " title="Bullet list">• List</button>
+          <button type="button" data-list="1. " title="Numbered list">1. List</button>
+          <span class="fmt-sep"></span>
+          <span class="muted lc-small">Insert:</span>
+          <button type="button" data-ins="{greeting}">{greeting}</button>
+          <button type="button" data-ins="{first_name}">{first_name}</button>
+          <button type="button" data-ins="{company}">{company}</button>
+          <button type="button" data-ins="{sector}">{sector}</button>
+        </div>
+        {{ form.body_source }}
+        <small class="muted">{{ form.body_source.help_text }}</small>
+        <details class="tpl-keys" open><summary>Keys you can type <span class="muted lc-small">(or click the buttons above)</span></summary>
+          <table>
+            <tr><td><code>{greeting}</code></td><td>Their first name, or "To whom it may concern" when there's no name. Use it on the greeting line: <code>{greeting},</code></td></tr>
+            <tr><td><code>{first_name}</code></td><td>Their first name, or "there" when there's no name. Note the underscore, not a space.</td></tr>
+            <tr><td><code>{company}</code></td><td>Their company's name.</td></tr>
+            <tr><td><code>{sector}</code></td><td>Their company's sector.</td></tr>
+          </table>
+          <p class="muted lc-small" style="margin:6px 0 0">Formatting you can type: <code>**bold**</code> &nbsp; <code>_italic_</code> &nbsp; <code>[link text](https://address)</code> &nbsp; a line starting with <code>- </code> for a bullet, <code>1. </code> for a numbered line. Keys work in the subject too. Your signature is added under the body automatically.</p>
+        </details>
+        {% if converted %}<small class="tpl-note">This template was written as HTML. The text above is a plain-text copy of it. If you don't change it, the original HTML stays as it is; edit it and the email is rebuilt from the text.</small>{% endif %}
+      </div>
+      <details class="tpl-adv"><summary>Generated HTML and plain text</summary>
+        <div class="tpl-f">{{ form.body_html.errors }}<label for="{{ form.body_html.id_for_label }}">HTML</label>{{ form.body_html }}<small class="muted">{{ form.body_html.help_text }}</small></div>
+        <div class="tpl-f">{{ form.body_plain.errors }}<label for="{{ form.body_plain.id_for_label }}">Plain text</label>{{ form.body_plain }}<small class="muted">{{ form.body_plain.help_text }}</small></div>
+      </details>
+      <button class="btn-primary">Save</button>
+    </form>
+  </div>
+  <div class="panel tpl-preview">
+    <h3>Preview <span class="muted lc-small" id="pv-who">{% if preview %}for {{ preview.person }}{% endif %}</span></h3>
+    <p style="margin-top:0"><strong>Subject:</strong> <span id="pv-subject">{{ preview.subject }}</span></p>
+    <iframe id="pv-frame" sandbox srcdoc="{{ preview.html|default:'' }}" title="Email preview"></iframe>
+    <p class="muted lc-small" style="margin-bottom:0">Updates as you type, with a real contact's name filled in and your signature underneath.</p>
   </div>
 </div>
+<script>
+(function () {
+  const box = document.getElementById('id_body_source'), subj = document.getElementById('id_subject');
+  const frame = document.getElementById('pv-frame');
+  const token = document.querySelector('#tpl-form [name=csrfmiddlewaretoken]').value;
+  function edit(fn) {
+    const s = box.selectionStart, e = box.selectionEnd, v = box.value;
+    const r = fn(v.slice(s, e), v.slice(0, s), v.slice(e));
+    box.value = v.slice(0, s) + r.text + v.slice(e);
+    box.focus(); box.setSelectionRange(s + r.from, s + r.to);
+    refresh();
+  }
+  function wrap(mark) {
+    edit(sel => sel.startsWith(mark) && sel.endsWith(mark) && sel.length >= 2 * mark.length
+      ? {text: sel.slice(mark.length, -mark.length), from: 0, to: sel.length - 2 * mark.length}
+      : {text: mark + sel + mark, from: mark.length, to: mark.length + sel.length});
+  }
+  function link() {
+    const url = prompt('Link address (https://...)', 'https://');
+    if (!url || url === 'https://') return;
+    edit(sel => { const t = sel || 'link text'; return {text: '[' + t + '](' + url + ')', from: 1, to: 1 + t.length}; });
+  }
+  function list(prefix) {
+    const s = box.selectionStart, e = box.selectionEnd, v = box.value;
+    const a = v.lastIndexOf('\n', s - 1) + 1, b = e === s || v[e - 1] !== '\n' ? (v.indexOf('\n', e) < 0 ? v.length : v.indexOf('\n', e)) : e;
+    let n = 0;
+    const lines = v.slice(a, b).split('\n'), has = l => /^\s*([-*•]|\d+[.)])\s+/.test(l);
+    const out = lines.map(l => has(l) ? l.replace(/^\s*([-*•]|\d+[.)])\s+/, '') : (prefix === '1. ' ? (++n) + '. ' : prefix) + l);
+    box.value = v.slice(0, a) + out.join('\n') + v.slice(b);
+    box.focus(); box.setSelectionRange(a, a + out.join('\n').length); refresh();
+  }
+  document.querySelector('.fmt-bar').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.wrap) wrap(b.dataset.wrap);
+    else if ('link' in b.dataset) link();
+    else if (b.dataset.list) list(b.dataset.list);
+    else if (b.dataset.ins) edit(() => ({text: b.dataset.ins, from: b.dataset.ins.length, to: b.dataset.ins.length}));
+  });
+  box.addEventListener('keydown', e => {
+    if (!(e.ctrlKey || e.metaKey)) return;
+    const k = e.key.toLowerCase();
+    if (k === 'b') { e.preventDefault(); wrap('**'); } else if (k === 'i') { e.preventDefault(); wrap('_'); } else if (k === 'k') { e.preventDefault(); link(); }
+  });
+  let timer = null, seq = 0;
+  function refresh() {
+    clearTimeout(timer);
+    timer = setTimeout(async () => {
+      const mine = ++seq;
+      try {
+        const r = await fetch("{% url 'crm:template_preview' %}", {method: 'POST', headers: {'X-CSRFToken': token, 'Content-Type': 'application/x-www-form-urlencoded'},
+          body: new URLSearchParams({body_source: box.value, subject: subj.value})});
+        if (!r.ok || mine !== seq) return;
+        const d = await r.json();
+        frame.srcdoc = d.html; document.getElementById('pv-subject').textContent = d.subject;
+        if (d.person) document.getElementById('pv-who').textContent = 'for ' + d.person;
+      } catch (err) { /* the saved preview stays */ }
+    }, 250);
+  }
+  box.addEventListener('input', refresh); subj.addEventListener('input', refresh);
+  if (box.value.trim()) refresh();
+})();
+</script>
 {% endblock %}

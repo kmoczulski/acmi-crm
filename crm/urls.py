@@ -116,6 +116,7 @@ urlpatterns = [
     path("outreach/start/", outreach_views.outreach_start, name="outreach_start"),
     path("outreach/settings/", outreach_views.outreach_settings, name="outreach_settings"),
     path("outreach/templates/", outreach_views.template_list, name="template_list"),
+    path("outreach/templates/preview/", outreach_views.template_preview, name="template_preview"),
     path("outreach/templates/new/", outreach_views.template_edit, name="template_new"),
     path("outreach/templates/<int:pk>/", outreach_views.template_edit, name="template_edit"),
     path("outreach/batches/<int:pk>/", outreach_views.send_batch, name="send_batch"),

@@ -917,3 +917,25 @@ tr.bd-total td { font-weight: 700; border-top: 2px solid var(--line); }
 .sc-note { margin: 0; font-size: 12px; color: var(--muted); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .sc-actions { display: flex; gap: 6px; margin-top: auto; padding-top: 4px; }
 .site-card .sites-progress { width: 100%; margin-top: 0; }
+
+/* Email template editor */
+.tpl-meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px 12px; }
+.tpl-f { display: flex; flex-direction: column; gap: 3px; margin-bottom: 10px; }
+.tpl-f label { font-size: 12px; font-weight: 600; color: var(--muted); }
+.tpl-f input[type=text], .tpl-f select, .tpl-f textarea { width: 100%; box-sizing: border-box; }
+.tpl-f textarea { font-family: inherit; line-height: 1.45; }
+.fmt-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: 5px; border: 1px solid var(--line); border-bottom: 0; border-radius: 6px 6px 0 0; background: #f6f7f9; }
+.fmt-bar button { border: 1px solid var(--line); background: #fff; border-radius: 5px; padding: 3px 9px; font-size: 12.5px; cursor: pointer; }
+.fmt-bar button:hover { border-color: #9aa3ad; background: var(--accent-soft); }
+.fmt-sep { width: 1px; height: 18px; background: var(--line); margin: 0 4px; }
+.tpl-f .fmt-bar + textarea { border-radius: 0 0 6px 6px; }
+.tpl-note { color: #8a5a00; background: #fff6e0; border-radius: 6px; padding: 6px 9px; }
+.tpl-adv { margin: 4px 0 12px; }
+.tpl-adv summary { cursor: pointer; font-size: 12.5px; color: var(--muted); margin-bottom: 8px; }
+.tpl-preview iframe { width: 100%; height: 520px; border: 1px solid var(--line); border-radius: 6px; background: #fff; }
+.tpl-preview { position: sticky; top: 8px; align-self: start; }
+.tpl-keys { margin-top: 6px; font-size: 12.5px; }
+.tpl-keys summary { cursor: pointer; font-weight: 600; color: var(--muted); }
+.tpl-keys table { border-collapse: collapse; margin-top: 4px; }
+.tpl-keys td { padding: 3px 12px 3px 0; vertical-align: top; }
+.tpl-keys code { background: #eef1f5; padding: 1px 5px; border-radius: 4px; }
