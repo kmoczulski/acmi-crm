@@ -7,7 +7,7 @@ from django.template.loader import render_to_string
 
 from ..ai import enabled as ai_enabled
 from ..models import LandSite
-from . import briefs, flyer, listing, score
+from . import brief_options, briefs, flyer, listing, score
 
 
 def _build(site, refresh=False):
@@ -17,13 +17,14 @@ def _build(site, refresh=False):
         return None
 
 
-def _pdf(request, built, filename):
+def _pdf(request, built, filename, page_hide=frozenset()):
     """A PDF download of these briefs (cover page when there are several, notes page last), or back to the page."""
     try:
         for b in built:
             briefs.embed(b)
         html = render_to_string("crm/land_briefs_pdf.html", {
-            "briefs": built, "definitions": briefs.definitions(built), "method": score.methodology(), "zoning": briefs.zoning_sections(built), "css": briefs.pdf_css(),
+            "briefs": built, "definitions": briefs.definitions(built), "method": score.methodology(), "zoning": briefs.zoning_sections(built), "css": briefs.pdf_css(), "page_hide": page_hide,
+            "cover_rows": brief_options.COVER_ROWS,
             "logo_data": briefs.logo_data_uri(), "title": filename.rsplit(".", 1)[0].replace("_", " ")})
         data = briefs.html_to_pdf(html)
     except briefs.PdfUnavailable as exc:
@@ -43,8 +44,8 @@ def site_brief(request, pk):
         return redirect(request.get_full_path())
     brief = _build(site)
     if brief and request.GET.get("format") == "pdf":
-        return _pdf(request, [brief], briefs.export_name(site.name))
-    return render(request, "crm/land_site_brief.html", {"brief": brief, "site": site,
+        return _pdf(request, [brief], briefs.export_name(site.name), brief_options.page_hidden(request))
+    return render(request, "crm/land_site_brief.html", {"brief": brief, "site": site, "page_hide": brief_options.page_hidden(request),
                                                          "definitions": briefs.definitions([brief]) if brief else [],
                                                          "method": score.methodology(),
                                                          "zoning": briefs.zoning_sections([brief]) if brief else {}})
@@ -64,14 +65,34 @@ def briefs_page(request):
     skipped = [s for s, b in pairs if not b]  # a site with no parcels mapped can't be briefed
     built.sort(key=lambda b: b["ranking"])
     if built and request.GET.get("format") == "pdf":
-        return _pdf(request, built, briefs.export_name())
+        return _pdf(request, built, briefs.export_name(), brief_options.page_hidden(request))
     picked = {b["site"].pk for b in built}
     picker = [(s, s.pk in picked) for s in
               LandSite.objects.select_related("campus", "project").exclude(status=LandSite.Status.DROPPED)]
     return render(request, "crm/land_briefs.html", {"briefs": built, "ids": ",".join(str(b["site"].pk) for b in built),
-                                                     "picker": picker, "skipped": skipped,
+                                                     "picker": picker, "skipped": skipped, "page_hide": brief_options.page_hidden(request),
+                                                     "cover_rows": brief_options.COVER_ROWS, "pages": brief_options.PAGES,
+                                                     "hide_param": ",".join(sorted(brief_options.page_hidden(request))),
                                                      "definitions": briefs.definitions(built), "method": score.methodology(),
                                                      "zoning": briefs.zoning_sections(built)})
+
+
+def site_customize(request, pk):
+    """Switch sections of this site's brief on or off and add sections of your own text."""
+    from .views import _log
+
+    site = get_object_or_404(LandSite, pk=pk)
+    if request.method == "POST":
+        site.brief_options = brief_options.parse(request.POST)
+        site.save(update_fields=["brief_options", "updated_at"])
+        _log(site, request.user, "edit", "Brief layout edited")
+        messages.success(request, "Brief layout saved.")
+        return redirect("crm:land_site_brief", pk=site.pk)
+    hide, extras = brief_options.hidden(site), brief_options.extras(site)
+    slots = [extras[i] if i < len(extras) else {"title": "", "body": ""} for i in range(max(len(extras) + 1, 2))]
+    return render(request, "crm/land_site_customize.html", {
+        "site": site, "slots": list(enumerate(slots)),
+        "sections": [(k, label, page, k not in hide) for k, label, page in brief_options.SECTIONS]})
 
 
 def site_aerial(request, pk):

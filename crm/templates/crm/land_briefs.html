@@ -6,8 +6,8 @@
 <div class="brief-toolbar no-print">
   <a href="{% url 'crm:land_sites_page' %}">← Sites</a>
   <span class="spacer"></span>
-  <form method="post" action="?ids={{ ids }}" style="display:inline">{% csrf_token %}<button class="btn">Re-run live checks</button></form>
-  <a class="btn btn-primary" href="?ids={{ ids }}&amp;format=pdf" title="Downloads one PDF: comparison, a page per site, and the notes">Save as PDF</a>
+  <form method="post" action="?ids={{ ids }}{% if hide_param %}&amp;hide={{ hide_param }}{% endif %}" style="display:inline">{% csrf_token %}<button class="btn">Re-run live checks</button></form>
+  <a class="btn btn-primary" href="?ids={{ ids }}{% if hide_param %}&amp;hide={{ hide_param }}{% endif %}&amp;format=pdf" title="Downloads one PDF: comparison, a page per site, and the notes">Save as PDF</a>
   <button class="btn" onclick="window.print()">Print</button>
 </div>
 <details class="panel no-print"{% if not briefs %} open{% endif %}>
@@ -19,6 +19,26 @@
     <p style="margin:10px 0 0"><button class="btn btn-primary">Update comparison</button> <a class="btn" href="{% url 'crm:land_briefs' %}">All active sites</a></p>
   </form>
 </details>
+{% if briefs %}
+<details class="panel no-print"{% if hide_param %} open{% endif %}>
+  <summary><b>Add or remove from this report</b> <span class="muted lc-small">{% if hide_param %}{{ page_hide|length }} item{{ page_hide|length|pluralize }} removed{% else %}everything included{% endif %}</span></summary>
+  <form method="get" id="layout-form" class="report-layout">
+    <input type="hidden" name="ids" value="{{ ids }}">
+    <div class="rl-grid">
+      <fieldset><legend>Pages</legend>{% for k, label in pages %}<label><input type="checkbox" data-hide="{{ k }}"{% if k not in page_hide %} checked{% endif %}> {{ label }}</label>{% endfor %}</fieldset>
+      <fieldset><legend>Comparison rows</legend>{% for k, label in cover_rows %}<label><input type="checkbox" data-hide="row_{{ k }}"{% if "row_"|add:k not in page_hide %} checked{% endif %}> {{ label }}</label>{% endfor %}</fieldset>
+      <fieldset><legend>Sections and added text, per site</legend>{% for b in briefs %}<a class="rl-site" href="{% url 'crm:land_site_customize' b.site.pk %}">{{ b.site.name }}{% if b.hide or b.extras %} <span class="muted lc-small">· {{ b.hide|length }} removed, {{ b.extras|length }} added</span>{% endif %} →</a>{% endfor %}</fieldset>
+    </div>
+    <p class="rl-actions"><button class="btn btn-primary">Apply</button> <a class="btn" href="?ids={{ ids }}">Put everything back</a></p>
+  </form>
+</details>
+<script>
+document.getElementById('layout-form').addEventListener('submit', function (e) {
+  const form = e.target, off = [...form.querySelectorAll('input[data-hide]')].filter(c => !c.checked).map(c => c.dataset.hide);
+  if (off.length) { const h = document.createElement('input'); h.type = 'hidden'; h.name = 'hide'; h.value = off.join(','); form.appendChild(h); }
+});
+</script>
+{% endif %}
 {% if skipped %}<p class="panel no-print lc-small" style="border-left:3px solid var(--warn, #f0a500)">Left out, no parcels mapped yet: {% for s in skipped %}<a href="{% url 'crm:land_site_detail' s.pk %}">{{ s.name }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}. Add parcels to them on the map to include them.</p>{% endif %}
 {% if briefs %}
 {% include "crm/partials/brief_cover.html" %}

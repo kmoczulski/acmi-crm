@@ -25,7 +25,7 @@ from PIL import Image, ImageDraw, ImageFont
 from pyproj import Transformer
 from shapely.geometry import shape
 
-from . import listing as listing_mod, score, trim, zoning_ref
+from . import brief_options, listing as listing_mod, score, trim, zoning_ref
 from .lookup import checks_for, run_checks_many
 from .sources import STORED_LAYERS, fema_flood_url
 from .views import near_rows
@@ -442,6 +442,7 @@ def build(site, refresh=False):
         })
     return {
         "parcel_rows": parcel_rows, "listing": listing_mod.display(site.listing),
+        "hide": brief_options.hidden(site), "extras": brief_options.extras(site),
         "site": site, "parcels": parcels, "n_parcels": len(parcels), "gross": round(gross, 1), "net": net,
         "flood": flood, "flood_zones": zones, "wetlands": wet, "owners": owners, "zoning": zoning, "industrial_pct": industrial_pct,
         "near": near, "electric": electric, "water": water, "sewer": sewer,

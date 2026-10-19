@@ -149,6 +149,7 @@ urlpatterns = [
     path("land/sites/save/", land_views.site_save, name="land_site_save"),
     path("land/sites/<int:pk>/brief/", brief_views.site_brief, name="land_site_brief"),
     path("land/sites/<int:pk>/aerial.jpg", brief_views.site_aerial, name="land_site_aerial"),
+    path("land/sites/<int:pk>/brief/customize/", brief_views.site_customize, name="land_site_customize"),
     path("land/briefs/", brief_views.briefs_page, name="land_briefs"),
     path("land/sites/<int:pk>/listing/", brief_views.site_listing, name="land_site_listing"),
     path("land/sites/<int:pk>/flyer/", brief_views.site_flyer, name="land_site_flyer"),

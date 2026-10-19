@@ -1,4 +1,4 @@
-{% if zoning.districts or zoning.undocumented or zoning.no_layer %}
+{% if "zoning" not in page_hide and zoning.districts or "zoning" not in page_hide and zoning.undocumented or "zoning" not in page_hide and zoning.no_layer %}
 <article class="brief brief-zoning">
   <div class="brief-top">{% include "crm/partials/report_logo.html" with width="105" %}<span>Zoning districts and permitted uses</span></div>
   <h1>Zoning districts on these sites</h1>

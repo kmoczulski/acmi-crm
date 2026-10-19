@@ -1,4 +1,4 @@
-<article class="brief brief-notes">
+{% if "definitions" not in page_hide %}<article class="brief brief-notes">
   <div class="brief-top">{% include "crm/partials/report_logo.html" with width="105" %}<span>Notes &amp; definitions</span></div>
   <h1>Notes &amp; definitions</h1>
   <p class="sub">Plain-language meanings for the terms, designations and layers used in these briefs. Only the terms that appear are listed.</p>
@@ -13,4 +13,4 @@
   <h2>Terms</h2>
   <dl class="defs">{% for term, text in definitions %}<div class="def"><dt>{{ term }}</dt><dd>{{ text }}</dd></div>{% endfor %}</dl>
   <div class="brief-foot">ACMI Properties. Screening information from public records and live federal checks; confirm with the jurisdiction, the utility and a licensed professional before relying on it.</div>
-</article>
+</article>{% endif %}

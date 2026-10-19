@@ -3,23 +3,26 @@
 {% block title %}Sites · Land search · ACMI CRM{% endblock %}
 {% block content %}
 <div class="page-head">
-  <h1>Prospective sites</h1>
-  <span class="muted">{{ total }} active site{{ total|pluralize }} · {{ total_acres|floatformat:0|intcomma }} ac{% if archive %} · {{ archive|length }} archived{% endif %}</span>
+  <h1>Sites</h1>
   <span class="spacer"></span>
-  <a class="btn" href="{% url 'crm:land_briefs' %}" title="Comparison page plus a one-page brief with aerial per site, for every active site. Tick sites below to pick some.">Compare all sites</a>
   <a class="btn" href="{% url 'crm:land_search' %}">Open the map</a>
+  <a class="btn btn-primary" href="{% url 'crm:land_briefs' %}" title="Comparison page plus a one-page brief with aerial per site. Tick sites below to pick some.">Compare all sites</a>
+</div>
+<div class="sites-stats">
+  <div><b>{{ total }}</b><span>active site{{ total|pluralize }}</span></div>
+  <div><b>{{ total_acres|floatformat:0|intcomma }}</b><span>acres mapped</span></div>
+  <div><b>{{ groups|length }}</b><span>campus / project group{{ groups|length|pluralize }}</span></div>
+  {% if archive %}<div><b>{{ archive|length }}</b><span>archived</span></div>{% endif %}
 </div>
 <nav class="stage-filter" aria-label="Filter by deal stage">
-  <span class="stage-filter-label">Stage</span>
   <a class="stage-chip{% if status not in stage_values %} on{% endif %}" href="?">All active <b>{{ active_count }}</b></a>
   {% for value, label, n in stage_chips %}<a class="stage-chip{% if status == value %} on{% endif %}{% if not n %} empty{% endif %}" href="?status={{ value }}"><i class="acq-key site-{{ value }}"></i>{{ label }} <b>{{ n }}</b></a>{% endfor %}
   {% if archive %}<a class="stage-chip stage-chip-archive" href="#archive">Archived <b>{{ archive|length }}</b></a>{% endif %}
 </nav>
-<p class="muted" style="margin-top:0">Sites are saved from the map (Assemble → Save as site). Each group is sorted by deal stage. Acres are mapped acres; net usable shows once every parcel's flood and wetland checks have run.</p>
 
 {% if timeline %}
-<section class="panel">
-  <h3>Deal timelines <span class="muted lc-small">active sites with dates · dots are milestones · bar runs from first milestone to today (or closing)</span></h3>
+<details class="panel sites-timeline">
+  <summary><h3>Deal timelines</h3> <span class="muted lc-small">dots are milestones · the bar runs from the first milestone to today or closing</span></summary>
   <div class="gantt">
     <div class="gantt-axis">{% for m in timeline.months %}<span style="left:{{ m.pct }}%">{{ m.label }}</span>{% endfor %}</div>
     {% for r in timeline.rows %}
@@ -41,46 +44,49 @@
       <span><i class="gantt-today-key"></i>Today</span>
     </div>
   </div>
-</section>
+</details>
 {% endif %}
 
 <form method="get" action="{% url 'crm:land_briefs' %}" id="compare-form">
-<div class="compare-bar no-print" style="position:sticky;top:0;z-index:5;display:flex;gap:10px;align-items:center;padding:8px 12px;margin:0 0 12px;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius)">
+<div class="compare-bar no-print" id="compare-bar" hidden>
   <b id="compare-count">0 selected</b>
-  <span class="muted lc-small">Tick sites to compare them side by side with a brief for each.</span>
-  <span class="spacer" style="flex:1"></span>
+  <span class="muted lc-small">Compare them side by side, with a brief for each.</span>
+  <span class="spacer"></span>
   <button type="button" class="btn btn-small" id="compare-clear">Clear</button>
   <button class="btn btn-primary" id="compare-go" disabled>Compare selected</button>
 </div>
 {% for g in groups %}
-<section class="panel campus-card">
-  <div class="campus-head">
-    <div>
-      <h2>{% if g.campus %}{{ g.campus.code }}{% else %}No campus{% endif %}{% if g.project %} <span class="muted">›</span> <a href="{{ g.project.get_absolute_url }}">{{ g.project.name }}</a>{% elif g.campus %} <span class="muted">· {{ g.campus.name }}</span>{% endif %}</h2>
-      <div class="lc-small">{% for label, n in g.by_status %}<span class="muted">{{ n }} {{ label|lower }}</span>{% if not forloop.last %} · {% endif %}{% endfor %}</div>
-    </div>
-    <div class="campus-stats"><b>{{ g.count }}</b> site{{ g.count|pluralize }} · <b>{{ g.acres|floatformat:0|intcomma }}</b> ac in play</div>
-  </div>
-  <div class="table-wrap" style="border:0;border-radius:0">
-    <table class="data sites-table sites-active">
-      <thead><tr><th><input type="checkbox" data-group-all title="Select every site in this group" aria-label="Select every site in this group"></th><th>Status</th><th>Site</th><th class="num">Acres</th><th class="num">Parcels</th><th>Owners</th><th>Zoning</th><th class="num">Best score</th><th>Flags</th><th>Latest</th></tr></thead>
-      <tbody>{% for r in g.rows %}
-        <tr>
-          <td><input type="checkbox" name="ids" value="{{ r.site.pk }}" data-compare aria-label="Compare {{ r.site.name }}"></td>
-          <td><span class="pill site-{{ r.site.status }}">{{ r.site.get_status_display }}</span>{% if r.clock %}<div class="deal-day" title="Days since the first dated milestone">{{ r.clock }}</div>{% endif %}</td>
-          <td class="wrap"><a href="{% url 'crm:land_site_detail' r.site.pk %}"><b>{{ r.site.name }}</b></a> <a href="{{ r.site.get_absolute_url }}" class="lc-small" title="Open on the map">map ↗</a> <a href="{% url 'crm:land_site_brief' r.site.pk %}" class="lc-small" title="One-page brief with aerial">brief ↗</a>
-            {% if r.progress %}<div class="sites-progress" title="{% for b in r.progress %}{{ b.label }}: {{ b.acres }} ac ({{ b.parcels }}){% if not forloop.last %} · {% endif %}{% endfor %}">{% for b in r.progress %}<span class="acq-seg site-{{ b.stage }}" style="width:{{ b.pct }}%"></span>{% endfor %}</div>{% endif %}
-            <div class="muted lc-small">{{ r.counties|join:", " }}{% if r.site.campus and r.site.project %} · {{ r.site.campus.code }}{% endif %}{% if r.has_qd %} · QD plan{% endif %}</div></td>
-          <td class="num">{{ r.acres|floatformat:1|intcomma }}{% if r.net is not None %}<div class="muted lc-small">{{ r.net|floatformat:0|intcomma }} net</div>{% endif %}</td>
-          <td class="num">{{ r.parcels }}</td>
-          <td class="wrap lc-small">{% for o, ac in r.owners|slice:":3" %}{{ o|title }} <span class="muted">({{ ac|floatformat:0 }} ac)</span>{% if not forloop.last %}<br>{% endif %}{% endfor %}{% if r.owners|length > 3 %}<br><span class="muted">+{{ r.owners|length|add:"-3" }} more</span>{% endif %}{% if not r.owners %}<span class="muted">No parcels mapped</span>{% endif %}</td>
-          <td class="lc-small">{{ r.zoning|join:", " }}</td>
-          <td class="num">{% if r.score is not None %}{{ r.score }}{% else %}–{% endif %}</td>
-          <td class="wrap lc-small">{% for k in r.killers|slice:":2" %}<div class="overdue">⛔ {{ k }}</div>{% empty %}<span class="muted">–</span>{% endfor %}</td>
-          <td class="wrap lc-small sites-note"><div class="note-clamp" title="{{ r.note }}">{{ r.note }}</div></td>
-        </tr>{% endfor %}
-      </tbody>
-    </table>
+<section class="site-group">
+  <header class="sg-head">
+    <h2>{% if g.campus %}{{ g.campus.code }}{% else %}No campus{% endif %}{% if g.project %} <span class="muted">&rsaquo;</span> <a href="{{ g.project.get_absolute_url }}">{{ g.project.name }}</a>{% elif g.campus %} <span class="muted">&middot; {{ g.campus.name }}</span>{% endif %}</h2>
+    <span class="sg-meta"><b>{{ g.count }}</b> site{{ g.count|pluralize }} &middot; <b>{{ g.acres|floatformat:0|intcomma }}</b> ac{% for label, n in g.by_status %}{% if forloop.first %} &middot; {% endif %}{{ n }} {{ label|lower }}{% if not forloop.last %}, {% endif %}{% endfor %}</span>
+    <label class="sg-all"><input type="checkbox" data-group-all aria-label="Select every site in this group"> Select all</label>
+  </header>
+  <div class="site-cards">{% for r in g.rows %}
+    <article class="site-card site-{{ r.site.status }}">
+      <div class="sc-top">
+        <label class="sc-check"><input type="checkbox" name="ids" value="{{ r.site.pk }}" data-compare aria-label="Compare {{ r.site.name }}"></label>
+        <span class="pill site-{{ r.site.status }}">{{ r.site.get_status_display }}</span>{% if r.clock %}<span class="sc-day" title="Days since the first dated milestone">{{ r.clock }}</span>{% endif %}
+        <span class="spacer"></span>
+        {% if r.score is not None %}<span class="sc-score" title="Best buy-box score of its parcels">{{ r.score }}</span>{% endif %}
+      </div>
+      <h3 class="sc-name"><a href="{% url 'crm:land_site_detail' r.site.pk %}">{{ r.site.name }}</a></h3>
+      <div class="sc-where">{{ r.counties|join:", " }}{% if r.zoning %} &middot; {{ r.zoning|join:", " }}{% endif %}{% if r.has_qd %} &middot; QD plan{% endif %}</div>
+      <div class="sc-metrics">
+        <div><b>{{ r.acres|floatformat:1|intcomma }}</b><span>acres</span></div>
+        <div><b>{% if r.net is not None %}{{ r.net|floatformat:0|intcomma }}{% else %}&ndash;{% endif %}</b><span>net usable</span></div>
+        <div><b>{{ r.parcels }}</b><span>parcel{{ r.parcels|pluralize }}</span></div>
+      </div>
+      {% if r.progress %}<div class="sites-progress" title="{% for b in r.progress %}{{ b.label }}: {{ b.acres }} ac ({{ b.parcels }}){% if not forloop.last %} &middot; {% endif %}{% endfor %}">{% for b in r.progress %}<span class="acq-seg site-{{ b.stage }}" style="width:{{ b.pct }}%"></span>{% endfor %}</div>{% endif %}
+      <div class="sc-owners">{% for o, ac in r.owners|slice:":2" %}<div>{{ o|title }} <span class="muted">{{ ac|floatformat:0 }} ac</span></div>{% endfor %}{% if r.owners|length > 2 %}<div class="muted">+{{ r.owners|length|add:"-2" }} more owner{{ r.owners|length|add:"-2"|pluralize }}</div>{% endif %}{% if not r.owners %}<div class="muted">No parcels mapped</div>{% endif %}</div>
+      {% if r.killers %}<div class="sc-flags">{% for k in r.killers|slice:":2" %}<span class="sc-flag" title="{{ k }}">&#9940; {{ k }}</span>{% endfor %}{% if r.killers|length > 2 %}<span class="muted lc-small">+{{ r.killers|length|add:"-2" }}</span>{% endif %}</div>{% endif %}
+      {% if r.note %}<p class="sc-note" title="{{ r.note }}">{{ r.note }}</p>{% endif %}
+      <div class="sc-actions">
+        <a class="btn btn-small" href="{% url 'crm:land_site_detail' r.site.pk %}">Open</a>
+        <a class="btn btn-small" href="{% url 'crm:land_site_brief' r.site.pk %}">Brief</a>
+        <a class="btn btn-small" href="{{ r.site.get_absolute_url }}">Map</a>
+      </div>
+    </article>{% endfor %}
   </div>
 </section>
 {% empty %}
@@ -96,14 +102,15 @@
     const n = boxes().filter(b => b.checked).length;
     document.getElementById('compare-count').textContent = n + ' selected';
     document.getElementById('compare-go').disabled = n < 1;
+    document.getElementById('compare-bar').hidden = n < 1;
     form.querySelectorAll('input[data-group-all]').forEach(a => {
-      const mine = [...a.closest('table').querySelectorAll('input[data-compare]')];
+      const mine = [...a.closest('.site-group').querySelectorAll('input[data-compare]')];
       a.checked = mine.length > 0 && mine.every(b => b.checked);
     });
   };
   form.addEventListener('change', e => {
     if (e.target.matches('input[data-group-all]')) {
-      e.target.closest('table').querySelectorAll('input[data-compare]').forEach(b => { b.checked = e.target.checked; });
+      e.target.closest('.site-group').querySelectorAll('input[data-compare]').forEach(b => { b.checked = e.target.checked; });
     }
     update();
   });

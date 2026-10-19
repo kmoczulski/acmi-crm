@@ -49,6 +49,7 @@ table.parcel-table td.nowrap { white-space: nowrap; }
 table.claims th { width: auto; white-space: normal; background: #f4f6f9; }
 table.claims th.status, table.claims td.status { width: 104px; text-align: center; white-space: nowrap; }
 .na { color: #8a929c; }
+.brief-extra { margin-top: 4px; }
 table.claims td { font-size: 10.5px; }
 .brief-detail .brief-cols table th { width: 30%; }
 .zd { break-inside: avoid; border-top: 1px solid #dde2e8; padding: 6px 0 4px; }

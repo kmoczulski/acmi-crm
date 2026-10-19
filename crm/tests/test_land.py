@@ -837,6 +837,48 @@ class SiteBriefTests(TestCase):
         self.assertEqual(b["flags"][0]["kind"], "bad")  # red flags sort first
         self.assertTrue(b["hubzone"])
 
+    def test_sections_can_be_removed_and_added_per_site(self):
+        from crm.land import briefs
+
+        with mock.patch.object(briefs, "run_checks_many"):
+            full = self.client.get(f"/land/sites/{self.site.pk}/brief/")
+            self.assertContains(full, "Power, roads &amp; utilities")
+            self.assertContains(full, "Parcels in this site")
+            form = self.client.get(f"/land/sites/{self.site.pk}/brief/customize/")
+            self.assertContains(form, "Your own sections")
+            resp = self.client.post(f"/land/sites/{self.site.pk}/brief/customize/", {
+                "show": ["maps", "ownership", "flags", "verify", "notes", "flyer", "claims"],  # power and parcels left out
+                "extra_title_0": "Why ACMI likes it", "extra_body_0": "Next to the I-10 interchange."})
+            self.assertRedirects(resp, f"/land/sites/{self.site.pk}/brief/")
+            cut = self.client.get(f"/land/sites/{self.site.pk}/brief/")
+        self.assertNotContains(cut, "Power, roads &amp; utilities")
+        self.assertNotContains(cut, "Parcels in this site")
+        self.assertContains(cut, "Why ACMI likes it")
+        self.assertContains(cut, "Next to the I-10 interchange.")
+        self.site.refresh_from_db()
+        self.assertEqual(sorted(self.site.brief_options["hide"]), ["parcels", "power"])
+        with mock.patch.object(briefs, "run_checks_many"):
+            self.client.post(f"/land/sites/{self.site.pk}/brief/customize/", {
+                "show": ["maps", "ownership", "flags", "power", "verify", "notes", "parcels", "flyer", "claims"],
+                "extra_title_0": "Why ACMI likes it", "extra_body_0": "x", "extra_remove_0": "on"})
+            back = self.client.get(f"/land/sites/{self.site.pk}/brief/")
+        self.assertContains(back, "Power, roads &amp; utilities")
+        self.assertNotContains(back, "Why ACMI likes it")
+
+    def test_comparison_pages_and_rows_can_be_removed(self):
+        from crm.land import briefs
+
+        other = LandSite.objects.create(name="AZ - Second")
+        other.parcels.set([self.a])
+        with mock.patch.object(briefs, "run_checks_many"):
+            both = self.client.get(f"/land/briefs/?ids={self.site.pk}&ids={other.pk}")
+            cut = self.client.get(f"/land/briefs/?ids={self.site.pk}&ids={other.pk}&hide=row_flood,definitions,zoning")
+        self.assertContains(both, "FEMA floodplain</th>")
+        self.assertContains(both, "Notes &amp; definitions")
+        self.assertNotContains(cut, "FEMA floodplain</th>")
+        self.assertNotContains(cut, "How the buy-box score is calculated")
+        self.assertContains(cut, "Add or remove from this report")
+
     def test_pick_sites_to_compare_from_the_sites_page_and_the_briefs_page(self):
         from crm.land import briefs
 

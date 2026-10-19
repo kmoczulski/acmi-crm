@@ -1,7 +1,7 @@
 {% load humanize %}<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><title>{{ title }}</title><style>{{ css|safe }}</style></head>
 <body>
-{% if briefs|length > 1 %}{% include "crm/partials/brief_cover.html" %}{% endif %}
+{% if briefs|length > 1 and "cover" not in page_hide %}{% include "crm/partials/brief_cover.html" %}{% endif %}
 {% for b in briefs %}{% include "crm/partials/site_brief.html" %}{% include "crm/partials/site_brief_detail.html" %}{% endfor %}
 {% include "crm/partials/brief_zoning.html" %}{% include "crm/partials/brief_notes.html" %}
 </body></html>

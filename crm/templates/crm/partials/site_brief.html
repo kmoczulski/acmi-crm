@@ -11,25 +11,25 @@
     <div class="brief-score" title="ACMI buy-box screen, acre-weighted{% if b.score_range.0 != b.score_range.1 %} (parcels {{ b.score_range.0 }} to {{ b.score_range.1 }}){% endif %}"><b>{{ b.score }}</b><span>Buy-box score</span></div>
   </div>
 
-  <div class="brief-maps">
+{% if "maps" not in b.hide %}  <div class="brief-maps">
     <figure><img src="{% if b.aerial_site %}{{ b.aerial_site }}{% else %}{% url 'crm:land_site_aerial' b.site.pk %}{% endif %}" alt="Aerial of {{ b.site.name }}"><figcaption>Site outlined in yellow, parcel lines white. <b class="flood-key"></b> FEMA 100-year floodplain, <b class="flood-key x"></b> shaded Zone X</figcaption></figure>
     <figure><img src="{% if b.aerial_context %}{{ b.aerial_context }}{% else %}{% url 'crm:land_site_aerial' b.site.pk %}?mode=context{% endif %}" alt="Location of {{ b.site.name }}"><figcaption>Context, about 5 miles across: roads, places and the same FEMA flood layer</figcaption></figure>
   </div>
-
+{% endif %}
   <div class="brief-cols">
     <div>
-      <h2>Ownership &amp; zoning</h2>
+      {% if "ownership" not in b.hide %}<h2>Ownership &amp; zoning</h2>
       <table>
         <tr><th>Owner{{ b.owners|length|pluralize }}</th><td>{% for o in b.owners %}<div>{{ o.name }} <span class="muted">· {{ o.acres|floatformat:0|intcomma }} ac{% if o.parcels > 1 %}, {{ o.parcels }} parcels{% endif %}{% if o.mail %} · mails to {{ o.mail }}{% endif %}</span></div>{% endfor %}</td></tr>
         <tr><th>Zoning (public map)</th><td>{% for z in b.zoning %}<div><b>{{ z.code }}</b>{% if z.name %} {{ z.name }}{% endif %} <span class="muted">· {{ z.pct }}% of acres{% if z.authority %} · {{ z.authority }}{% endif %}</span></div>{% endfor %}</td></tr>
         {% if b.market_value %}<tr><th>Assessed value</th><td>${{ b.market_value|intcomma }}{% if b.tax_year %} <span class="muted">· {{ b.tax_year }} roll</span>{% endif %}</td></tr>{% elif b.land_value %}<tr><th>Land value (roll)</th><td>${{ b.land_value|intcomma }} <span class="muted">· assessor land value, not a market price</span></td></tr>{% endif %}
-      </table>
+      </table>{% endif %}
 
-      <h2>Flags</h2>
-      <ul>{% for f in b.flags %}<li class="{{ f.kind }}">{{ f.text }}</li>{% endfor %}</ul>
+      {% if "flags" not in b.hide %}<h2>Flags</h2>
+      <ul>{% for f in b.flags %}<li class="{{ f.kind }}">{{ f.text }}</li>{% endfor %}</ul>{% endif %}
     </div>
     <div>
-      <h2>Power, roads &amp; utilities</h2>
+      {% if "power" not in b.hide %}<h2>Power, roads &amp; utilities</h2>
       <table>
         {% for r in b.near %}<tr><th>{{ r.label }}</th><td><b>{{ r.miles|floatformat:1 }} mi</b> <span class="muted">{{ r.name }}</span></td></tr>{% endfor %}
         <tr><th>Electric (retail)</th><td>{% for x in b.electric %}<div>{{ x.name }}{% if x.kind %} <span class="muted">· {{ x.kind }}</span>{% endif %}</div>{% empty %}<span class="muted">Not mapped</span>{% endfor %}</td></tr>
@@ -38,19 +38,20 @@
         <tr><th>Flood / wetlands</th><td>{% if b.flood is None %}<span class="muted">Not checked</span>{% else %}<b>{{ b.flood|floatformat:0 }}%</b> in the 100-yr floodplain · <b>{{ b.wetlands|floatformat:1 }}%</b> wetlands{% endif %}</td></tr>
         <tr><th>EPA cleanups ≤1 mi</th><td>{% for s in b.epa %}<div>{{ s.name }} <span class="muted">· {{ s.kind }}, {{ s.miles|floatformat:1 }} mi</span></div>{% empty %}<span class="muted">None mapped</span>{% endfor %}</td></tr>
         <tr><th>Incentives</th><td>{% for i in b.incentives %}{% if i.points %}<div>{{ i.label }}</div>{% endif %}{% endfor %}{% if b.hubzone %}<div>HUBZone <span class="muted">· qualified (SBA)</span></div>{% endif %}</td></tr>
-      </table>
+      </table>{% endif %}
     </div>
   </div>
 
   <div class="brief-cols">
     <div>
-      <h2>Still to verify</h2>
-      <ul>{% for t in b.to_verify %}<li>{{ t }}</li>{% endfor %}</ul>
+      {% if "verify" not in b.hide %}<h2>Still to verify</h2>
+      <ul>{% for t in b.to_verify %}<li>{{ t }}</li>{% endfor %}</ul>{% endif %}
     </div>
     <div>
-      <h2>Source &amp; broker notes</h2>
-      <div class="notes">{{ b.site.notes|truncatechars:800|default:"No notes saved on this site." }}</div>
+      {% if "notes" not in b.hide %}<h2>Source &amp; broker notes</h2>
+      <div class="notes">{{ b.site.notes|truncatechars:800|default:"No notes saved on this site." }}</div>{% endif %}
     </div>
   </div>
+  {% for e in b.extras %}<div class="brief-extra">{% if e.title %}<h2>{{ e.title }}</h2>{% endif %}<div class="notes">{{ e.body }}</div></div>{% endfor %}
   <div class="brief-foot">Prepared {{ b.built_at|date:"M j, Y" }} from county parcel records, public zoning and utility GIS layers and live federal checks{% if b.checked_at %} (run {{ b.checked_at|date:"M j" }}){% endif %}. Screening only: not a survey, title report or zoning verification. Terms such as FEMA zones, net usable acres and the buy-box score are defined on the Notes &amp; definitions page. Aerial imagery © Esri, Maxar, Earthstar Geographics.</div>
 </article>

@@ -1572,6 +1572,7 @@ class LandSite(models.Model):
     milestones = models.JSONField(default=dict, blank=True, help_text="{milestone key: 'YYYY-MM-DD'} (see MILESTONES)")
     site_plan = models.JSONField(default=dict, blank=True, help_text="Quick site plan inputs (zone, overrides, program)")
     listing = models.JSONField(default=dict, blank=True, help_text="Facts from the broker flyer or listing (see crm/land/briefs.py LISTING_KEYS)")
+    brief_options = models.JSONField(default=dict, blank=True, help_text='Brief layout: {"hide": [section keys], "extras": [{"title", "body"}]} (see crm/land/brief_options.py)')
     flyer = models.FileField("broker flyer", upload_to="flyers/%Y/%m/", blank=True)
     flyer_read_at = models.DateTimeField(null=True, blank=True, help_text="When Claude last read the flyer")
     created_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")

@@ -6,6 +6,7 @@
 <div class="brief-toolbar no-print">
   <a href="{% url 'crm:land_site_detail' site.pk %}">← {{ site.name }}</a>
   <span class="spacer"></span>
+  <a class="btn" href="{% url 'crm:land_site_customize' site.pk %}">Add / remove sections</a>
   <a class="btn" href="{% url 'crm:land_site_listing' site.pk %}">Edit listing details</a>
   <form method="post" style="display:inline">{% csrf_token %}<button class="btn">Re-run live checks</button></form>
   <a class="btn btn-primary" href="?format=pdf" title="Downloads this brief and its notes as a PDF">Save as PDF</a>

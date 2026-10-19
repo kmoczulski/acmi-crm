@@ -1,0 +1,29 @@
+{% extends "crm/base.html" %}
+{% block title %}Brief layout · {{ site.name }} · ACMI CRM{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Brief layout <span class="muted">· {{ site.name }}</span></h1>
+  <span class="spacer"></span>
+  <a class="btn" href="{% url 'crm:land_site_brief' site.pk %}">Back to the brief</a>
+</div>
+<form method="post" class="report-layout">{% csrf_token %}
+  <section class="panel">
+    <h3>Sections</h3>
+    <p class="muted lc-small" style="margin-top:0">Untick a section to leave it out of this site's brief, comparison pages and PDF. Saved per site.</p>
+    <div class="rl-sections">{% for key, label, page, on in sections %}
+      <label class="rl-row"><input type="checkbox" name="show" value="{{ key }}"{% if on %} checked{% endif %}><span>{{ label }}</span><span class="muted lc-small">{{ page }}</span></label>{% endfor %}
+    </div>
+  </section>
+  <section class="panel">
+    <h3>Your own sections</h3>
+    <p class="muted lc-small" style="margin-top:0">Add a titled block of text: a note for the reader, a deal angle, a risk the data doesn't show. It prints at the end of page 1. To remove one, tick Remove or clear both boxes. A blank block is added at the bottom each time you save.</p>
+    {% for i, e in slots %}
+    <div class="rl-extra">
+      <input type="text" name="extra_title_{{ i }}" value="{{ e.title }}" placeholder="Section title" maxlength="120">
+      <textarea name="extra_body_{{ i }}" rows="3" placeholder="Text">{{ e.body }}</textarea>
+      {% if e.title or e.body %}<label class="lc-small"><input type="checkbox" name="extra_remove_{{ i }}"> Remove</label>{% endif %}
+    </div>{% endfor %}
+  </section>
+  <p><button class="btn btn-primary">Save layout</button> <a class="btn" href="{% url 'crm:land_site_brief' site.pk %}">Cancel</a></p>
+</form>
+{% endblock %}
