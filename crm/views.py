@@ -310,6 +310,8 @@ def campus_edit(request, pk):
 
 
 def project_detail(request, pk):
+    from .models import LandSite
+
     project = get_object_or_404(Project.objects.select_related("parent", "campus"), pk=pk)
     form = ProjectForm(request.POST or None, instance=project)
     if request.method == "POST":
@@ -332,6 +334,8 @@ def project_detail(request, pk):
         "approvals": entitlement_logic.annotate(list(entitlement_logic.with_related(project.approvals.all()))),
         "matrix": entitlement_logic.MATRIX, "new_approval_url": reverse("crm:approval_create") + f"?project={project.pk}",
         "build": build_logic.status(project),
+        "land_sites": project.land_sites.prefetch_related("parcels").exclude(status="dropped"),
+        "other_sites": LandSite.objects.exclude(project=project).exclude(status="dropped").order_by("name"),
     })
 
 

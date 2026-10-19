@@ -41,6 +41,19 @@
         {% if build.pending %}<div class="row-line"><span>Change orders pending</span><span class="lc-small">{{ build.pending|length }} · {{ build.pending_total|money }}</span></div>{% endif %}
       {% endif %}
     </section>
+    <section class="panel" id="land-sites">
+      <h3>Land sites ({{ land_sites|length }}) <a href="{% url 'crm:land_search' %}" style="float:right;text-transform:none;letter-spacing:0">Find land</a></h3>
+      {% for s in land_sites %}
+        <div class="row-line">
+          <span><a href="{% url 'crm:land_site_detail' s.pk %}">{{ s.name }}</a> <span class="tag">{{ s.get_status_display }}</span></span>
+          <span class="lc-small">{% with acres=s.acres %}{% if acres %}{{ acres|floatformat:0 }} ac · {% endif %}{% endwith %}{{ s.parcels.all|length }} parcel{{ s.parcels.all|length|pluralize }}
+            <form method="post" action="{% url 'crm:project_site_set' project.pk %}" style="display:inline">{% csrf_token %}<input type="hidden" name="site" value="{{ s.pk }}"><button name="action" value="remove" class="btn-link" title="Take off this project">Remove</button></form></span>
+        </div>
+      {% empty %}<p class="muted lc-small" style="margin:0 0 8px">None yet. Click a parcel on the land search map and use “Add to project”, or add an existing site below.</p>{% endfor %}
+      {% if other_sites %}<form method="post" action="{% url 'crm:project_site_set' project.pk %}" style="display:flex;gap:6px;margin-top:8px">{% csrf_token %}
+        <select name="site" required style="flex:1"><option value="">Add an existing land site…</option>{% for s in other_sites %}<option value="{{ s.pk }}">{{ s.name }}{% if s.project %} (now in {{ s.project.name }}){% endif %}</option>{% endfor %}</select>
+        <button name="action" value="add" class="btn btn-small">Add</button></form>{% endif %}
+    </section>
     {% with add_url=new_approval_url show_matrix=True for_project=project %}{% include "crm/partials/approval_panel.html" %}{% endwith %}
     <div class="panel">
       <h3>Correspondence</h3>

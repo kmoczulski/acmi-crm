@@ -5,7 +5,7 @@ import json
 from django.contrib import messages
 from django.db.models import Q
 from django.http import Http404, HttpResponse, JsonResponse
-from django.shortcuts import get_object_or_404, render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
@@ -194,6 +194,7 @@ def _card(request, parcel, live=None):
         "zoning_ref": zoning_ref.district_for(parcel) if parcel else None,
         "land_use": score.land_use_label(parcel.state_land_use) if parcel else "",
         "unconfirmed": score.ALWAYS_UNCONFIRMED, "statuses": Parcel.Status.choices,
+        "projects": Project.objects.filter(active=True).select_related("campus"),
         "ccn_rows": [(k, label, checks[k]) for k, label in (("water", "Water"), ("sewer", "Sewer")) if checks.get(k)],
         "category_rows": [parcel.overlays[k] for k in ("water_category", "sewer_category")
                           if parcel and (parcel.overlays or {}).get(k)],
@@ -231,6 +232,47 @@ def parcel_status(request, pk):
         parcel.notes = f"{stamp} {parcel.get_status_display()}: {reason}\n{parcel.notes}".strip()
     parcel.save()
     return _card(request, parcel)
+
+
+@require_POST
+def parcel_to_project(request, pk):
+    """Put a parcel on a project's land sites: its own site if it is already in one, else a new one-parcel site."""
+    from .tracker import ensure_deals
+
+    parcel = get_object_or_404(Parcel.objects.select_related("county", "company", "status_by"), pk=pk)
+    project = get_object_or_404(Project, pk=request.POST.get("project") or 0)
+    site = parcel.sites.first()
+    if site:
+        site.project, site.campus = project, site.campus or project.campus
+        site.save()
+        _log(site, request.user, "edit", f"Moved to project {project.name} from the parcel card")
+    else:
+        label = parcel.situs_address or parcel.owner_name.title() or f"Parcel {parcel.prop_id or parcel.key}"
+        site = LandSite.objects.create(
+            name=f"{label} ({parcel.acres:,.0f} ac, {parcel.county.name} Co.)"[:200], project=project,
+            campus=project.campus, created_by=request.user,
+            milestones={"identified": timezone.localdate().isoformat()})
+        site.parcels.add(parcel)
+        ensure_deals(site)
+        _log(site, request.user, "edit", f"Site created from the parcel card for project {project.name}")
+    return _card(request, parcel)
+
+
+@require_POST
+def project_site_set(request, pk):
+    """From a project page: add an existing land site to it (action=add, site=<id>) or take one off (action=remove)."""
+    project = get_object_or_404(Project, pk=pk)
+    site = get_object_or_404(LandSite, pk=request.POST.get("site") or 0)
+    if request.POST.get("action") == "remove":
+        if site.project_id == project.pk:
+            site.project = None
+            site.save()
+            _log(site, request.user, "edit", f"Taken off project {project.name}")
+    else:
+        site.project, site.campus = project, site.campus or project.campus
+        site.save()
+        _log(site, request.user, "edit", f"Added to project {project.name}")
+    return redirect(project)
 
 
 @require_POST

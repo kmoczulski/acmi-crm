@@ -163,6 +163,8 @@ urlpatterns = [
     path("land/parcel/<int:pk>/shape/", land_views.parcel_geojson, name="land_parcel_geojson"),
     path("land/parcel/<int:pk>/check/", land_views.parcel_check, name="land_parcel_check"),
     path("land/parcel/<int:pk>/status/", land_views.parcel_status, name="land_parcel_status"),
+    path("land/parcel/<int:pk>/project/", land_views.parcel_to_project, name="land_parcel_to_project"),
+    path("projects/<int:pk>/sites/", land_views.project_site_set, name="project_site_set"),
     path("land/parcel/<int:pk>/notes/", land_views.parcel_notes, name="land_parcel_notes"),
     path("internal/sync-mail/", mail_views.cron_sync, name="cron_sync"),
 ]

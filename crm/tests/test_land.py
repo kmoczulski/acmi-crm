@@ -112,6 +112,32 @@ class LandTests(TestCase):
         self.assertIsNone(p.company)
         self.assertEqual((Company.objects.count(), Task.objects.count()), before)
 
+    def test_parcel_goes_straight_onto_a_project(self):
+        project = Project.objects.create(name="Greystar")
+        p = make_parcel(self.tx, "20", -97.9, 29.9, checked_at="2026-10-14T12:00:00Z")
+        self.assertContains(self.client.get(f"/land/parcel/{p.pk}/"), "Add to project")
+        self.client.post(f"/land/parcel/{p.pk}/project/", {"project": project.pk})
+        site = project.land_sites.get()
+        self.assertEqual(list(site.parcels.all()), [p])
+        # A second click moves the same site; it does not make another one.
+        other = Project.objects.create(name="Other")
+        self.client.post(f"/land/parcel/{p.pk}/project/", {"project": other.pk})
+        self.assertEqual(LandSite.objects.count(), 1)
+        self.assertEqual(LandSite.objects.get().project, other)
+
+    def test_project_page_lists_adds_and_removes_land_sites(self):
+        project = Project.objects.create(name="Greystar")
+        site = LandSite.objects.create(name="Bloomfield 77 ac")
+        page = f"/projects/{project.pk}/"
+        self.assertContains(self.client.get(page), "Bloomfield 77 ac")  # offered in the add list
+        self.client.post(f"/projects/{project.pk}/sites/", {"site": site.pk, "action": "add"})
+        site.refresh_from_db()
+        self.assertEqual(site.project, project)
+        self.assertContains(self.client.get(page), "Land sites (1)")
+        self.client.post(f"/projects/{project.pk}/sites/", {"site": site.pk, "action": "remove"})
+        site.refresh_from_db()
+        self.assertIsNone(site.project)
+
     def test_assemblage_site_and_qd_fit(self):
         a = make_parcel(self.md, "10", -77.000, 38.400, size=0.01, owner_name="WALD")
         b = make_parcel(self.md, "11", -76.990, 38.400, size=0.01, owner_name="COTTRELL")
