@@ -16,6 +16,14 @@ Read this first when picking the project up in a new chat, along with
   due diligence and the closing checklist; the entitlement tracker; build records; tenant site fit, lease terms and
   the rent roll; flyer intake and landowner letters. `docs/ROADMAP.md` has the plan these came from.
 
+**Merged 2026-10-19** (`1ea4ecb`, CI green, no migration): campus Edit button on the Projects page (a campus had no way to
+rename it); a company's Opportunities tab shows deal details and an Add to / Remove from investor report button; the
+investor report tables share one column grid; **Pursue on a parcel now only sets its status** (Kellen: landowners
+don't belong in the CRM, so no company, note or task; the 6 companies and 7 tasks made earlier were deleted, backup
+`backups/db-2026-10-19-before-landowner-cleanup.sqlite3`); "Add to project" on the parcel card and a Land sites panel
+on the project page. Granola: the connector is on Granola's free plan, so transcripts aren't available, only notes
+and summaries; nothing imported yet.
+
 **Next, in order**
 1. **Granola (time-sensitive: Granola only keeps 30 days).**
    - Kellen connects the Granola connector in Claude (Settings › Connectors). Its tools are `list_meetings`,
