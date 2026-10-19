@@ -100,18 +100,17 @@ class LandTests(TestCase):
         self.assertContains(self.client.get(f"/land/parcel/{p.pk}/"), "Buy-box screen")
         self.assertContains(self.client.get("/land/export.csv", {"status": "all"}), "SMITH RANCH LLC")
 
-    def test_pursue_creates_landowner_company_and_task(self):
+    def test_pursue_only_marks_the_parcel(self):
+        """Landowners are not CRM companies: Pursue sets the status and nothing else."""
+        before = (Company.objects.count(), Task.objects.count())
         p = make_parcel(self.tx, "8", -97.9, 29.9, checked_at="2026-10-14T12:00:00Z")
-        self.client.post(f"/land/parcel/{p.pk}/status/", {"status": "pursue"})
+        self.client.post(f"/land/parcel/{p.pk}/status/", {"status": "pursue", "reason": "good road frontage"})
         p.refresh_from_db()
         self.assertEqual(p.status, "pursue")
-        self.assertEqual(p.company.name, "Smith Ranch Llc")
-        self.assertIn("Landowner", p.company.categories)
-        self.assertTrue(Task.objects.filter(company=p.company, assignee=self.user).exists())
-        # Pursuing again does not make a second company.
-        p2 = make_parcel(self.tx, "9", -97.8, 29.9, checked_at="2026-10-14T12:00:00Z")
-        self.client.post(f"/land/parcel/{p2.pk}/status/", {"status": "pursue"})
-        self.assertEqual(Company.objects.filter(name="Smith Ranch Llc").count(), 1)
+        self.assertEqual(p.status_by, self.user)
+        self.assertIn("good road frontage", p.notes)
+        self.assertIsNone(p.company)
+        self.assertEqual((Company.objects.count(), Task.objects.count()), before)
 
     def test_assemblage_site_and_qd_fit(self):
         a = make_parcel(self.md, "10", -77.000, 38.400, size=0.01, owner_name="WALD")

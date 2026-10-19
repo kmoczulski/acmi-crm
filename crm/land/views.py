@@ -1,7 +1,6 @@
 """Land search pages: map, parcel card, live lookups, review (Watch / Pursue / Pass), search and export."""
 import csv
 import json
-from datetime import timedelta
 
 from django.contrib import messages
 from django.db.models import Q
@@ -13,7 +12,7 @@ from django.views.decorators.http import require_POST
 from shapely.geometry import shape
 
 from ..entitlements import logic as entitlement_logic
-from ..models import Activity, Campus, Company, LandCounty, LandSite, Note, Parcel, Project, Task, normalize_key
+from ..models import Campus, LandCounty, LandSite, Parcel, Project
 from ..permissions import is_manager, manager_required, refuse
 from . import diligence, layers, score, zoning_ref
 from .lookup import identify, run_checks
@@ -230,47 +229,8 @@ def parcel_status(request, pk):
     if reason:
         stamp = timezone.localtime().strftime("%b %d")
         parcel.notes = f"{stamp} {parcel.get_status_display()}: {reason}\n{parcel.notes}".strip()
-    if status == Parcel.Status.PURSUE and not parcel.company:
-        _pursue(parcel, request.user)
     parcel.save()
     return _card(request, parcel)
-
-
-def _owner_company_name(owner):
-    name = " ".join(owner.split()) or "Unknown landowner"
-    return name.title() if name.isupper() else name
-
-
-def _pursue(parcel, user):
-    """Make the landowner a company (category Landowner), add a note and a task to contact them."""
-    name = _owner_company_name(parcel.owner_name)
-    company = Company.objects.filter(name_key=normalize_key(name)).first()
-    if not company:
-        company = Company.objects.create(
-            name=name, categories=["Landowner"], owner=user, created_by=user,
-            hq_location=", ".join(x for x in [parcel.mail_city.title(), parcel.mail_state] if x),
-        )
-    elif "Landowner" not in (company.categories or []):
-        company.categories = [*(company.categories or []), "Landowner"]
-        company.save(update_fields=["categories"])
-    parcel.company = company
-    link = parcel.get_absolute_url()
-    summary = (f"Land search: {parcel.acres:,.0f} ac in {parcel.county.name} County "
-               f"(property {parcel.prop_id or parcel.key}), screen score {parcel.score}.")
-    body = "\n".join(x for x in [
-        summary,
-        f"Address: {parcel.situs_address}" if parcel.situs_address else "",
-        f"Owner mailing: {parcel.mailing}" if parcel.mailing else "",
-        f"Map: {link}",
-    ] if x)
-    Note.objects.create(body=body, author=user, company=company)
-    Activity.objects.create(kind=Activity.Kind.NOTE, occurred_at=timezone.now(), actor=user, company=company,
-                            summary=f"Parcel marked Pursue: {parcel.acres:,.0f} ac, {parcel.county.name} County",
-                            body=body)
-    Task.objects.create(
-        title=f"Contact landowner: {name} ({parcel.acres:,.0f} ac, {parcel.county.name} Co.)",
-        notes=body, due_date=timezone.localdate() + timedelta(days=7), assignee=user, company=company, created_by=user,
-    )
 
 
 @require_POST
