@@ -49,3 +49,12 @@ def parse(post):
         if (title or body) and not post.get(f"extra_remove_{i}"):
             out["extras"].append({"title": title[:120], "body": body[:4000]})
     return out
+
+
+def cover_pages(built, per_page=3):
+    """The comparison table split into pages of at most per_page sites, as evenly as it goes (5 sites: 3 + 2)."""
+    if not built:
+        return []
+    n = -(-len(built) // per_page)
+    size = -(-len(built) // n)
+    return [built[i:i + size] for i in range(0, len(built), size)]

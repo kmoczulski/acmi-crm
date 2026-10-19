@@ -83,3 +83,9 @@ table.method td.num { text-align: right; width: 34px; }
   .brief-maps img { height: 2in; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .pill-tag, .flood-key { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
+/* Comparison pages: at most three sites across, so the text stays readable; more sites continue on the next page */
+.brief-cover table { table-layout: fixed; }
+.brief-cover th:first-child { width: 22%; }
+.brief-cover td, .brief-cover th { font-size: 12.5px; padding: 6px 8px; line-height: 1.35; }
+.brief-cover td { border-bottom: 1px solid #e3e7ec; }
+.brief-cover tr { break-inside: avoid; }

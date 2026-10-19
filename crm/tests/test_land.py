@@ -865,6 +865,14 @@ class SiteBriefTests(TestCase):
         self.assertContains(back, "Power, roads &amp; utilities")
         self.assertNotContains(back, "Why ACMI likes it")
 
+    def test_comparison_splits_into_pages_of_three_or_fewer(self):
+        from crm.land.brief_options import cover_pages
+
+        self.assertEqual([len(c) for c in cover_pages(list(range(5)))], [3, 2])
+        self.assertEqual([len(c) for c in cover_pages(list(range(4)))], [2, 2])
+        self.assertEqual([len(c) for c in cover_pages(list(range(7)))], [3, 3, 1])
+        self.assertEqual(cover_pages([]), [])
+
     def test_comparison_pages_and_rows_can_be_removed(self):
         from crm.land import briefs
 

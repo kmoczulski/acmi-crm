@@ -23,7 +23,7 @@ def _pdf(request, built, filename, page_hide=frozenset()):
         for b in built:
             briefs.embed(b)
         html = render_to_string("crm/land_briefs_pdf.html", {
-            "briefs": built, "definitions": briefs.definitions(built), "method": score.methodology(), "zoning": briefs.zoning_sections(built), "css": briefs.pdf_css(), "page_hide": page_hide,
+            "briefs": built, "definitions": briefs.definitions(built), "method": score.methodology(), "zoning": briefs.zoning_sections(built), "css": briefs.pdf_css(), "page_hide": page_hide, "cover_pages": brief_options.cover_pages(built),
             "cover_rows": brief_options.COVER_ROWS,
             "logo_data": briefs.logo_data_uri(), "title": filename.rsplit(".", 1)[0].replace("_", " ")})
         data = briefs.html_to_pdf(html)
@@ -70,7 +70,7 @@ def briefs_page(request):
     picker = [(s, s.pk in picked) for s in
               LandSite.objects.select_related("campus", "project").exclude(status=LandSite.Status.DROPPED)]
     return render(request, "crm/land_briefs.html", {"briefs": built, "ids": ",".join(str(b["site"].pk) for b in built),
-                                                     "picker": picker, "skipped": skipped, "page_hide": brief_options.page_hidden(request),
+                                                     "picker": picker, "skipped": skipped, "cover_pages": brief_options.cover_pages(built), "page_hide": brief_options.page_hidden(request),
                                                      "cover_rows": brief_options.COVER_ROWS, "pages": brief_options.PAGES,
                                                      "hide_param": ",".join(sorted(brief_options.page_hidden(request))),
                                                      "definitions": briefs.definitions(built), "method": score.methodology(),

@@ -41,7 +41,7 @@ document.getElementById('layout-form').addEventListener('submit', function (e) {
 {% endif %}
 {% if skipped %}<p class="panel no-print lc-small" style="border-left:3px solid var(--warn, #f0a500)">Left out, no parcels mapped yet: {% for s in skipped %}<a href="{% url 'crm:land_site_detail' s.pk %}">{{ s.name }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}. Add parcels to them on the map to include them.</p>{% endif %}
 {% if briefs %}
-{% include "crm/partials/brief_cover.html" %}
+{% for chunk in cover_pages %}{% include "crm/partials/brief_cover.html" with briefs=chunk total=briefs|length part=forloop.counter parts=cover_pages|length %}{% endfor %}
 {% for b in briefs %}{% include "crm/partials/site_brief.html" %}{% include "crm/partials/site_brief_detail.html" %}{% endfor %}
 {% include "crm/partials/brief_zoning.html" %}{% include "crm/partials/brief_notes.html" %}
 {% else %}<p class="muted">No sites to brief.</p>{% endif %}
