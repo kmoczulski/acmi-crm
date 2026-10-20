@@ -6,13 +6,13 @@
   <span class="spacer"></span>
   {% if user.is_staff %}<a class="btn" href="/admin/">Admin</a>{% endif %}
 </div>
-<p class="muted" style="margin-top:0">Every dropdown in the CRM. Open a list to rename, reorder or hide its options. Lists marked <span class="tag tag-open">+ add</span> also take new options; the others drive logic in the app (stages, statuses), so they keep their built-in set.</p>
+<p class="muted" style="margin-top:0">Every dropdown in the CRM. Open a list to rename, reorder or hide its options. Every list takes new options. On lists that drive logic in the app (stages, statuses), a new option says which built-in option it works like.</p>
 <div class="dd-areas">
 {% for area, items in lists %}
   <section class="panel dd-area">
     <h3>{{ area }}</h3>
     {% for l in items %}<a class="dd-row" href="{% url 'crm:dropdown_edit' l.key %}">
-      <span><b>{{ l.title }}</b>{% if l.open %} <span class="tag tag-open">+ add</span>{% endif %}{% if l.edited %} <span class="tag">edited</span>{% endif %}
+      <span><b>{{ l.title }}</b>{% if not l.open %} <span class="tag" title="New options pick a built-in option they work like">logic</span>{% endif %}{% if l.edited %} <span class="tag">edited</span>{% endif %}
         <span class="muted lc-small dd-used">{{ l.used_in|join:" · " }}</span></span>
       <span class="muted lc-small">{{ l.count }} option{{ l.count|pluralize }} ›</span>
     </a>{% endfor %}

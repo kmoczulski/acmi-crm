@@ -14,6 +14,7 @@ from django.utils import timezone
 
 from django.db.models import Q
 
+from crm.choices import Group
 from crm.models import Activity, Company, CompanyStatus, Contract, NewsItem, NewsScan, OpportunityStage, Priority
 
 RESPONSE_ORDER = ["Responded", "Meeting Scheduled", "Referred", "Follow Up", "Not Interested",
@@ -32,14 +33,15 @@ def week_bounds(day=None):
     return start, start + timedelta(days=7)
 
 
-SIGNED_STAGES = (OpportunityStage.LOI_SIGNED, OpportunityStage.LEASE_NEGOTIATION, OpportunityStage.SIGNED)
+SIGNED_STAGES = Group("OpportunityStage", [OpportunityStage.LOI_SIGNED, OpportunityStage.LEASE_NEGOTIATION,
+                                           OpportunityStage.SIGNED])
 
 
 def already_ours():
     """Companies past prospecting: tenants, a signed LOI / lease / DMA, or a signed or closed contract."""
     return set(Company.objects.filter(
-        Q(status=CompanyStatus.TENANT) | Q(opportunities__stage__in=SIGNED_STAGES)
-        | Q(contracts__status__in=[Contract.Status.SIGNED, Contract.Status.CLOSED])
+        Q(status__in=Group("CompanyStatus", [CompanyStatus.TENANT])) | Q(opportunities__stage__in=SIGNED_STAGES)
+        | Q(contracts__status__in=Group("Contract.Status", [Contract.Status.SIGNED, Contract.Status.CLOSED]))
     ).values_list("pk", flat=True))
 
 

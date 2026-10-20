@@ -1129,3 +1129,24 @@ app, and for the sidebar to be organised properly with the map kept separate fro
 - **Trello**: the team's MEIH board uses lists per deal (Land Sites, Critical Dates, Deal and Design, Contacts and
   Consultants) and the labels above; critical dates carry times. Not yet brought in: contacts and consultants per
   campus, and importing the existing Trello cards.
+
+## Built 2026-10-19 (later): editable dropdown lists, outreach report scope
+
+- **Settings → Dropdown lists** (`/settings/`, `crm/choices.py`, `crm/settings_views.py`, managers only). Every
+  dropdown comes from a TextChoices class; the defaults stay in code and `ChoiceOption` rows hold the team's edits:
+  label, position, hidden, and added options. `choices.install()` (from `CrmConfig.ready`) patches
+  `ChoicesType.choices`, `Choices.label`, each model field's `choices` (its `deconstruct` still reports the code
+  defaults, so migrations never change) and ModelForm fields (hidden options drop out unless a record already has
+  one). Hand-built selects use `{% for v, l in statuses|offer:current %}`. System lists (activity kinds, sync
+  states) are left out.
+- **Adding options**: every list takes new options. On lists the code depends on (stages, statuses), a new option
+  picks the built-in option it "works like" (`ChoiceOption.behaves_as`). The stage orders, groups and probabilities
+  are `choices.Order` / `Group` / `Lookup` objects (`LandSite.STATUS_ORDER`, `OPEN_STAGES`, `STAGE_ORDER`,
+  `STAGE_PROBABILITY`, `Contract.OPEN_STATUSES`, `queue.LATE_STAGES` and others), so an added option sorts, filters
+  (`stage__in=OPEN_STAGES`) and scores like its look-alike. Code that compares against one specific value
+  (`status == "acquired"`) still only fires on the built-in option.
+- **Weekly outreach report** (`crm/outreach/report.py`) now covers campaign sends plus news outreach: approved
+  news-review drafts, matched by company and subject. Companies already ACMI's are left out: tenants, a signed LOI,
+  lease or DMA, or a signed or closed contract. A response only counts if it came back on the outreach email's own
+  thread. For the week of Sep 21 this left out 7 of 937 emails and dropped 9 of the 10 "positive replies", which
+  were deal conversations (ARA, Firehawk, Ondas, Supply Energetics, Elementum).

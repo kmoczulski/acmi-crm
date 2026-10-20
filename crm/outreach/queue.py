@@ -9,13 +9,14 @@ from datetime import datetime, timedelta
 
 from django.utils import timezone
 
+from crm.choices import Group
 from crm.models import (
     CompanyStatus, EmailTemplate, NewsDraft, NewsItem, OutreachSettings, Person, Priority,
 )
 from crm.names import needs_name
 
-LATE_STAGES = (CompanyStatus.OPPORTUNITY, CompanyStatus.TENANT, CompanyStatus.NOT_INTERESTED,
-               CompanyStatus.DO_NOT_CONTACT)
+LATE_STAGES = Group("CompanyStatus", [CompanyStatus.OPPORTUNITY, CompanyStatus.TENANT, CompanyStatus.NOT_INTERESTED,
+                                      CompanyStatus.DO_NOT_CONTACT])
 SKIP_LABELS = {
     "no_email": "No usable email",
     "bounced": "Email bounced",

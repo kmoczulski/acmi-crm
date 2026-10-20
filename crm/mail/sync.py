@@ -21,6 +21,7 @@ from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
 
+from crm.choices import Group
 from crm import interactions
 from crm.models import (
     Activity, Attachment, Company, CompanyStatus, EmailTemplate, MailFilter, Mailbox, NewsDraft, Person, UnmatchedEmail,
@@ -40,7 +41,7 @@ FREE_MAIL = {
     "msn.com", "live.com", "comcast.net", "att.net", "verizon.net", "protonmail.com", "proton.me", "ymail.com",
 }
 DEFAULT_MAX_MESSAGES = 500
-EARLY_STAGES = (CompanyStatus.PROSPECT, CompanyStatus.CONTACTED)
+EARLY_STAGES = Group("CompanyStatus", [CompanyStatus.PROSPECT, CompanyStatus.CONTACTED])
 POSITIVE = ("Responded",)
 
 

@@ -1,7 +1,9 @@
 """Editable dropdown lists (Settings → Dropdown lists).
 
 Every dropdown in the app comes from a TextChoices class in crm/models.py. The defaults stay in code; a manager can
-rename, reorder or hide options, and on lists where the code doesn't depend on particular values, add new ones.
+rename, reorder or hide options and add new ones. On lists that drive logic (stages, statuses) a new option says which
+built-in option it works like (ChoiceOption.behaves_as): the stage orders, open / closed groups and probabilities
+defined with Order, Group and Lookup below then treat it as that option.
 Those edits live in ChoiceOption rows and apply everywhere the list is used: forms, `X.Status.choices`,
 `member.label` and `obj.get_status_display()`.
 
@@ -26,7 +28,8 @@ SYSTEM = {
     "NewsScan.Status", "NewsItem.Kind", "NewsItem.Decision", "SendBatch.Status", "SendItem.Status",
     "ContractDocument.TextStatus", "CampusReport.Status", "Repeat",
 }
-# Lists where the code only names a few values (or none), so new options are safe to add.
+# Lists where the code only names a few values (or none): a new option needs nothing more. On every other list a new
+# option picks the built-in option it works like.
 OPEN = {
     "DealType", "AssetType", "OpportunityContact.Role", "Task.Label", "Contract.Kind", "ContractDate.Kind",
     "ApprovalDocument.Kind", "TeamMember.Role", "ChangeOrder.Reason", "BudgetLine.Group", "CampusUpdate.Workstream",
@@ -170,6 +173,81 @@ def info(key):
     return {"key": key, "title": title, "area": area, "open": key in OPEN, "max_length": reg["max_length"],
             "defaults": dict(reg["defaults"]),
             "used_in": sorted({f"{f.model._meta.verbose_name}: {f.verbose_name}" for f in reg["fields"]})}
+
+
+# --- logic that knows about added options ----------------------------------------------------------------------
+
+def base(key, value):
+    """The built-in option `value` works like: itself if built in, else what the team chose when adding it."""
+    reg = _registry.get(key)
+    if not reg or value in dict(reg["defaults"]):
+        return value
+    o = _edits().get(key, {}).get(value)
+    return (o.behaves_as or value) if o else value
+
+
+def _like(key, members):
+    """Added options whose behaves_as is one of `members`."""
+    return [v for v, o in _edits().get(key, {}).items() if o.added and o.behaves_as in members]
+
+
+class Group(list):
+    """A set of options the code treats alike (open stages, late stages...): `x in group` and `field__in=group`
+    also take the options added to work like one of them."""
+
+    def __init__(self, key, values=None):
+        if values is None:  # rebuilt from plain values (Django's query compiler does type(x)(values))
+            key, values = None, key
+        super().__init__(values)
+        self.key = key
+
+    def __iter__(self):
+        own = list(super().__iter__())
+        return iter(own + _like(self.key, set(own)))
+
+    def __contains__(self, value):
+        own = list(super().__iter__())
+        return value in own or base(self.key, value) in own
+
+    def __len__(self):
+        return len(list(iter(self)))
+
+
+class Order(list):
+    """An ordered list of options (furthest stage first...): .index() places an added option with the one it
+    works like."""
+
+    def __init__(self, key, values=None):
+        if values is None:  # rebuilt from plain values (Django's query compiler does type(x)(values))
+            key, values = None, key
+        super().__init__(values)
+        self.key = key
+
+    def index(self, value, *args):
+        return super().index(base(self.key, value), *args)
+
+    def __contains__(self, value):
+        return super().__contains__(base(self.key, value))
+
+
+class Lookup(dict):
+    """{option: number} (stage order, win probability): an added option gets its look-alike's number."""
+
+    def __init__(self, key, data):
+        super().__init__(data)
+        self.key = key
+
+    def __missing__(self, value):
+        b = base(self.key, value)
+        if b != value and dict.__contains__(self, b):
+            return self[b]
+        raise KeyError(value)
+
+    def get(self, value, default=None):
+        try:
+            return self[value]
+        except KeyError:
+            return default
 
 
 # --- hooks ---------------------------------------------------------------------------------------------------------

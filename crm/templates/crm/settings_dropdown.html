@@ -6,22 +6,23 @@
   <span class="spacer"></span>
   <a class="btn" href="{% url 'crm:settings_home' %}">All lists</a>
 </div>
-<p class="muted" style="margin-top:0">Used in {{ meta.used_in|join:", " }}. Renaming changes the label everywhere, including records that already have it. Hiding takes an option out of the dropdowns; records that have it keep it.{% if not meta.open %} This list drives logic in the app, so options can't be added or removed.{% endif %}</p>
+<p class="muted" style="margin-top:0">Used in {{ meta.used_in|join:", " }}. Renaming changes the label everywhere, including records that already have it. Hiding takes an option out of the dropdowns; records that have it keep it.{% if not meta.open %} This list drives logic in the app (ordering, open and closed stages, reminders), so a new option says which built-in option it works like.{% endif %}</p>
 <form method="post" class="panel dd-edit" id="dd-form">{% csrf_token %}
   <table class="data dd-table">
-    <thead><tr><th style="width:70px">Order</th><th>Label</th><th>Built-in name</th><th class="num">In use</th><th>Hide</th>{% if meta.open %}<th>Remove</th>{% endif %}</tr></thead>
+    <thead><tr><th style="width:70px">Order</th><th>Label</th><th>Built-in name</th><th class="num">In use</th><th>Hide</th><th>Remove</th></tr></thead>
     <tbody id="dd-rows">{% for r in rows %}
       <tr class="{% if r.hidden %}dd-hidden{% endif %}">
         <td><input type="hidden" name="order" value="{{ r.value }}"><button type="button" class="btn-link" data-move="-1" aria-label="Move up">▲</button> <button type="button" class="btn-link" data-move="1" aria-label="Move down">▼</button></td>
         <td><input name="label_{{ r.value }}" value="{{ r.label }}" maxlength="200" required></td>
-        <td class="muted lc-small">{% if r.added %}<span class="tag tag-open">added</span>{% else %}{{ r.default }}{% endif %} <code>{{ r.value }}</code></td>
+        <td class="muted lc-small">{% if r.added %}<span class="tag tag-open">added</span>{% if r.like %} works like {{ r.like }}{% endif %}{% else %}{{ r.default }}{% endif %} <code>{{ r.value }}</code></td>
         <td class="num">{{ r.used }}</td>
         <td><input type="checkbox" name="hidden_{{ r.value }}"{% if r.hidden %} checked{% endif %} aria-label="Hide {{ r.label }}"></td>
-        {% if meta.open %}<td>{% if r.added %}<input type="checkbox" name="remove_{{ r.value }}" aria-label="Remove {{ r.label }}"{% if r.used %} disabled title="In use: hide it instead"{% endif %}>{% endif %}</td>{% endif %}
+        <td>{% if r.added %}<input type="checkbox" name="remove_{{ r.value }}" aria-label="Remove {{ r.label }}"{% if r.used %} disabled title="In use: hide it instead"{% endif %}>{% endif %}</td>
       </tr>{% endfor %}
     </tbody>
   </table>
-  {% if meta.open %}<p class="dd-new"><label>Add an option <input name="new_label" maxlength="200" placeholder="New option label"></label></p>{% endif %}
+  <p class="dd-new"><label>Add an option <input name="new_label" maxlength="200" placeholder="New option label"></label>
+    {% if not meta.open %}<label>works like <select name="new_like"><option value="">Choose…</option>{% for v, l in builtins %}<option value="{{ v }}">{{ l }}</option>{% endfor %}</select></label>{% endif %}</p>
   <p class="dd-actions"><button class="btn btn-primary">Save</button></p>
 </form>
 {% if edited %}<form method="post" onsubmit="return confirm('Put this list back to its built-in labels and order?')">{% csrf_token %}<input type="hidden" name="action" value="reset"><button class="btn">Reset to built-in options</button></form>{% endif %}

@@ -6,6 +6,8 @@ from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
+
+from .choices import Group, Lookup, Order
 from django.urls import reverse
 from django.utils import timezone
 
@@ -72,7 +74,7 @@ class OpportunityStage(models.TextChoices):
 
 # Default win probability per stage, from the tracker's Lists sheet. Lease negotiation is
 # not in the tracker; 85% sits between a signed LOI (75%) and a signed lease.
-STAGE_PROBABILITY = {
+STAGE_PROBABILITY = Lookup("OpportunityStage", {
     OpportunityStage.PROSPECT: 10,
     OpportunityStage.QUALIFIED: 25,
     OpportunityStage.LOI_NEGOTIATION: 50,
@@ -81,12 +83,12 @@ STAGE_PROBABILITY = {
     OpportunityStage.SIGNED: 100,
     OpportunityStage.ON_HOLD: 5,
     OpportunityStage.LOST: 0,
-}
-OPEN_STAGES = [
+})
+OPEN_STAGES = Group("OpportunityStage", [
     OpportunityStage.PROSPECT, OpportunityStage.QUALIFIED, OpportunityStage.LOI_NEGOTIATION,
     OpportunityStage.LOI_SIGNED, OpportunityStage.LEASE_NEGOTIATION,
-]
-STAGE_ORDER = {value: i for i, value in enumerate(OpportunityStage.values)}
+])
+STAGE_ORDER = Lookup("OpportunityStage", {value: i for i, value in enumerate(OpportunityStage.values)})
 
 
 class DealType(models.TextChoices):
@@ -1607,7 +1609,7 @@ class LandSite(models.Model):
         return self.name
 
     # Furthest along first; dropped last.
-    STATUS_ORDER = ["acquired", "contract", "loi", "outreach", "review", "prospect", "dropped"]
+    STATUS_ORDER = Order("LandSite.Status", ["acquired", "contract", "loi", "outreach", "review", "prospect", "dropped"])
 
     # Deal timeline, in order. Reaching a milestone moves the status forward to the one shown (never back).
     MILESTONES = [
@@ -1836,7 +1838,7 @@ class Contract(models.Model):
         EXTEND = "extend", "Extend feasibility"
         TERMINATE = "terminate", "Terminate"
 
-    OPEN_STATUSES = ("drafting", "negotiating", "signed")
+    OPEN_STATUSES = Group("Contract.Status", ["drafting", "negotiating", "signed"])
 
     title = models.CharField(max_length=200, help_text="e.g. Wamsley PSA")
     kind = models.CharField(max_length=10, choices=Kind.choices, default=Kind.PSA)
@@ -2731,6 +2733,8 @@ class ChoiceOption(models.Model):
     position = models.PositiveSmallIntegerField(null=True, blank=True)
     hidden = models.BooleanField(default=False, help_text="Not offered for new records")
     added = models.BooleanField(default=False, help_text="Added by the team (not built in)")
+    behaves_as = models.CharField(max_length=40, blank=True,
+                                  help_text="Added options on logic lists: the built-in option it works like")
     updated_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
     updated_at = models.DateTimeField(auto_now=True)
 

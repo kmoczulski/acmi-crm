@@ -10,6 +10,7 @@ from datetime import datetime, time, timedelta
 
 from django.utils import timezone
 
+from .choices import Order
 from .build import logic as build_logic
 from .contracts import dates as contract_dates
 from .entitlements import logic as entitlement_logic
@@ -20,9 +21,9 @@ QUIET_DAYS = 7          # nothing new in this many days: "no activity this week"
 NO_REPLY_DAYS = 10      # we wrote last, this long ago: "no reply in N days"
 INBOUND = (Activity.Kind.EMAIL_RECEIVED, Activity.Kind.REPLY)
 OUTBOUND = (Activity.Kind.EMAIL_SENT,)
-STAGE_ORDER = [OpportunityStage.SIGNED, OpportunityStage.LEASE_NEGOTIATION, OpportunityStage.LOI_SIGNED,
-               OpportunityStage.LOI_NEGOTIATION, OpportunityStage.QUALIFIED, OpportunityStage.PROSPECT,
-               OpportunityStage.ON_HOLD]
+STAGE_ORDER = Order("OpportunityStage", [OpportunityStage.SIGNED, OpportunityStage.LEASE_NEGOTIATION,
+                                         OpportunityStage.LOI_SIGNED, OpportunityStage.LOI_NEGOTIATION,
+                                         OpportunityStage.QUALIFIED, OpportunityStage.PROSPECT, OpportunityStage.ON_HOLD])
 
 
 def _day(value):

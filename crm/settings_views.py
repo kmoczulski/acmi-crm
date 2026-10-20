@@ -55,6 +55,9 @@ def dropdown_edit(request, key):
         order = [v for v in request.POST.getlist("order") if v in {c[0] for c in current}]
         order += [c[0] for c in current if c[0] not in order]
         existing = {o.value: o for o in ChoiceOption.objects.filter(list_key=key)}
+        builtin = [v for v in order if v in meta["defaults"]]
+        reordered = builtin != list(meta["defaults"])[:len(builtin)] or any(
+            v not in meta["defaults"] for v in order[:len(builtin)])
         errors = []
         for pos, value in enumerate(order):
             o = existing.get(value) or ChoiceOption(list_key=key, value=value)
@@ -69,23 +72,39 @@ def dropdown_edit(request, key):
             o.label = "" if not added and label == meta["defaults"].get(value) else (label or o.label)
             o.hidden = bool(request.POST.get(f"hidden_{value}"))
             o.position, o.added, o.updated_by = pos, added, request.user
+            if not added and not o.label and not o.hidden and pos == list(meta["defaults"]).index(value) and not reordered:
+                if o.pk:  # back to exactly the built-in option: nothing to store
+                    o.delete()
+                continue
             o.save()
         new = (request.POST.get("new_label") or "").strip()[:200]
         if new:
-            if not meta["open"]:
-                errors.append("New options can't be added to this list: the app's logic depends on its values.")
+            like = request.POST.get("new_like", "")
+            if not meta["open"] and like not in meta["defaults"]:
+                errors.append(f"Choose which built-in option “{new}” works like.")
             elif new.lower() in {l.lower() for _, l, _, _ in choices.options(key)}:
                 errors.append(f"“{new}” is already on the list.")
             else:
                 taken = {v for v, _, _, _ in choices.options(key)}
+                pos = len(order)
+                if like in order:  # sits just after the option it works like; the ones after it move down one
+                    pos = order.index(like) + 1
+                    for i, value in enumerate(order[pos:], start=pos + 1):
+                        o, _ = ChoiceOption.objects.get_or_create(list_key=key, value=value,
+                                                                  defaults={"added": value not in meta["defaults"]})
+                        o.position = i
+                        o.save(update_fields=["position"])
                 ChoiceOption.objects.create(list_key=key, value=_slug(new, taken, min(meta["max_length"], 40)), label=new,
-                                            position=len(order), added=True, updated_by=request.user)
+                                            position=pos, added=True, behaves_as="" if meta["open"] else like,
+                                            updated_by=request.user)
         for e in errors:
             messages.error(request, e)
         if not errors:
             messages.success(request, f"{meta['title']} saved.")
         return redirect("crm:dropdown_edit", key=key)
+    likes = {v: o.behaves_as for v, o in choices._edits().get(key, {}).items() if o.behaves_as}
     rows = [{"value": v, "label": l, "hidden": h, "added": a, "default": meta["defaults"].get(v, ""),
-             "used": usage.get(v, 0)} for v, l, h, a in choices.options(key)]
-    return render(request, "crm/settings_dropdown.html", {"meta": meta, "rows": rows,
+             "used": usage.get(v, 0), "like": dict(choices._registry[key]["defaults"]).get(likes.get(v, ""), "")}
+            for v, l, h, a in choices.options(key)]
+    return render(request, "crm/settings_dropdown.html", {"meta": meta, "rows": rows, "builtins": choices._registry[key]["defaults"],
                                                           "edited": ChoiceOption.objects.filter(list_key=key).exists()})

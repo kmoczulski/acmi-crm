@@ -7,13 +7,14 @@ from types import SimpleNamespace
 from django.db.models import Q
 from django.utils import timezone
 
+from ..choices import Order
 from ..models import Approval, ApprovalCondition, ApprovalStep, Notification
 
 STEP_LEADS = (7, 1, 0)  # reminder days before a hearing or other step
 EXPIRY_LEADS = (60, 30, 7, 1, 0)  # before an approval lapses
 SOON = 14  # a step this close, or a condition due, is a flag on the campus summary
 EXPIRY_FLAG = 60
-STATUS_ORDER = ["planned", "preapp", "submitted", "review", "hearing"]  # the order an open approval moves in
+STATUS_ORDER = Order("Approval.Status", ["planned", "preapp", "submitted", "review", "hearing"])  # the order an open approval moves in
 
 # The usual approvals for a manufacturing building on a greenfield site, from the client reports' permit matrix,
 # plus those a deal may need: (kind, title, ticked by default).
