@@ -1150,3 +1150,9 @@ app, and for the sidebar to be organised properly with the map kept separate fro
   lease or DMA, or a signed or closed contract. A response only counts if it came back on the outreach email's own
   thread. For the week of Sep 21 this left out 7 of 937 emails and dropped 9 of the 10 "positive replies", which
   were deal conversations (ARA, Firehawk, Ondas, Supply Energetics, Elementum).
+- **ETC PSA entered (2026-10-19, Kellen approved):** "4390 Indian Head Hwy PSA" (contract 1) on site 1. Signed,
+  effective Jun 24, 2026, $150,000, 0.68 ac, Energetics Technology Center, Inc. It has 9 critical dates from the MEIH
+  Trello board's "4390 Indian Head Hwy - Critical Dates" list; the Jul 1 deposit and the Jul 3 lease execution are
+  marked done. The site's feasibility milestone is set to Oct 22. PSA signed stays Jun 22 (the executed file is dated
+  2026.06.22; Trello gives the effective date as Jun 24). Backup: `backups/db-2026-10-19-before-etc-psa.sqlite3`.
+  The site card's Critical dates now lists completed dates too, checked off.

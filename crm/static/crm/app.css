@@ -1071,3 +1071,6 @@ tr.bd-total td { font-weight: 700; border-top: 2px solid var(--line); }
 .dd-table tr.dd-hidden input[name^=label_] { color: var(--muted); text-decoration: line-through; }
 .dd-new input { width: 320px; max-width: 100%; margin-left: 6px; }
 .dd-actions { margin-bottom: 0; }
+.scard-date.done { color: var(--muted); }
+.scard-date.done span:nth-child(2) { text-decoration: line-through; }
+.scard-date.done .sd-left { color: #1a8f4a; font-weight: 600; }

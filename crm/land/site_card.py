@@ -54,13 +54,14 @@ def killer_lines(parcels):
 
 
 def critical_dates(site):
-    """Every open date on the site's contracts, soonest first (the Trello "Critical Dates" list)."""
-    from ..contracts import dates as contract_dates
+    """The dates on the site's contracts in date order, done ones checked off (the Trello "Critical Dates" list)."""
+    from ..models import ContractDate
 
     today = timezone.localdate()
-    out = list(contract_dates.live().filter(contract__site=site).select_related("contract").order_by("date", "id")[:20])
+    out = list(ContractDate.objects.filter(contract__site=site, confirmed=True, date__isnull=False)
+               .select_related("contract").order_by("date", "id")[:30])
     for d in out:
-        d.left = (d.date - today).days if d.date else None
+        d.left = None if d.done else (d.date - today).days
     return out
 
 

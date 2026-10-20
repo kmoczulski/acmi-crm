@@ -42,10 +42,10 @@
 
       {% if critical %}<section class="scard-sec">
         <h3>Critical dates <span class="muted lc-small">from the contracts</span></h3>
-        {% for d in critical %}<a class="scard-date{% if d.left is not None and d.left < 0 %} late{% elif d.left is not None and d.left <= 14 %} soon{% endif %}" href="{{ d.contract.get_absolute_url }}">
+        {% for d in critical %}<a class="scard-date{% if d.done %} done{% elif d.left < 0 %} late{% elif d.left <= 14 %} soon{% endif %}" href="{{ d.contract.get_absolute_url }}">
           <span class="sd-when">{% if d.date %}{{ d.date|date:"M j, Y" }}{% else %}Not fixed{% endif %}</span>
           <span>{{ d.label }}{% if not d.confirmed %} <span class="tag">to confirm</span>{% endif %}<span class="muted lc-small"> · {{ d.contract.title }}{% if d.rule %} · {{ d.rule }}{% endif %}</span></span>
-          <span class="sd-left">{% if d.left is None %}{% elif d.left < 0 %}{{ d.left|stringformat:"d"|slice:"1:" }}d late{% elif d.left == 0 %}today{% else %}{{ d.left }}d{% endif %}</span>
+          <span class="sd-left">{% if d.done %}✓ Done{% elif d.left < 0 %}{{ d.left|stringformat:"d"|slice:"1:" }}d late{% elif d.left == 0 %}today{% else %}{{ d.left }}d{% endif %}</span>
         </a>{% endfor %}
       </section>{% endif %}
 
