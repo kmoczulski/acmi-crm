@@ -55,6 +55,9 @@ class ContractForm(StyledForm):
 
 
 class DocumentForm(forms.ModelForm):
+    MAX_MB = MAX_UPLOAD_MB
+    MAX_BYTES = MAX_UPLOAD_MB * 1024 * 1024
+
     class Meta:
         model = ContractDocument
         fields = ["kind", "title", "file", "dated", "sent_by", "author", "url", "summary"]

@@ -158,6 +158,7 @@
         </form>
         <datalist id="merge-company-names">{% for n in merge_candidates %}<option value="{{ n }}">{% endfor %}</datalist>
       </details>
+      <p style="margin:10px 0 0;font-size:12px"><a class="muted" href="{% url 'crm:company_move' company.pk %}">Move to directory</a> <span class="muted">(a consultant, vendor or lender, not a prospect)</span></p>
       <details class="danger-zone"><summary>Delete this company</summary>
         <form method="post" action="{% url 'crm:company_delete' company.pk %}" style="margin-top:8px"
               onsubmit="return confirm('Delete {{ company.name|escapejs }} and its whole timeline, tasks, notes and opportunities? This cannot be undone.')">{% csrf_token %}

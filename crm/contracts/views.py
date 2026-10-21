@@ -20,7 +20,7 @@ from ..models import (
     LeaseTerms, Opportunity,
 )
 from ..permissions import is_manager, manager_required, refuse
-from . import ai, closing, compare, dates, methods, timeline
+from . import ai, closing, compare, dates, intake, methods, timeline
 from . import text as textmod
 from ..tenants import leases
 from .forms import ContractForm, DateForm, DocumentForm, LeaseTermsForm, TemplateForm
@@ -79,6 +79,62 @@ def contract_create(request):
         return redirect(contract)
     return render(request, "crm/form.html", {"form": form, "title": "New contract",
                                              "cancel": reverse("crm:contract_list")})
+
+
+def _drop_file(request, contract, new_contract=False):
+    """One dropped file onto a contract: a document read on arrival, then Claude fills in what it is. Returns the
+    JSON for the page's upload list."""
+    upload = request.FILES.get("file")
+    if not upload:
+        return JsonResponse({"ok": False, "error": "No file."}, status=400)
+    if upload.size > DocumentForm.MAX_BYTES:
+        return JsonResponse({"ok": False, "error": f"{upload.name} is over {DocumentForm.MAX_MB} MB."}, status=400)
+    hint = intake.guess(upload.name)
+    doc = ContractDocument(contract=contract, added_by=request.user, kind=hint["kind"], title=hint["title"],
+                           dated=hint["dated"], file=upload,
+                           position=(contract.documents.aggregate(m=Max("position"))["m"] or 0) + 1)
+    _read_upload(doc, upload)
+    same = contract.documents.filter(text=doc.text).exclude(text="").first() if doc.text else None
+    if same:
+        return JsonResponse({"ok": False, "error": f"Already in the file as {same.title}."}, status=200)
+    doc.save()
+    filled, note = [], ""
+    if ai_enabled():
+        try:
+            filled = intake.read(doc, contract, request.user, new_contract=new_contract)
+        except ai.Unavailable as exc:
+            note = str(exc)
+    contract.save(update_fields=["updated_at"])
+    dates.sync_site(contract, request.user)
+    return JsonResponse({
+        "ok": True, "doc": doc.pk, "title": doc.title, "kind": doc.get_kind_display(),
+        "dated": f"{doc.dated:%b} {doc.dated.day}, {doc.dated.year}" if doc.dated else "",
+        "by": doc.made_by if doc.is_draft else "", "pages": doc.pages, "filled": filled, "note": note,
+        "scan": doc.text_status == ContractDocument.TextStatus.SCAN, "url": contract.get_absolute_url(),
+        "reader": reverse("crm:contract_reader", args=[contract.pk, doc.pk]) if doc.text else "",
+    })
+
+
+@require_POST
+def contract_drop(request, pk):
+    """A file dropped onto a contract's page (one request per file)."""
+    return _drop_file(request, get_object_or_404(Contract, pk=pk))
+
+
+@require_POST
+def contract_drop_new(request):
+    """An agreement dropped onto the contracts list: a new contract, named and filled in from the file."""
+    upload = request.FILES.get("file")
+    if not upload:
+        return JsonResponse({"ok": False, "error": "No file."}, status=400)
+    site = LandSite.objects.select_related("campus").filter(pk=request.POST.get("site") or 0).first()
+    contract = Contract.objects.create(
+        title=intake.guess(upload.name)["title"][:200], kind=Contract.Kind.OTHER, status=Contract.Status.NEGOTIATING,
+        owner=request.user, created_by=request.user, site=site, campus=site.campus if site else None)
+    response = _drop_file(request, contract, new_contract=True)
+    if response.status_code != 200:
+        contract.delete()
+    return response
 
 
 @manager_required
@@ -157,14 +213,16 @@ def contract_detail(request, pk):
     all_dates = list(contract.dates.select_related("source"))
     today = timezone.localdate()
     for d in all_dates:
+        d.how = timeline.describe(timeline.term(d)) if d.anchor and d.offset is not None else ""
         d.left = d.days_left(today)
         d.late = -d.left if d.left is not None else None
         if d.source_id and d.source_start is not None:
             d.source_href = _reader_url(contract.pk, d.source_id, d.source_start, d.source_end)
     readable = ai.default_docs(contract)
     drafts = [d for d in docs if d.is_draft]
-    for prev, d in zip(drafts, drafts[1:]):
-        d.prev = prev if prev.text and d.text else None
+    with_text = [d for d in docs if d.text]
+    for prev, d in zip(with_text, with_text[1:]):
+        d.prev = prev  # any version against the one before it, signed or not
     purchase = contract.kind in (Contract.Kind.PSA, Contract.Kind.OPTION)
     return render(request, "crm/contract_detail.html", {
         "lease": _lease_context(contract, today) if contract.kind == Contract.Kind.LEASE else None,
@@ -183,6 +241,7 @@ def contract_detail(request, pk):
         "date_kinds": ContractDate.Kind.choices, "can_manage": is_manager(request.user),
         "compare_pair": drafts[-2:] if len(drafts) >= 2 else [d for d in docs if d.text][-2:],
         "timeline": timeline_strip(contract, today), "units": ContractDate.Unit.choices,
+        "executed": executed_doc(contract, docs),
         "comment_counts": dict(contract.comments.filter(parent__isnull=True, resolved=False).order_by()
                                .values_list("document").annotate(n=Count("id")).values_list("document", "n")),
     })
@@ -533,8 +592,8 @@ def contract_reader(request, pk, doc_pk):
         "open_comments": sum(1 for c in comments if not c.resolved), "users": _users(),
         "authors": [(a, n) for n, a in enumerate(authors)], "is_pdf": is_pdf,
         "view": "pdf" if request.GET.get("view") == "pdf" and is_pdf else "page",
-        "prev": next((d for d in reversed(docs[:docs.index(doc)]) if d.is_draft == doc.is_draft and d.text), None),
-        "can_manage": is_manager(request.user),
+        "prev": next((d for d in reversed(docs[:docs.index(doc)]) if d.text), None),
+        "can_manage": is_manager(request.user), "executed": executed_doc(contract, docs),
     })
 
 
@@ -676,8 +735,17 @@ def contract_compare(request, pk):
     if not (a and b) and len(docs) >= 2:
         drafts = [d for d in docs if d.is_draft]
         a, b = (drafts[-2], drafts[-1]) if len(drafts) >= 2 else (docs[-2], docs[-1])
-    body, stats, authors = (redline_for(contract, docs, a, b) if a and b and a != b else (None, {}, []))
-    here = reverse("crm:contract_compare", args=[contract.pk]) + (f"?a={a.pk}&b={b.pk}" if a and b else "")
+    only_b = by_pk.get(_int(request.GET.get("b") or request.POST.get("b")) or 0)
+    view = request.GET.get("view") or request.POST.get("view") or ""
+    if only_b and only_b.tracked and (view == "tracked" or (not view and not request.GET.get("a"))):
+        b, view = only_b, "tracked"  # the newer file's own Word redline, author by author
+        a = a if a and a != b else next((d for d in reversed(docs[:docs.index(b)])), None)
+        body, stats, authors = tracked_redline(b)
+    else:
+        view = "compare"
+        body, stats, authors = (redline_for(contract, docs, a, b) if a and b and a != b else (None, {}, []))
+    here = reverse("crm:contract_compare", args=[contract.pk]) + (
+        f"?b={b.pk}&view=tracked" if view == "tracked" else f"?a={a.pk}&b={b.pk}&view=compare" if a and b else "")
     if request.method == "POST" and request.POST.get("action") == "annotate" and body:
         try:
             made = ai.annotate_changes(contract, a, b, stats["items"], request.user)
@@ -695,8 +763,38 @@ def contract_compare(request, pk):
         "contract": contract, "docs": docs, "a": a, "b": b, "body": mark_safe(body or ""), "stats": stats,
         "items": items, "authors": authors, "other_comments": [c for c in threads if c.pk not in pinned],
         "notes": sum(1 for c in threads if c.by_claude), "question": COMPARE_QUESTION, "ai_ready": ai_enabled(),
-        "users": _users(), "here": here, "can_manage": is_manager(request.user),
+        "users": _users(), "here": here, "can_manage": is_manager(request.user), "view": view,
     })
+
+
+def tracked_redline(doc):
+    """(html, stats, authors) for a Word file's own tracked changes: the document as its author marked it up, each
+    change (a deletion and the insertion next to it, by one person) numbered in the sidebar."""
+    slots, items, marks = {}, [], []
+    for c in sorted(doc.tracked or [], key=lambda c: (c["start"], c["type"] != "del")):
+        name = c.get("author") or "Unknown"
+        cls = slots.setdefault(name, f"rl-a{len(slots) % AUTHOR_COLORS}")
+        last = items[-1] if items else None
+        if last and last["author"] == name and c["start"] <= last["end"] + 1:
+            last["end"] = max(last["end"], c["end"])
+        else:
+            last = {"n": len(items) + 1, "author": name, "start": c["start"], "end": c["end"], "deleted": "",
+                    "inserted": "", "cls": cls,
+                    "who": name + (f" ({c['date']})" if c.get("date") else "") + " · tracked in Word"}
+            items.append(last)
+        if c["type"] == "del":
+            last["deleted"] = (last["deleted"] + " " + c.get("text", "")).strip()
+        else:
+            last["inserted"] = (last["inserted"] + " " + doc.text[c["start"]:c["end"]]).strip()
+        marks.append({**c, "n": last["n"], "cls": cls})
+    body = textmod.reader_html(doc.text, doc.page_starts, tracked=marks)
+    counts = {}
+    for i in items:
+        counts.setdefault(i["author"], {"name": i["author"], "cls": i["cls"], "count": 0})["count"] += 1
+    stats = {"changes": len(items), "items": items,
+             "inserted": sum(len(i["inserted"].split()) for i in items),
+             "deleted": sum(len(i["deleted"].split()) for i in items)}
+    return body, stats, list(counts.values())
 
 
 # ---------------------------------------------------------------------------
@@ -713,9 +811,9 @@ def _versions(contract, docs):
                         "terms": timeline.from_document(d), "kept": False})
     kept = timeline.from_dates(contract)
     if kept:
-        out.append({"id": "kept", "label": "Critical dates" + (" (signed)" if contract.status in (
-            Contract.Status.SIGNED, Contract.Status.CLOSED) else " (kept)"), "who": "", "dated": None, "doc": None,
-            "terms": kept, "kept": True})
+        out.append({"id": "kept", "label": "Executed agreement" if contract.status in dates.EXECUTED
+                    else "Critical dates (kept)", "who": "", "dated": contract.effective_date, "doc": None,
+                    "terms": kept, "kept": True})
     return out
 
 
@@ -724,6 +822,15 @@ def _effective(request, contract, today):
         return date.fromisoformat(request.GET.get("eff") or request.POST.get("eff") or "")
     except ValueError:
         return contract.effective_date or today
+
+
+def executed_doc(contract, docs=None):
+    """The final executed agreement (the latest signed original or restatement), once the contract is signed."""
+    if contract.status not in dates.EXECUTED:
+        return None
+    docs = ai.chain(contract) if docs is None else docs
+    return next((d for d in reversed(docs) if d.kind in (ContractDocument.Kind.ORIGINAL,
+                                                         ContractDocument.Kind.RESTATED)), None)
 
 
 def timeline_strip(contract, today):
@@ -737,7 +844,8 @@ def timeline_strip(contract, today):
     lanes, ticks = timeline.lanes([{**v, "rows": rows}], (min((r["when"] for r in rows if r["when"]), default=None),
                                                           max((r["when"] for r in rows if r["when"]), default=None)),
                                   today)
-    return {"version": v, "rows": rows, "lanes": lanes, "ticks": ticks, "eff": eff}
+    upcoming = [r for r in rows if r["when"] and r["when"] >= today and not r.get("done")][:4]
+    return {"version": v, "rows": rows, "lanes": lanes, "ticks": ticks, "eff": eff, "upcoming": upcoming}
 
 
 def contract_timeline(request, pk):
@@ -759,12 +867,22 @@ def contract_timeline(request, pk):
     table, span = timeline.compare(shown)
     lanes, ticks = timeline.lanes(shown, span, today)
     options = []
-    if any(v["kept"] for v in shown) or not shown:
-        for d in contract.dates.filter(confirmed=True, done=False, kind=ContractDate.Kind.EXTENSION):
-            prop = timeline.proposal(d, today)
-            if prop:
-                options.append({"ext": d, **prop})
+    if contract.status in dates.EXECUTED or any(v["kept"] for v in shown):
+        for d in contract.dates.filter(confirmed=True, kind=ContractDate.Kind.EXTENSION):
+            if d.done:
+                on = next((h["exercised"] for h in reversed(d.history or []) if h.get("exercised")), None)
+                options.append({"ext": d, "exercised": date.fromisoformat(on) if on else None})
+            else:
+                options.append(timeline.proposal(d, today, target_pk=request.GET.get(f"t{d.pk}")))
+    main = shown[-1] if shown else None
+    months = []
+    for r in (main["rows"] if main else []):
+        label = f"{r['when']:%B %Y}" if r["when"] else "Not fixed yet"
+        if not months or months[-1]["label"] != label:
+            months.append({"label": label, "rows": []})
+        months[-1]["rows"].append(r)
     return render(request, "crm/contract_timeline.html", {
+        "main": main, "months": months, "executed": executed_doc(contract, docs),
         "contract": contract, "eff": eff, "versions": versions, "shown": shown, "picked": picked, "table": table,
         "lanes": lanes, "ticks": ticks, "options": options, "today": today, "ai_ready": ai_enabled(),
         "unread": [d for d in docs if ai.readable(d) and not d.timeline], "kinds": ContractDate.Kind.choices,
@@ -810,9 +928,9 @@ def _timeline_post(request, contract, docs, today):
         return redirect(contract.get_absolute_url() + "#dates")
     elif action in ("exercise", "push"):
         d = get_object_or_404(ContractDate, pk=request.POST.get("date_id"), contract=contract, confirmed=True)
-        prop = timeline.proposal(d, today)
-        if prop is None:
-            messages.error(request, "There's no date for that extension to push out. Set what it extends first.")
+        prop = timeline.proposal(d, today, target_pk=request.POST.get("target"))
+        if prop["target"] is None or prop["target"].pk == d.pk and action == "exercise":
+            messages.error(request, "Pick the deadline this extension pushes out.")
             return redirect(back)
         try:
             new = date.fromisoformat(request.POST.get("new_date") or "")
@@ -827,8 +945,11 @@ def _timeline_post(request, contract, docs, today):
             messages.error(request, "Pick the new date.")
             return redirect(back)
         also_ids = {int(i) for i in request.POST.getlist("also") if i.isdigit()}
-        also = [x for x in prop["same_day"] if x.pk in also_ids]
+        also = [x for x, _, _ in prop["also"] if x.pk in also_ids]
         note = (request.POST.get("note") or "").strip()[:300]
+        if action == "exercise" and not d.extends:
+            d.extends = target.key  # remembered for next time
+            d.save(update_fields=["extends"])
         if action == "exercise":
             why = f"{d.label} exercised, notice {notice_on:%b} {notice_on.day}, {notice_on.year}" + (
                 f": {note}" if note else "")

@@ -79,11 +79,11 @@
     <thead><tr><th>Role</th><th>Firm</th><th class="num">Contract</th><th class="num">Invoiced</th><th>Status</th></tr></thead>
     <tbody>{% for t in project.team.all %}<tr>
       <td class="lc-small">{{ t.get_role_display }}</td>
-      <td class="wrap"><b>{{ t.firm }}</b>{% if t.contact %}<div class="muted lc-small">{{ t.contact }}</div>{% endif %}
+      <td class="wrap"><b>{% if t.directory_id %}<a href="{% url 'crm:firm' t.directory_id %}">{{ t.firm }}</a>{% else %}{{ t.firm }}{% endif %}</b>{% if t.contact %}<div class="muted lc-small">{{ t.contact }}</div>{% endif %}
         <details class="ct-edit no-print lc-small"><summary>edit</summary>
           <form method="post" class="dd-form">{% csrf_token %}<input type="hidden" name="action" value="team_edit"><input type="hidden" name="id" value="{{ t.pk }}">
             <label>Role <select name="role">{% for v, l in roles|offer:t.role %}<option value="{{ v }}"{% if v == t.role %} selected{% endif %}>{{ l }}</option>{% endfor %}</select></label>
-            <label>Firm <input name="firm" value="{{ t.firm }}" required></label>
+            <label>Firm <input name="firm" value="{{ t.firm }}" list="firm-names" autocomplete="off" required></label>
             <label>Contact <input name="contact" value="{{ t.contact }}"></label>
             <label>Contract ($) <input name="fee" value="{{ t.fee|default_if_none:'' }}"></label>
             <label>Invoiced ($) <input name="invoiced" value="{{ t.invoiced|default_if_none:'' }}"></label>
@@ -99,13 +99,15 @@
   <details class="ct-add no-print"><summary class="btn btn-small">Add a firm</summary>
     <form method="post" class="dd-form">{% csrf_token %}<input type="hidden" name="action" value="team_add">
       <label>Role <select name="role">{% for v, l in roles|offer %}<option value="{{ v }}">{{ l }}</option>{% endfor %}</select></label>
-      <label>Firm <input name="firm" required></label>
+      <label>Firm <input name="firm" list="firm-names" autocomplete="off" required placeholder="From the directory, or a new name"></label>
       <label>Contact <input name="contact"></label>
       <label>Contract ($) <input name="fee"></label>
       <label>Invoiced ($) <input name="invoiced"></label>
       <label>Status <select name="status">{% for v, l in team_statuses|offer:"engaged" %}<option value="{{ v }}"{% if v == "engaged" %} selected{% endif %}>{{ l }}</option>{% endfor %}</select></label>
       <div class="dd-wide"><button class="btn btn-small btn-primary">Add</button></div>
     </form></details>
+  <datalist id="firm-names"></datalist>
+  <p class="muted lc-small" style="margin-bottom:0">Each firm is kept in the <a href="{% url 'crm:directory' %}?group=services">Directory</a>, not as a Company, so it's never in outreach.</p>
 </section>
 
 <section class="panel" id="draws">
@@ -311,6 +313,7 @@
 <p class="muted lc-small">Summaries only: the GC's own system keeps the detail. Approved change orders add to their line's budget; the forecast is the current budget unless you set one.</p>
 {% endblock %}
 {% block scripts %}
+{% include "crm/partials/provider_names_js.html" %}
 <script>
   document.querySelectorAll('form[data-busy]').forEach(f => f.addEventListener('submit', () => {
     const btn = f.querySelector('button'); btn.disabled = true; btn.textContent = f.dataset.busy;

@@ -12,12 +12,15 @@
       {% if changed %} · <span title="Badges in the text show where later amendments changed a section">{{ changed }} section{{ changed|pluralize }} changed later</span>{% endif %}</div>
   </div>
   <div class="record-nav">
-    {% if prev %}<a class="btn" href="{% url 'crm:contract_compare' contract.pk %}?a={{ prev.pk }}&b={{ doc.pk }}">Redline vs. {{ prev.title|truncatechars:24 }}</a>{% endif %}
+    {% if doc.tracked %}<a class="btn btn-primary" href="{% url 'crm:contract_compare' contract.pk %}?b={{ doc.pk }}&view=tracked">Redline ({{ doc.tracked|length }} tracked changes)</a>{% endif %}
+    {% if prev %}<a class="btn" href="{% url 'crm:contract_compare' contract.pk %}?a={{ prev.pk }}&b={{ doc.pk }}&view=compare">Compare with {{ prev.title|truncatechars:24 }}</a>{% endif %}
     <a class="btn" href="{% url 'crm:contract_timeline' contract.pk %}">Timeline</a>
     {% if doc.href %}<a class="btn" href="{{ doc.href }}" target="_blank" rel="noopener">Download</a>{% endif %}
     <a class="btn" href="{{ contract.get_absolute_url }}#ask">Ask Claude</a>
   </div>
 </div>
+{% if doc == executed %}<div class="ct-executed"><span class="ct-exec-badge">✓ Executed</span><div>This is the final executed agreement{% if contract.effective_date %}, effective {{ contract.effective_date|date:"F j, Y" }}{% endif %}.</div></div>
+{% elif doc.is_draft %}<div class="cr-draftnote lc-small">Draft{% if doc.made_by %} from {{ doc.made_by }}{% endif %}: not signed.</div>{% endif %}
 <div class="cr-bar">
   <div class="cr-docs">{% for d in docs %}{% if d.text %}<a class="chip{% if d.pk == doc.pk %} active{% endif %}" href="{% url 'crm:contract_reader' contract.pk d.pk %}">{{ forloop.counter }}. {{ d.title|truncatechars:40 }}</a>{% endif %}{% endfor %}</div>
   {% if is_pdf %}<div class="seg">

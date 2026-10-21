@@ -35,8 +35,8 @@
       <summary>Campuses</summary>
       <a href="{% url 'crm:campus_index' %}" class="nav-1 {% if '/campuses/' in p %}active{% endif %}">Campus summary</a>
       <a href="{% url 'crm:project_list' %}" class="nav-1 {% if '/projects/' in p %}active{% endif %}">Projects</a>
-      <a href="{% url 'crm:capital_index' %}" class="nav-1 {% if '/capital/' in p and '/capital/providers/' not in p %}active{% endif %}">Capital</a>
-      <a href="{% url 'crm:capital_providers' %}" class="nav-2 {% if '/capital/providers/' in p %}active{% endif %}">Lenders and investors</a>
+      <a href="{% url 'crm:capital_index' %}" class="nav-1 {% if '/capital/' in p %}active{% endif %}">Capital</a>
+      <a href="{% url 'crm:directory' %}?group=capital" class="nav-2">Lenders and investors</a>
       <a href="{% url 'crm:contract_list' %}" class="nav-1 {% if '/contracts/' in p and '/contracts/templates/' not in p %}active{% endif %}">Contracts</a>
       <a href="{% url 'crm:contract_templates' %}" class="nav-2 {% if '/contracts/templates/' in p %}active{% endif %}">Abstract templates</a>
     </details>
@@ -47,6 +47,7 @@
       <a href="{% url 'crm:person_list' %}" class="nav-1 {% if '/people/' in p %}active{% endif %}">People</a>
       <a href="{% url 'crm:list_index' %}" class="nav-1 {% if '/lists/' in p %}active{% endif %}">Lists</a>
       <a href="{% url 'crm:duplicates' %}" class="nav-2 {% if 'duplicates' in p %}active{% endif %}">Possible duplicates</a>
+      <a href="{% url 'crm:directory' %}" class="nav-1 {% if '/directory/' in p %}active{% endif %}">Directory</a>
     </details>
 
     <details class="nav-sec" data-key="outreach" open>

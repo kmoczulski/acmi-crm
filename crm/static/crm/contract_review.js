@@ -52,7 +52,7 @@ window.ContractReview = (function () {
   }
   function goToMark(id) {
     const marks = marksFor(id);
-    const change = document.querySelector(`.rl-chg[data-n="${id}"]`);
+    const change = document.querySelector(`.rl-chg[data-n="${id}"], [data-tc="${id}"]`);
     const first = marks[0] || change;
     if (first) { first.scrollIntoView({block: 'center', behavior: 'smooth'}); flash(marks.length ? marks : [first]); }
   }

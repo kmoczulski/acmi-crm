@@ -7,7 +7,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
-from crm.models import Company, MailFilter, Mailbox, UnmatchedEmail
+from crm.models import Company, Firm, MailFilter, Mailbox, UnmatchedEmail
 
 from . import sync
 
@@ -24,6 +24,7 @@ def mail_home(request):
         "queue_total": sum(g["count"] for g in queue),
         "filters": MailFilter.objects.all(),
         "filter_kinds": MailFilter.Kind.choices,
+        "firm_kinds": Firm.Kind.choices,
         "default_email": request.user.email,
     })
 
@@ -76,8 +77,12 @@ def review_approve(request):
         if company is None:
             messages.error(request, f"No company named “{existing}”. Leave it blank to create a new one.")
             return redirect("crm:mail")
-    company, stats = sync.approve_domain(domain, company=company, company_name=request.POST.get("name", ""),
-                                         user=request.user)
+    try:
+        company, stats = sync.approve_domain(domain, company=company, company_name=request.POST.get("name", ""),
+                                             user=request.user)
+    except ValueError as e:
+        messages.error(request, str(e))
+        return redirect("crm:mail")
     messages.success(request, f"{domain} → {company.name}: {stats['activities created']} emails logged.")
     return redirect("crm:mail")
 
@@ -106,11 +111,15 @@ def review_bulk(request):
         verb = "Protected" if action == MailFilter.Kind.PROTECT else "Ignored"
         messages.success(request, f"{verb} {len(domains)} domain{'s' if len(domains) != 1 else ''}.")
     elif action == "create":
-        logged = 0
+        logged = added = 0
         for domain in domains:
-            _, stats = sync.approve_domain(domain, user=request.user)
+            try:
+                _, stats = sync.approve_domain(domain, user=request.user)
+            except ValueError:  # a directory firm's domain
+                continue
             logged += stats["activities created"]
-        messages.success(request, f"Added {len(domains)} companies; {logged} emails logged. Rename them from their pages.")
+            added += 1
+        messages.success(request, f"Added {added} companies; {logged} emails logged. Rename them from their pages.")
     return redirect("crm:mail")
 
 

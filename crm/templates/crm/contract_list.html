@@ -1,5 +1,5 @@
 {% extends "crm/base.html" %}
-{% load crm_tags %}
+{% load crm_tags static %}
 {% block title %}Contracts · ACMI CRM{% endblock %}
 {% block content %}
 <div class="page-head">
@@ -15,6 +15,9 @@
 </div>
 <p class="muted" style="margin-top:0">Every LOI, purchase agreement, option, lease and development agreement with its documents in order, who has the ball,
   and the dates that matter. Claude answers questions about any of them and cites the exact language.</p>
+
+{% url 'crm:contract_drop_new' as drop_url %}
+{% include "crm/partials/contract_dropzone.html" with url=drop_url mode="new" heading="Drop an agreement here to start a contract" hint="The executed agreement or the latest draft; drop its redlines and amendments with it." %}
 
 <div class="campus-layout">
   <div class="table-wrap">
@@ -44,3 +47,4 @@
   </aside>
 </div>
 {% endblock %}
+{% block scripts %}<script src="{% static 'crm/dropzone.js' %}?v={{ ASSET_VERSION }}"></script>{% endblock %}

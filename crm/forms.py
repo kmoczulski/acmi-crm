@@ -76,6 +76,16 @@ class CompanyForm(StyledForm):
         fit.help_text = ""
         fit.widget.attrs["data-definitions"] = "|".join(label.split(" · ", 1)[1] for _, label in FitScore.choices)
 
+    def clean_domains(self):
+        from .directory.logic import firm_domains
+
+        domains = self.cleaned_data.get("domains") or []
+        taken = sorted({d.lower() for d in domains} & set(firm_domains()))
+        if taken:
+            raise forms.ValidationError(f"{', '.join(taken)} belongs to a firm in the Directory (a consultant, vendor "
+                                        "or lender), which never becomes a Company.")
+        return domains
+
     def clean_campus_choice(self):
         picked = self.cleaned_data["campus_choice"]
         special = [p for p in picked if p in (CampusPlan.OWN, CampusPlan.NONE)]

@@ -31,7 +31,7 @@ selected; the briefs page has a Choose sites panel.
 **Granola import 2026-10-21** (Kellen asked): Oct 16 to Oct 20, 7 meetings (6 new, Greystar refreshed) from
 `data/imports/granola/2026-10-21.json`, full summaries; backup `backups/db-2026-10-21-before-granola-import.sqlite3`.
 Booz Allen matched a company. Then (Kellen): `fortusfederal.us` added to Fortus Technologies (1781); Cozen O'Connor
-added (1795, our outside counsel, Jonathan Ciriello; flagged Exclude so it stays out of outreach); "MBI B101" added to
+added (1795, our outside counsel, Jonathan Ciriello; flagged Exclude; later the same day moved to the Directory, see "the directory" below); "MBI B101" added to
 the ARA Facility project's keywords, so the Cozen call (and later MBI B101 mail) tags to ARA Facility / MEIH. Backups
 `backups/db-2026-10-21-before-fortus-domain.sqlite3`, `...-before-cozen.sqlite3`. greystar.com and terracon.com still
 have no company.
@@ -1224,6 +1224,50 @@ payment / rent dates); backup `backups/db-2026-10-21-before-contract-review.sqli
 - **Not yet:** comment highlights in the redline view are by change, not exact words (the redline's text isn't the
   document's text); holidays aren't skipped in business days; "Original PDF" for Word files (download only).
 
+## Built 2026-10-21 (later): drag-and-drop contract upload, Word redlines, extensions that work out their own dates
+
+Kellen: the upload should be "drag to upload and AI to pull the info automatically"; the timeline UI cut things off;
+the extension made him type the date; the executed agreement should be clearly marked; and "I still don't see
+redlines between version 1 and version 2" on the Long Wall PDA.
+
+- **Drop to upload** (`crm/contracts/intake.py`, `static/crm/dropzone.js`, `partials/contract_dropzone.html`): drop
+  files anywhere on a contract page (or pick them). Each file is read, then Claude (structured output, effort low,
+  first 60k characters) says what it is: kind (executed original, amendment, draft...), title, date, whose draft and
+  who redlined it, a one-line summary, and fills the contract's blank fields. Dropping an agreement on the contracts
+  list starts a new contract named and filled from it (title, kind, status, parties, price, acres, effective date);
+  more files dropped with it go into the same contract. Without a key the file name is the guide
+  (`intake.guess`: "Redline", "Amendment", a date in the name). The same file twice is refused. The old form is still
+  there under "Or fill it in by hand".
+- **Word redlines:** files uploaded before Word tracked changes were kept are read again with
+  `manage.py reread_contract_files [--contract N] [--dry-run]` (comments and date sources are re-pinned by their
+  quotes). The redline page has two views when the newer file is a Word redline: "Tracked in the Word file" (the
+  markup exactly as its author left it, one card per change with who and when) and "Compared with <previous>". Every
+  document in the file now has "compare with previous" (any kind, not only drafts), and Word redlines a bold
+  "redline (N tracked)" link; the reader has the same buttons.
+- **Extensions:** dates entered before rules existed (the ETC dates came from Trello) get their key and rule read on
+  first use (`timeline.ensure_keys`; new phrasings: "on or before the end of the Feasibility Period", "before the
+  Feasibility Period expires", "10 days' advance notice of the Closing Date", "extends it 120 days"). The extension card
+  shows the deadline it pushes, its new date worked out (e.g. Oct 22 + 120 days = Feb 19, 2027), every date that
+  counts from it with its new date, and the other later dates as tick boxes (same-day ones ticked). You enter only the
+  notice date. The extension itself is never moved; a pushed deadline is reopened. If the agreement doesn't say what an
+  extension pushes, the card asks which deadline (and remembers it).
+- **Timeline layout:** an overview with a dot per date (names in their own column, no labels on the track, so nothing
+  is cut off; hover for what it is), then the dates month by month, then the side-by-side table only when comparing.
+  The contract page shows the overview plus the next four dates.
+- **Executed agreement:** once a contract is signed, the latest signed original or restatement is marked "Final
+  executed" in the file, with a green "Executed" banner on the contract, timeline and reader (drafts say "Draft: not
+  signed").
+- **Bug fixed (real data):** on Oct 21 the ETC "Extension Notice Deadline" was exercised through the first version,
+  which pushed the extension date itself (and two same-day dates) to Feb 19 and left the Feasibility Period
+  Expiration, closing and closing notice where they were. The fix script is in this session's scratchpad
+  (`fix_etc.py`): it undoes the Oct 21 moves from each date's history, then exercises the extension properly (notice
+  Oct 19, $10,000 deposit wired Oct 21): Feasibility Feb 19, 2027; title defects notice and lease supplement Feb 19;
+  seller's title response Mar 1; closing (60 days after feasibility) Apr 20; closing notice Apr 10. Tested on a copy.
+- **Merged 2026-10-21** (`b6c7e41`, CI green; 396 tests). No migration. On the real DB (backups
+  `backups/db-2026-10-21-before-etc-fix.sqlite3` and `-before-etc-fix-2.sqlite3`): the ETC extension was redone with
+  `fix_etc.py` (dates as listed above; decision Extend on Oct 19; site feasibility milestone Feb 19, 2027);
+  `reread_contract_files` re-read the two Long Wall Word files (19 and 101 tracked changes); the duplicate copy of the
+  executed ETC PSA (document 4, unused; Claude's answers cite document 3) was deleted with its file.
 ## Built 2026-10-21: the capitalization tracker
 
 **Merged 2026-10-21** (`d1d1393`, CI green on Postgres). Migration `0052_capital` applied to the real DB (new tables
@@ -1316,6 +1360,54 @@ sheets etc. would be helpful." Sources, terms and conversations only; the pro fo
   three meetings and tasks: desktop at 800 and 1440 wide and phone at 375 wide (no sideways scroll), Make task from a
   card and from the Action items tab, ticking an item done, the Activity filter, expanding a summary.
 - **Not yet:** the person page still has the old layout; the same cards would fit there.
+
+## Built 2026-10-21: the directory (consultants, vendors, lawyers, engineers, lenders)
+
+**Merged 2026-10-21** (`69884a9`, CI green on Postgres with 412 tests, pushed; branch and worktree removed). Real DB migrated
+through `0053_directory` (backup `backups/db-2026-10-21-before-directory.sqlite3`; the capital tables were still empty, so
+nothing to carry over). **Cozen O'Connor moved** (Kellen's OK): now directory firm 1, Law firm, cozen.com, Jonathan
+Ciriello as a contact; Company 1795 and its Person deleted; its 6 meetings show on the firm page. Backup
+`backups/db-2026-10-21-before-cozen-move.sqlite3`.
+
+Kellen, 2026-10-21, on keeping brokers and banks out of Companies: "If anything it should be a separate CRM for
+consultants etc." He picked (2026-10-21): **one directory** shared with the lenders and investors rather than two lists;
+a **Move to directory** button on a company, moving **only Cozen O'Connor** for now (the ~40 consulting-sector
+Companies are often defense consultants that could be tenants, so they're moved one at a time by hand); and **project
+team firms linked** to the directory.
+
+- **One list, `Firm`** (`crm/directory/`, migration `0053_directory`, which renames `CapitalProvider` → `Firm` and
+  `CapitalEmail` → `FirmEmail` in place, so the capital tables and rows carry over). Type is capital (bank, debt fund,
+  debt broker / advisor, equity investor, agency) or services (law firm, architect, engineer, environmental, surveyor,
+  contractor / builder, consultant / advisor, real estate broker, title / escrow, accountant / tax, insurance, vendor /
+  supplier, other). `Firm.is_capital` says which side; an option added in Settings › Dropdown lists › Contacts ›
+  Directory type picks the built-in type it works like. A capital source's provider field offers only the capital side.
+  Never a Company or Person, so never in a send queue, list or outreach report.
+- **Pages:** `/directory/` (sidebar Contacts › Directory; Capital › Lenders and investors opens it on the capital side;
+  the old `/capital/providers/` redirects there): All / Lenders and investors / Consultants and vendors, a type filter,
+  search by name, domain or contact; each firm's capital sources and project team roles and its last email.
+  `/directory/<id>/` is one firm: project teams, capital sources, emails / meetings / capital log (120 days), contacts
+  (kept on the firm, not as People), details.
+- **Email:** the mail sync files mail from a firm's domains as `FirmEmail` (`mail/sync.py _park`, the hook the capital
+  providers used) instead of the review queue. A firm's domain is never guessed onto a Company by name (the sync's
+  name-spelling match skips it), can't be added to a Company (company form) or approved from the review queue, and a
+  Company's domain can't be added to a firm (use Move to directory instead). Adding a domain to a firm moves what's
+  already in the review queue onto it.
+- **Mail review:** each queued domain has **File in directory** (name, type): the domain goes on a firm (an existing
+  one of that name gets it added) and its queued mail moves there.
+- **Move to directory** (company page, Managers only; `/companies/<id>/move-to-directory/` shows what happens first):
+  domains and website to the firm; people become contacts and are deleted as People; emails become `FirmEmail`; notes,
+  calls, comments (company's and its people's) are appended to the firm's notes; meetings stay on the calendar and show
+  on the firm through its domains and contacts; it comes off any lists; the Company is deleted. Joins a firm of the same
+  name if one exists. Blocked while the company has a tenant deal, document, contract or open task.
+- **Project team:** a `TeamMember` links to its firm (`directory`, found by name or started on save, type from the role:
+  civil → engineer, attorney → law firm, GC → contractor...). The Build page's firm field offers directory names and
+  links each firm to its page. The real DB has no team members yet.
+- **Tests:** `crm/tests/test_directory.py` (16), plus the capital tests updated for the rename; the whole suite (412
+  after merging main) passes. Checked in a browser on a scratch database with made-up firms: the directory and its filters, moving a
+  made-up law firm Company (its email, meeting, contact and notes arrived on the firm), File in directory from Mail
+  review, the Build page's team links, and the capital pages after the rename.
+- **Still open:** `terracon.com` and `greystar.com` have no Company yet: decide each in Mail review (Add as company,
+  or File in directory). Fortress isn't in the directory yet (from the capital tracker's to-do).
 
 ## Built 2026-10-21: one meeting, not two (Kellen: "two meetings listed for Booz Allen on the same day?")
 

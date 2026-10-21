@@ -56,7 +56,7 @@
 
 <div class="panel">
   <h3>New domains to review ({{ queue|length }})</h3>
-  <p class="muted" style="font-size:13px;margin-top:0">Emails with people at domains no company owns yet. Create a company (or attach the domain to an existing one) and the waiting emails land on its timeline. Ignore vendors, law firms and the like. Protect anything that should never be stored.</p>
+  <p class="muted" style="font-size:13px;margin-top:0">Emails with people at domains no company owns yet. Create a company (or attach the domain to an existing one) and the waiting emails land on its timeline. File vendors, law firms, consultants and lenders in the Directory: they stay out of outreach and their mail is kept there. Ignore anything else that isn't a prospect. Protect anything that should never be stored.</p>
   {% if queue %}
   <form method="post" action="{% url 'crm:review_bulk' %}" id="bulk-form" class="inline-form" style="margin-bottom:8px">{% csrf_token %}
     <label style="display:flex;gap:4px;align-items:center"><input type="checkbox" id="select-all"> Select all</label>
@@ -78,6 +78,14 @@
             <button class="btn-small" name="kind" value="ignore" title="Don't create a company; still log mail with people already in the CRM">Ignore</button>
             <button class="btn-small" name="kind" value="protect" title="Never store mail with this domain">Protect</button>
           </form>
+          <details style="margin-top:4px"><summary class="lc-small" style="cursor:pointer">File in directory</summary>
+            <form method="post" action="{% url 'crm:firm_file_domain' %}" style="display:grid;gap:4px;margin-top:4px;min-width:170px">{% csrf_token %}
+              <input type="hidden" name="domain" value="{{ g.domain }}">
+              <input name="name" placeholder="{{ g.suggested_name }}" title="Leave blank to use {{ g.suggested_name }}; an existing directory name adds the domain to it">
+              <select name="kind">{% for v, l in firm_kinds %}<option value="{{ v }}"{% if v == "consultant" %} selected{% endif %}>{{ l }}</option>{% endfor %}</select>
+              <button class="btn-small" title="A consultant, vendor or lender: never a Company, never in outreach">File</button>
+            </form>
+          </details>
         </td>
         <td>{{ g.count }}<div class="muted" style="font-size:12px">{{ g.sent }} sent · {{ g.received }} in</div></td>
         <td class="wrap" style="font-size:12px;min-width:160px;max-width:220px">{% for addr, name in g.addresses.items %}{% if forloop.counter <= 3 %}{% if name %}{{ name }}<br>{% endif %}<span class="muted">{{ addr }}</span><br>{% elif forloop.last %}<span class="muted">+{{ forloop.counter|add:"-3" }} more</span>{% endif %}{% endfor %}</td>

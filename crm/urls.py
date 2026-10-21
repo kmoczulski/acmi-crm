@@ -1,9 +1,11 @@
 from django.urls import path
+from django.views.generic import RedirectView
 
 from . import campus_views, views
 from .build import views as build_views
 from .capital import views as capital_views
 from .contracts import views as contract_views
+from .directory import views as directory_views
 from .entitlements import views as entitlement_views
 from .tenants import views as tenant_views
 from .land import assignment_views as asg_views
@@ -56,14 +58,17 @@ urlpatterns = [
     path("campuses/updates/<int:pk>/delete/", campus_views.campus_update_delete, name="campus_update_delete"),
     path("capital/", capital_views.capital_index, name="capital_index"),
     path("capital/new/", capital_views.source_create, name="capital_source_create"),
-    path("capital/providers/", capital_views.provider_list, name="capital_providers"),
-    path("capital/providers/<int:pk>/", capital_views.provider_detail, name="capital_provider"),
-    path("capital/providers/names/", capital_views.provider_names, name="capital_provider_names"),
+    path("capital/providers/", RedirectView.as_view(url="/directory/?group=capital"), name="capital_providers"),
     path("capital/compare/", capital_views.compare, name="capital_compare"),
     path("capital/term-sheets/<int:pk>/file/", capital_views.term_sheet_file, name="term_sheet_file"),
     path("capital/<int:pk>/", capital_views.source_detail, name="capital_source"),
     path("projects/<int:pk>/capital/", capital_views.project_capital, name="project_capital"),
     path("projects/<int:pk>/capital/add/", capital_views.quick_add, name="capital_quick_add"),
+    path("directory/", directory_views.firm_list, name="directory"),
+    path("directory/names/", directory_views.firm_names, name="firm_names"),
+    path("directory/file-domain/", directory_views.file_domain, name="firm_file_domain"),
+    path("directory/<int:pk>/", directory_views.firm_detail, name="firm"),
+    path("companies/<int:pk>/move-to-directory/", directory_views.company_move, name="company_move"),
     path("entitlements/", entitlement_views.approval_list, name="approval_list"),
     path("entitlements/new/", entitlement_views.approval_create, name="approval_create"),
     path("entitlements/matrix/", entitlement_views.approval_matrix, name="approval_matrix"),
@@ -71,6 +76,7 @@ urlpatterns = [
     path("entitlements/<int:pk>/", entitlement_views.approval_detail, name="approval_detail"),
     path("contracts/", contract_views.contract_list, name="contract_list"),
     path("contracts/new/", contract_views.contract_create, name="contract_create"),
+    path("contracts/new/drop/", contract_views.contract_drop_new, name="contract_drop_new"),
     path("contracts/templates/", contract_views.template_list, name="contract_templates"),
     path("contracts/templates/new/", contract_views.template_edit, name="contract_template_new"),
     path("contracts/templates/<int:pk>/", contract_views.template_edit, name="contract_template_edit"),
@@ -79,6 +85,7 @@ urlpatterns = [
     path("contracts/<int:pk>/delete/", contract_views.contract_delete, name="contract_delete"),
     path("contracts/<int:pk>/compare/", contract_views.contract_compare, name="contract_compare"),
     path("contracts/<int:pk>/timeline/", contract_views.contract_timeline, name="contract_timeline"),
+    path("contracts/<int:pk>/drop/", contract_views.contract_drop, name="contract_drop"),
     path("contracts/<int:pk>/comments/", contract_views.contract_comment, name="contract_comment"),
     path("contracts/<int:pk>/answers/<int:answer_pk>/", contract_views.contract_answer, name="contract_answer"),
     path("contracts/<int:pk>/read/<int:doc_pk>/", contract_views.contract_reader, name="contract_reader"),
