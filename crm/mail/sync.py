@@ -81,9 +81,10 @@ class Matcher:
         self.ignored = {p for p, k in filters.items() if k == MailFilter.Kind.IGNORE}
         self.internal = {d.lower() for d in settings.INTERNAL_EMAIL_DOMAINS}
         self._company_by_domain = None
-        from crm.capital.logic import provider_domains
+        from crm.directory.logic import firm_domains
 
-        self.capital = provider_domains()  # lenders' and investors' domains: filed on the provider, never queued
+        # The directory's domains (lenders, consultants, vendors): their mail is filed on the firm, never queued.
+        self.directory = firm_domains()
 
     def is_protected(self, address):
         return address in self.protected or domain_of(address) in self.protected
@@ -102,7 +103,7 @@ class Matcher:
                     self._company_by_domain.setdefault(d.lower(), pk)
                 self._company_by_squashed.setdefault(squash(name), pk)
         pk = self._company_by_domain.get(domain)
-        if pk is None:
+        if pk is None and domain not in self.directory:  # a directory firm's domain never becomes a company's
             # firehawkaerospace.com -> "Firehawk Aerospace". Exact match only, so no guessing.
             pk = self._company_by_squashed.get(squash(domain.split(".")[0]))
             if pk is not None:
@@ -330,19 +331,19 @@ def _park(event, matcher, recorder):
     if not domain or domain in FREE_MAIL or domain in matcher.ignored or event.kind == Activity.Kind.BOUNCE:
         recorder.stats["skipped (unknown personal/ignored address)"] += 1
         return
-    if domain in matcher.capital:
-        from crm.models import CapitalEmail
+    if domain in matcher.directory:
+        from crm.models import FirmEmail
 
-        _, created = CapitalEmail.objects.get_or_create(
+        _, created = FirmEmail.objects.get_or_create(
             message_id=event.message_id, address=event.address,
             defaults={
-                "provider_id": matcher.capital[domain], "mailbox": event.mailbox, "thread_id": event.thread_id,
+                "provider_id": matcher.directory[domain], "mailbox": event.mailbox, "thread_id": event.thread_id,
                 "occurred_at": event.occurred_at, "kind": event.kind, "name": event.name[:255],
                 "subject": event.subject[:500], "snippet": event.body[:1000],
             },
         )
         if created:
-            recorder.stats["filed on a capital provider"] += 1
+            recorder.stats["filed in the directory"] += 1
         return
     _, created = UnmatchedEmail.objects.get_or_create(
         message_id=event.message_id, address=event.address,
@@ -451,8 +452,13 @@ def guess_company_name(domain):
 
 
 def approve_domain(domain, company=None, company_name="", user=None):
-    """Attach the domain to a company (new or existing) and log its queued emails."""
+    """Attach the domain to a company (new or existing) and log its queued emails. A directory firm's domain is
+    refused (ValueError): it's a consultant, vendor or lender, never a company."""
     domain = domain.lower()
+    from crm.directory.logic import firm_domains
+
+    if domain in firm_domains():
+        raise ValueError(f"{domain} belongs to a firm in the directory.")
     with transaction.atomic():
         name = company_name.strip() or guess_company_name(domain)
         if company is None:

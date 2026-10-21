@@ -2493,12 +2493,27 @@ class TeamMember(models.Model):
     invoiced = models.DecimalField("invoiced ($)", max_digits=14, decimal_places=2, null=True, blank=True)
     status = models.CharField(max_length=10, choices=Status.choices, default=Status.ENGAGED)
     notes = models.CharField(max_length=300, blank=True)
+    # The firm's entry in the directory (found or started by name on save), never a Company, so it stays out of
+    # outreach and its page shows every project it's on.
+    directory = models.ForeignKey("Firm", null=True, blank=True, on_delete=models.SET_NULL, related_name="team_roles")
+
+    # The directory type a firm first named on a team starts as.
+    FIRM_KINDS = {"architect": "architect", "civil": "engineer", "structural": "engineer", "mep": "engineer",
+                  "geotech": "engineer", "surveyor": "surveyor", "environmental": "environmental", "qd": "consultant",
+                  "gc": "contractor", "owners_rep": "consultant", "attorney": "law"}
 
     class Meta:
         ordering = ["role", "firm"]
 
     def __str__(self):
         return f"{self.firm} ({self.get_role_display()})"
+
+    def save(self, *args, **kwargs):
+        self.firm = " ".join((self.firm or "").split())
+        if self.firm and (self.directory is None or self.directory.name.lower() != self.firm.lower()):
+            self.directory = Firm.objects.filter(name__iexact=self.firm).first() or Firm.objects.create(
+                name=self.firm, kind=self.FIRM_KINDS.get(self.role, Firm.Kind.OTHER))
+        super().save(*args, **kwargs)
 
 
 class Bid(models.Model):
@@ -2802,13 +2817,15 @@ class ChoiceOption(models.Model):
 # ---------------------------------------------------------------------------
 # Capitalization (crm/capital/): each project's capital stack, the lenders and investors we're talking to, and their
 # term sheets. Sources, terms and conversations only; the pro forma stays in Excel. Lenders, brokers and investors
-# live in their own list (CapitalProvider), never as Companies or People, so they can't reach outreach.
+# live in the directory (Firm), never as Companies or People, so they can't reach outreach.
 # ---------------------------------------------------------------------------
 
 
-class CapitalProvider(models.Model):
-    """A lender, debt fund, broker, equity investor or agency, kept apart from Companies and People: nothing here is
-    ever in a send queue, list or report. Its email domains and contacts let emails and meetings with it be found."""
+class Firm(models.Model):
+    """The directory: firms ACMI works with but never markets to. Lenders, brokers and investors (capital) and the
+    lawyers, engineers, consultants, contractors and vendors (services). Kept apart from Companies and People, so
+    nothing here is ever in a send queue, list or report. Its email domains and contacts let emails and meetings with
+    it be found; the mail sync files its email here (FirmEmail) instead of the company review queue."""
 
     class Kind(models.TextChoices):
         BANK = "bank", "Bank"
@@ -2816,10 +2833,25 @@ class CapitalProvider(models.Model):
         BROKER = "broker", "Debt broker / advisor"
         INVESTOR = "investor", "Equity investor"
         AGENCY = "agency", "Agency / public program"
+        LAW = "law", "Law firm"
+        ARCHITECT = "architect", "Architect"
+        ENGINEER = "engineer", "Engineer"
+        ENVIRONMENTAL = "environmental", "Environmental consultant"
+        SURVEYOR = "surveyor", "Surveyor"
+        CONTRACTOR = "contractor", "Contractor / builder"
+        CONSULTANT = "consultant", "Consultant / advisor"
+        RE_BROKER = "re_broker", "Real estate broker"
+        TITLE = "title", "Title / escrow"
+        ACCOUNTING = "accounting", "Accountant / tax"
+        INSURANCE = "insurance", "Insurance"
+        VENDOR = "vendor", "Vendor / supplier"
         OTHER = "other", "Other"
 
+    # The capital side of the directory: offered when a capital source names its provider.
+    CAPITAL_KINDS = ("bank", "debt_fund", "broker", "investor", "agency")
+
     name = models.CharField(max_length=200, unique=True)
-    kind = models.CharField(max_length=10, choices=Kind.choices, default=Kind.BANK)
+    kind = models.CharField(max_length=14, choices=Kind.choices, default=Kind.OTHER)
     domains = models.JSONField(default=list, blank=True, help_text="Email domains, e.g. truist.com")
     contacts = models.JSONField(default=list, blank=True, help_text="[{name, title, email, phone}]")
     website = models.URLField(blank=True)
@@ -2834,7 +2866,7 @@ class CapitalProvider(models.Model):
         return self.name
 
     def get_absolute_url(self):
-        return reverse("crm:capital_provider", args=[self.pk])
+        return reverse("crm:firm", args=[self.pk])
 
     def save(self, *args, **kwargs):
         self.domains = sorted({d.strip().lower().lstrip("@") for d in self.domains or [] if d.strip()})
@@ -2843,6 +2875,12 @@ class CapitalProvider(models.Model):
     @property
     def emails(self):
         return [c["email"].lower() for c in self.contacts or [] if c.get("email")]
+
+    @property
+    def is_capital(self):
+        from . import choices
+
+        return choices.base("Firm.Kind", self.kind) in self.CAPITAL_KINDS
 
 
 class CapitalSource(models.Model):
@@ -2885,7 +2923,7 @@ class CapitalSource(models.Model):
 
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="capital_sources")
     kind = models.CharField(max_length=14, choices=Kind.choices, default=Kind.SENIOR)
-    provider = models.ForeignKey(CapitalProvider, on_delete=models.PROTECT, related_name="sources",
+    provider = models.ForeignKey(Firm, on_delete=models.PROTECT, related_name="sources",
                                  help_text="The lender, investor or agency")
     label = models.CharField(max_length=200, blank=True, help_text="e.g. Phase 1 construction loan")
     status = models.CharField(max_length=12, choices=Status.choices, default=Status.IDENTIFIED, db_index=True)
@@ -3034,11 +3072,11 @@ class CapitalLog(models.Model):
         return self.text[:60]
 
 
-class CapitalEmail(models.Model):
-    """An email with someone at a capital provider's domain. The mail sync files these here instead of the review
-    queue, so a lender's domain is never offered as a new company."""
+class FirmEmail(models.Model):
+    """An email with someone at a directory firm's domain. The mail sync files these here instead of the review
+    queue, so a lender's or a consultant's domain is never offered as a new company."""
 
-    provider = models.ForeignKey(CapitalProvider, on_delete=models.CASCADE, related_name="emails_log")
+    provider = models.ForeignKey(Firm, on_delete=models.CASCADE, related_name="emails_log")
     message_id = models.CharField(max_length=500)
     thread_id = models.CharField(max_length=100, blank=True)
     occurred_at = models.DateTimeField(db_index=True)

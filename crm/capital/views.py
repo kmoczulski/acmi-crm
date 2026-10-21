@@ -3,7 +3,7 @@ one source with its term sheets, touches and log (/capital/<id>/), and term shee
 from datetime import date
 
 from django.contrib import messages
-from django.http import FileResponse, Http404, JsonResponse
+from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -11,10 +11,10 @@ from django.views.decorators.http import require_POST
 
 from ..ai import enabled as ai_enabled
 from ..contracts import text as textmod
-from ..models import CapitalLog, CapitalProvider, CapitalSource, Campus, Contract, Project, TermSheet
+from ..models import CapitalLog, CapitalSource, Campus, Contract, Project, TermSheet
 from ..permissions import is_manager, refuse
 from . import ai, logic
-from .forms import ProviderForm, SourceForm, TermSheetForm
+from .forms import SourceForm, TermSheetForm
 
 INLINE_TYPES = (".pdf", ".png", ".jpg", ".jpeg", ".gif", ".webp")
 WAITING = {"us": "Waiting on us", "them": "Waiting on them", "third": "Waiting on a third party"}
@@ -335,70 +335,3 @@ def quick_add(request, pk):
         return redirect(source)
     messages.error(request, "Not added: " + " ".join(" ".join(v) for v in form.errors.values()))
     return redirect("crm:project_capital", project.pk)
-
-
-def provider_list(request):
-    """Lenders, brokers, investors and agencies: their own list, apart from Companies, never in outreach."""
-    providers = CapitalProvider.objects.prefetch_related("sources__project")
-    form = ProviderForm(request.POST or None)
-    if request.method == "POST" and form.is_valid():
-        provider = form.save(commit=False)
-        provider.created_by = request.user
-        provider.save()
-        moved = logic.file_queued(provider)
-        messages.success(request, f"Added {provider.name}." + (
-            f" Filed {moved} queued email{'s' if moved != 1 else ''} on it." if moved else ""))
-        return redirect(provider)
-    return render(request, "crm/capital_providers.html", {"providers": providers, "form": form})
-
-
-def provider_detail(request, pk):
-    provider = get_object_or_404(CapitalProvider, pk=pk)
-    form = ProviderForm(instance=provider)
-    if request.method == "POST":
-        action = request.POST.get("action", "")
-        if action == "details":
-            form = ProviderForm(request.POST, instance=provider)
-            if form.is_valid():
-                provider = form.save()
-                moved = logic.file_queued(provider)
-                messages.success(request, "Saved." + (
-                    f" Filed {moved} email{'s' if moved != 1 else ''} from the review queue on it." if moved else ""))
-                return redirect(provider)
-            messages.error(request, "Not saved: " + " ".join(" ".join(v) for v in form.errors.values()))
-        elif action == "contact_add":
-            if (request.POST.get("name") or "").strip():
-                provider.contacts = (provider.contacts or []) + [{
-                    k: (request.POST.get(k) or "").strip()[:200] for k in ("name", "title", "email", "phone")}]
-                provider.save()
-            return redirect(provider.get_absolute_url() + "#contacts")
-        elif action == "contact_delete":
-            try:
-                i = int(request.POST.get("i", ""))
-            except ValueError:
-                i = -1
-            provider.contacts = [c for n, c in enumerate(provider.contacts or []) if n != i]
-            provider.save()
-            return redirect(provider.get_absolute_url() + "#contacts")
-        elif action == "delete":
-            if not is_manager(request.user):
-                return refuse(request)
-            if provider.sources.exists():
-                messages.error(request, "Remove its capital sources first.")
-                return redirect(provider)
-            provider.delete()
-            messages.success(request, f"Deleted {provider.name}.")
-            return redirect("crm:capital_providers")
-        else:
-            return redirect(provider)
-    today = timezone.localdate()
-    sources = logic.annotate(list(logic.with_related(provider.sources.all())), today, touch=False)
-    return render(request, "crm/capital_provider.html", {
-        "p": provider, "form": form, "sources": sources,
-        "touches": logic.touches(None, today, provider=provider, limit=60),
-        "upcoming": logic.upcoming_meetings(provider),
-    })
-
-
-def provider_names(request):
-    return JsonResponse(list(CapitalProvider.objects.values_list("name", flat=True)), safe=False)

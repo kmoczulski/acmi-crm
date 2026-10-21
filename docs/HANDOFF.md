@@ -31,7 +31,7 @@ selected; the briefs page has a Choose sites panel.
 **Granola import 2026-10-21** (Kellen asked): Oct 16 to Oct 20, 7 meetings (6 new, Greystar refreshed) from
 `data/imports/granola/2026-10-21.json`, full summaries; backup `backups/db-2026-10-21-before-granola-import.sqlite3`.
 Booz Allen matched a company. Then (Kellen): `fortusfederal.us` added to Fortus Technologies (1781); Cozen O'Connor
-added (1795, our outside counsel, Jonathan Ciriello; flagged Exclude so it stays out of outreach); "MBI B101" added to
+added (1795, our outside counsel, Jonathan Ciriello; flagged Exclude; later the same day moved to the Directory, see "the directory" below); "MBI B101" added to
 the ARA Facility project's keywords, so the Cozen call (and later MBI B101 mail) tags to ARA Facility / MEIH. Backups
 `backups/db-2026-10-21-before-fortus-domain.sqlite3`, `...-before-cozen.sqlite3`. greystar.com and terracon.com still
 have no company.
@@ -1360,6 +1360,82 @@ sheets etc. would be helpful." Sources, terms and conversations only; the pro fo
   three meetings and tasks: desktop at 800 and 1440 wide and phone at 375 wide (no sideways scroll), Make task from a
   card and from the Action items tab, ticking an item done, the Activity filter, expanding a summary.
 - **Not yet:** the person page still has the old layout; the same cards would fit there.
+
+## Built 2026-10-21: the directory (consultants, vendors, lawyers, engineers, lenders)
+
+**Merged 2026-10-21** (`69884a9`, CI green on Postgres with 412 tests, pushed; branch and worktree removed). Real DB migrated
+through `0053_directory` (backup `backups/db-2026-10-21-before-directory.sqlite3`; the capital tables were still empty, so
+nothing to carry over). **Cozen O'Connor moved** (Kellen's OK): now directory firm 1, Law firm, cozen.com, Jonathan
+Ciriello as a contact; Company 1795 and its Person deleted; its 6 meetings show on the firm page. Backup
+`backups/db-2026-10-21-before-cozen-move.sqlite3`.
+
+Kellen, 2026-10-21, on keeping brokers and banks out of Companies: "If anything it should be a separate CRM for
+consultants etc." He picked (2026-10-21): **one directory** shared with the lenders and investors rather than two lists;
+a **Move to directory** button on a company, moving **only Cozen O'Connor** for now (the ~40 consulting-sector
+Companies are often defense consultants that could be tenants, so they're moved one at a time by hand); and **project
+team firms linked** to the directory.
+
+- **One list, `Firm`** (`crm/directory/`, migration `0053_directory`, which renames `CapitalProvider` → `Firm` and
+  `CapitalEmail` → `FirmEmail` in place, so the capital tables and rows carry over). Type is capital (bank, debt fund,
+  debt broker / advisor, equity investor, agency) or services (law firm, architect, engineer, environmental, surveyor,
+  contractor / builder, consultant / advisor, real estate broker, title / escrow, accountant / tax, insurance, vendor /
+  supplier, other). `Firm.is_capital` says which side; an option added in Settings › Dropdown lists › Contacts ›
+  Directory type picks the built-in type it works like. A capital source's provider field offers only the capital side.
+  Never a Company or Person, so never in a send queue, list or outreach report.
+- **Pages:** `/directory/` (sidebar Contacts › Directory; Capital › Lenders and investors opens it on the capital side;
+  the old `/capital/providers/` redirects there): All / Lenders and investors / Consultants and vendors, a type filter,
+  search by name, domain or contact; each firm's capital sources and project team roles and its last email.
+  `/directory/<id>/` is one firm: project teams, capital sources, emails / meetings / capital log (120 days), contacts
+  (kept on the firm, not as People), details.
+- **Email:** the mail sync files mail from a firm's domains as `FirmEmail` (`mail/sync.py _park`, the hook the capital
+  providers used) instead of the review queue. A firm's domain is never guessed onto a Company by name (the sync's
+  name-spelling match skips it), can't be added to a Company (company form) or approved from the review queue, and a
+  Company's domain can't be added to a firm (use Move to directory instead). Adding a domain to a firm moves what's
+  already in the review queue onto it.
+- **Mail review:** each queued domain has **File in directory** (name, type): the domain goes on a firm (an existing
+  one of that name gets it added) and its queued mail moves there.
+- **Move to directory** (company page, Managers only; `/companies/<id>/move-to-directory/` shows what happens first):
+  domains and website to the firm; people become contacts and are deleted as People; emails become `FirmEmail`; notes,
+  calls, comments (company's and its people's) are appended to the firm's notes; meetings stay on the calendar and show
+  on the firm through its domains and contacts; it comes off any lists; the Company is deleted. Joins a firm of the same
+  name if one exists. Blocked while the company has a tenant deal, document, contract or open task.
+- **Project team:** a `TeamMember` links to its firm (`directory`, found by name or started on save, type from the role:
+  civil → engineer, attorney → law firm, GC → contractor...). The Build page's firm field offers directory names and
+  links each firm to its page. The real DB has no team members yet.
+- **Tests:** `crm/tests/test_directory.py` (16), plus the capital tests updated for the rename; the whole suite (412
+  after merging main) passes. Checked in a browser on a scratch database with made-up firms: the directory and its filters, moving a
+  made-up law firm Company (its email, meeting, contact and notes arrived on the firm), File in directory from Mail
+  review, the Build page's team links, and the capital pages after the rename.
+- **Still open:** `terracon.com` and `greystar.com` have no Company yet: decide each in Mail review (Add as company,
+  or File in directory). Fortress isn't in the directory yet (from the capital tracker's to-do).
+
+## Built 2026-10-21: one meeting, not two (Kellen: "two meetings listed for Booz Allen on the same day?")
+
+**Merged 2026-10-21** (`3d2a018`, CI green). No migration. **Applied on the real DB** (Kellen's OK): 11 calendar meetings folded into their Granola notes, 26 doubled timeline entries dropped; 403 → 392 meetings, Booz Allen now has one. Backup `backups/db-2026-10-21-before-meeting-dedupe.sqlite3`.
+- **Cause:** a Google Calendar event only merged into a Granola note when the note was already there. The calendar
+  sync runs every 15 minutes, so the event usually lands first; the Granola import then made a second meeting. Also,
+  every calendar sync of an already-merged meeting re-wrote its title and link from the calendar and added a second
+  "Meeting" timeline entry next to Granola's.
+- **Fix (`crm/meetings.py`):** a Granola note now takes over a calendar meeting at the same time (within 15 minutes,
+  similar title): same row, so its tasks, companies and team stay, with `calendar_id` set and the calendar timeline
+  entries dropped. A calendar sync of a meeting Granola owns only fills the end time and adds no timeline entry.
+- **Existing duplicates:** `manage.py merge_duplicate_meetings` (dry run; `--apply` to make the changes). Dry run on
+  the real DB, 2026-10-21: 11 calendar meetings to fold into Granola notes (Booz Allen's Oct 20 call is one), 28
+  doubled timeline entries to drop, no tasks on the calendar copies. (Applied; see above.) Three more same-time pairs have different titles and are left alone.
+- **Tests:** `crm/tests/test_meeting_dedupe.py` (4).
+
+## Built 2026-10-21: the sidebar hides until you hover (Kellen: "auto hide when I'm not hovering over the side")
+
+**Merged 2026-10-21** (`99a9efd`, CI green). No migration.
+- On a wide screen with a mouse (over 1000px, `hover: hover`), the sidebar is a 14px navy strip at the left edge with a
+  "›". Hovering it (or tabbing into it) slides the full sidebar out over the page; it slides back about a third of a
+  second after the mouse leaves. Pages get the full width.
+- **Keep open** (above the user's name) pins it back as the fixed column; the button then reads **Auto-hide**. The
+  choice is saved per browser (`localStorage nav:pinned`) and applied before the page draws.
+- Phones, tablets and touch screens keep the existing layout (the menu across the top).
+- Code: `base.html` (the pin button and two small scripts) and a marked section at the end of `app.css` ("Sidebar
+  auto-hide … End sidebar auto-hide"). Checked in a browser on a scratch database at 1280 wide (hidden, hover, pin,
+  pin kept across pages, unpin) and 375 wide.
 
 ## Built 2026-10-21: rename tasks and edit their details in place (Kellen: "I should be able to edit the name of tasks and the details")
 

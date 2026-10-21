@@ -17,7 +17,7 @@ from crm import notify
 from crm.capital import logic
 from crm.contracts import dates
 from crm.models import (
-    CapitalEmail, CapitalProvider, CapitalSource, Campus, Company, Contract, Mailbox, Meeting, Notification, Person,
+    CapitalSource, Campus, Company, Contract, Firm, FirmEmail, Mailbox, Meeting, Notification, Person,
     Project, TermSheet, UnmatchedEmail,
 )
 from crm.mail import sync
@@ -45,9 +45,9 @@ class CapitalBase(TestCase):
         self.campus = Campus.objects.create(code="MEIH", name="Maryland Energetics Innovation Hub")
         self.meih = Project.objects.create(name="MEIH", campus=self.campus)
         self.ara = Project.objects.create(name="ARA Facility", campus=self.campus, parent=self.meih)
-        self.fortress = CapitalProvider.objects.create(name="Fortress Investment Group LLC", kind="investor",
+        self.fortress = Firm.objects.create(name="Fortress Investment Group LLC", kind="investor",
                                                        domains=["fortress.com"])
-        self.bank = CapitalProvider.objects.create(name="Truist Bank", domains=["truist.com"])
+        self.bank = Firm.objects.create(name="Truist Bank", domains=["truist.com"])
 
     def source(self, **kw):
         kw.setdefault("project", self.ara)
@@ -96,9 +96,9 @@ class SourceTests(CapitalBase):
         self.source(provider=self.fortress, kind="equity", status="closed", amount_sought=Decimal("30000000"),
                     amount_committed=Decimal("28000000"))
         self.source(provider=self.bank, kind="construction", amount_sought=Decimal("42000000"))
-        self.source(provider=CapitalProvider.objects.create(name="Bank OZK"), kind="construction",
+        self.source(provider=Firm.objects.create(name="Bank OZK"), kind="construction",
                     amount_sought=Decimal("40000000"))
-        self.source(provider=CapitalProvider.objects.create(name="Mezz Co"), kind="mezz", status="passed",
+        self.source(provider=Firm.objects.create(name="Mezz Co"), kind="mezz", status="passed",
                     amount_sought=Decimal("8000000"))
         st = logic.stack(self.ara)
         self.assertEqual([g["name"] for g in st["groups"]], ["Equity", "Debt"])
@@ -123,7 +123,7 @@ class SourceTests(CapitalBase):
         TermSheet.objects.create(source=s, amount=Decimal("42000000"), rate="SOFR + 3.25%",
                                  expires_on=self.today + timedelta(days=5))
         for url in ("/capital/", f"/projects/{self.ara.pk}/capital/", s.get_absolute_url(), "/capital/?show=all&kind=debt",
-                    "/capital/?campus=MEIH", f"/projects/{self.ara.pk}/", "/projects/", "/capital/providers/",
+                    "/capital/?campus=MEIH", f"/projects/{self.ara.pk}/", "/projects/", "/directory/?group=capital",
                     self.bank.get_absolute_url()):
             self.assertEqual(self.client.get(url).status_code, 200, url)
         self.assertContains(self.client.get("/capital/"), "Truist Bank")
@@ -228,7 +228,7 @@ class TouchTests(CapitalBase):
     def test_emails_and_meetings_reach_the_source(self):
         s = self.source(provider=self.fortress, kind="equity", status="closed")
         yesterday = self.today - timedelta(days=1)
-        CapitalEmail.objects.create(provider=self.fortress, message_id="<m1>", occurred_at=at(yesterday),
+        FirmEmail.objects.create(provider=self.fortress, message_id="<m1>", occurred_at=at(yesterday),
                                     kind="email_received", address="pat@fortress.com", subject="MEIH capital call")
         Meeting.objects.create(source="granola", external_id="g1", title="Fortress / ACMI weekly",
                                start=at(self.today - timedelta(days=3)))
@@ -253,7 +253,7 @@ class TouchTests(CapitalBase):
             (1, "t1", raw_email("Pat <pat@truist.com>", ME, "ARA loan sizing")),
             (2, "t2", raw_email("Sam <sam@unknownco.com>", ME, "Hello")),
         ]))
-        filed = CapitalEmail.objects.get()
+        filed = FirmEmail.objects.get()
         self.assertEqual((filed.provider, filed.subject), (self.bank, "ARA loan sizing"))
         self.assertEqual(list(UnmatchedEmail.objects.values_list("domain", flat=True)), ["unknownco.com"])
         self.assertFalse(Company.objects.filter(name__icontains="truist").exists())
@@ -264,14 +264,14 @@ class TouchTests(CapitalBase):
         mailbox = Mailbox.objects.create(user=User.objects.create(username="kmo", email=ME), email=ME)
         UnmatchedEmail.objects.create(mailbox=mailbox, message_id="<q1>", occurred_at=at(self.today), kind="reply",
                                       address="ann@ozk.com", domain="ozk.com", subject="Term sheet attached")
-        ozk = CapitalProvider.objects.create(name="Bank OZK")
+        ozk = Firm.objects.create(name="Bank OZK")
         r = self.client.post(ozk.get_absolute_url(), {"action": "details", "name": "Bank OZK", "kind": "bank",
                                                       "domains_text": "ozk.com, @OZK-bank.com"})
         self.assertEqual(r.status_code, 302)
         ozk.refresh_from_db()
         self.assertEqual(ozk.domains, ["ozk-bank.com", "ozk.com"])
         self.assertFalse(UnmatchedEmail.objects.exists())
-        self.assertEqual(CapitalEmail.objects.get().provider, ozk)
+        self.assertEqual(FirmEmail.objects.get().provider, ozk)
         self.assertEqual(sync.review_queue(), [])
         # a domain can only belong to one provider
         r = self.client.post(self.bank.get_absolute_url(), {"action": "details", "name": "Truist Bank", "kind": "bank",

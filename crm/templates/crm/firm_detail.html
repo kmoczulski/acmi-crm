@@ -1,10 +1,10 @@
 {% extends "crm/base.html" %}
 {% load crm_tags %}
-{% block title %}{{ p.name }} · Lenders and investors · ACMI CRM{% endblock %}
+{% block title %}{{ p.name }} · Directory · ACMI CRM{% endblock %}
 {% block content %}
 <div class="record-head">
   <div>
-    <div class="muted lc-small"><a href="{% url 'crm:capital_index' %}">Capital</a> › <a href="{% url 'crm:capital_providers' %}">Lenders and investors</a></div>
+    <div class="muted lc-small"><a href="{% url 'crm:directory' %}">Directory</a> › <a href="{% url 'crm:directory' %}?group={{ group }}">{% for k, label in groups.items %}{% if k == group %}{{ label }}{% endif %}{% endfor %}</a></div>
     <h1>{{ p.name }} <span class="tag">{{ p.get_kind_display }}</span></h1>
     <div class="muted">{% if p.domains %}{{ p.domains|join:", " }}{% else %}No email domain yet{% endif %}{% if p.website %} · <a href="{{ p.website }}" target="_blank" rel="noopener">website</a>{% endif %}
       · not a CRM company, never in outreach</div>
@@ -12,12 +12,17 @@
 </div>
 <div class="ct-layout">
   <div>
-    <section class="panel">
+    {% if team %}<section class="panel" id="team">
+      <h3>Project teams ({{ team|length }})</h3>
+      {% for t in team %}<div class="row-line"><span><a href="{% url 'crm:project_build' t.project.pk %}#team">{{ t.project.name }}: {{ t.get_role_display }}</a>{% if t.contact %} <span class="muted lc-small">· {{ t.contact }}</span>{% endif %}</span>
+        <span class="lc-small">{{ t.get_status_display }}{% if t.fee %} · {{ t.fee|money }}{% if t.invoiced %} ({{ t.invoiced|money }} invoiced){% endif %}{% endif %}</span></div>{% endfor %}
+    </section>{% endif %}
+    {% if sources or p.is_capital %}<section class="panel">
       <h3>Capital sources ({{ sources|length }})</h3>
       {% for s in sources %}<div class="row-line"><span><a href="{{ s.get_absolute_url }}">{{ s.project.name }}: {{ s.label|default:s.get_kind_display }}</a>{% if s.amount_sought %} <span class="muted lc-small">· {{ s.amount_sought|money }}</span>{% endif %}</span>
         <span><span class="pill cap-{{ s.status }}">{{ s.get_status_display }}</span>{% if s.ts %} <span class="lc-small muted">v{{ s.ts.version }}{% if s.ts.rate %} · {{ s.ts.rate }}{% endif %}</span>{% endif %}</span></div>
       {% empty %}<p class="muted lc-small" style="margin:0">Not on any project yet. Add it from a project's Capital page.</p>{% endfor %}
-    </section>
+    </section>{% endif %}
     <section class="panel" id="touches">
       <h3>Emails, meetings and log · 120 days</h3>
       {% for t in touches %}<div class="cap-touch"><span class="lc-small">{{ t.date|date:"M j, Y" }}</span><span class="k">{{ t.kind }}</span>

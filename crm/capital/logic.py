@@ -1,7 +1,6 @@
 """Where each capital source stands and what's next: the stack per project, the latest term sheet, the last touch
 (emails and Granola meetings with the provider, plus the log), who has the ball, term sheets side by side, and the
 lines the dashboard, reminders, calendar and campus summary show."""
-import re
 from datetime import timedelta
 from decimal import Decimal
 from types import SimpleNamespace
@@ -9,9 +8,8 @@ from types import SimpleNamespace
 from django.db.models import Q
 from django.utils import timezone
 
-from ..models import (
-    CapitalEmail, CapitalLog, CapitalProvider, CapitalSource, Meeting, Notification, TermSheet, UnmatchedEmail,
-)
+from ..directory.logic import emails, file_queued, meetings, short_name, upcoming_meetings  # noqa: F401
+from ..models import CapitalLog, CapitalSource, Notification, TermSheet
 from ..templatetags.crm_tags import money
 
 EXPIRY_LEADS = (14, 7, 1, 0)  # reminder days before a term sheet offer expires
@@ -112,75 +110,6 @@ def next_version(source):
 # Touches: the log, emails filed on the provider, and Granola / calendar meetings
 # ---------------------------------------------------------------------------
 
-SUFFIXES = re.compile(r"\b(inc|llc|l\.l\.c|lp|llp|ltd|corp|corporation|co|company|group|holdings|partners|capital|"
-                      r"management|investment|investments|advisors|n\.a|na|the)\b\.?", re.I)
-
-
-def short_name(name):
-    """'Fortress Investment Group LLC' → 'Fortress': what a meeting title calls the provider."""
-    words = " ".join(SUFFIXES.sub(" ", name or "").replace(",", " ").split())
-    return words if len(words) >= 4 else ""
-
-
-def provider_domains():
-    """{email domain: provider id}, for the mail sync."""
-    out = {}
-    for pk, domains in CapitalProvider.objects.values_list("pk", "domains"):
-        for d in domains or []:
-            out.setdefault(d.lower(), pk)
-    return out
-
-
-def file_queued(provider):
-    """Move emails already waiting in the company review queue from the provider's domains onto the provider, so
-    nobody is offered them as a new company. Returns how many moved."""
-    moved = 0
-    for row in UnmatchedEmail.objects.filter(domain__in=provider.domains or []):
-        _, created = CapitalEmail.objects.get_or_create(
-            message_id=row.message_id, address=row.address,
-            defaults={"provider": provider, "mailbox": row.mailbox, "thread_id": row.thread_id,
-                      "occurred_at": row.occurred_at, "kind": row.kind, "name": row.name, "subject": row.subject,
-                      "snippet": row.snippet})
-        moved += created
-        row.delete()
-    return moved
-
-
-def emails(provider, since=None, limit=40):
-    """Emails with the provider's people, newest first, one row per message."""
-    qs = CapitalEmail.objects.filter(provider=provider, occurred_at__lte=timezone.now()).order_by("-occurred_at")
-    if since:
-        qs = qs.filter(occurred_at__date__gte=since)
-    out, seen = [], set()
-    for e in qs[:limit * 3]:
-        if e.message_id in seen:
-            continue
-        seen.add(e.message_id)
-        out.append(e)
-        if len(out) >= limit:
-            break
-    return out
-
-
-def meetings(provider, since=None, limit=40, until=None):
-    """Meetings with the provider: an attendee from its domains or one of its contacts, or its name in the title."""
-    q = Q()
-    for domain in provider.domains or []:
-        q |= Q(attendees__icontains=f"@{domain.lower()}")
-    for email in provider.emails:
-        q |= Q(attendees__icontains=email)
-    name = short_name(provider.name)
-    if name:
-        q |= Q(title__iregex=rf"(^|[^A-Za-z]){re.escape(name)}([^A-Za-z]|$)")
-    if not q:
-        return []
-    qs = Meeting.objects.filter(q).distinct().order_by("-start")
-    if since:
-        qs = qs.filter(start__date__gte=since)
-    if until:
-        qs = qs.filter(start__lte=until)
-    return list(qs[:limit])
-
 
 def touches(source, today=None, days=TOUCH_DAYS, limit=30, provider=None):
     """Everything that happened with the provider, newest first: [{date, kind, text, url, who}]. For a source: its
@@ -221,10 +150,6 @@ def last_touch(source):
         if not best[0] or d > best[0]:
             best = (d, "meeting")
     return best
-
-
-def upcoming_meetings(provider, limit=3):
-    return list(reversed(meetings(provider, since=timezone.localdate(), limit=limit)))[:limit]
 
 
 # ---------------------------------------------------------------------------

@@ -9,7 +9,8 @@ Input is a JSON list (written by the scheduled Claude task, or by hand), one obj
 A transcript is saved for good (crm/transcripts.py) and written to a .txt file once the import commits.
 
 Every meeting with at least one other person (or real notes) becomes a Meeting on the calendar.
-A calendar event within 15 minutes of a Granola note with a similar title is the same meeting.
+A calendar event within 15 minutes of a Granola note with a similar title is the same meeting, whichever arrives
+first (the calendar sync usually does): the Granola note takes over the calendar row and its timeline entries.
 Meetings with outside companies also become one timeline Activity per company (matched by
 attendee email, then email domain): past ones move a company to "Meeting held", future ones set
 "Next meeting". Re-importing updates in place and keeps tasks already made from action items.
@@ -25,7 +26,7 @@ from django.utils import timezone
 from django.utils.safestring import mark_safe
 
 from . import interactions, transcripts
-from .models import Activity, Company, CompanyStatus, Meeting, Person, suppress_history
+from .models import Activity, Company, CompanyStatus, Meeting, MeetingTranscript, Person, suppress_history
 
 INTERNAL_DOMAINS = {"acmigroup.com"}
 FREE_MAIL = {"gmail.com", "yahoo.com", "outlook.com", "hotmail.com", "icloud.com", "aol.com", "me.com"}
@@ -237,6 +238,9 @@ def import_meetings(meetings):
             if not by_company:
                 stats["internal_only"] += 1
                 continue
+            if meeting.source == "granola" and m.get("source") == "calendar":
+                _drop_calendar_activities(m["id"])  # the Granola note's own entry covers it
+                continue
             stats["meetings"] += 1
             source = SOURCES.get(m.get("source"), Activity.Source.CALENDAR)
             for company_id, person in by_company.items():
@@ -265,19 +269,67 @@ def import_meetings(meetings):
     return stats
 
 
+def _near(start, source):
+    return Meeting.objects.filter(source=source, start__gte=start - timedelta(minutes=15),
+                                  start__lte=start + timedelta(minutes=15))
+
+
+def _drop_calendar_activities(event_id):
+    Activity.objects.filter(source=Activity.Source.CALENDAR, source_id__startswith=f"{event_id}:").delete()
+
+
+def merge_duplicates(apply=False):
+    """Fold calendar meetings into the Granola note for the same meeting (imported before the fix above), and drop
+    calendar timeline entries for meetings already merged. Returns (pairs merged, timeline entries dropped)."""
+    pairs = []
+    for cal in Meeting.objects.filter(source="calendar"):
+        note = next((g for g in _near(cal.start, "granola") if not g.calendar_id and _same_meeting(g.title, cal.title)), None)
+        if note is not None and note.pk not in {n.pk for n, _ in pairs}:
+            pairs.append((note, cal))
+    event_ids = [c.external_id.split(":", 1)[1] for _, c in pairs]
+    event_ids += list(Meeting.objects.filter(source="granola").exclude(calendar_id="").values_list("calendar_id", flat=True))
+    stale = Activity.objects.none()
+    for eid in event_ids:
+        stale = stale | Activity.objects.filter(source=Activity.Source.CALENDAR, source_id__startswith=f"{eid}:")
+    dropped = stale.count()
+    if apply:
+        with transaction.atomic():
+            for note, cal in pairs:
+                note.calendar_id = cal.external_id.split(":", 1)[1]
+                note.end = note.end or cal.end
+                note.save(update_fields=["calendar_id", "end"])
+                note.companies.add(*cal.companies.all())
+                note.team.add(*cal.team.all())
+                cal.tasks.update(meeting=note)
+                if not MeetingTranscript.objects.filter(meeting=note).exists():
+                    MeetingTranscript.objects.filter(meeting=cal).update(meeting=note)
+                cal.delete()
+            stale.delete()
+    return pairs, dropped
+
+
 def _meeting_for(m, start, summary):
     """The Meeting row for this input: by id, or a Granola note at the same time for a calendar event."""
     source = m.get("source", "calendar")
     ext = f"{source}:{m['id']}"
     meeting = Meeting.objects.filter(external_id=ext).first() or Meeting.objects.filter(calendar_id=m["id"]).first()
+    if meeting is not None and meeting.source == "granola" and source == "calendar":
+        meeting.end = meeting.end or _parse(m.get("end"))  # merged already: keep Granola's title and link
+        return meeting
     if meeting is None and source == "calendar":
-        near = Meeting.objects.filter(source="granola", start__gte=start - timedelta(minutes=15),
-                                      start__lte=start + timedelta(minutes=15))
-        meeting = next((x for x in near if _same_meeting(x.title, m.get("title"))), None)
+        meeting = next((x for x in _near(start, "granola") if _same_meeting(x.title, m.get("title"))), None)
         if meeting is not None:
             meeting.calendar_id = m["id"]
             meeting.end = meeting.end or _parse(m.get("end"))
             return meeting
+    if meeting is None and source == "granola":
+        # The calendar sync got there first: the note takes over that row (its tasks, companies and team stay on it).
+        cal = next((x for x in _near(start, "calendar") if _same_meeting(x.title, m.get("title"))), None)
+        if cal is not None:
+            meeting = cal
+            meeting.calendar_id = cal.external_id.split(":", 1)[1]
+            meeting.external_id, meeting.source = ext, "granola"
+            _drop_calendar_activities(meeting.calendar_id)
     if meeting is None:
         meeting = Meeting(external_id=ext, source=source)
     meeting.title = html.unescape(m.get("title") or "Meeting")[:500]
