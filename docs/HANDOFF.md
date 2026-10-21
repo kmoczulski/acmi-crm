@@ -1411,7 +1411,7 @@ team firms linked** to the directory.
 
 ## Built 2026-10-21: one meeting, not two (Kellen: "two meetings listed for Booz Allen on the same day?")
 
-Branch `meeting-dedupe`. No migration.
+**Merged 2026-10-21** (`3d2a018`, CI green). No migration. **Applied on the real DB** (Kellen's OK): 11 calendar meetings folded into their Granola notes, 26 doubled timeline entries dropped; 403 → 392 meetings, Booz Allen now has one. Backup `backups/db-2026-10-21-before-meeting-dedupe.sqlite3`.
 - **Cause:** a Google Calendar event only merged into a Granola note when the note was already there. The calendar
   sync runs every 15 minutes, so the event usually lands first; the Granola import then made a second meeting. Also,
   every calendar sync of an already-merged meeting re-wrote its title and link from the calendar and added a second
@@ -1421,13 +1421,12 @@ Branch `meeting-dedupe`. No migration.
   entries dropped. A calendar sync of a meeting Granola owns only fills the end time and adds no timeline entry.
 - **Existing duplicates:** `manage.py merge_duplicate_meetings` (dry run; `--apply` to make the changes). Dry run on
   the real DB, 2026-10-21: 11 calendar meetings to fold into Granola notes (Booz Allen's Oct 20 call is one), 28
-  doubled timeline entries to drop, no tasks on the calendar copies. **Not applied yet: waiting on Kellen** (back up
-  first). Three more same-time pairs have different titles and are left alone.
+  doubled timeline entries to drop, no tasks on the calendar copies. (Applied; see above.) Three more same-time pairs have different titles and are left alone.
 - **Tests:** `crm/tests/test_meeting_dedupe.py` (4).
 
 ## Built 2026-10-21: the sidebar hides until you hover (Kellen: "auto hide when I'm not hovering over the side")
 
-Branch `sidebar-autohide`. No migration.
+**Merged 2026-10-21** (`99a9efd`, CI green). No migration.
 - On a wide screen with a mouse (over 1000px, `hover: hover`), the sidebar is a 14px navy strip at the left edge with a
   "›". Hovering it (or tabbing into it) slides the full sidebar out over the page; it slides back about a third of a
   second after the mouse leaves. Pages get the full width.
