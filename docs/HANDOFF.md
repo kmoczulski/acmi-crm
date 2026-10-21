@@ -1263,7 +1263,11 @@ redlines between version 1 and version 2" on the Long Wall PDA.
   (`fix_etc.py`): it undoes the Oct 21 moves from each date's history, then exercises the extension properly (notice
   Oct 19, $10,000 deposit wired Oct 21): Feasibility Feb 19, 2027; title defects notice and lease supplement Feb 19;
   seller's title response Mar 1; closing (60 days after feasibility) Apr 20; closing notice Apr 10. Tested on a copy.
-- Tests: 23 in `test_contract_review.py`; 367 in all on this branch.
+- **Merged 2026-10-21** (`b6c7e41`, CI green; 396 tests). No migration. On the real DB (backups
+  `backups/db-2026-10-21-before-etc-fix.sqlite3` and `-before-etc-fix-2.sqlite3`): the ETC extension was redone with
+  `fix_etc.py` (dates as listed above; decision Extend on Oct 19; site feasibility milestone Feb 19, 2027);
+  `reread_contract_files` re-read the two Long Wall Word files (19 and 101 tracked changes); the duplicate copy of the
+  executed ETC PSA (document 4, unused; Claude's answers cite document 3) was deleted with its file.
 ## Built 2026-10-21: the capitalization tracker
 
 **Merged 2026-10-21** (`d1d1393`, CI green on Postgres). Migration `0052_capital` applied to the real DB (new tables
