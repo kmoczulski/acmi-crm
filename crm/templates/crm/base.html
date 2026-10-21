@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}ACMI CRM{% endblock %}</title>
   <link rel="stylesheet" href="{% static 'crm/app.css' %}?v={{ ASSET_VERSION }}">
+  {# Set before the page draws, so a pinned sidebar doesn't flash shut. #}
+  <script>try { if (localStorage.getItem('nav:pinned') === '1') document.documentElement.classList.add('nav-pinned'); } catch (e) {}</script>
 </head>
 <body>
 <div class="shell">
@@ -69,6 +71,7 @@
     {% endif %}
     {% endwith %}
     <div class="user">
+      <button type="button" class="btn-link nav-pin" data-nav-pin>Keep open</button>
       {{ user.get_full_name|default:user.username }}<br>
       <form method="post" action="{% url 'account_logout' %}" style="display:inline">{% csrf_token %}<button class="btn-link" style="color:#fff;font-size:12px">Sign out</button></form>
     </div>
@@ -79,6 +82,18 @@
   </main>
 </div>
 <script>
+  // The sidebar hides to a strip until hovered; "Keep open" pins it (per browser).
+  (function () {
+    const root = document.documentElement, pin = document.querySelector('[data-nav-pin]');
+    const label = () => { pin.textContent = root.classList.contains('nav-pinned') ? 'Auto-hide' : 'Keep open'; };
+    label();
+    pin.addEventListener('click', () => {
+      const on = root.classList.toggle('nav-pinned');
+      try { localStorage.setItem('nav:pinned', on ? '1' : '0'); } catch (e) {}
+      label();
+      pin.blur();
+    });
+  })();
   (function () {
     document.querySelectorAll('.sidebar details[data-key]').forEach(d => {
       let saved = null;

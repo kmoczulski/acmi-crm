@@ -1407,3 +1407,16 @@ team firms linked** to the directory.
   notes or comments; 1 person (becomes a contact); 6 meeting entries (the meetings stay and show on the firm). Its
   Exclude flag goes with the Company. Back up first. `terracon.com` and `greystar.com` still have no Company: decide
   each in Mail review (Add as company, or File in directory).
+
+## Built 2026-10-21: the sidebar hides until you hover (Kellen: "auto hide when I'm not hovering over the side")
+
+Branch `sidebar-autohide`. No migration.
+- On a wide screen with a mouse (over 1000px, `hover: hover`), the sidebar is a 14px navy strip at the left edge with a
+  "›". Hovering it (or tabbing into it) slides the full sidebar out over the page; it slides back about a third of a
+  second after the mouse leaves. Pages get the full width.
+- **Keep open** (above the user's name) pins it back as the fixed column; the button then reads **Auto-hide**. The
+  choice is saved per browser (`localStorage nav:pinned`) and applied before the page draws.
+- Phones, tablets and touch screens keep the existing layout (the menu across the top).
+- Code: `base.html` (the pin button and two small scripts) and a marked section at the end of `app.css` ("Sidebar
+  auto-hide … End sidebar auto-hide"). Checked in a browser on a scratch database at 1280 wide (hidden, hover, pin,
+  pin kept across pages, unpin) and 375 wide.
