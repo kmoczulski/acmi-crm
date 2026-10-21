@@ -1316,3 +1316,19 @@ sheets etc. would be helpful." Sources, terms and conversations only; the pro fo
   three meetings and tasks: desktop at 800 and 1440 wide and phone at 375 wide (no sideways scroll), Make task from a
   card and from the Action items tab, ticking an item done, the Activity filter, expanding a summary.
 - **Not yet:** the person page still has the old layout; the same cards would fit there.
+
+## Built 2026-10-21: one meeting, not two (Kellen: "two meetings listed for Booz Allen on the same day?")
+
+Branch `meeting-dedupe`. No migration.
+- **Cause:** a Google Calendar event only merged into a Granola note when the note was already there. The calendar
+  sync runs every 15 minutes, so the event usually lands first; the Granola import then made a second meeting. Also,
+  every calendar sync of an already-merged meeting re-wrote its title and link from the calendar and added a second
+  "Meeting" timeline entry next to Granola's.
+- **Fix (`crm/meetings.py`):** a Granola note now takes over a calendar meeting at the same time (within 15 minutes,
+  similar title): same row, so its tasks, companies and team stay, with `calendar_id` set and the calendar timeline
+  entries dropped. A calendar sync of a meeting Granola owns only fills the end time and adds no timeline entry.
+- **Existing duplicates:** `manage.py merge_duplicate_meetings` (dry run; `--apply` to make the changes). Dry run on
+  the real DB, 2026-10-21: 11 calendar meetings to fold into Granola notes (Booz Allen's Oct 20 call is one), 28
+  doubled timeline entries to drop, no tasks on the calendar copies. **Not applied yet: waiting on Kellen** (back up
+  first). Three more same-time pairs have different titles and are left alone.
+- **Tests:** `crm/tests/test_meeting_dedupe.py` (4).
