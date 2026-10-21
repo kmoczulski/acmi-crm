@@ -101,6 +101,7 @@ urlpatterns = [
     path("tasks/add/", views.task_add, name="task_add"),
     path("tasks/<int:pk>/toggle/", views.task_toggle, name="task_toggle"),
     path("tasks/<int:pk>/", views.task_detail, name="task_detail"),
+    path("tasks/<int:pk>/text/", views.task_text, name="task_text"),
     path("comments/add/", views.comment_add, name="comment_add"),
     path("comments/<int:pk>/delete/", views.comment_delete, name="comment_delete"),
     path("settings/", settings_views.settings_home, name="settings_home"),

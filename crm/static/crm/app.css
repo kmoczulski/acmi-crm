@@ -1422,3 +1422,24 @@ tr.bd-total td { font-weight: 700; border-top: 2px solid var(--line); }
 }
 @media not ((min-width: 1001px) and (hover: hover)) { .nav-pin { display: none; } }
 /* End sidebar auto-hide */
+
+/* ==========================================================================
+   Task page: rename and description edited in place (task_detail.html, task_row.html)
+   ========================================================================== */
+.te-title { flex: 1 1 280px; min-width: 0; }
+[data-edit-box] [hidden] { display: none !important; }
+.te-title [data-view] { display: flex; align-items: center; gap: 6px; }
+.te-title h1 { cursor: text; overflow-wrap: anywhere; }
+.te-title h1:hover { background: var(--accent-soft); border-radius: var(--radius); }
+.te-title form { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.te-title input[name=title] { flex: 1 1 260px; font-size: 18px; font-weight: 600; }
+.te-pencil { font-size: 16px; color: var(--muted); }
+.te-pencil:hover { color: var(--accent); }
+#description h3 .te-edit { float: right; text-transform: none; letter-spacing: 0; }
+#description.editing h3 .te-edit { display: none; }
+.te-empty { cursor: text; margin: 0; }
+.te-row-edit { color: var(--muted); font-size: 12px; margin-left: 2px; opacity: 0; }
+.tasklist li:hover .te-row-edit, .te-row-edit:focus { opacity: 1; }
+@media (hover: none) { .te-row-edit { opacity: 1; } }
+@media (max-width: 1000px) { .te-record > section { order: -1; } }  /* description before the side form on a phone */
+/* End task page */

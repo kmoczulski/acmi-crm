@@ -1437,6 +1437,24 @@ team firms linked** to the directory.
   auto-hide … End sidebar auto-hide"). Checked in a browser on a scratch database at 1280 wide (hidden, hover, pin,
   pin kept across pages, unpin) and 375 wide.
 
+## Built 2026-10-21: rename tasks and edit their details in place (Kellen: "I should be able to edit the name of tasks and the details")
+
+**Merged 2026-10-21** (`a371a03`, CI green, pushed; branch and worktree removed). No migration, no data change.
+- **Task page:** click the name (or the ✎ next to it) to rename; Enter or Save keeps it, Esc puts it back. The
+  Description panel is always there: Edit (or "Add details" when empty) opens a textarea; Ctrl+Enter saves, Esc
+  cancels. Links in the description are clickable. On a phone the description and comments come before the side form.
+- **One source of truth:** both post to `task_text` (`/tasks/<pk>/text/`), which changes only the field it's sent and
+  refuses a blank name. The side Card form no longer shows Title and Notes; `task_detail` fills them from the task, so
+  saving the side form can't blank them.
+- **From lists:** task rows (Tasks page, company action items) show a ✎ on hover (always on touch screens) that opens
+  the task with the rename box open (`#edit`).
+- Renaming a task made from a meeting action item doesn't change the item's text in the meeting notes; the item
+  still links to the task.
+- **Tests:** `crm/tests/test_task_edit.py` (6). Checked in a browser on a scratch database: rename from the list's ✎,
+  the description with Ctrl+Enter, Esc, a side-form save keeping name and description, desktop and 375 wide.
+- `.claude/launch.json`: removed a temporary `task-edit-scratch` entry that the contract-upload merge (`1c8233d`)
+  committed by accident.
+
 ## Built 2026-10-21: Claude sorts email domains into the directory (branch `mail-sort`, not merged yet)
 
 Kellen, on the directory: "this should be automated from email traffic." He picked (2026-10-21): **auto-file the sure
