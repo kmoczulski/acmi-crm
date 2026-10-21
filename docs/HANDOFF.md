@@ -31,7 +31,7 @@ selected; the briefs page has a Choose sites panel.
 **Granola import 2026-10-21** (Kellen asked): Oct 16 to Oct 20, 7 meetings (6 new, Greystar refreshed) from
 `data/imports/granola/2026-10-21.json`, full summaries; backup `backups/db-2026-10-21-before-granola-import.sqlite3`.
 Booz Allen matched a company. Then (Kellen): `fortusfederal.us` added to Fortus Technologies (1781); Cozen O'Connor
-added (1795, our outside counsel, Jonathan Ciriello; flagged Exclude so it stays out of outreach); "MBI B101" added to
+added (1795, our outside counsel, Jonathan Ciriello; flagged Exclude; later the same day moved to the Directory, see "the directory" below); "MBI B101" added to
 the ARA Facility project's keywords, so the Cozen call (and later MBI B101 mail) tags to ARA Facility / MEIH. Backups
 `backups/db-2026-10-21-before-fortus-domain.sqlite3`, `...-before-cozen.sqlite3`. greystar.com and terracon.com still
 have no company.
@@ -1361,7 +1361,13 @@ sheets etc. would be helpful." Sources, terms and conversations only; the pro fo
   card and from the Action items tab, ticking an item done, the Activity filter, expanding a summary.
 - **Not yet:** the person page still has the old layout; the same cards would fit there.
 
-## Built 2026-10-21: the directory (consultants, vendors, lawyers, engineers, lenders) (branch `directory`, not merged yet)
+## Built 2026-10-21: the directory (consultants, vendors, lawyers, engineers, lenders)
+
+**Merged 2026-10-21** (`69884a9`, CI green on Postgres with 412 tests, pushed; branch and worktree removed). Real DB migrated
+through `0053_directory` (backup `backups/db-2026-10-21-before-directory.sqlite3`; the capital tables were still empty, so
+nothing to carry over). **Cozen O'Connor moved** (Kellen's OK): now directory firm 1, Law firm, cozen.com, Jonathan
+Ciriello as a contact; Company 1795 and its Person deleted; its 6 meetings show on the firm page. Backup
+`backups/db-2026-10-21-before-cozen-move.sqlite3`.
 
 Kellen, 2026-10-21, on keeping brokers and banks out of Companies: "If anything it should be a separate CRM for
 consultants etc." He picked (2026-10-21): **one directory** shared with the lenders and investors rather than two lists;
@@ -1396,17 +1402,28 @@ team firms linked** to the directory.
 - **Project team:** a `TeamMember` links to its firm (`directory`, found by name or started on save, type from the role:
   civil → engineer, attorney → law firm, GC → contractor...). The Build page's firm field offers directory names and
   links each firm to its page. The real DB has no team members yet.
-- **Tests:** `crm/tests/test_directory.py` (16), plus the capital tests updated for the rename; the whole suite (398)
-  passes. Checked in a browser on a scratch database with made-up firms: the directory and its filters, moving a
+- **Tests:** `crm/tests/test_directory.py` (16), plus the capital tests updated for the rename; the whole suite (412
+  after merging main) passes. Checked in a browser on a scratch database with made-up firms: the directory and its filters, moving a
   made-up law firm Company (its email, meeting, contact and notes arrived on the firm), File in directory from Mail
   review, the Build page's team links, and the capital pages after the rename.
-- **To merge (waiting on Kellen):** push the branch, CI, fast-forward main, back up and `migrate crm` (0053: renames two
-  tables, no data loss). It touches `company_detail.html` with one line, and the `company-page` branch is changing that
-  file; whichever merges second resolves it, and any other new migration must be 0054 or later.
-- **Then (Kellen's OK):** move Cozen O'Connor (1795). Checked read-only: no deals, documents, contracts, tasks, lists,
-  notes or comments; 1 person (becomes a contact); 6 meeting entries (the meetings stay and show on the firm). Its
-  Exclude flag goes with the Company. Back up first. `terracon.com` and `greystar.com` still have no Company: decide
-  each in Mail review (Add as company, or File in directory).
+- **Still open:** `terracon.com` and `greystar.com` have no Company yet: decide each in Mail review (Add as company,
+  or File in directory). Fortress isn't in the directory yet (from the capital tracker's to-do).
+
+## Built 2026-10-21: one meeting, not two (Kellen: "two meetings listed for Booz Allen on the same day?")
+
+Branch `meeting-dedupe`. No migration.
+- **Cause:** a Google Calendar event only merged into a Granola note when the note was already there. The calendar
+  sync runs every 15 minutes, so the event usually lands first; the Granola import then made a second meeting. Also,
+  every calendar sync of an already-merged meeting re-wrote its title and link from the calendar and added a second
+  "Meeting" timeline entry next to Granola's.
+- **Fix (`crm/meetings.py`):** a Granola note now takes over a calendar meeting at the same time (within 15 minutes,
+  similar title): same row, so its tasks, companies and team stay, with `calendar_id` set and the calendar timeline
+  entries dropped. A calendar sync of a meeting Granola owns only fills the end time and adds no timeline entry.
+- **Existing duplicates:** `manage.py merge_duplicate_meetings` (dry run; `--apply` to make the changes). Dry run on
+  the real DB, 2026-10-21: 11 calendar meetings to fold into Granola notes (Booz Allen's Oct 20 call is one), 28
+  doubled timeline entries to drop, no tasks on the calendar copies. **Not applied yet: waiting on Kellen** (back up
+  first). Three more same-time pairs have different titles and are left alone.
+- **Tests:** `crm/tests/test_meeting_dedupe.py` (4).
 
 ## Built 2026-10-21: the sidebar hides until you hover (Kellen: "auto hide when I'm not hovering over the side")
 
