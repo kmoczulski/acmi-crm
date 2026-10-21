@@ -1,0 +1,72 @@
+{% extends "crm/base.html" %}
+{% load crm_tags %}
+{% block title %}Capital · ACMI CRM{% endblock %}
+{% block content %}
+{% include "crm/partials/report_logo.html" %}
+<div class="page-head">
+  <h1>Capital</h1>
+  <form method="get" class="inline-form no-print">
+    <select name="show" onchange="this.form.submit()"><option value="active">In play</option><option value="closed"{% if show == "closed" %} selected{% endif %}>Closed / committed</option><option value="all"{% if show == "all" %} selected{% endif %}>All, incl. passed</option></select>
+    <select name="kind" onchange="this.form.submit()"><option value="">Debt and equity</option><option value="debt"{% if kind == "debt" %} selected{% endif %}>Debt</option><option value="equity"{% if kind == "equity" %} selected{% endif %}>Equity</option></select>
+    <select name="campus" onchange="this.form.submit()"><option value="">Every campus</option>{% for c in campuses %}<option value="{{ c.code }}"{% if c.code|lower == campus|lower %} selected{% endif %}>{{ c.code }}</option>{% endfor %}</select>
+  </form>
+  <span class="spacer"></span>
+  <button type="button" class="btn no-print" onclick="window.print()">Print / PDF</button>
+  <a class="btn no-print" href="{% url 'crm:capital_providers' %}">Lenders and investors</a>
+  <a class="btn btn-primary no-print" href="{% url 'crm:capital_source_create' %}">New source</a>
+</div>
+<p class="muted" style="margin-top:0">Every lender, investor and agency we're talking to for each project: where it stands, the latest terms, who has the ball,
+  and offers about to expire. Emails and Granola meetings with the provider count as touches. Lenders and investors are their own list, never Companies, so they stay out of outreach. The pro forma stays in Excel.</p>
+{% if stages %}<div class="cap-stages">{% for v, l, n in stages %}<span class="pill cap-{{ v }}">{{ l }} · {{ n }}</span>{% endfor %}</div>{% endif %}
+
+<div class="campus-layout">
+  <div>
+    {% for g in groups %}
+    <section class="panel">
+      <h3><a href="{% url 'crm:project_capital' g.project.pk %}">{% if g.project.campus %}{{ g.project.campus.code }} · {% endif %}{{ g.project.name }}</a>
+        <span class="lc-small" style="float:right;text-transform:none;letter-spacing:0">{{ g.stack.total.sought|money|default:"$0" }} sought · {{ g.stack.total.committed|money|default:"$0" }} committed</span></h3>
+      <table class="data compact">
+        <thead><tr><th>Provider</th><th>Stage</th><th class="num">Amount</th><th>Latest terms</th><th>Last touch</th><th>Ball / next</th><th>Runs it</th></tr></thead>
+        <tbody>{% for s in g.rows %}
+          <tr>
+            <td class="wrap"><a href="{{ s.get_absolute_url }}"><b>{{ s.provider }}</b></a><div class="muted lc-small">{{ s.label|default:s.get_kind_display }}</div></td>
+            <td><span class="pill cap-{{ s.status }}">{{ s.get_status_display }}</span>{% if s.status_since %}<div class="muted lc-small">since {{ s.status_since|date:"M j" }}</div>{% endif %}</td>
+            <td class="num lc-small">{% if s.amount_committed %}<b>{{ s.amount_committed|money }}</b><div class="muted">committed</div>{% elif s.amount_sought %}{{ s.amount_sought|money }}<div class="muted">sought</div>{% else %}–{% endif %}</td>
+            <td class="wrap lc-small">{% if s.ts %}<a href="{{ s.ts.get_absolute_url }}">{{ s.ts.get_kind_display }} v{{ s.ts.version }}</a>{% if s.ts.amount %} · {{ s.ts.amount|money }}{% endif %}{% if s.ts.rate %} · {{ s.ts.rate }}{% endif %}{% if s.ts.ltc_pct %} · {{ s.ts.ltc_pct|floatformat:"-1" }}% LTC{% endif %}
+                {% if s.expiring_in is not None %}<div class="{% if s.expiring_in < 0 %}overdue{% elif s.expiring_in <= 14 %}soon{% else %}muted{% endif %}">{% if s.expiring_in < 0 %}expired{% else %}expires{% endif %} {{ s.ts.expires_on|date:"M j" }}</div>{% endif %}
+              {% else %}<span class="muted">–</span>{% endif %}</td>
+            <td class="lc-small">{% if s.touch_on %}<span class="{% if s.quiet %}overdue{% endif %}">{{ s.touch_on|date:"M j" }}</span><div class="muted">{{ s.touch_what }}</div>{% else %}<span class="{% if s.is_active %}overdue{% else %}muted{% endif %}">none</span>{% endif %}</td>
+            <td class="wrap lc-small">{% if s.waiting_on %}{{ s.get_waiting_on_display }}{% if s.waiting_days is not None %} <span class="{% if s.waiting_days >= 14 %}overdue{% else %}muted{% endif %}">· {{ s.waiting_days }} d</span>{% endif %}{% endif %}
+              {% if s.next_step %}<div>{{ s.next_step|truncatechars:70 }}{% if s.next_step_on %} <span class="{% if s.next_left < 0 %}overdue{% elif s.next_left <= 7 %}soon{% else %}muted{% endif %}">· {{ s.next_step_on|date:"M j" }}</span>{% endif %}</div>{% endif %}
+              {% if not s.waiting_on and not s.next_step %}–{% endif %}</td>
+            <td class="lc-small">{{ s.owner|username|default:"–" }}</td>
+          </tr>
+        {% endfor %}</tbody>
+      </table>
+    </section>
+    {% empty %}
+    <section class="panel"><p class="muted" style="margin:0">No capital sources {% if show == "active" %}in play {% endif %}yet. Open a project's Capital page, or add a source here.</p></section>
+    {% endfor %}
+  </div>
+  <aside>
+    <section class="panel">
+      <h3>Expiring and due · next {{ deadlines.days }} days</h3>
+      {% include "crm/partials/contract_deadlines.html" with d=deadlines %}
+      <p class="muted lc-small" style="margin-bottom:0">Whoever runs a source is reminded 14, 7 and 1 days before an offer expires, and the day before a next step. These also show in the dashboard's Deadlines.</p>
+    </section>
+    <section class="panel">
+      <h3>Waiting on whom</h3>
+      {% for k, label in waiting_labels.items %}{% with rows=waiting|get_item:k %}{% if rows %}
+        <div class="lc-small muted" style="margin-top:6px">{{ label }} ({{ rows|length }})</div>
+        {% for s in rows %}<div class="row-line"><span><a href="{{ s.get_absolute_url }}">{{ s.provider }}</a> <span class="muted lc-small">· {{ s.project.name }}</span></span><span class="lc-small {% if s.waiting_days and s.waiting_days >= 14 %}overdue{% else %}muted{% endif %}">{% if s.waiting_days is not None %}{{ s.waiting_days }} d{% endif %}</span></div>{% endfor %}
+      {% endif %}{% endwith %}{% endfor %}
+      {% if not waiting.us and not waiting.them and not waiting.third %}<p class="muted lc-small" style="margin:0">Nobody's marked as holding the ball.</p>{% endif %}
+    </section>
+    {% if quiet %}<section class="panel">
+      <h3>Gone quiet · {{ quiet|length }}</h3>
+      {% for s in quiet %}<div class="row-line"><span><a href="{{ s.get_absolute_url }}">{{ s.provider }}</a> <span class="muted lc-small">· {{ s.project.name }}</span></span><span class="lc-small overdue">{% if s.touch_days is not None %}{{ s.touch_days }} d{% else %}no touch{% endif %}</span></div>{% endfor %}
+      <p class="muted lc-small" style="margin-bottom:0">In play with no email, meeting or logged call in 21 days.</p>
+    </section>{% endif %}
+  </aside>
+</div>
+{% endblock %}

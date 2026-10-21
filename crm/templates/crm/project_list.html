@@ -12,7 +12,7 @@
     <section class="panel campus-card">
       <div class="campus-head">
         <div>
-          <h2>{% if g.home %}<a href="{{ g.home.project.get_absolute_url }}">{{ g.campus.code }}</a>{% else %}{{ g.campus.code }}{% endif %} <span class="muted">· {{ g.campus.name }}</span> <a class="btn btn-small" href="{% url 'crm:campus_edit' g.campus.pk %}">Edit</a></h2>
+          <h2>{% if g.home %}<a href="{{ g.home.project.get_absolute_url }}">{{ g.campus.code }}</a>{% else %}{{ g.campus.code }}{% endif %} <span class="muted">· {{ g.campus.name }}</span> <a class="btn btn-small" href="{% url 'crm:campus_edit' g.campus.pk %}">Edit</a> <a class="btn btn-small" href="{% url 'crm:capital_index' %}?campus={{ g.campus.code }}">Capital</a></h2>
           <div class="muted lc-small">{{ g.campus.location }}{% if g.campus.state %}, {{ g.campus.state }}{% endif %}{% if g.campus.acreage %} · {{ g.campus.acreage|floatformat:0|intcomma }} ac{% endif %}{% if g.campus.status %} · {{ g.campus.status }}{% endif %}</div>
         </div>
         {% if g.home %}<div class="campus-stats"><b>{{ g.home.emails|intcomma }}</b> emails · <b>{{ g.home.companies }}</b> companies · last {{ g.home.last|ago }}</div>{% endif %}

@@ -41,6 +41,15 @@
         {% if build.pending %}<div class="row-line"><span>Change orders pending</span><span class="lc-small">{{ build.pending|length }} · {{ build.pending_total|money }}</span></div>{% endif %}
       {% endif %}
     </section>
+    <section class="panel" id="capital">
+      <h3>Capital <a href="{% url 'crm:project_capital' project.pk %}" style="float:right;text-transform:none;letter-spacing:0">{% if capital.empty %}Start{% else %}Open{% endif %}</a></h3>
+      {% if capital.empty %}<p class="muted lc-small" style="margin:0">The capital stack: equity, the lenders being asked for debt, grants; their term sheets and every meeting and email with them.</p>
+      {% else %}
+        <div class="row-line"><span>{{ capital.stack.total.sought|money|default:"$0" }} sought</span><span class="lc-small">{{ capital.stack.total.committed|money|default:"$0" }} committed</span></div>
+        {% for s in capital.active %}<div class="row-line"><span><a href="{{ s.get_absolute_url }}">{{ s.provider }}</a> <span class="muted lc-small">· {{ s.get_kind_display }}</span></span><span class="pill cap-{{ s.status }}">{{ s.get_status_display }}</span></div>{% endfor %}
+        {% with s=capital.expiring %}{% if s %}<div class="row-line"><span>{{ s.provider }}'s {{ s.ts.get_kind_display|lower }}</span><span class="lc-small {% if s.expiring_in <= 14 %}overdue{% endif %}">{% if s.expiring_in < 0 %}expired{% else %}expires{% endif %} {{ s.ts.expires_on|date:"M j" }}</span></div>{% endif %}{% endwith %}
+      {% endif %}
+    </section>
     <section class="panel" id="land-sites">
       <h3>Land sites ({{ land_sites|length }}) <a href="{% url 'crm:land_search' %}" style="float:right;text-transform:none;letter-spacing:0">Find land</a></h3>
       {% for s in land_sites %}

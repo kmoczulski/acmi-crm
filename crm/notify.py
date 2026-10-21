@@ -137,12 +137,14 @@ def timed_sweep(user, now=None):
 
 def due_sweep(user):
     """Once a day per user: tasks due today or overdue, contract deadlines, diligence and closing items, and
-    entitlement hearings, lapsing approvals and conditions. Keyed so nothing repeats."""
+    entitlement hearings, lapsing approvals and conditions, and capital: offers expiring and next steps. Keyed so
+    nothing repeats."""
     today = timezone.localdate()
     for t in Task.objects.filter(assignee=user, done=False, due_date__lte=today):
         late = (today - t.due_date).days
         text = f"Due today: {t.title}" if late == 0 else f"Overdue {late} day{'s' if late != 1 else ''}: {t.title}"
         send(user, Notification.Kind.DUE, text, t.get_absolute_url(), None, key=f"due:{t.pk}:{today}")
+    from .capital import logic as capital
     from .contracts import closing, dates
     from .entitlements import logic as entitlements
     from .land import diligence
@@ -151,3 +153,4 @@ def due_sweep(user):
     diligence.reminders(user, today)  # due-diligence items they chase
     closing.reminders(user, today)  # closing checklist items
     entitlements.reminders(user, today)  # hearings, lapsing approvals, conditions due
+    capital.reminders(user, today)  # term sheet offers expiring, lenders' next steps

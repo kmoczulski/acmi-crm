@@ -35,6 +35,8 @@
       <summary>Campuses</summary>
       <a href="{% url 'crm:campus_index' %}" class="nav-1 {% if '/campuses/' in p %}active{% endif %}">Campus summary</a>
       <a href="{% url 'crm:project_list' %}" class="nav-1 {% if '/projects/' in p %}active{% endif %}">Projects</a>
+      <a href="{% url 'crm:capital_index' %}" class="nav-1 {% if '/capital/' in p and '/capital/providers/' not in p %}active{% endif %}">Capital</a>
+      <a href="{% url 'crm:capital_providers' %}" class="nav-2 {% if '/capital/providers/' in p %}active{% endif %}">Lenders and investors</a>
       <a href="{% url 'crm:contract_list' %}" class="nav-1 {% if '/contracts/' in p and '/contracts/templates/' not in p %}active{% endif %}">Contracts</a>
       <a href="{% url 'crm:contract_templates' %}" class="nav-2 {% if '/contracts/templates/' in p %}active{% endif %}">Abstract templates</a>
     </details>

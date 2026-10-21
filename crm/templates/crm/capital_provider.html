@@ -1,0 +1,54 @@
+{% extends "crm/base.html" %}
+{% load crm_tags %}
+{% block title %}{{ p.name }} · Lenders and investors · ACMI CRM{% endblock %}
+{% block content %}
+<div class="record-head">
+  <div>
+    <div class="muted lc-small"><a href="{% url 'crm:capital_index' %}">Capital</a> › <a href="{% url 'crm:capital_providers' %}">Lenders and investors</a></div>
+    <h1>{{ p.name }} <span class="tag">{{ p.get_kind_display }}</span></h1>
+    <div class="muted">{% if p.domains %}{{ p.domains|join:", " }}{% else %}No email domain yet{% endif %}{% if p.website %} · <a href="{{ p.website }}" target="_blank" rel="noopener">website</a>{% endif %}
+      · not a CRM company, never in outreach</div>
+  </div>
+</div>
+<div class="ct-layout">
+  <div>
+    <section class="panel">
+      <h3>Capital sources ({{ sources|length }})</h3>
+      {% for s in sources %}<div class="row-line"><span><a href="{{ s.get_absolute_url }}">{{ s.project.name }}: {{ s.label|default:s.get_kind_display }}</a>{% if s.amount_sought %} <span class="muted lc-small">· {{ s.amount_sought|money }}</span>{% endif %}</span>
+        <span><span class="pill cap-{{ s.status }}">{{ s.get_status_display }}</span>{% if s.ts %} <span class="lc-small muted">v{{ s.ts.version }}{% if s.ts.rate %} · {{ s.ts.rate }}{% endif %}</span>{% endif %}</span></div>
+      {% empty %}<p class="muted lc-small" style="margin:0">Not on any project yet. Add it from a project's Capital page.</p>{% endfor %}
+    </section>
+    <section class="panel" id="touches">
+      <h3>Emails, meetings and log · 120 days</h3>
+      {% for t in touches %}<div class="cap-touch"><span class="lc-small">{{ t.date|date:"M j, Y" }}</span><span class="k">{{ t.kind }}</span>
+        <span>{% if t.url %}<a href="{{ t.url }}">{{ t.text|truncatechars:140 }}</a>{% else %}{{ t.text|truncatechars:200 }}{% endif %}{% if t.detail %}<div class="muted lc-small">{{ t.detail }}</div>{% endif %}{% if t.who %} <span class="muted lc-small">· {{ t.who|username }}</span>{% endif %}</span>
+        <span class="lc-small muted">{{ t.project.name|default:"" }}</span></div>
+      {% empty %}<p class="muted lc-small" style="margin:0">Nothing yet.{% if not p.domains %} Add the email domain so their emails are filed here.{% endif %}</p>{% endfor %}
+    </section>
+  </div>
+  <div>
+    {% if upcoming %}<section class="panel">
+      <h3>Coming up</h3>
+      {% for m in upcoming %}<div class="row-line"><a href="{{ m.get_absolute_url }}">{{ m.title|truncatechars:60 }}</a><span class="lc-small muted">{{ m.start|date:"M j, g:i a" }}</span></div>{% endfor %}
+    </section>{% endif %}
+    <section class="panel" id="contacts">
+      <h3>Contacts</h3>
+      {% for c in p.contacts %}<div class="row-line"><span><b>{{ c.name }}</b>{% if c.title %} <span class="muted lc-small">· {{ c.title }}</span>{% endif %}
+          <div class="lc-small">{% if c.email %}<a href="mailto:{{ c.email }}">{{ c.email }}</a>{% endif %}{% if c.phone %} · {{ c.phone }}{% endif %}</div></span>
+        <form method="post" onsubmit="return confirm('Remove {{ c.name|escapejs }}?')">{% csrf_token %}<input type="hidden" name="action" value="contact_delete"><input type="hidden" name="i" value="{{ forloop.counter0 }}"><button class="btn-link lc-small">✕</button></form></div>
+      {% empty %}<p class="muted lc-small">None yet.</p>{% endfor %}
+      <form method="post" class="dd-form" style="margin-top:8px">{% csrf_token %}<input type="hidden" name="action" value="contact_add">
+        <label>Name <input name="name" required></label><label>Title <input name="title"></label>
+        <label>Email <input name="email" type="email"></label><label>Phone <input name="phone"></label>
+        <div class="dd-wide"><button class="btn btn-small btn-primary">Add contact</button></div></form>
+      <p class="muted lc-small" style="margin-bottom:0">Kept on this page only, not as People in the CRM.</p>
+    </section>
+    <section class="panel" id="details">
+      <h3>Details</h3>
+      <form method="post" class="fields">{% csrf_token %}<input type="hidden" name="action" value="details">{{ form.as_p }}<button class="btn btn-small btn-primary">Save</button></form>
+      {% if p.notes %}<div class="lc-small" style="margin-top:8px">{{ p.notes|linebreaksbr }}</div>{% endif %}
+      <form method="post" style="margin-top:10px" onsubmit="return confirm('Delete {{ p.name|escapejs }}?')">{% csrf_token %}<input type="hidden" name="action" value="delete"><button class="btn-link lc-small">Delete</button></form>
+    </section>
+  </div>
+</div>
+{% endblock %}
