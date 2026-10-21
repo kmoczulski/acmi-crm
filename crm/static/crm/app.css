@@ -1237,7 +1237,7 @@ tr.bd-total td { font-weight: 700; border-top: 2px solid var(--line); }
 .scard-date.done span:nth-child(2) { text-decoration: line-through; }
 .scard-date.done .sd-left { color: #1a8f4a; font-weight: 600; }
 
-/* ==========================================================================
+===================================================================
    Company page (company_detail.html, company_meeting_card.html, action_item.html, company_actions.html)
    ========================================================================== */
 .co-tabs { position: sticky; top: 0; z-index: 5; background: var(--bg); overflow-x: auto; overflow-y: hidden;
@@ -1321,3 +1321,27 @@ tr.bd-total td { font-weight: 700; border-top: 2px solid var(--line); }
   .co-facts { grid-template-columns: 1fr 1fr; }
 }
 /* End company page */
+=======
+/* Capital: sources, the stack and term sheets side by side */
+.pill.cap-identified, .pill.cap-outreach { background: #eef0f3; color: #3c4453; }
+.pill.cap-discussion { background: #e3ecff; color: #1e4fbf; }
+.pill.cap-term_sheet, .pill.cap-approved { background: var(--warn-bg); color: var(--warn); }
+.pill.cap-closing, .pill.cap-closed { background: var(--good-bg); color: var(--good); }
+.pill.cap-passed, .pill.cap-declined { background: #f3f3f3; color: var(--muted); }
+.cap-stack { display: flex; flex-direction: column; gap: 4px; }
+.cap-layer { display: grid; grid-template-columns: 1fr auto; gap: 10px; padding: 7px 10px; border-radius: 8px; border-left: 4px solid #c9d2df; background: #f7f9fb; font-size: 13px; }
+.cap-layer.cap-equity { border-left-color: #2e7d32; }
+.cap-layer.cap-debt { border-left-color: #1e4fbf; }
+.cap-layer.cap-grants { border-left-color: #c77700; }
+.cap-layer.cap-out { opacity: .55; }
+.cap-stages { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.cap-compare th, .cap-compare td { vertical-align: top; }
+.cap-compare td.changed { background: #fff8e6; }
+.cap-compare td .q { color: var(--muted); font-size: 11px; cursor: help; text-decoration: underline dotted; }
+.cap-terms { display: grid; grid-template-columns: max-content 1fr; gap: 2px 12px; font-size: 13px; margin: 6px 0; }
+.cap-terms dt { color: var(--muted); }
+.cap-terms dd { margin: 0; }
+.cap-touch { display: grid; grid-template-columns: 70px 80px 1fr auto; gap: 8px; padding: 5px 0; border-bottom: 1px solid #f0f2f5; font-size: 13px; }
+.cap-touch .k { color: var(--muted); font-size: 12px; }
+
+/* 

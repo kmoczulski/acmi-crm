@@ -24,9 +24,11 @@ def live(qs=None):
 
 def upcoming(days=30, today=None):
     """{"overdue": [...], "soon": [...]}: missed deadlines, then the next `days` days: contract dates, open diligence
-    items, closing items, entitlement steps, conditions and lapsing approvals, build milestones and GC interviews.
+    items, closing items, entitlement steps, conditions and lapsing approvals, build milestones and GC interviews,
+    and capital: term sheet expiries, outside closing dates and lenders' next steps.
     Each row has date, left, late, label, amount, url, what (the deal), who, tag."""
     from ..build import logic as build_logic
+    from ..capital import logic as capital_logic
     from ..entitlements import logic as entitlement_logic
     from ..land import diligence
     from . import closing
@@ -45,6 +47,7 @@ def upcoming(days=30, today=None):
                                     + "#closing", what=i.contract.title, who=i.contract.owner, tag="Closing"))
     rows += entitlement_logic.due_rows(days, today)
     rows += build_logic.due_rows(days, today)
+    rows += capital_logic.due_rows(days, today)
     rows.sort(key=lambda r: r.date)
     for r in rows:
         r.left = (r.date - today).days
@@ -185,7 +188,8 @@ EXECUTED = (Contract.Status.SIGNED, Contract.Status.CLOSED)
 def critical_between(first, last, today=None):
     """The critical dates of executed agreements (signed or closed) from `first` to `last`: each contract date marked
     critical (done ones too, checked off) and the closing checklist of a signed purchase. Nothing from a deal still
-    being drafted or negotiated. Rows like upcoming()'s, plus done."""
+    being drafted or negotiated. Signed or accepted term sheets and commitments count as executed. Rows like
+    upcoming()'s, plus done."""
     today = today or timezone.localdate()
     rows = []
     qs = (ContractDate.objects.filter(confirmed=True, critical=True, date__gte=first, date__lte=last,
@@ -201,6 +205,9 @@ def critical_between(first, last, today=None):
         rows.append(SimpleNamespace(date=i.due_on, label=i.name, amount=None, url=i.contract.get_absolute_url()
                                     + "#closing", what=i.contract.title, who=i.contract.owner,
                                     done=i.status == ClosingItem.Status.DONE, tag="Closing"))
+    from ..capital import logic as capital_logic
+
+    rows += capital_logic.critical_rows(first, last, today)
     for r in rows:
         r.left = (r.date - today).days
         r.late = r.left < 0 and not r.done

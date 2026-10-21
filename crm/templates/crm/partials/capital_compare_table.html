@@ -1,0 +1,8 @@
+<div style="overflow-x:auto"><table class="data compact cap-compare">
+  <thead><tr><th></th>{% for t in sheets %}<th class="wrap"><a href="{{ t.get_absolute_url }}">{{ t.source.provider }}</a>
+    <div class="muted lc-small" style="font-weight:normal">{{ t.get_kind_display }} v{{ t.version }}{% if t.dated %} · {{ t.dated|date:"M j, Y" }}{% endif %} · {{ t.get_status_display|lower }}</div></th>{% endfor %}</tr></thead>
+  <tbody>{% for r in rows %}<tr><th class="lc-small" style="text-align:left;white-space:nowrap">{{ r.label|capfirst }}</th>
+    {% for c in r.cells %}<td class="wrap lc-small{% if r.changed %} changed{% endif %}">{% if r.long %}{{ c.value|linebreaksbr|default:"–" }}{% else %}{{ c.value|default:"–" }}{% endif %}{% if c.source.quote %} <span class="q" title="{{ c.source.quote|truncatechars:400 }}{% if c.source.page %} (p. {{ c.source.page }}){% endif %}">src</span>{% endif %}</td>{% endfor %}</tr>
+  {% endfor %}</tbody>
+</table></div>
+<p class="muted lc-small" style="margin-bottom:0">Highlighted rows differ. "src" shows the language Claude read a term from.</p>

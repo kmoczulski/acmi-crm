@@ -2797,3 +2797,263 @@ class ChoiceOption(models.Model):
 
     def __str__(self):
         return f"{self.list_key}: {self.label or self.value}"
+
+
+# ---------------------------------------------------------------------------
+# Capitalization (crm/capital/): each project's capital stack, the lenders and investors we're talking to, and their
+# term sheets. Sources, terms and conversations only; the pro forma stays in Excel. Lenders, brokers and investors
+# live in their own list (CapitalProvider), never as Companies or People, so they can't reach outreach.
+# ---------------------------------------------------------------------------
+
+
+class CapitalProvider(models.Model):
+    """A lender, debt fund, broker, equity investor or agency, kept apart from Companies and People: nothing here is
+    ever in a send queue, list or report. Its email domains and contacts let emails and meetings with it be found."""
+
+    class Kind(models.TextChoices):
+        BANK = "bank", "Bank"
+        DEBT_FUND = "debt_fund", "Debt fund / private lender"
+        BROKER = "broker", "Debt broker / advisor"
+        INVESTOR = "investor", "Equity investor"
+        AGENCY = "agency", "Agency / public program"
+        OTHER = "other", "Other"
+
+    name = models.CharField(max_length=200, unique=True)
+    kind = models.CharField(max_length=10, choices=Kind.choices, default=Kind.BANK)
+    domains = models.JSONField(default=list, blank=True, help_text="Email domains, e.g. truist.com")
+    contacts = models.JSONField(default=list, blank=True, help_text="[{name, title, email, phone}]")
+    website = models.URLField(blank=True)
+    notes = models.TextField(blank=True)
+    created_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["name"]
+
+    def __str__(self):
+        return self.name
+
+    def get_absolute_url(self):
+        return reverse("crm:capital_provider", args=[self.pk])
+
+    def save(self, *args, **kwargs):
+        self.domains = sorted({d.strip().lower().lstrip("@") for d in self.domains or [] if d.strip()})
+        super().save(*args, **kwargs)
+
+    @property
+    def emails(self):
+        return [c["email"].lower() for c in self.contacts or [] if c.get("email")]
+
+
+class CapitalSource(models.Model):
+    """One piece of a project's capital stack and who might provide it: Fortress's equity, a senior construction loan
+    from a bank, mezz, C-PACE, a state grant. Where the conversation stands (identified → in discussion → term sheet →
+    committee / approved → closed, or passed), who has the ball, what's next, the term sheets (TermSheet) and the
+    signed agreement (a Contract)."""
+
+    class Kind(models.TextChoices):
+        EQUITY = "equity", "Equity (JV / LP)"
+        PREF = "pref", "Preferred equity"
+        MEZZ = "mezz", "Mezzanine debt"
+        CONSTRUCTION = "construction", "Construction loan"
+        SENIOR = "senior", "Senior debt"
+        BRIDGE = "bridge", "Bridge loan"
+        PERM = "perm", "Permanent loan"
+        CPACE = "cpace", "C-PACE"
+        BONDS = "bonds", "Bonds / IRB"
+        SELLER = "seller", "Seller financing"
+        GRANT = "grant", "Grant / incentive"
+        TAX_CREDIT = "tax_credit", "Tax credits"
+        OTHER = "other", "Other"
+
+    class Status(models.TextChoices):
+        IDENTIFIED = "identified", "Identified"
+        OUTREACH = "outreach", "Reached out"
+        DISCUSSION = "discussion", "In discussion"
+        TERM_SHEET = "term_sheet", "Term sheet"
+        APPROVED = "approved", "Committee / approved"
+        CLOSING = "closing", "Docs / closing"
+        CLOSED = "closed", "Closed / committed"
+        PASSED = "passed", "We passed"
+        DECLINED = "declined", "They passed"
+
+    STATUS_ORDER = Order("CapitalSource.Status",
+                         ["identified", "outreach", "discussion", "term_sheet", "approved", "closing", "closed"])
+    ACTIVE = Group("CapitalSource.Status", ["identified", "outreach", "discussion", "term_sheet", "approved", "closing"])
+    DEBT = Group("CapitalSource.Kind", ["mezz", "construction", "senior", "bridge", "perm", "cpace", "bonds", "seller"])
+    EQUITY = Group("CapitalSource.Kind", ["equity", "pref"])
+
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="capital_sources")
+    kind = models.CharField(max_length=14, choices=Kind.choices, default=Kind.SENIOR)
+    provider = models.ForeignKey(CapitalProvider, on_delete=models.PROTECT, related_name="sources",
+                                 help_text="The lender, investor or agency")
+    label = models.CharField(max_length=200, blank=True, help_text="e.g. Phase 1 construction loan")
+    status = models.CharField(max_length=12, choices=Status.choices, default=Status.IDENTIFIED, db_index=True)
+    status_since = models.DateField(null=True, blank=True)
+    amount_sought = models.DecimalField("sought ($)", max_digits=14, decimal_places=2, null=True, blank=True)
+    amount_committed = models.DecimalField("committed ($)", max_digits=14, decimal_places=2, null=True, blank=True)
+    contact = models.CharField(max_length=200, blank=True, help_text="Our contact there")
+    owner = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="capital_sources",
+                              help_text="Who on the team runs it; gets the reminders")
+    waiting_on = models.CharField("ball in court", max_length=6, choices=CampusUpdate.Waiting.choices, blank=True)
+    waiting_since = models.DateField(null=True, blank=True)
+    next_step = models.CharField(max_length=300, blank=True)
+    next_step_on = models.DateField("next step by", null=True, blank=True)
+    contract = models.ForeignKey(Contract, null=True, blank=True, on_delete=models.SET_NULL,
+                                 related_name="capital_sources", verbose_name="signed agreement",
+                                 help_text="The loan or JV agreement, once it's papered")
+    notes = models.TextField(blank=True)
+    created_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["project", "kind", "id"]
+
+    def __str__(self):
+        return f"{self.provider} · {self.label or self.get_kind_display()}"
+
+    def get_absolute_url(self):
+        return reverse("crm:capital_source", args=[self.pk])
+
+    @property
+    def is_active(self):
+        return self.status in self.ACTIVE
+
+    @property
+    def is_debt(self):
+        return self.kind in self.DEBT
+
+
+class TermSheet(models.Model):
+    """A term sheet, LOI, quote or commitment letter from a lender or investor, one per version: the file (text read
+    for Claude) and the key terms, typed or read by Claude with the language behind each (`sources`)."""
+
+    class Kind(models.TextChoices):
+        QUOTE = "quote", "Indicative quote"
+        TERM_SHEET = "term_sheet", "Term sheet"
+        LOI = "loi", "LOI"
+        COMMITMENT = "commitment", "Commitment letter"
+        OTHER = "other", "Other"
+
+    class Status(models.TextChoices):
+        RECEIVED = "received", "Received"
+        COUNTERED = "countered", "We marked it up"
+        ACCEPTED = "accepted", "Signed / accepted"
+        DECLINED = "declined", "Declined"
+        EXPIRED = "expired", "Expired"
+
+    source = models.ForeignKey(CapitalSource, on_delete=models.CASCADE, related_name="term_sheets")
+    version = models.PositiveSmallIntegerField(default=1)
+    kind = models.CharField(max_length=12, choices=Kind.choices, default=Kind.TERM_SHEET)
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.RECEIVED)
+    title = models.CharField(max_length=300, blank=True)
+    dated = models.DateField("received / dated", null=True, blank=True)
+    file = models.FileField(upload_to="capital/%Y/%m/", blank=True)
+    text = models.TextField(blank=True, editable=False)
+    page_starts = models.JSONField(default=list, blank=True, editable=False)
+    pages = models.PositiveIntegerField(default=0)
+    text_status = models.CharField(max_length=12, blank=True)
+    # The key terms (capital/logic.py TERMS lists them in the order the comparison shows them)
+    amount = models.DecimalField("amount ($)", max_digits=14, decimal_places=2, null=True, blank=True)
+    rate = models.CharField("rate", max_length=200, blank=True, help_text="As quoted, e.g. SOFR + 3.25%, 7.1% fixed")
+    spread_bps = models.DecimalField("spread (bps)", max_digits=7, decimal_places=1, null=True, blank=True)
+    fixed_rate_pct = models.DecimalField("fixed rate (%)", max_digits=6, decimal_places=3, null=True, blank=True)
+    floor_pct = models.DecimalField("rate floor (%)", max_digits=6, decimal_places=3, null=True, blank=True)
+    term_months = models.PositiveSmallIntegerField("term (months)", null=True, blank=True)
+    extensions = models.CharField(max_length=300, blank=True, help_text="e.g. two 12-month options, 25 bps each")
+    amortization = models.CharField(max_length=200, blank=True)
+    ltc_pct = models.DecimalField("LTC (%)", max_digits=6, decimal_places=2, null=True, blank=True)
+    ltv_pct = models.DecimalField("LTV (%)", max_digits=6, decimal_places=2, null=True, blank=True)
+    dscr_min = models.DecimalField("min DSCR (x)", max_digits=5, decimal_places=2, null=True, blank=True)
+    debt_yield_pct = models.DecimalField("min debt yield (%)", max_digits=6, decimal_places=2, null=True, blank=True)
+    origination_fee_pct = models.DecimalField("origination fee (%)", max_digits=6, decimal_places=3, null=True,
+                                              blank=True)
+    exit_fee_pct = models.DecimalField("exit fee (%)", max_digits=6, decimal_places=3, null=True, blank=True)
+    other_fees = models.CharField(max_length=300, blank=True)
+    recourse = models.CharField(max_length=300, blank=True, help_text="e.g. non-recourse with carve-outs; 25% repayment")
+    guaranty = models.CharField("guaranties", max_length=300, blank=True)
+    covenants = models.TextField(blank=True)
+    prepayment = models.CharField(max_length=300, blank=True)
+    interest_reserve = models.CharField(max_length=300, blank=True)
+    equity_required = models.CharField("equity required", max_length=300, blank=True)
+    pref_return_pct = models.DecimalField("preferred return (%)", max_digits=6, decimal_places=2, null=True,
+                                          blank=True)
+    promote = models.CharField("promote / waterfall", max_length=300, blank=True)
+    deposit = models.DecimalField("good-faith deposit ($)", max_digits=12, decimal_places=2, null=True, blank=True)
+    conditions = models.TextField("conditions to close", blank=True)
+    expires_on = models.DateField("offer expires", null=True, blank=True)
+    close_by = models.DateField("close by", null=True, blank=True, help_text="Outside closing date it sets")
+    notes = models.TextField(blank=True)
+    sources = models.JSONField(default=dict, blank=True, help_text="{field: {quote, start, end, page, note}} from Claude")
+    read_at = models.DateTimeField(null=True, blank=True)
+    added_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    added_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["source", "version", "id"]
+
+    def __str__(self):
+        return self.title or f"{self.get_kind_display()} v{self.version}"
+
+    def get_absolute_url(self):
+        return self.source.get_absolute_url() + f"#ts-{self.pk}"
+
+    @property
+    def href(self):
+        return reverse("crm:term_sheet_file", args=[self.pk]) if self.file else ""
+
+    def page_at(self, index):
+        from bisect import bisect_right
+
+        return max(1, bisect_right(self.page_starts or [0], index))
+
+
+class CapitalLog(models.Model):
+    """What happened with a capital source, newest first: calls and notes typed in, and status changes and term
+    sheets logged by the app. Emails and Granola meetings with the provider show beside these, found live."""
+
+    class Kind(models.TextChoices):
+        NOTE = "note", "Note"
+        CALL = "call", "Call"
+        MEETING = "meeting", "Meeting"
+        STATUS = "status", "Status change"
+        TERM_SHEET = "term_sheet", "Term sheet"
+
+    source = models.ForeignKey(CapitalSource, on_delete=models.CASCADE, related_name="log")
+    kind = models.CharField(max_length=12, choices=Kind.choices, default=Kind.NOTE)
+    happened_on = models.DateField(default=timezone.localdate)
+    text = models.TextField()
+    user = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-happened_on", "-id"]
+
+    def __str__(self):
+        return self.text[:60]
+
+
+class CapitalEmail(models.Model):
+    """An email with someone at a capital provider's domain. The mail sync files these here instead of the review
+    queue, so a lender's domain is never offered as a new company."""
+
+    provider = models.ForeignKey(CapitalProvider, on_delete=models.CASCADE, related_name="emails_log")
+    message_id = models.CharField(max_length=500)
+    thread_id = models.CharField(max_length=100, blank=True)
+    occurred_at = models.DateTimeField(db_index=True)
+    kind = models.CharField(max_length=20, choices=Activity.Kind.choices)
+    address = models.EmailField(max_length=255)
+    name = models.CharField(max_length=255, blank=True)
+    subject = models.CharField(max_length=500, blank=True)
+    snippet = models.TextField(blank=True)
+    mailbox = models.ForeignKey("Mailbox", null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+
+    class Meta:
+        ordering = ["-occurred_at"]
+        constraints = [
+            models.UniqueConstraint(fields=["message_id", "address"], name="capital_email_unique"),
+        ]
+
+    def __str__(self):
+        return f"{self.address}: {self.subject}"
