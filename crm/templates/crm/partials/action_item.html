@@ -1,0 +1,32 @@
+{% load crm_tags %}
+{% comment %}One meeting action item: i = {title, owner, detail, index, task, done}, m = its meeting. Optional: next,
+show_meeting, compact (the form opens from a "Make task" link, for narrow columns).{% endcomment %}
+<div class="action-item{% if i.done %} ai-done{% endif %}">
+  <div class="ai-line">
+    {% if i.task %}
+      <form method="post" action="{% url 'crm:task_toggle' i.task.pk %}" style="margin:0">{% csrf_token %}<input type="hidden" name="next" value="{{ next|default:request.get_full_path }}"><input type="checkbox" {% if i.task.done %}checked{% endif %} onchange="this.form.submit()" title="{% if i.task.done %}Done. Untick to reopen{% else %}Mark done{% endif %}"></form>
+    {% else %}<span class="ai-dot" title="No task yet"></span>{% endif %}
+    <div class="ai-text">
+      <strong>{{ i.title }}</strong>{% if i.owner %} <span class="tag">{{ i.owner }}</span>{% endif %}
+      {% if i.detail %}<div class="muted" style="font-size:12px">{{ i.detail }}</div>{% endif %}
+      {% if show_meeting %}<div class="muted" style="font-size:12px">From <a href="{{ m.get_absolute_url }}">{{ m.title|truncatechars:60 }}</a> · {{ m.start|date:"M j" }}</div>{% endif %}
+      {% if i.task %}
+        <div style="font-size:12px;margin-top:3px">✓ Task: <a href="{{ i.task.get_absolute_url }}">{{ i.task.title|truncatechars:50 }}</a>
+          · {{ i.task.assignee|username }}{% if i.task.due_date %} · <span class="{% if i.task.is_overdue %}overdue{% endif %}">due {{ i.task.due_date|date:"M j" }}</span>{% endif %}{% if i.task.done %} · done{% endif %}</div>
+      {% else %}
+        {% if compact %}<details class="mk-task"><summary>+ Make task</summary>{% endif %}
+        <form method="post" action="{% url 'crm:meeting_make_task' m.pk %}" class="inline-form" style="margin-top:4px">{% csrf_token %}
+          <input type="hidden" name="index" value="{{ i.index }}">
+          <input type="hidden" name="next" value="{{ next|default:request.get_full_path }}">
+          <select name="assignee" style="font-size:12px" aria-label="Assign to">
+            <option value="">{% if i.owner %}{{ i.owner }} (from notes){% else %}Me{% endif %}</option>
+            {% for u in users %}<option value="{{ u.pk }}">{{ u.get_full_name|default:u.username }}</option>{% endfor %}
+          </select>
+          <input type="date" name="due_date" style="font-size:12px" aria-label="Due date"> <input type="time" name="due_time" style="font-size:12px" title="Time (optional)" aria-label="Due time">
+          <button class="btn-small">Make task</button>
+        </form>
+        {% if compact %}</details>{% endif %}
+      {% endif %}
+    </div>
+  </div>
+</div>

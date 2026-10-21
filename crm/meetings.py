@@ -73,6 +73,17 @@ def action_items(summary):
     return items
 
 
+def summary_without_actions(summary):
+    """The summary minus its "Next Steps" / "Action Items" section, for pages that list those items on their own."""
+    kept, in_section = [], False
+    for line in (summary or "").splitlines():
+        if line.strip().startswith("#"):
+            in_section = bool(ACTION_HEADINGS.match(line.strip()))
+        if not in_section:
+            kept.append(line)
+    return "\n".join(kept)
+
+
 def _plain(text):
     return html.unescape(re.sub(r"\*\*|\\", "", text or "")).strip()
 
