@@ -17,8 +17,10 @@ from crm import notify
 from crm.capital import logic
 from crm.contracts import dates
 from crm.models import (
-    Activity, CapitalLog, CapitalSource, Campus, Company, Contract, Meeting, Notification, Project, TermSheet,
+    CapitalEmail, CapitalProvider, CapitalSource, Campus, Company, Contract, Mailbox, Meeting, Notification, Person,
+    Project, TermSheet, UnmatchedEmail,
 )
+from crm.mail import sync
 from crm.tests.test_contracts import fake_claude, make_docx, text_block
 from crm.tests.utils import make_manager
 
@@ -43,8 +45,9 @@ class CapitalBase(TestCase):
         self.campus = Campus.objects.create(code="MEIH", name="Maryland Energetics Innovation Hub")
         self.meih = Project.objects.create(name="MEIH", campus=self.campus)
         self.ara = Project.objects.create(name="ARA Facility", campus=self.campus, parent=self.meih)
-        self.fortress = Company.objects.create(name="Fortress Investment Group LLC", domains=["fortress.com"])
-        self.bank = Company.objects.create(name="Truist Bank", domains=["truist.com"])
+        self.fortress = CapitalProvider.objects.create(name="Fortress Investment Group LLC", kind="investor",
+                                                       domains=["fortress.com"])
+        self.bank = CapitalProvider.objects.create(name="Truist Bank", domains=["truist.com"])
 
     def source(self, **kw):
         kw.setdefault("project", self.ara)
@@ -53,30 +56,34 @@ class CapitalBase(TestCase):
 
 
 class SourceTests(CapitalBase):
-    def test_quick_add_links_a_known_company_and_logs(self):
+    def test_quick_add_links_a_known_provider_and_logs(self):
         r = self.client.post(f"/projects/{self.ara.pk}/capital/add/",
-                             {"provider": "truist bank", "kind": "construction", "status": "outreach",
+                             {"provider_name": "truist bank", "kind": "construction", "status": "outreach",
                               "amount_sought": "42000000"})
         s = CapitalSource.objects.get()
         self.assertRedirects(r, s.get_absolute_url())
-        self.assertEqual(s.company, self.bank)
+        self.assertEqual(s.provider, self.bank)
         self.assertEqual(s.status_since, self.today)
         self.assertTrue(s.log.filter(kind="status").exists())
 
-    def test_unknown_provider_is_kept_by_name_then_added_as_company(self):
-        self.client.post(f"/projects/{self.ara.pk}/capital/add/", {"provider": "Bank OZK", "kind": "construction",
+    def test_a_new_provider_never_becomes_a_company_or_person(self):
+        self.client.post(f"/projects/{self.ara.pk}/capital/add/", {"provider_name": "Bank OZK", "kind": "construction",
                                                                    "status": "identified"})
         s = CapitalSource.objects.get()
-        self.assertIsNone(s.company)
-        self.assertEqual(s.provider, "Bank OZK")
-        self.assertContains(self.client.get(s.get_absolute_url()), "isn't a company in the CRM")
-        self.client.post(s.get_absolute_url(), {"action": "add_company"})
+        self.assertEqual(s.provider.name, "Bank OZK")
+        self.assertEqual(s.provider.kind, "bank")
+        self.client.post(s.provider.get_absolute_url(), {"action": "contact_add", "name": "Pat Lender",
+                                                         "email": "pat@ozk.com"})
+        self.client.post(s.get_absolute_url(), {"action": "start_contract"})
+        self.assertFalse(Company.objects.exists())
+        self.assertFalse(Person.objects.exists())
         s.refresh_from_db()
-        self.assertEqual(s.company.name, "Bank OZK")
-        self.assertEqual(s.provider_name, "")
+        self.assertIsNone(s.contract.company)
+        self.assertEqual(s.contract.counterparty, "Bank OZK")
+        self.assertEqual(s.provider.contacts[0]["name"], "Pat Lender")
 
     def test_status_change_is_dated_and_logged_and_advance_never_goes_back(self):
-        s = self.source(company=self.bank, kind="construction", status="discussion")
+        s = self.source(provider=self.bank, kind="construction", status="discussion")
         self.client.post(s.get_absolute_url(), {"action": "status", "status": "approved"})
         s.refresh_from_db()
         self.assertEqual(s.status, "approved")
@@ -86,11 +93,13 @@ class SourceTests(CapitalBase):
         self.assertFalse(logic.advance(s, "closing"))
 
     def test_stack_counts_one_quote_per_loan_and_skips_passed(self):
-        self.source(company=self.fortress, kind="equity", status="closed", amount_sought=Decimal("30000000"),
+        self.source(provider=self.fortress, kind="equity", status="closed", amount_sought=Decimal("30000000"),
                     amount_committed=Decimal("28000000"))
-        self.source(company=self.bank, kind="construction", amount_sought=Decimal("42000000"))
-        self.source(provider_name="Bank OZK", kind="construction", amount_sought=Decimal("40000000"))
-        self.source(provider_name="Mezz Co", kind="mezz", status="passed", amount_sought=Decimal("8000000"))
+        self.source(provider=self.bank, kind="construction", amount_sought=Decimal("42000000"))
+        self.source(provider=CapitalProvider.objects.create(name="Bank OZK"), kind="construction",
+                    amount_sought=Decimal("40000000"))
+        self.source(provider=CapitalProvider.objects.create(name="Mezz Co"), kind="mezz", status="passed",
+                    amount_sought=Decimal("8000000"))
         st = logic.stack(self.ara)
         self.assertEqual([g["name"] for g in st["groups"]], ["Equity", "Debt"])
         self.assertEqual(st["total"]["sought"], Decimal("72000000"))  # 30M equity + the larger construction quote
@@ -98,29 +107,30 @@ class SourceTests(CapitalBase):
         self.assertEqual(st["groups"][1]["rows"][0].kind, "mezz")  # mezz sits above the senior loan
 
     def test_start_loan_agreement_makes_a_contract(self):
-        s = self.source(company=self.bank, kind="construction", amount_sought=Decimal("42000000"))
+        s = self.source(provider=self.bank, kind="construction", amount_sought=Decimal("42000000"))
         self.client.post(s.get_absolute_url(), {"action": "start_contract"})
         s.refresh_from_db()
         self.assertEqual(s.contract.kind, Contract.Kind.LOAN)
-        self.assertEqual(s.contract.company, self.bank)
+        self.assertEqual(s.contract.counterparty, "Truist Bank")
         self.assertEqual(s.contract.campus, self.campus)
-        eq = self.source(company=self.fortress, kind="equity")
+        eq = self.source(provider=self.fortress, kind="equity")
         self.client.post(eq.get_absolute_url(), {"action": "start_contract"})
         eq.refresh_from_db()
         self.assertEqual(eq.contract.kind, Contract.Kind.JV)
 
     def test_pages_render(self):
-        s = self.source(company=self.bank, kind="construction", waiting_on="them", waiting_since=self.today)
+        s = self.source(provider=self.bank, kind="construction", waiting_on="them", waiting_since=self.today)
         TermSheet.objects.create(source=s, amount=Decimal("42000000"), rate="SOFR + 3.25%",
                                  expires_on=self.today + timedelta(days=5))
         for url in ("/capital/", f"/projects/{self.ara.pk}/capital/", s.get_absolute_url(), "/capital/?show=all&kind=debt",
-                    f"/capital/?campus=MEIH", f"/projects/{self.ara.pk}/", "/projects/"):
+                    "/capital/?campus=MEIH", f"/projects/{self.ara.pk}/", "/projects/", "/capital/providers/",
+                    self.bank.get_absolute_url()):
             self.assertEqual(self.client.get(url).status_code, 200, url)
         self.assertContains(self.client.get("/capital/"), "Truist Bank")
         self.assertContains(self.client.get(f"/projects/{self.ara.pk}/"), "Capital")
 
     def test_only_managers_delete(self):
-        s = self.source(company=self.bank)
+        s = self.source(provider=self.bank)
         other = User.objects.create_user("dave")
         self.client.force_login(other)
         self.client.post(s.get_absolute_url(), {"action": "delete"})
@@ -131,7 +141,7 @@ class SourceTests(CapitalBase):
 class TermSheetTests(CapitalBase):
     def setUp(self):
         super().setUp()
-        self.s = self.source(company=self.bank, kind="construction", status="discussion")
+        self.s = self.source(provider=self.bank, kind="construction", status="discussion")
 
     def upload(self, **extra):
         data = {"action": "ts_add", "new-kind": "term_sheet", "new-status": "received",
@@ -216,14 +226,10 @@ class TermSheetTests(CapitalBase):
 
 class TouchTests(CapitalBase):
     def test_emails_and_meetings_reach_the_source(self):
-        s = self.source(company=self.fortress, kind="equity", status="closed")
+        s = self.source(provider=self.fortress, kind="equity", status="closed")
         yesterday = self.today - timedelta(days=1)
-        Activity.objects.create(occurred_at=at(yesterday), kind=Activity.Kind.EMAIL_RECEIVED, company=self.fortress,
-                                summary="Re: MEIH capital call schedule")
-        other = Project.objects.create(name="NSIH")
-        elsewhere = Activity.objects.create(occurred_at=at(yesterday), kind=Activity.Kind.EMAIL_RECEIVED,
-                                            company=self.fortress, summary="NSIH only")
-        elsewhere.projects.add(other)
+        CapitalEmail.objects.create(provider=self.fortress, message_id="<m1>", occurred_at=at(yesterday),
+                                    kind="email_received", address="pat@fortress.com", subject="MEIH capital call")
         Meeting.objects.create(source="granola", external_id="g1", title="Fortress / ACMI weekly",
                                start=at(self.today - timedelta(days=3)))
         Meeting.objects.create(source="granola", external_id="g2", title="Lender call",
@@ -232,19 +238,53 @@ class TouchTests(CapitalBase):
         Meeting.objects.create(source="granola", external_id="g3", title="Fortressville zoning",
                                start=at(self.today - timedelta(days=2)))
         texts = [t.text for t in logic.touches(s, self.today)]
-        self.assertIn("Re: MEIH capital call schedule", texts)
-        self.assertNotIn("NSIH only", texts)
+        self.assertIn("MEIH capital call", texts)
         self.assertIn("Fortress / ACMI weekly", texts)
         self.assertIn("Lender call", texts)
         self.assertNotIn("Fortressville zoning", texts)
         self.assertEqual(logic.last_touch(s), (yesterday, "email received"))
+
+    def test_mail_sync_files_lender_mail_on_the_provider_not_the_review_queue(self):
+        from crm.tests.test_mail import ME, FakeClient, raw_email
+
+        user = User.objects.create(username="kmo", email=ME)
+        mailbox = Mailbox.objects.create(user=user, email=ME)
+        sync.sync_mailbox(mailbox, client=FakeClient([
+            (1, "t1", raw_email("Pat <pat@truist.com>", ME, "ARA loan sizing")),
+            (2, "t2", raw_email("Sam <sam@unknownco.com>", ME, "Hello")),
+        ]))
+        filed = CapitalEmail.objects.get()
+        self.assertEqual((filed.provider, filed.subject), (self.bank, "ARA loan sizing"))
+        self.assertEqual(list(UnmatchedEmail.objects.values_list("domain", flat=True)), ["unknownco.com"])
+        self.assertFalse(Company.objects.filter(name__icontains="truist").exists())
+
+    def test_adding_a_domain_moves_queued_mail_off_the_review_queue(self):
+        from crm.tests.test_mail import ME
+
+        mailbox = Mailbox.objects.create(user=User.objects.create(username="kmo", email=ME), email=ME)
+        UnmatchedEmail.objects.create(mailbox=mailbox, message_id="<q1>", occurred_at=at(self.today), kind="reply",
+                                      address="ann@ozk.com", domain="ozk.com", subject="Term sheet attached")
+        ozk = CapitalProvider.objects.create(name="Bank OZK")
+        r = self.client.post(ozk.get_absolute_url(), {"action": "details", "name": "Bank OZK", "kind": "bank",
+                                                      "domains_text": "ozk.com, @OZK-bank.com"})
+        self.assertEqual(r.status_code, 302)
+        ozk.refresh_from_db()
+        self.assertEqual(ozk.domains, ["ozk-bank.com", "ozk.com"])
+        self.assertFalse(UnmatchedEmail.objects.exists())
+        self.assertEqual(CapitalEmail.objects.get().provider, ozk)
+        self.assertEqual(sync.review_queue(), [])
+        # a domain can only belong to one provider
+        r = self.client.post(self.bank.get_absolute_url(), {"action": "details", "name": "Truist Bank", "kind": "bank",
+                                                            "domains_text": "ozk.com"})
+        self.bank.refresh_from_db()
+        self.assertEqual(self.bank.domains, ["truist.com"])
 
     def test_short_name(self):
         self.assertEqual(logic.short_name("Fortress Investment Group LLC"), "Fortress")
         self.assertEqual(logic.short_name("The Capital Group"), "")
 
     def test_log_entry(self):
-        s = self.source(company=self.bank)
+        s = self.source(provider=self.bank)
         self.client.post(s.get_absolute_url(), {"action": "log", "kind": "call", "text": "Wants the rent roll",
                                                 "happened_on": str(self.today)})
         self.assertEqual(s.log.get(kind="call").text, "Wants the rent roll")
@@ -257,7 +297,7 @@ class TouchTests(CapitalBase):
 class HookTests(CapitalBase):
     def setUp(self):
         super().setUp()
-        self.s = self.source(company=self.bank, kind="construction", status="term_sheet",
+        self.s = self.source(provider=self.bank, kind="construction", status="term_sheet",
                              next_step="Send the appraisal", next_step_on=self.today + timedelta(days=1))
         self.v1 = TermSheet.objects.create(source=self.s, version=1, expires_on=self.today + timedelta(days=3))
         self.v2 = TermSheet.objects.create(source=self.s, version=2, expires_on=self.today + timedelta(days=7),

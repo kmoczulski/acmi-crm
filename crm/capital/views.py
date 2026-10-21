@@ -3,7 +3,7 @@ one source with its term sheets, touches and log (/capital/<id>/), and term shee
 from datetime import date
 
 from django.contrib import messages
-from django.http import FileResponse, Http404
+from django.http import FileResponse, Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -11,10 +11,10 @@ from django.views.decorators.http import require_POST
 
 from ..ai import enabled as ai_enabled
 from ..contracts import text as textmod
-from ..models import CapitalLog, CapitalSource, Campus, Company, Contract, Project, TermSheet
+from ..models import CapitalLog, CapitalProvider, CapitalSource, Campus, Contract, Project, TermSheet
 from ..permissions import is_manager, refuse
 from . import ai, logic
-from .forms import ContactField, SourceForm, TermSheetForm, contact_choices
+from .forms import ProviderForm, SourceForm, TermSheetForm
 
 INLINE_TYPES = (".pdf", ".png", ".jpg", ".jpeg", ".gif", ".webp")
 WAITING = {"us": "Waiting on us", "them": "Waiting on them", "third": "Waiting on a third party"}
@@ -101,7 +101,7 @@ def source_create(request):
         initial["kind"] = request.GET["kind"]
     form = SourceForm(request.POST or None, initial=initial)
     if request.method == "POST" and form.is_valid():
-        source = form.save(commit=False)
+        source = form.save(commit=False, user=request.user)
         source.created_by, source.status_since = request.user, timezone.localdate()
         source.save()
         CapitalLog.objects.create(source=source, kind=CapitalLog.Kind.STATUS, user=request.user,
@@ -110,7 +110,7 @@ def source_create(request):
         return redirect(source)
     back = reverse("crm:project_capital", args=[project.pk]) if project else reverse("crm:capital_index")
     return render(request, "crm/form.html", {"form": form, "title": "New capital source", "cancel": back,
-                                             "company_names": True})
+                                             "provider_names": True})
 
 
 def source_detail(request, pk):
@@ -125,18 +125,15 @@ def source_detail(request, pk):
         t.quoted = [(logic.term_label(f), v) for f, v in (t.sources or {}).items() if f in logic.TERM_KINDS]
         t.terms = [(f, logic.term_label(f), logic.show(t, f), (t.sources or {}).get(f)) for f, _, _ in logic.TERMS
                    if logic.show(t, f)]
-    contact = ContactField(queryset=contact_choices(source), required=False)
     return render(request, "crm/capital_source.html", {
         "s": source, "sheets": sheets, "touches": logic.touches(source, today),
-        "upcoming": logic.upcoming_meetings(source), "compare": logic.compare(sheets) if len(sheets) > 1 else [],
+        "upcoming": logic.upcoming_meetings(source.provider), "compare": logic.compare(sheets) if len(sheets) > 1 else [],
         "form": SourceForm(instance=source), "ts_form": TermSheetForm(initial={"dated": today}, prefix="new"),
-        "people": contact.queryset, "statuses": CapitalSource.Status.choices, "log_kinds": [
+        "statuses": CapitalSource.Status.choices, "log_kinds": [
             (k, l) for k, l in CapitalLog.Kind.choices if k in ("note", "call", "meeting")],
         "contracts": Contract.objects.filter(kind__in=[Contract.Kind.LOAN, Contract.Kind.JV]).order_by("title"),
         "ai_ready": ai_enabled(), "can_manage": is_manager(request.user), "today": today,
         "head_fields": ["kind", "status", "dated", "file", "title"],
-        "company_match": (None if source.company_id or not source.provider_name else
-                          Company.objects.filter(name__icontains=logic.short_name(source.provider_name) or "\0")[:5]),
     })
 
 
@@ -155,7 +152,7 @@ def _post(request, source):
         form = SourceForm(request.POST, instance=source)
         if form.is_valid():
             new_status = form.cleaned_data["status"]
-            source = form.save(commit=False)
+            source = form.save(commit=False, user=user)
             source.status = old_status  # set_status dates and logs the change
             source.save()
             logic.set_status(source, new_status, user, today)
@@ -178,18 +175,8 @@ def _post(request, source):
                 source.next_step_on = _date_or_none(request.POST.get("next_step_on"))
             source.save()
     elif action == "contact":
-        person = contact_choices(source).filter(pk=request.POST.get("contact") or 0).first()
-        source.contact = person
+        source.contact = (request.POST.get("contact") or "").strip()[:200]
         source.save(update_fields=["contact", "updated_at"])
-    elif action == "add_company":
-        if source.company_id or not source.provider_name:
-            return redirect(source)
-        pick = Company.objects.filter(pk=request.POST.get("company") or 0).first()
-        company = pick or Company.objects.create(name=source.provider_name, created_by=user)
-        source.company, source.provider_name = company, ""
-        source.save(update_fields=["company", "provider_name", "updated_at"])
-        messages.success(request, f"Linked to {company.name}. Add its email domain on the company so mail and "
-                                  "meetings match it.")
     elif action == "log":
         anchor = "touches"
         text = (request.POST.get("text") or "").strip()
@@ -213,7 +200,7 @@ def _post(request, source):
         kind = Contract.Kind.JV if source.kind in CapitalSource.EQUITY else Contract.Kind.LOAN
         contract = Contract.objects.create(
             title=f"{source.project.name} {source.label or source.get_kind_display()} ({source.provider})"[:200],
-            kind=kind, status=Contract.Status.DRAFTING, counterparty=source.provider, company=source.company,
+            kind=kind, status=Contract.Status.DRAFTING, counterparty=source.provider.name,
             campus=source.project.campus, price=source.amount_committed or source.amount_sought, owner=source.owner,
             created_by=user)
         source.contract = contract
@@ -306,8 +293,8 @@ def _post(request, source):
 def compare(request):
     """Term sheets side by side (?ts=1&ts=2...), printable with the logo. Differences are marked."""
     ids = [i for i in request.GET.getlist("ts") if i.isdigit()]
-    sheets = list(TermSheet.objects.filter(pk__in=ids).select_related("source", "source__project", "source__company"))
-    sheets.sort(key=lambda t: (logic.sort_key(t.source), t.source.provider.lower(), t.version))
+    sheets = list(TermSheet.objects.filter(pk__in=ids).select_related("source", "source__project", "source__provider"))
+    sheets.sort(key=lambda t: (logic.sort_key(t.source), t.source.provider.name.lower(), t.version))
     if not sheets:
         raise Http404("Pick the term sheets to compare.")
     projects = {t.source.project for t in sheets}
@@ -339,7 +326,7 @@ def quick_add(request, pk):
     data.setdefault("owner", request.user.pk)
     form = SourceForm(data)
     if form.is_valid():
-        source = form.save(commit=False)
+        source = form.save(commit=False, user=request.user)
         source.created_by, source.status_since = request.user, timezone.localdate()
         source.save()
         CapitalLog.objects.create(source=source, kind=CapitalLog.Kind.STATUS, user=request.user,
@@ -348,3 +335,70 @@ def quick_add(request, pk):
         return redirect(source)
     messages.error(request, "Not added: " + " ".join(" ".join(v) for v in form.errors.values()))
     return redirect("crm:project_capital", project.pk)
+
+
+def provider_list(request):
+    """Lenders, brokers, investors and agencies: their own list, apart from Companies, never in outreach."""
+    providers = CapitalProvider.objects.prefetch_related("sources__project")
+    form = ProviderForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        provider = form.save(commit=False)
+        provider.created_by = request.user
+        provider.save()
+        moved = logic.file_queued(provider)
+        messages.success(request, f"Added {provider.name}." + (
+            f" Filed {moved} queued email{'s' if moved != 1 else ''} on it." if moved else ""))
+        return redirect(provider)
+    return render(request, "crm/capital_providers.html", {"providers": providers, "form": form})
+
+
+def provider_detail(request, pk):
+    provider = get_object_or_404(CapitalProvider, pk=pk)
+    form = ProviderForm(instance=provider)
+    if request.method == "POST":
+        action = request.POST.get("action", "")
+        if action == "details":
+            form = ProviderForm(request.POST, instance=provider)
+            if form.is_valid():
+                provider = form.save()
+                moved = logic.file_queued(provider)
+                messages.success(request, "Saved." + (
+                    f" Filed {moved} email{'s' if moved != 1 else ''} from the review queue on it." if moved else ""))
+                return redirect(provider)
+            messages.error(request, "Not saved: " + " ".join(" ".join(v) for v in form.errors.values()))
+        elif action == "contact_add":
+            if (request.POST.get("name") or "").strip():
+                provider.contacts = (provider.contacts or []) + [{
+                    k: (request.POST.get(k) or "").strip()[:200] for k in ("name", "title", "email", "phone")}]
+                provider.save()
+            return redirect(provider.get_absolute_url() + "#contacts")
+        elif action == "contact_delete":
+            try:
+                i = int(request.POST.get("i", ""))
+            except ValueError:
+                i = -1
+            provider.contacts = [c for n, c in enumerate(provider.contacts or []) if n != i]
+            provider.save()
+            return redirect(provider.get_absolute_url() + "#contacts")
+        elif action == "delete":
+            if not is_manager(request.user):
+                return refuse(request)
+            if provider.sources.exists():
+                messages.error(request, "Remove its capital sources first.")
+                return redirect(provider)
+            provider.delete()
+            messages.success(request, f"Deleted {provider.name}.")
+            return redirect("crm:capital_providers")
+        else:
+            return redirect(provider)
+    today = timezone.localdate()
+    sources = logic.annotate(list(logic.with_related(provider.sources.all())), today, touch=False)
+    return render(request, "crm/capital_provider.html", {
+        "p": provider, "form": form, "sources": sources,
+        "touches": logic.touches(None, today, provider=provider, limit=60),
+        "upcoming": logic.upcoming_meetings(provider),
+    })
+
+
+def provider_names(request):
+    return JsonResponse(list(CapitalProvider.objects.values_list("name", flat=True)), safe=False)

@@ -9,7 +9,9 @@ from types import SimpleNamespace
 from django.db.models import Q
 from django.utils import timezone
 
-from ..models import Activity, CapitalLog, CapitalSource, Meeting, Notification, TermSheet
+from ..models import (
+    CapitalEmail, CapitalLog, CapitalProvider, CapitalSource, Meeting, Notification, TermSheet, UnmatchedEmail,
+)
 from ..templatetags.crm_tags import money
 
 EXPIRY_LEADS = (14, 7, 1, 0)  # reminder days before a term sheet offer expires
@@ -107,7 +109,7 @@ def next_version(source):
 
 
 # ---------------------------------------------------------------------------
-# Touches: the log, emails with the provider, and Granola / calendar meetings
+# Touches: the log, emails filed on the provider, and Granola / calendar meetings
 # ---------------------------------------------------------------------------
 
 SUFFIXES = re.compile(r"\b(inc|llc|l\.l\.c|lp|llp|ltd|corp|corporation|co|company|group|holdings|partners|capital|"
@@ -120,47 +122,54 @@ def short_name(name):
     return words if len(words) >= 4 else ""
 
 
-def _projects_near(project):
-    """The project, its sites and its campus project: emails tagged to any of these count for it."""
-    ids = {project.pk} | set(project.sites.values_list("pk", flat=True))
-    if project.parent_id:
-        ids.add(project.parent_id)
-    return ids
+def provider_domains():
+    """{email domain: provider id}, for the mail sync."""
+    out = {}
+    for pk, domains in CapitalProvider.objects.values_list("pk", "domains"):
+        for d in domains or []:
+            out.setdefault(d.lower(), pk)
+    return out
 
 
-def emails(source, since=None, limit=40):
-    """Emails, calls and notes with the provider, newest first, leaving out ones tagged only to other projects."""
-    if not source.company_id:
-        return []
-    qs = (Activity.objects.filter(company_id=source.company_id, kind__in=Activity.INTERACTION_KINDS,
-                                  is_background=False, occurred_at__lte=timezone.now())
-          .exclude(kind__in=[Activity.Kind.MEETING, Activity.Kind.GRANOLA_NOTE])  # the meetings come from Meeting
-          .select_related("person", "actor").prefetch_related("projects").order_by("-occurred_at"))
+def file_queued(provider):
+    """Move emails already waiting in the company review queue from the provider's domains onto the provider, so
+    nobody is offered them as a new company. Returns how many moved."""
+    moved = 0
+    for row in UnmatchedEmail.objects.filter(domain__in=provider.domains or []):
+        _, created = CapitalEmail.objects.get_or_create(
+            message_id=row.message_id, address=row.address,
+            defaults={"provider": provider, "mailbox": row.mailbox, "thread_id": row.thread_id,
+                      "occurred_at": row.occurred_at, "kind": row.kind, "name": row.name, "subject": row.subject,
+                      "snippet": row.snippet})
+        moved += created
+        row.delete()
+    return moved
+
+
+def emails(provider, since=None, limit=40):
+    """Emails with the provider's people, newest first, one row per message."""
+    qs = CapitalEmail.objects.filter(provider=provider, occurred_at__lte=timezone.now()).order_by("-occurred_at")
     if since:
         qs = qs.filter(occurred_at__date__gte=since)
-    near = _projects_near(source.project)
-    out = []
-    for a in qs[:limit * 3]:
-        tagged = {p.pk for p in a.projects.all()}
-        if not tagged or tagged & near:
-            out.append(a)
+    out, seen = [], set()
+    for e in qs[:limit * 3]:
+        if e.message_id in seen:
+            continue
+        seen.add(e.message_id)
+        out.append(e)
         if len(out) >= limit:
             break
     return out
 
 
-def meetings(source, since=None, limit=40, until=None):
-    """Meetings with the provider: linked to its company, an attendee from its domains or our contact, or the provider's
-    name in the title."""
+def meetings(provider, since=None, limit=40, until=None):
+    """Meetings with the provider: an attendee from its domains or one of its contacts, or its name in the title."""
     q = Q()
-    company = source.company
-    if company:
-        q |= Q(companies=company)
-        for domain in company.domains or []:
-            q |= Q(attendees__icontains=f"@{domain.lower()}")
-    if source.contact_id and source.contact.email:
-        q |= Q(attendees__icontains=source.contact.email.lower())
-    name = short_name(company.name if company else source.provider_name)
+    for domain in provider.domains or []:
+        q |= Q(attendees__icontains=f"@{domain.lower()}")
+    for email in provider.emails:
+        q |= Q(attendees__icontains=email)
+    name = short_name(provider.name)
     if name:
         q |= Q(title__iregex=rf"(^|[^A-Za-z]){re.escape(name)}([^A-Za-z]|$)")
     if not q:
@@ -173,19 +182,22 @@ def meetings(source, since=None, limit=40, until=None):
     return list(qs[:limit])
 
 
-def touches(source, today=None, days=TOUCH_DAYS, limit=30):
-    """Everything that happened with the provider, newest first: [{date, kind, text, url, who}]."""
+def touches(source, today=None, days=TOUCH_DAYS, limit=30, provider=None):
+    """Everything that happened with the provider, newest first: [{date, kind, text, url, who}]. For a source: its
+    log plus the provider's emails and meetings; for a provider (no source): every source's log."""
     today = today or timezone.localdate()
     since = today - timedelta(days=days)
+    provider = provider or source.provider
     rows = []
-    for e in source.log.filter(happened_on__gte=since):
+    log = CapitalLog.objects.filter(source=source) if source else CapitalLog.objects.filter(source__provider=provider)
+    for e in log.filter(happened_on__gte=since).select_related("user", "source__project"):
         rows.append(SimpleNamespace(date=e.happened_on, kind=e.get_kind_display(), text=e.text, url="", who=e.user,
-                                    log=e))
-    for a in emails(source, since):
-        rows.append(SimpleNamespace(date=timezone.localtime(a.occurred_at).date(), kind=a.get_kind_display(),
-                                    text=a.summary, url=a.company and a.company.get_absolute_url() or "",
-                                    who=a.actor, log=None, person=a.person))
-    for m in meetings(source, since, until=timezone.now()):
+                                    log=e, project=e.source.project))
+    for e in emails(provider, since):
+        rows.append(SimpleNamespace(date=timezone.localtime(e.occurred_at).date(), kind=e.get_kind_display(),
+                                    text=e.subject or "(no subject)", url="", who=None, log=None,
+                                    detail=f"{e.name or e.address}: {' '.join(e.snippet.split())[:300]}"))
+    for m in meetings(provider, since, until=timezone.now()):
         rows.append(SimpleNamespace(date=timezone.localtime(m.start).date(), kind="Meeting", text=m.title,
                                     url=m.get_absolute_url(), who=None, log=None, meeting=m))
     rows.sort(key=lambda r: r.date, reverse=True)
@@ -198,12 +210,12 @@ def last_touch(source):
     e = source.log.exclude(kind=CapitalLog.Kind.STATUS).order_by("-happened_on").first()
     if e:
         best = (e.happened_on, e.get_kind_display().lower())
-    mail = emails(source, limit=1)
+    mail = emails(source.provider, limit=1)
     if mail:
         d = timezone.localtime(mail[0].occurred_at).date()
         if not best[0] or d > best[0]:
             best = (d, mail[0].get_kind_display().lower())
-    m = meetings(source, limit=1, until=timezone.now())
+    m = meetings(source.provider, limit=1, until=timezone.now())
     if m:
         d = timezone.localtime(m[0].start).date()
         if not best[0] or d > best[0]:
@@ -211,8 +223,8 @@ def last_touch(source):
     return best
 
 
-def upcoming_meetings(source, limit=3):
-    return list(reversed(meetings(source, since=timezone.localdate(), limit=limit)))[:limit] if source else []
+def upcoming_meetings(provider, limit=3):
+    return list(reversed(meetings(provider, since=timezone.localdate(), limit=limit)))[:limit]
 
 
 # ---------------------------------------------------------------------------
@@ -221,7 +233,7 @@ def upcoming_meetings(source, limit=3):
 
 
 def with_related(qs):
-    return qs.select_related("project", "project__campus", "company", "owner", "contact", "contract").prefetch_related(
+    return qs.select_related("project", "project__campus", "provider", "owner", "contract").prefetch_related(
         "term_sheets")
 
 
@@ -304,7 +316,7 @@ def project_rollup(project, today=None):
 
 def _live_sheets():
     return (TermSheet.objects.filter(status__in=OPEN_SHEETS, source__status__in=CapitalSource.ACTIVE)
-            .select_related("source", "source__project", "source__company", "source__owner"))
+            .select_related("source", "source__project", "source__provider", "source__owner"))
 
 
 def _current(sheets):
@@ -333,7 +345,7 @@ def due_rows(days=14, today=None):
             rows.append(SimpleNamespace(date=t.close_by, label="Close by", amount=t.amount, url=t.get_absolute_url(),
                                         what=what, who=s.owner, tag="Capital"))
     for s in (CapitalSource.objects.filter(status__in=CapitalSource.ACTIVE, next_step_on__isnull=False,
-                                           next_step_on__lte=until).select_related("project", "company", "owner")):
+                                           next_step_on__lte=until).select_related("project", "provider", "owner")):
         rows.append(SimpleNamespace(date=s.next_step_on, label=s.next_step or "Next step", amount=None,
                                     url=s.get_absolute_url(), what=f"{s.project.name}: {s.provider}", who=s.owner,
                                     tag="Capital"))
@@ -347,7 +359,7 @@ def critical_rows(first, last, today=None):
     rows = []
     qs = (TermSheet.objects.filter(status=TermSheet.Status.ACCEPTED)
           .filter(Q(expires_on__range=(first, last)) | Q(close_by__range=(first, last)))
-          .select_related("source", "source__project", "source__company", "source__owner"))
+          .select_related("source", "source__project", "source__provider", "source__owner"))
     for t in qs:
         s = t.source
         done = s.status == CapitalSource.Status.CLOSED
@@ -388,7 +400,7 @@ def reminders(user, today=None):
     theirs = Q(owner=user) | Q(owner__isnull=True, created_by=user)
     for s in (CapitalSource.objects.filter(theirs, status__in=CapitalSource.ACTIVE, next_step_on__isnull=False,
                                            next_step_on__lte=today + timedelta(days=STEP_LEADS[0]))
-              .select_related("project", "company")):
+              .select_related("project", "provider")):
         left = (s.next_step_on - today).days
         notify.send(user, Notification.Kind.DEADLINE,
                     f"Capital, {s.project.name}: {s.provider}, {s.next_step or 'next step'} {_when(left, s.next_step_on)}",

@@ -2801,8 +2801,48 @@ class ChoiceOption(models.Model):
 
 # ---------------------------------------------------------------------------
 # Capitalization (crm/capital/): each project's capital stack, the lenders and investors we're talking to, and their
-# term sheets. Sources, terms and conversations only; the pro forma stays in Excel.
+# term sheets. Sources, terms and conversations only; the pro forma stays in Excel. Lenders, brokers and investors
+# live in their own list (CapitalProvider), never as Companies or People, so they can't reach outreach.
 # ---------------------------------------------------------------------------
+
+
+class CapitalProvider(models.Model):
+    """A lender, debt fund, broker, equity investor or agency, kept apart from Companies and People: nothing here is
+    ever in a send queue, list or report. Its email domains and contacts let emails and meetings with it be found."""
+
+    class Kind(models.TextChoices):
+        BANK = "bank", "Bank"
+        DEBT_FUND = "debt_fund", "Debt fund / private lender"
+        BROKER = "broker", "Debt broker / advisor"
+        INVESTOR = "investor", "Equity investor"
+        AGENCY = "agency", "Agency / public program"
+        OTHER = "other", "Other"
+
+    name = models.CharField(max_length=200, unique=True)
+    kind = models.CharField(max_length=10, choices=Kind.choices, default=Kind.BANK)
+    domains = models.JSONField(default=list, blank=True, help_text="Email domains, e.g. truist.com")
+    contacts = models.JSONField(default=list, blank=True, help_text="[{name, title, email, phone}]")
+    website = models.URLField(blank=True)
+    notes = models.TextField(blank=True)
+    created_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["name"]
+
+    def __str__(self):
+        return self.name
+
+    def get_absolute_url(self):
+        return reverse("crm:capital_provider", args=[self.pk])
+
+    def save(self, *args, **kwargs):
+        self.domains = sorted({d.strip().lower().lstrip("@") for d in self.domains or [] if d.strip()})
+        super().save(*args, **kwargs)
+
+    @property
+    def emails(self):
+        return [c["email"].lower() for c in self.contacts or [] if c.get("email")]
 
 
 class CapitalSource(models.Model):
@@ -2845,18 +2885,14 @@ class CapitalSource(models.Model):
 
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="capital_sources")
     kind = models.CharField(max_length=14, choices=Kind.choices, default=Kind.SENIOR)
-    company = models.ForeignKey(Company, null=True, blank=True, on_delete=models.SET_NULL,
-                                related_name="capital_sources", verbose_name="provider",
-                                help_text="The lender, investor or agency")
-    provider_name = models.CharField("provider (not in the CRM)", max_length=200, blank=True,
-                                     help_text="Only when the provider isn't a company in the CRM yet")
+    provider = models.ForeignKey(CapitalProvider, on_delete=models.PROTECT, related_name="sources",
+                                 help_text="The lender, investor or agency")
     label = models.CharField(max_length=200, blank=True, help_text="e.g. Phase 1 construction loan")
     status = models.CharField(max_length=12, choices=Status.choices, default=Status.IDENTIFIED, db_index=True)
     status_since = models.DateField(null=True, blank=True)
     amount_sought = models.DecimalField("sought ($)", max_digits=14, decimal_places=2, null=True, blank=True)
     amount_committed = models.DecimalField("committed ($)", max_digits=14, decimal_places=2, null=True, blank=True)
-    contact = models.ForeignKey(Person, null=True, blank=True, on_delete=models.SET_NULL, related_name="+",
-                                help_text="Our contact there")
+    contact = models.CharField(max_length=200, blank=True, help_text="Our contact there")
     owner = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="capital_sources",
                               help_text="Who on the team runs it; gets the reminders")
     waiting_on = models.CharField("ball in court", max_length=6, choices=CampusUpdate.Waiting.choices, blank=True)
@@ -2879,10 +2915,6 @@ class CapitalSource(models.Model):
 
     def get_absolute_url(self):
         return reverse("crm:capital_source", args=[self.pk])
-
-    @property
-    def provider(self):
-        return self.company.name if self.company_id else (self.provider_name or "Provider not set")
 
     @property
     def is_active(self):
@@ -3000,3 +3032,28 @@ class CapitalLog(models.Model):
 
     def __str__(self):
         return self.text[:60]
+
+
+class CapitalEmail(models.Model):
+    """An email with someone at a capital provider's domain. The mail sync files these here instead of the review
+    queue, so a lender's domain is never offered as a new company."""
+
+    provider = models.ForeignKey(CapitalProvider, on_delete=models.CASCADE, related_name="emails_log")
+    message_id = models.CharField(max_length=500)
+    thread_id = models.CharField(max_length=100, blank=True)
+    occurred_at = models.DateTimeField(db_index=True)
+    kind = models.CharField(max_length=20, choices=Activity.Kind.choices)
+    address = models.EmailField(max_length=255)
+    name = models.CharField(max_length=255, blank=True)
+    subject = models.CharField(max_length=500, blank=True)
+    snippet = models.TextField(blank=True)
+    mailbox = models.ForeignKey("Mailbox", null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+
+    class Meta:
+        ordering = ["-occurred_at"]
+        constraints = [
+            models.UniqueConstraint(fields=["message_id", "address"], name="capital_email_unique"),
+        ]
+
+    def __str__(self):
+        return f"{self.address}: {self.subject}"

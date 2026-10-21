@@ -1229,11 +1229,21 @@ payment / rent dates); backup `backups/db-2026-10-21-before-contract-review.sqli
 Kellen: "We have equity (Fortress) but have to work through getting debt, so being able to track meetings and term
 sheets etc. would be helpful." Sources, terms and conversations only; the pro forma stays in Excel.
 
-- **Sources** (`crm/capital/`, models `CapitalSource`, `TermSheet`, `CapitalLog`, migration `0052_capital`): one per
-  piece of a project's stack and who might provide it: equity (JV / LP), preferred equity, mezz, construction loan,
-  senior, bridge, permanent, C-PACE, bonds / IRB, seller financing, grants / incentives, tax credits. Provider is a
-  `Company` (typed, with the CRM's names offered; an unknown name is kept as text with an "Add as a company" button),
-  sought and committed amounts, stage (identified → reached out → in discussion → term sheet → committee / approved →
+- **Lenders and investors are not Companies** (Kellen, 2026-10-21: "I don't want to add debt brokers or banks to the
+  CRM ... I don't want to mass send these companies my outreach emails"). They're their own list, `CapitalProvider`
+  (`/capital/providers/`, sidebar Capital › Lenders and investors): name, type (bank, debt fund, broker / advisor,
+  equity investor, agency), email domains, contacts (kept on the provider, not as People), notes. Nothing creates a
+  Company or Person from it, so no provider can reach a send queue, list or outreach report. Kellen floated a separate
+  directory for consultants too ("if anything it should be a separate CRM for consultants etc."); not built.
+- **Their email:** the mail sync files mail from a provider's domain as `CapitalEmail` on the provider instead of the
+  review queue (`mail/sync.py _park`), so a lender's domain is never offered as a new company. Adding a domain moves
+  anything already waiting in the review queue onto the provider (`capital.logic.file_queued`). A domain belongs to one
+  provider. If a lender's domain already belongs to a Company (from before), the sync still logs it on that Company.
+- **Sources** (`crm/capital/`, models `CapitalProvider`, `CapitalSource`, `TermSheet`, `CapitalLog`, `CapitalEmail`,
+  migration `0052_capital`): one per piece of a project's stack and who might provide it: equity (JV / LP), preferred
+  equity, mezz, construction loan, senior, bridge, permanent, C-PACE, bonds / IRB, seller financing, grants /
+  incentives, tax credits. Provider typed by name (the providers' names offered; a new name starts a provider), contact
+  (one of the provider's contacts, as text), sought and committed amounts, stage (identified → reached out → in discussion → term sheet → committee / approved →
   docs / closing → closed, or we passed / they passed), when it got there, contact, who runs it, ball in court and since
   when, next step and its date, notes.
 - **Pages:** `/capital/` (sidebar Campuses › Capital; also "Capital" on each campus card on Projects) lists every
@@ -1251,10 +1261,10 @@ sheets etc. would be helpful." Sources, terms and conversations only; the pro fo
 - **Claude** (`capital/ai.py`, structured JSON at effort high, the `contracts/ai.py` pattern): "Have Claude fill in the
   key terms" on upload, or "Fill in with Claude" later. Fills blank terms only, each with the sentence it came from
   matched back to the text and its page ("source p. N" opens the PDF there). Typing over a term drops its quote.
-- **Touches:** emails with the provider's company (tagged to this project, its sites or campus, or untagged; ones
-  tagged only to other projects are left out), Granola / calendar meetings (linked to the company, an attendee from its
-  domains or our contact, or the provider's short name in the title: "Fortress Investment Group LLC" matches "Fortress
-  / ACMI weekly"), and the source's log (calls, notes, status changes, term sheets). Upcoming meetings show too.
+- **Touches:** the provider's filed emails (all of them: a lender on two projects shows the same mail on both),
+  Granola / calendar meetings (an attendee from its domains or one of its contacts, or the provider's short name in the
+  title: "Fortress Investment Group LLC" matches "Fortress / ACMI weekly"), and the source's log (calls, notes, status
+  changes, term sheets). Upcoming meetings show too. The provider page shows all of it across projects.
 - **Signed agreement:** "Start the loan agreement" (or JV agreement for equity) creates a draft `Contract` (kind
   Loan / JV, provider as counterparty, the project's campus) and links it; or link an existing one. Its dates follow
   the usual contract rules once signed.
@@ -1266,11 +1276,14 @@ sheets etc. would be helpful." Sources, terms and conversations only; the pro fo
   next step due or missed, a source gone quiet. Settings › Dropdown lists has a Capital area.
 - **Permissions:** everyone signed in adds and edits; Managers delete sources and term sheets; a log entry can be
   removed by whoever wrote it or a Manager.
-- **Data to add once merged (waiting on Kellen):** Fortress isn't a company in the CRM (13 meetings have "Fortress" in
-  the title; fortress.com has no company), so the equity source starts as a name; add the company and its domain so its
-  emails count. The real DB has projects MEIH, The Forge, ARA Facility, NSIH, Greystar.
-- **Tests:** `crm/tests/test_capital.py` (19), 380 in all pass. Checked in a browser on a scratch database with
-  made-up lenders (portfolio, project page, source page, logging a call, a stage change, dashboard Deadlines, the
-  compare print). Claude is mocked in tests; no real term sheet has gone through it.
+- **Data to add once merged (waiting on Kellen):** Fortress as a provider (investor) with its email domain; 13 meetings
+  already have "Fortress" in the title. Mail from before a domain is added stays wherever the sync put it (the review
+  queue's is moved over; mail already dismissed is gone). The real DB has projects MEIH, The Forge, ARA Facility, NSIH,
+  Greystar.
+- **Tests:** `crm/tests/test_capital.py` (21: including that a new provider never creates a Company or Person, the mail
+  sync filing lender mail on the provider, and queued mail moving over when a domain is added). Checked in a browser on a
+  scratch database with made-up lenders (portfolio, project page, source page, logging a call, a stage change, dashboard
+  Deadlines, the compare print; then the providers list and adding a domain). Claude is mocked in tests; no real term
+  sheet has gone through it.
 - **Not yet:** a Capital panel on the contract page (left alone while another session changes the contract upload
   form); OCR for scanned term sheets (Claude reads the PDF, but quotes can't be matched to text).

@@ -5,9 +5,9 @@
 <div class="record-head">
   <div>
     <div class="muted lc-small"><a href="{% url 'crm:capital_index' %}">Capital</a> › <a href="{% url 'crm:project_capital' s.project.pk %}">{{ s.project.name }}</a></div>
-    <h1>{% if s.company %}<a href="{{ s.company.get_absolute_url }}" style="color:inherit">{{ s.provider }}</a>{% else %}{{ s.provider }}{% endif %} <span class="pill cap-{{ s.status }}">{{ s.get_status_display }}</span></h1>
+    <h1><a href="{{ s.provider.get_absolute_url }}" style="color:inherit">{{ s.provider }}</a> <span class="pill cap-{{ s.status }}">{{ s.get_status_display }}</span></h1>
     <div class="muted">{{ s.label|default:s.get_kind_display }}{% if s.label %} · {{ s.get_kind_display }}{% endif %} · <a href="{{ s.project.get_absolute_url }}">{{ s.project.name }}</a>
-      {% if s.contact %} · {% if s.contact.get_absolute_url %}<a href="{{ s.contact.get_absolute_url }}">{{ s.contact.full_name|default:s.contact.email }}</a>{% else %}{{ s.contact }}{% endif %}{% endif %}
+      {% if s.contact %} · {{ s.contact }}{% endif %}
       {% if s.owner %} · runs it: {{ s.owner|username }}{% endif %}</div>
   </div>
   <div class="record-nav">
@@ -17,11 +17,9 @@
   </div>
 </div>
 
-{% if not s.company %}<div class="panel" style="border-color:var(--warn)">
-  <p style="margin:0 0 6px"><b>{{ s.provider }}</b> isn't a company in the CRM, so its emails and meetings can only be matched by the name in meeting titles.</p>
-  <form method="post" class="inline-form">{% csrf_token %}<input type="hidden" name="action" value="add_company">
-    {% if company_match %}<select name="company"><option value="">Add it as a new company</option>{% for c in company_match %}<option value="{{ c.pk }}">Link to {{ c.name }}</option>{% endfor %}</select>{% endif %}
-    <button class="btn btn-small btn-primary">{% if company_match %}Go{% else %}Add {{ s.provider }} as a company{% endif %}</button></form>
+{% if not s.provider.domains %}<div class="panel" style="border-color:var(--warn)">
+  <p style="margin:0">No email domain on <a href="{{ s.provider.get_absolute_url }}">{{ s.provider }}</a> yet, so only meetings with its name in the title are found.
+    <a href="{{ s.provider.get_absolute_url }}#details">Add its domain</a> and its emails are filed here (never as a company).</p>
 </div>{% endif %}
 
 <div class="dd-strip">
@@ -98,7 +96,7 @@
       {% for t in touches %}<div class="cap-touch"><span class="lc-small">{{ t.date|date:"M j, Y" }}</span><span class="k">{{ t.kind }}</span>
         <span>{% if t.url %}<a href="{{ t.url }}">{{ t.text|truncatechars:140 }}</a>{% else %}{{ t.text|linebreaksbr }}{% endif %}{% if t.who %} <span class="muted lc-small">· {{ t.who|username }}</span>{% endif %}</span>
         <span>{% if t.log and t.log.kind != "status" and t.log.kind != "term_sheet" %}<form method="post" onsubmit="return confirm('Remove this entry?')">{% csrf_token %}<input type="hidden" name="action" value="log_delete"><input type="hidden" name="entry" value="{{ t.log.pk }}"><button class="btn-link lc-small">✕</button></form>{% endif %}</span></div>
-      {% empty %}<p class="muted lc-small" style="margin:0">Nothing yet. Emails with {{ s.provider }}{% if s.company %} (tagged to this project or untagged){% endif %} and Granola meetings show here on their own.</p>{% endfor %}
+      {% empty %}<p class="muted lc-small" style="margin:0">Nothing yet. Emails with {{ s.provider }}'s domain and Granola meetings show here on their own.</p>{% endfor %}
     </section>
   </div>
 
@@ -128,12 +126,13 @@
           <button class="btn btn-small">Link</button></form>{% endif %}
       {% endif %}
     </section>
-    {% if s.company %}<section class="panel">
+    <section class="panel">
       <h3>Contact</h3>
       <form method="post" class="inline-form">{% csrf_token %}<input type="hidden" name="action" value="contact">
-        <select name="contact" onchange="this.form.submit()"><option value="">Nobody picked</option>{% for p in people %}<option value="{{ p.pk }}"{% if p.pk == s.contact_id %} selected{% endif %}>{{ p.full_name|default:p.email }}{% if p.title %} · {{ p.title }}{% endif %}</option>{% endfor %}</select></form>
-      {% if not people %}<p class="muted lc-small">No people at {{ s.company.name }} in the CRM yet.</p>{% endif %}
-    </section>{% endif %}
+        <input name="contact" value="{{ s.contact }}" list="provider-contacts" placeholder="Who we deal with there"><button class="btn btn-small">Save</button></form>
+      <datalist id="provider-contacts">{% for c in s.provider.contacts %}<option value="{{ c.name }}">{% endfor %}</datalist>
+      <p class="muted lc-small" style="margin-bottom:0"><a href="{{ s.provider.get_absolute_url }}#contacts">{{ s.provider }}'s contacts</a></p>
+    </section>
     <section class="panel" id="details">
       <h3>Details</h3>
       <form method="post" class="fields">{% csrf_token %}<input type="hidden" name="action" value="details">
@@ -143,10 +142,10 @@
     </section>
   </div>
 </div>
-<datalist id="company-names"></datalist>
+<datalist id="provider-names"></datalist>
 {% endblock %}
 {% block scripts %}
-{% include "crm/partials/company_names_js.html" %}
+{% include "crm/partials/provider_names_js.html" %}
 <script>
   document.querySelectorAll('form[data-busy]').forEach(f => f.addEventListener('submit', () => {
     const btn = f.querySelector('button'); btn.disabled = true; btn.textContent = f.dataset.busy;

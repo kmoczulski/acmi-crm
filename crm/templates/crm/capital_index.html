@@ -12,10 +12,11 @@
   </form>
   <span class="spacer"></span>
   <button type="button" class="btn no-print" onclick="window.print()">Print / PDF</button>
+  <a class="btn no-print" href="{% url 'crm:capital_providers' %}">Lenders and investors</a>
   <a class="btn btn-primary no-print" href="{% url 'crm:capital_source_create' %}">New source</a>
 </div>
 <p class="muted" style="margin-top:0">Every lender, investor and agency we're talking to for each project: where it stands, the latest terms, who has the ball,
-  and offers about to expire. Emails and Granola meetings with the provider count as touches. The pro forma stays in Excel.</p>
+  and offers about to expire. Emails and Granola meetings with the provider count as touches. Lenders and investors are their own list, never Companies, so they stay out of outreach. The pro forma stays in Excel.</p>
 {% if stages %}<div class="cap-stages">{% for v, l, n in stages %}<span class="pill cap-{{ v }}">{{ l }} · {{ n }}</span>{% endfor %}</div>{% endif %}
 
 <div class="campus-layout">

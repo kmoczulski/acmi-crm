@@ -1,12 +1,12 @@
 <script>
 (function () {
-  const dl = document.getElementById('company-names');
+  const dl = document.getElementById('provider-names');
   if (!dl) return;
   let loaded = false;
-  document.querySelectorAll('input[list="company-names"]').forEach(input => input.addEventListener('focus', () => {
+  document.querySelectorAll('input[list="provider-names"]').forEach(input => input.addEventListener('focus', () => {
     if (loaded) return;
     loaded = true;
-    fetch('{% url "crm:company_names" %}').then(r => r.json()).then(names => {
+    fetch('{% url "crm:capital_provider_names" %}').then(r => r.json()).then(names => {
       dl.innerHTML = names.map(n => `<option value="${n.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;')}">`).join('');
     });
   }));

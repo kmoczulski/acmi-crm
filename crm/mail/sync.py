@@ -81,6 +81,9 @@ class Matcher:
         self.ignored = {p for p, k in filters.items() if k == MailFilter.Kind.IGNORE}
         self.internal = {d.lower() for d in settings.INTERNAL_EMAIL_DOMAINS}
         self._company_by_domain = None
+        from crm.capital.logic import provider_domains
+
+        self.capital = provider_domains()  # lenders' and investors' domains: filed on the provider, never queued
 
     def is_protected(self, address):
         return address in self.protected or domain_of(address) in self.protected
@@ -326,6 +329,20 @@ def _park(event, matcher, recorder):
     domain = domain_of(event.address)
     if not domain or domain in FREE_MAIL or domain in matcher.ignored or event.kind == Activity.Kind.BOUNCE:
         recorder.stats["skipped (unknown personal/ignored address)"] += 1
+        return
+    if domain in matcher.capital:
+        from crm.models import CapitalEmail
+
+        _, created = CapitalEmail.objects.get_or_create(
+            message_id=event.message_id, address=event.address,
+            defaults={
+                "provider_id": matcher.capital[domain], "mailbox": event.mailbox, "thread_id": event.thread_id,
+                "occurred_at": event.occurred_at, "kind": event.kind, "name": event.name[:255],
+                "subject": event.subject[:500], "snippet": event.body[:1000],
+            },
+        )
+        if created:
+            recorder.stats["filed on a capital provider"] += 1
         return
     _, created = UnmatchedEmail.objects.get_or_create(
         message_id=event.message_id, address=event.address,
