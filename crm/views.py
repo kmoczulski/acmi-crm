@@ -799,7 +799,12 @@ def task_detail(request, pk):
     """A task as a Trello-style card: details, repeat, comments."""
     task = get_object_or_404(Task.objects.select_related("assignee", "company", "person", "opportunity", "meeting"), pk=pk)
     old_assignee = task.assignee_id
-    form = TaskForm(request.POST or None, instance=task, full=True)
+    data = None
+    if request.method == "POST":  # the side form leaves out the title and description, which are edited in place
+        data = request.POST.copy()
+        for field in ("title", "notes"):
+            data.setdefault(field, getattr(task, field))
+    form = TaskForm(data, instance=task, full=True)
     if request.method == "POST":
         if form.is_valid():
             form.save()
@@ -812,6 +817,25 @@ def task_detail(request, pk):
         "task": task, "form": form, "comments": task.comments.select_related("author"),
         "comment_target": ("task", task.pk), "users": active_users(),
     })
+
+
+@require_POST
+def task_text(request, pk):
+    """The task page's in-place edits: the title and/or the description, leaving every other field alone."""
+    task = get_object_or_404(Task, pk=pk)
+    fields = [f for f in ("title", "notes") if f in request.POST]
+    if "title" in fields:
+        title = request.POST["title"].strip()
+        if not title:
+            messages.error(request, "A task needs a name.")
+            return redirect(task)
+        task.title = title[:300]
+    if "notes" in fields:
+        task.notes = request.POST["notes"].strip()
+    if fields:
+        task.save(update_fields=fields)
+        messages.success(request, "Saved.")
+    return redirect(_safe_next(request, task.get_absolute_url()))
 
 
 @require_POST
