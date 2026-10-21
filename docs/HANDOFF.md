@@ -1293,7 +1293,7 @@ sheets etc. would be helpful." Sources, terms and conversations only; the pro fo
 
 ## Built 2026-10-21: the company page rework (Kellen: "really hard to navigate… meeting summaries should be more apparent")
 
-Branch `company-page` (worktree `.claude/worktrees/company-page`). No migration, no data change.
+**Merged 2026-10-21** (`befd879`, CI green, pushed; branch and worktree removed). No migration, no data change.
 - **Layout:** tabs that stay at the top as you scroll: Overview, Meetings (n), Action items (n open), Activity, People
   (n), Deals (n). The record's Details, team connections, documents and lists moved to a right-hand column (below the
   page under 1100px wide). The overview runs: a strip of key facts (stage, owner, last touch, next meeting, who knows
