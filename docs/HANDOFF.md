@@ -1224,6 +1224,46 @@ payment / rent dates); backup `backups/db-2026-10-21-before-contract-review.sqli
 - **Not yet:** comment highlights in the redline view are by change, not exact words (the redline's text isn't the
   document's text); holidays aren't skipped in business days; "Original PDF" for Word files (download only).
 
+## Built 2026-10-21 (later): drag-and-drop contract upload, Word redlines, extensions that work out their own dates
+
+Kellen: the upload should be "drag to upload and AI to pull the info automatically"; the timeline UI cut things off;
+the extension made him type the date; the executed agreement should be clearly marked; and "I still don't see
+redlines between version 1 and version 2" on the Long Wall PDA.
+
+- **Drop to upload** (`crm/contracts/intake.py`, `static/crm/dropzone.js`, `partials/contract_dropzone.html`): drop
+  files anywhere on a contract page (or pick them). Each file is read, then Claude (structured output, effort low,
+  first 60k characters) says what it is: kind (executed original, amendment, draft...), title, date, whose draft and
+  who redlined it, a one-line summary, and fills the contract's blank fields. Dropping an agreement on the contracts
+  list starts a new contract named and filled from it (title, kind, status, parties, price, acres, effective date);
+  more files dropped with it go into the same contract. Without a key the file name is the guide
+  (`intake.guess`: "Redline", "Amendment", a date in the name). The same file twice is refused. The old form is still
+  there under "Or fill it in by hand".
+- **Word redlines:** files uploaded before Word tracked changes were kept are read again with
+  `manage.py reread_contract_files [--contract N] [--dry-run]` (comments and date sources are re-pinned by their
+  quotes). The redline page has two views when the newer file is a Word redline: "Tracked in the Word file" (the
+  markup exactly as its author left it, one card per change with who and when) and "Compared with <previous>". Every
+  document in the file now has "compare with previous" (any kind, not only drafts), and Word redlines a bold
+  "redline (N tracked)" link; the reader has the same buttons.
+- **Extensions:** dates entered before rules existed (the ETC dates came from Trello) get their key and rule read on
+  first use (`timeline.ensure_keys`; new phrasings: "on or before the end of the Feasibility Period", "before the
+  Feasibility Period expires", "10 days' advance notice of the Closing Date", "extends it 120 days"). The extension card
+  shows the deadline it pushes, its new date worked out (e.g. Oct 22 + 120 days = Feb 19, 2027), every date that
+  counts from it with its new date, and the other later dates as tick boxes (same-day ones ticked). You enter only the
+  notice date. The extension itself is never moved; a pushed deadline is reopened. If the agreement doesn't say what an
+  extension pushes, the card asks which deadline (and remembers it).
+- **Timeline layout:** an overview with a dot per date (names in their own column, no labels on the track, so nothing
+  is cut off; hover for what it is), then the dates month by month, then the side-by-side table only when comparing.
+  The contract page shows the overview plus the next four dates.
+- **Executed agreement:** once a contract is signed, the latest signed original or restatement is marked "Final
+  executed" in the file, with a green "Executed" banner on the contract, timeline and reader (drafts say "Draft: not
+  signed").
+- **Bug fixed (real data):** on Oct 21 the ETC "Extension Notice Deadline" was exercised through the first version,
+  which pushed the extension date itself (and two same-day dates) to Feb 19 and left the Feasibility Period
+  Expiration, closing and closing notice where they were. The fix script is in this session's scratchpad
+  (`fix_etc.py`): it undoes the Oct 21 moves from each date's history, then exercises the extension properly (notice
+  Oct 19, $10,000 deposit wired Oct 21): Feasibility Feb 19, 2027; title defects notice and lease supplement Feb 19;
+  seller's title response Mar 1; closing (60 days after feasibility) Apr 20; closing notice Apr 10. Tested on a copy.
+- Tests: 23 in `test_contract_review.py`; 367 in all on this branch.
 ## Built 2026-10-21: the capitalization tracker
 
 **Merged 2026-10-21** (`d1d1393`, CI green on Postgres). Migration `0052_capital` applied to the real DB (new tables

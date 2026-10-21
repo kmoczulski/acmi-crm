@@ -19,6 +19,14 @@
   </div>
 </div>
 
+{% if executed %}
+<div class="ct-executed">
+  <span class="ct-exec-badge">✓ Executed</span>
+  <div><b>{{ executed.title }}</b> is the final executed agreement{% if contract.effective_date %}, effective {{ contract.effective_date|date:"F j, Y" }}{% endif %}.</div>
+  {% if executed.text %}<a class="btn btn-small" href="{% url 'crm:contract_reader' contract.pk executed.pk %}">Read it</a>{% endif %}
+</div>
+{% endif %}
+
 {% if contract.waiting_on or contract.next_step or contract.counsel %}
 <div class="ct-strip">
   {% if contract.waiting_on %}<span><b>{{ contract.get_waiting_on_display }}</b>{% if contract.waiting_since %} since {{ contract.waiting_since|date:"M j" }} ({{ contract.waiting_since|timesince }}){% endif %}</span>{% endif %}
@@ -33,6 +41,9 @@
   <h3>Timeline <span class="muted" style="text-transform:none;letter-spacing:0;font-weight:400">· {{ timeline.version.label }}{% if not timeline.version.kept %} (from {{ timeline.eff|date:"M j, Y" }}){% endif %}</span>
     <a href="{% url 'crm:contract_timeline' contract.pk %}" style="float:right;text-transform:none;letter-spacing:0">Pick an effective date · compare versions{% if contract.status == "signed" %} · extensions{% endif %}</a></h3>
   {% with lanes=timeline.lanes ticks=timeline.ticks %}{% include "crm/partials/contract_lanes.html" %}{% endwith %}
+  {% if timeline.upcoming %}<ul class="ct-upnext">{% for r in timeline.upcoming %}
+    <li class="tl-k-{{ r.kind }}"><b>{{ r.when|date:"M j, Y" }}</b><span>{{ r.label }}{% if r.amount %} · {{ r.amount|money }}{% endif %}</span>
+      <span class="lc-small {% if r.left <= 14 %}soon{% else %}muted{% endif %}">{% if r.left == 0 %}today{% else %}in {{ r.left }} day{{ r.left|pluralize }}{% endif %}</span></li>{% endfor %}</ul>{% endif %}
 </section>
 {% endif %}
 
@@ -96,11 +107,13 @@
       <h3>Agreement file</h3>
       <ol class="ct-chain">{% for d in signed %}
         <li class="ct-doc{% if d.superseded_by %} superseded{% endif %}">
-          <div><span class="tag">{{ d.get_kind_display }}</span> {% if d.text %}<a href="{% url 'crm:contract_reader' contract.pk d.pk %}"><b>{{ d.title }}</b></a>{% else %}<b>{{ d.title }}</b>{% endif %}
+          <div>{% if d == executed %}<span class="tag ct-exec" title="The final, signed version">✓ Final executed</span>{% else %}<span class="tag">{{ d.get_kind_display }}</span>{% endif %} {% if d.text %}<a href="{% url 'crm:contract_reader' contract.pk d.pk %}"><b>{{ d.title }}</b></a>{% else %}<b>{{ d.title }}</b>{% endif %}
             {% with n=comment_counts|get_item:d.pk %}{% if n %}<a class="ct-ccount" href="{% url 'crm:contract_reader' contract.pk d.pk %}" title="Open comments">💬 {{ n }}</a>{% endif %}{% endwith %}</div>
           <div class="muted lc-small">{% if d.dated %}{{ d.dated|date:"M j, Y" }}{% else %}undated{% endif %}{% if d.pages %} · {{ d.pages }} page{{ d.pages|pluralize }}{% endif %}
             {% if d.text_status == "scan" %} · <span title="Claude can read the PDF; the reader can't">scan</span>{% elif d.text_status and d.text_status != "ok" %} · {{ d.get_text_status_display }}{% endif %}
             {% if d.superseded_by %} · replaced by {{ d.superseded_by.title }}{% endif %}
+            {% if d.tracked %} · <a href="{% url 'crm:contract_compare' contract.pk %}?b={{ d.pk }}&view=tracked"><b>redline</b> ({{ d.tracked|length }} tracked)</a>{% endif %}
+            {% if d.prev %} · <a href="{% url 'crm:contract_compare' contract.pk %}?a={{ d.prev.pk }}&b={{ d.pk }}&view=compare">compare with previous</a>{% endif %}
             {% if d.href %} · <a href="{{ d.href }}" target="_blank" rel="noopener">file</a>{% endif %}</div>
           {% if d.summary %}<div class="lc-small">{{ d.summary }}</div>{% endif %}
           {% include "crm/partials/contract_doc_edit.html" %}
@@ -113,14 +126,17 @@
           <div><span class="tag ct-from-{{ d.sent_by|default:'none' }}">{% if d.sent_by %}{{ d.get_sent_by_display }}{% else %}Draft{% endif %}</span> {% if d.text %}<a href="{% url 'crm:contract_reader' contract.pk d.pk %}">{{ d.title }}</a>{% else %}{{ d.title }}{% endif %}
             {% with n=comment_counts|get_item:d.pk %}{% if n %}<a class="ct-ccount" href="{% url 'crm:contract_reader' contract.pk d.pk %}" title="Open comments">💬 {{ n }}</a>{% endif %}{% endwith %}</div>
           <div class="muted lc-small">{% if d.made_by %}by {{ d.made_by }} · {% endif %}{% if d.dated %}sent {{ d.dated|date:"M j, Y" }}{% endif %}{% if d.tracked %} · {{ d.tracked|length }} tracked change{{ d.tracked|length|pluralize }}{% endif %}{% if d.pages %} · {{ d.pages }} page{{ d.pages|pluralize }}{% endif %}
-            {% if d.prev %} · <a href="{% url 'crm:contract_compare' contract.pk %}?a={{ d.prev.pk }}&b={{ d.pk }}">redline vs. previous</a>{% endif %}
+            {% if d.tracked %} · <a href="{% url 'crm:contract_compare' contract.pk %}?b={{ d.pk }}&view=tracked"><b>redline</b> ({{ d.tracked|length }} tracked)</a>{% endif %}
+            {% if d.prev %} · <a href="{% url 'crm:contract_compare' contract.pk %}?a={{ d.prev.pk }}&b={{ d.pk }}&view=compare">compare with previous</a>{% endif %}
             {% if d.href %} · <a href="{{ d.href }}" target="_blank" rel="noopener">file</a>{% endif %}</div>
           {% if d.summary %}<div class="lc-small">{{ d.summary }}</div>{% endif %}
           {% include "crm/partials/contract_doc_edit.html" %}
         </li>
       {% empty %}<li class="muted lc-small">Drafts traded during negotiation go here, oldest first; any two can be redlined.</li>{% endfor %}</ol>
 
-      <details class="ct-add"{% if not docs %} open{% endif %}><summary class="btn btn-small">Add a document</summary>
+      {% url 'crm:contract_drop' contract.pk as drop_url %}
+      {% include "crm/partials/contract_dropzone.html" with url=drop_url heading="Drop files here to add them" hint="PDFs or Word files: the executed agreement, amendments, or each side's redlines." %}
+      <details class="ct-add"><summary class="btn-link lc-small">Or fill it in by hand</summary>
         <form method="post" enctype="multipart/form-data" class="fields">{% csrf_token %}<input type="hidden" name="action" value="upload">
           {{ doc_form.as_p }}
           <button class="btn-primary">Upload</button>
@@ -152,7 +168,7 @@
           <td>{% if d.date %}<b>{{ d.date|date:"M j, Y" }}</b>{% if not d.done %}<div class="lc-small {% if d.left < 0 %}overdue{% elif d.left <= 7 %}soon{% else %}muted{% endif %}">{% if d.left < 0 %}{{ d.late }} day{{ d.late|pluralize }} late{% elif d.left == 0 %}today{% else %}in {{ d.left }} day{{ d.left|pluralize }}{% endif %}</div>{% endif %}{% else %}<span class="muted">not fixed</span>{% endif %}</td>
           <td class="wrap">{{ d.label }}{% if d.amount %} · {{ d.amount|money }}{% endif %}{% if not d.critical %} <span class="muted lc-small" title="Not on the dashboard calendar">· not critical</span>{% endif %}
             {% if d.rule %}<div class="muted lc-small">{{ d.rule }}</div>{% endif %}
-            {% if d.anchor and d.offset is not None %}<div class="muted lc-small">↻ {{ d.offset }} {{ d.get_unit_display|default:"days" }} after {% if d.anchor == "effective" %}the Effective Date{% else %}{{ d.anchor }}{% endif %}</div>{% endif %}
+            {% if d.how %}<div class="muted lc-small" title="Counts from another date: it moves when that one does">↻ {{ d.how }}</div>{% endif %}
             {% if d.kind == "extension" and not d.done %}<a class="lc-small" href="{% url 'crm:contract_timeline' contract.pk %}#extensions">{% if d.extends %}Exercise it…{% else %}Set what it extends{% endif %}</a>{% endif %}
             {% if d.history %}<details class="lc-small"><summary class="muted">moved {{ d.history|length }}×</summary>{% for h in d.history %}<div>{% if h.to %}{% if h.from %}{{ h.from }} → {% endif %}{{ h.to }}{% else %}exercised {{ h.exercised }}{% endif %} · {{ h.why }}{% if h.by %} · {{ h.by }}{% endif %}</div>{% endfor %}</details>{% endif %}
             {% if d.source_href %}<a class="lc-small" href="{{ d.source_href }}" title="{{ d.quote|truncatechars:300 }}">source</a>{% endif %}
@@ -255,6 +271,7 @@
     if (box) { box.value = a.dataset.ask; setTimeout(() => box.focus(), 50); }
   }));
 </script>
+<script src="{% static 'crm/dropzone.js' %}?v={{ ASSET_VERSION }}"></script>
 <script src="{% static 'crm/contract_review.js' %}?v={{ ASSET_VERSION }}"></script>
 <script>ContractReview.citable();</script>
 {% endblock %}
