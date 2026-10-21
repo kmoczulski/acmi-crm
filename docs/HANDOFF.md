@@ -28,6 +28,11 @@ No daily task yet. 25 attendee domains (Greystar, Fortress, Hoar, Walton, the co
 meetings don't reach a company timeline. Also merged (`4721171`): tick sites on the Sites page and click Compare
 selected; the briefs page has a Choose sites panel.
 
+**Granola import 2026-10-21** (Kellen asked): Oct 16 to Oct 20, 7 meetings (6 new, Greystar refreshed) from
+`data/imports/granola/2026-10-21.json`, full summaries; backup `backups/db-2026-10-21-before-granola-import.sqlite3`.
+Booz Allen matched a company; cozen.com, fortusfederal.us, greystar.com and terracon.com have no company, so those
+meetings aren't on a company timeline.
+
 **Next, in order**
 1. **Granola (time-sensitive: Granola only keeps 30 days).**
    - Kellen connects the Granola connector in Claude (Settings › Connectors). Its tools are `list_meetings`,
@@ -1202,10 +1207,12 @@ payment / rent dates).
   target and every date that counts from it (and, if ticked, other dates on the same day), keeps each old date in
   `ContractDate.history`, marks the option done, sets the feasibility decision to Extend, and updates the site's
   timeline. "Move a date by hand" does the same without an option.
-- **Critical dates calendar** (dashboard, `dates.month_calendar`, `?crit=YYYY-MM`): month grid of every contract date
-  marked critical (new `ContractDate.critical`, on by default; recurring payments off), tagged PSA / LOI / Option /
-  Lease / PDA, done ones checked off, late ones outlined; plus critical-date tasks, open diligence and closing items,
-  and entitlement deadlines. Tag chips filter it.
+- **Critical dates calendar** (dashboard, `dates.month_calendar`, `?crit=YYYY-MM`): month grid of the critical dates
+  of **executed agreements only** (Kellen, 2026-10-21: "only things that are executed"): signed or closed contracts'
+  dates marked critical (new `ContractDate.critical`, on by default; recurring payments off) and the closing checklist
+  of a signed purchase. Tagged PSA / LOI / Option / Lease / PDA / Closing, done ones checked off, late ones outlined;
+  tag chips filter it. Drafts, deals in negotiation, tasks, diligence and entitlement deadlines stay off it (they're
+  still in the Deadlines panel).
 - **Tests:** `crm/tests/test_contract_review.py` (17), 361 in all pass. Checked in the browser on a scratch database
   with made-up contracts (reader, select-to-comment with @mention, redline attribution and change threads, timeline
   lanes, exercising an extension, contract page, calendar, PDF frame headers). Claude calls are mocked in tests; no

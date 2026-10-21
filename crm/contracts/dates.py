@@ -179,37 +179,28 @@ TAGS = {Contract.Kind.PDA: "PDA", Contract.Kind.LOI: "LOI", Contract.Kind.PSA: "
         Contract.Kind.LEASE: "Lease"}
 
 
-def critical_between(first, last, today=None):
-    """Everything marked critical from `first` to `last`: contract dates (done ones too, checked off), critical-date
-    tasks, open diligence and closing items, and entitlement deadlines. Rows like upcoming()'s, plus done."""
-    from ..entitlements import logic as entitlement_logic
-    from ..land import diligence
-    from ..models import Task
-    from . import closing
+EXECUTED = (Contract.Status.SIGNED, Contract.Status.CLOSED)
 
+
+def critical_between(first, last, today=None):
+    """The critical dates of executed agreements (signed or closed) from `first` to `last`: each contract date marked
+    critical (done ones too, checked off) and the closing checklist of a signed purchase. Nothing from a deal still
+    being drafted or negotiated. Rows like upcoming()'s, plus done."""
     today = today or timezone.localdate()
     rows = []
-    qs = (ContractDate.objects.filter(confirmed=True, critical=True, date__gte=first, date__lte=last)
-          .exclude(contract__status=Contract.Status.TERMINATED).select_related("contract", "contract__owner"))
+    qs = (ContractDate.objects.filter(confirmed=True, critical=True, date__gte=first, date__lte=last,
+                                      contract__status__in=EXECUTED).select_related("contract", "contract__owner"))
     for d in qs:
         rows.append(SimpleNamespace(date=d.date, label=d.label, amount=d.amount, url=d.contract.get_absolute_url()
                                     + "#dates", what=d.contract.title, who=d.contract.owner, done=d.done,
                                     tag=TAGS.get(d.contract.kind, "Contract")))
-    for t in (Task.objects.filter(label=Task.Label.CRITICAL, due_date__gte=first, due_date__lte=last)
-              .select_related("assignee", "site")):
-        rows.append(SimpleNamespace(date=t.due_date, label=t.title, amount=None, url=t.get_absolute_url(),
-                                    what=t.site.name if t.site_id else "", who=t.assignee, done=t.done, tag="Task"))
-    window = max(0, (last - today).days)
-    extra = [SimpleNamespace(date=i.due_on, label=i.name, amount=None, what=i.site.name, who=i.owner, tag="DD",
-                             url=f"/land/sites/{i.site_id}/diligence/#dd-{i.pk}") for i in diligence.due(window, today)]
-    extra += [SimpleNamespace(date=i.due_on, label=i.name, amount=None, url=i.contract.get_absolute_url() + "#closing",
-                              what=i.contract.title, who=i.contract.owner, tag="Closing")
-              for i in closing.due(window, today)]
-    extra += entitlement_logic.due_rows(window, today)
-    for r in extra:
-        if r.date and first <= r.date <= last:
-            r.done = False
-            rows.append(r)
+    from ..models import ClosingItem
+
+    for i in (ClosingItem.objects.filter(due_on__gte=first, due_on__lte=last, contract__status__in=EXECUTED)
+              .exclude(status=ClosingItem.Status.NA).select_related("contract", "contract__owner")):
+        rows.append(SimpleNamespace(date=i.due_on, label=i.name, amount=None, url=i.contract.get_absolute_url()
+                                    + "#closing", what=i.contract.title, who=i.contract.owner,
+                                    done=i.status == ClosingItem.Status.DONE, tag="Closing"))
     for r in rows:
         r.left = (r.date - today).days
         r.late = r.left < 0 and not r.done
