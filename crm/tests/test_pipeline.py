@@ -199,6 +199,40 @@ class PipelinePageTests(TestCase):
         self.assertIn("ARA", values)
         self.assertIn("Signed agreements", values)
 
+    def test_excel_follows_the_fortress_tracker(self):
+        wb = openpyxl.load_workbook(BytesIO(self.client.get(reverse("crm:pipeline_report_xlsx")).content))
+        ws = wb["Tenants"]
+        headers = [c.value for c in ws[6]]
+        self.assertEqual(headers[:9], ["Campus / Project", "Deal Type", "Stage", "Tenant / Counterparty", "Asset Type",
+                                       "Acres", "Estimated Size (SF)", "Estimated Project Cost ($)", "Estimated Cost PSF"])
+        self.assertIn("Lead / Source", headers)
+        self.assertNotIn("ACMI Lead", headers)  # the owner column is off by default
+        self.assertEqual(ws["A6"].fill.fgColor.rgb, "00002060")
+        self.assertEqual(ws["G7"].number_format, '#,##0" SF";(#,##0" SF");"-"')
+        self.assertEqual(ws["I7"].value, '=IFERROR(H7/G7,"")')
+        self.assertEqual(ws.page_setup.orientation, "landscape")
+        self.assertEqual(ws.freeze_panes, "B7")
+        self.assertEqual([c.value for c in wb["Sites"][5]][:2], ["Site Name", "Location (City, ST)"])
+
+    def test_hidden_columns_stay_off_the_page_and_the_excel(self):
+        r = self.client.post(reverse("crm:pipeline_report_columns"),
+                             {"col": ["site", "stage", "tenant", "size", "notes"], "all": "1"})
+        self.assertRedirects(r, reverse("crm:pipeline_report") + "?all=1", fetch_redirect_response=False)
+        page = self.client.get(reverse("crm:pipeline_report"))
+        self.assertNotContains(page, "<th class=\"num\">Win %</th>")
+        self.assertNotContains(page, "$75,000,000")
+        self.assertContains(page, "Showing 5 of")
+        wb = openpyxl.load_workbook(BytesIO(self.client.get(reverse("crm:pipeline_report_xlsx")).content))
+        text = " ".join(str(c.value) for ws in wb for row in ws.iter_rows() for c in row if c.value is not None)
+        for hidden in ("Win %", "Weighted", "Project Cost", "PSF", "75000000"):
+            self.assertNotIn(hidden, text)
+        self.client.post(reverse("crm:pipeline_report_columns"), {"reset": "1"})
+        self.assertContains(self.client.get(reverse("crm:pipeline_report")), "$75,000,000")
+
+    def test_one_off_column_link(self):
+        page = self.client.get(reverse("crm:pipeline_report"), {"cols": "site,stage,bogus"})
+        self.assertEqual([c.key for c in page.context["columns"]], ["site", "stage", "tenant"])  # tenant always stays
+
     def test_stakeholder_roles(self):
         self.client.post(reverse("crm:opportunity_contact_add", args=[self.opp.pk]),
                          {"person": self.person.pk, "role": "decision_maker"})

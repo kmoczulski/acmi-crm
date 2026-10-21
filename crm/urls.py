@@ -53,6 +53,7 @@ urlpatterns = [
     path("companies/bulk-owner/", views.company_bulk_owner, name="company_bulk_owner"),
     path("reports/pipeline/", views.pipeline_report, name="pipeline_report"),
     path("reports/pipeline.xlsx", views.pipeline_report_xlsx, name="pipeline_report_xlsx"),
+    path("reports/pipeline/columns/", views.pipeline_report_columns, name="pipeline_report_columns"),
     path("summary/<str:kind>/<int:pk>/", views.summary_refresh, name="summary_refresh"),
     path("campuses/", campus_views.campus_index, name="campus_index"),
     path("campuses/<str:code>/", campus_views.campus_summary, name="campus_summary"),

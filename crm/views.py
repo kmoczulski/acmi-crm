@@ -30,6 +30,8 @@ from .models import (
 )
 from .permissions import manager_required
 from .pipeline import risk_reasons
+from .reports import COLUMNS as REPORT_COLUMNS, DEFAULT_KEYS as DEFAULT_REPORT_KEYS
+from .reports import chosen_columns as chosen_report_columns
 from .interactions import team_connections
 from .mail.parse import new_text
 from .tables import FILTER_CHOICES, CompanyTable, PersonTable
@@ -1245,19 +1247,38 @@ def _report_data(request):
             row["priced_cost"] += o.value
     for row in sites.values():
         row["psf"] = row["priced_cost"] / row["priced_sf"] if row["priced_sf"] else None
+    columns = report_columns(request)
+    keys = {c.key for c in columns}
     return {"sections": sections, "sites": sorted(sites.values(), key=lambda r: (r["campus"] is None, r["site"])),
-            "show_all": show_all, "as_of": timezone.localdate()}
+            "show_all": show_all, "as_of": timezone.localdate(), "columns": columns, "column_keys": keys,
+            "all_columns": REPORT_COLUMNS, "custom_columns": [c.key for c in columns] != DEFAULT_REPORT_KEYS}
+
+
+def report_columns(request):
+    """The report's columns: ?cols=a,b for a one-off link, else the person's saved choice, else the defaults."""
+    if "cols" in request.GET:
+        return chosen_report_columns(request.GET["cols"].split(","))
+    return chosen_report_columns(prefs.get_prefs(request.user).get("report_cols"))
 
 
 def pipeline_report(request):
     return render(request, "crm/report_pipeline.html", _report_data(request))
 
 
+@require_POST
+def pipeline_report_columns(request):
+    """Save which columns the report, its print and its Excel show (Reset goes back to the defaults)."""
+    keys = None if "reset" in request.POST else [c.key for c in chosen_report_columns(request.POST.getlist("col"))]
+    prefs.set_pref(request.user, "report_cols", keys)
+    messages.success(request, "Columns saved. The printout and the Excel download use the same columns.")
+    return redirect(reverse("crm:pipeline_report") + ("?all=1" if request.POST.get("all") == "1" else ""))
+
+
 def pipeline_report_xlsx(request):
     from .reports import pipeline_workbook
 
     data = _report_data(request)
-    content = pipeline_workbook(data)
+    content = pipeline_workbook(data, data["columns"])
     response = HttpResponse(content, content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
     response["Content-Disposition"] = f'attachment; filename="ACMI_Properties_Pipeline_{data["as_of"]:%Y.%m.%d}.xlsx"'
     return response

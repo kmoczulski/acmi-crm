@@ -48,4 +48,6 @@ class EditFixesTests(TestCase):
         co = Company.objects.create(name="Greystar")
         Opportunity.objects.create(name="Greystar MH", company=co, investor_report=True, stage="signed")
         html = self.client.get(reverse("crm:pipeline_report")).content.decode()
-        self.assertEqual(html.count("<colgroup>"), 4)  # three sections and the development sites
+        # The three sections are one table (each with its own title and header row), so their columns line up.
+        self.assertEqual(html.count('class="data compact pipeline-table rp-sections"'), 1)
+        self.assertEqual(html.count('class="rp-head"'), 4)  # plus the development sites

@@ -304,3 +304,37 @@ def due_class(day, done=False):
         return ""
     today = timezone.localdate()
     return "due-late" if day < today else "due-today" if day == today else ""
+
+
+REPORT_NUMERIC = {"acres", "size", "cost", "psf", "win", "weighted"}
+
+
+@register.filter
+def report_align(key):
+    """Table cell class for a tenant pipeline report column (crm/reports.py)."""
+    return "num" if key in REPORT_NUMERIC else "wrap" if key == "notes" else ""
+
+
+@register.simple_tag
+def report_cell(o, key):
+    """One deal's cell in the tenant pipeline report, formatted for the page."""
+    from crm.reports import cell_value
+
+    if key == "stage":
+        return format_html('<span class="stage stage-{}">{}</span>', o.stage, o.get_stage_display())
+    if key == "tenant":
+        return format_html('<a href="{}">{}</a>', o.get_absolute_url(), o.company.name)
+    value = cell_value(o, key)
+    if value in (None, ""):
+        return "TBD" if key == "cost" else ""
+    if key in ("cost", "psf", "weighted"):
+        return f"${value:,.0f}"
+    if key == "win":
+        return f"{value:.0%}"
+    if key == "size":
+        return f"{value:,}"
+    if key == "acres":
+        return f"{value:,.2f}".rstrip("0").rstrip(".")
+    if key in ("target_close", "est_delivery"):
+        return f"{value:%b} {value.year}"
+    return value

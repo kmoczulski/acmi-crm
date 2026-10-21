@@ -1679,3 +1679,10 @@ main { padding: 20px 28px 40px; max-width: 1680px; margin: 0 auto; }
 .tasklist li.task-due-late { box-shadow: inset 3px 0 0 var(--bad); padding-left: 6px; } .tasklist li.task-due-today { box-shadow: inset 3px 0 0 var(--today); padding-left: 6px; }
 @media (max-width: 1000px) { .widget[style*="--h"] > .widget-body { height: auto; overflow: visible; } .widget[style*="--h"] .week-day { min-height: 0; } .hero-search kbd { display: none; } .hero-top { flex-wrap: wrap; } }
 .welcome-tip { display: flex; gap: 10px; align-items: flex-start; padding: 10px 14px; margin-bottom: 14px; background: #eef5ff; border: 1px solid #c9dcf7; border-radius: 10px; font-size: 13.5px; } .welcome-tip[hidden] { display: none; } .welcome-tip span { flex: 1; } .welcome-tip strong:first-child { white-space: nowrap; color: var(--accent); }
+/* Tenant pipeline report: the Columns picker (partials/pipeline_head.html). */
+.report-cols .rc-form { width: 300px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+.rc-hint { margin: 0; font-size: 12px; }
+.rc-quick { display: flex; gap: 6px; }
+.rc-list { display: flex; flex-direction: column; gap: 3px; max-height: 50vh; overflow-y: auto; }
+.rc-foot { display: flex; gap: 6px; }
+.btn-on { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }

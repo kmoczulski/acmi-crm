@@ -45,6 +45,17 @@ SavedView.object_type widened, unique keyed notifications after removing duplica
 (`88ad5e0`, CI green, 446 tests) and migrated on the real database (it had no duplicate alerts, so nothing was
 removed). Backup `backups/db-2026-10-21-before-ux-overhaul.sqlite3`.
 
+**Tenant pipeline report columns and the Fortress export 2026-10-21** (Kellen asked): `crm/reports.py` holds one
+column list for the report page, its print/PDF and the Excel download. **Columns** on the Report tab hides any of them
+("Hide costs" drops cost, $ PSF and weighted; "Hide win %" drops Win % and weighted), saved per person
+(`UserPrefs` "report_cols"); `?cols=a,b` gives a one-off link. Hidden columns are gone from all three, including the
+section totals and the Sites sheet. The Excel now follows the Fortress tracker (G: `1 Projects/Fortress Pipeline
+Meetings/2026.09.25/ACMI_Properties_Pipeline_Tracker.xlsx`): its headers (Campus / Project ... Lead / Source ...),
+navy header rows, blue inputs and black formulas, SF / $ / PSF / mmm-yy formats, a Sites sheet with Location and
+Status / Notes, landscape fit-to-width printing with repeated headers. Owner ("ACMI Lead") is off by default. The page
+puts the three sections in one table so their columns line up. No migration. Formulas have no saved values until
+Excel opens the file, so phone and email previews show those cells blank.
+
 **Next, in order**
 1. **Granola (time-sensitive: Granola only keeps 30 days).**
    - Kellen connects the Granola connector in Claude (Settings › Connectors). Its tools are `list_meetings`,

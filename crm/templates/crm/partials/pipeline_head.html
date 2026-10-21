@@ -9,8 +9,30 @@
   <span class="spacer"></span>
   {% if tab == 'report' %}
     {% if show_all %}<a class="btn" href="?">Investor deals only</a>{% else %}<a class="btn" href="?all=1">Show every deal</a>{% endif %}
-    <a class="btn" href="{% url 'crm:pipeline_report_xlsx' %}{% if show_all %}?all=1{% endif %}">Download Excel</a>
+    <details class="menu-wrap columns report-cols">
+      <summary class="btn{% if custom_columns %} btn-on{% endif %}">Columns{% if custom_columns %} · {{ columns|length }}{% endif %}</summary>
+      <form method="post" action="{% url 'crm:pipeline_report_columns' %}" class="menu rc-form">{% csrf_token %}
+        {% if show_all %}<input type="hidden" name="all" value="1">{% endif %}
+        <p class="muted rc-hint">Untick what you don't want to share. Hidden columns stay off the screen, the printout and the Excel download.</p>
+        <div class="rc-quick">
+          <button type="button" class="btn btn-small" data-rc-hide="cost psf weighted">Hide costs</button>
+          <button type="button" class="btn btn-small" data-rc-hide="win weighted">Hide win %</button>
+        </div>
+        <div class="rc-list">
+          {% for c in all_columns %}<label class="vb-check"><input type="checkbox" name="col" value="{{ c.key }}" {% if c.key in column_keys %}checked{% endif %} {% if c.key == "tenant" %}disabled{% endif %}> {{ c.label }}{% if c.group == "cost" %} <span class="muted">· cost</span>{% elif c.group == "probability" %} <span class="muted">· probability</span>{% endif %}</label>{% endfor %}
+          <input type="hidden" name="col" value="tenant">
+        </div>
+        <div class="rc-foot"><button class="btn btn-primary btn-small">Apply</button><button class="btn btn-small" name="reset" value="1">Reset to default</button></div>
+      </form>
+    </details>
+    <a class="btn" href="{% url 'crm:pipeline_report_xlsx' %}{% if show_all %}?all=1{% endif %}" title="Fortress tracker layout, with the columns shown here">Download Excel</a>
     <button class="btn" onclick="window.print()">Print / PDF</button>
   {% endif %}
   <a class="btn btn-primary" href="{% url 'crm:opportunity_create' %}">+ New tenant deal</a>
 </div>
+{% if tab == 'report' %}<script>
+  // "Hide costs" / "Hide win %" untick a group of columns at once; Apply saves.
+  document.querySelectorAll('[data-rc-hide]').forEach(b => b.addEventListener('click', () => {
+    b.dataset.rcHide.split(' ').forEach(k => { const box = b.form.querySelector(`input[name=col][value="${k}"]`); if (box) box.checked = false; });
+  }));
+</script>{% endif %}
