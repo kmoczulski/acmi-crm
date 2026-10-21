@@ -1,0 +1,16 @@
+{% load crm_tags %}{# The Tenant pipeline header, shared by the Board, Table and Report tabs. `tab` is board, table or report. #}
+<div class="page-head no-print">
+  <h1>Tenant pipeline</h1>
+  <nav class="page-tabs" aria-label="Pipeline views">
+    <a href="{% url 'crm:opportunity_board' %}{% if tab != 'report' %}{% qs_set view='board' risk='' stage='' %}{% endif %}" class="{% if tab == 'board' %}on{% endif %}">Board</a>
+    <a href="{% url 'crm:opportunity_board' %}{% if tab != 'report' %}{% qs_set view='table' %}{% else %}?view=table{% endif %}" class="{% if tab == 'table' %}on{% endif %}">Table</a>
+    <a href="{% url 'crm:pipeline_report' %}" class="{% if tab == 'report' %}on{% endif %}" title="The investor-ready report: print, PDF or Excel">Report</a>
+  </nav>
+  <span class="spacer"></span>
+  {% if tab == 'report' %}
+    {% if show_all %}<a class="btn" href="?">Investor deals only</a>{% else %}<a class="btn" href="?all=1">Show every deal</a>{% endif %}
+    <a class="btn" href="{% url 'crm:pipeline_report_xlsx' %}{% if show_all %}?all=1{% endif %}">Download Excel</a>
+    <button class="btn" onclick="window.print()">Print / PDF</button>
+  {% endif %}
+  <a class="btn btn-primary" href="{% url 'crm:opportunity_create' %}">+ New tenant deal</a>
+</div>

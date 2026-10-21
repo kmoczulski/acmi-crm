@@ -265,3 +265,42 @@ def offer(option_list, current=None):
     from crm.choices import visible
 
     return visible(option_list, current)
+
+
+@register.inclusion_tag("crm/partials/view_bar.html", takes_context=True)
+def view_bar(context, page):
+    """The bar above a list or board: saved views (yours and shared ones), set one as the page's default,
+    show or hide table columns and switch to compact rows. Column and density choices are per person (crm/prefs.py)."""
+    from django.db.models import Q
+
+    from crm.models import SavedView
+
+    request = context["request"]
+    params = request.GET.copy()
+    for key in ("page", "_v"):
+        params.pop(key, None)
+    query = params.urlencode()
+    views = list(SavedView.objects.filter(object_type=page).filter(Q(owner=request.user) | Q(shared=True)).order_by("name"))
+    mine_default = next((v for v in views if v.is_default and v.owner_id == request.user.pk), None)
+    user_prefs = context.get("PREFS") or {}
+    return {
+        "page": page,
+        "views": views,
+        "current": next((v for v in views if v.query == query), None),
+        "query": query,
+        "path": request.path,
+        "default_query": mine_default.query if mine_default else "",
+        "hidden_cols": user_prefs.get(f"cols:{page}", []),
+        "compact": user_prefs.get(f"density:{page}") == "compact",
+        "user": request.user,
+        "csrf_token": context.get("csrf_token"),
+    }
+
+
+@register.filter
+def due_class(day, done=False):
+    """CSS class for a due date: due-late (red) when past, due-today (amber) when today."""
+    if not day or done:
+        return ""
+    today = timezone.localdate()
+    return "due-late" if day < today else "due-today" if day == today else ""

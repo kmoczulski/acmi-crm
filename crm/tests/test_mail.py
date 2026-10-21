@@ -462,7 +462,7 @@ class DeleteTests(TestCase):
         self.client.post(f"/companies/{self.company.pk}/delete/", {"people": "delete"})
         self.assertFalse(Company.objects.exists())
         self.assertFalse(Person.objects.exists())
-        self.assertEqual(self.client.get("/companies/").status_code, 200)
+        self.assertEqual(self.client.get("/companies/", follow=True).status_code, 200)
 
     def test_person_page_has_delete_button(self):
         p = Person.objects.create(company=self.company)

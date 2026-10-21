@@ -320,7 +320,7 @@ class ContractPagesTests(TestCase):
         ContractDate.objects.create(contract=c, kind="closing", label="Closing (suggested)",
                                     date=today + timedelta(days=5), confirmed=False)
         home = self.client.get("/")
-        self.assertContains(home, "Deadlines · next 14 days")
+        self.assertContains(home, "<h3>Deadlines</h3>")
         self.assertContains(home, "Deposit goes hard")
         self.assertContains(home, "2 days late")
         self.assertNotContains(home, "Closing (suggested)")  # not kept yet

@@ -1,7 +1,7 @@
 from django.urls import path
 from django.views.generic import RedirectView
 
-from . import campus_views, views
+from . import campus_views, prefs, search, views
 from .build import views as build_views
 from .capital import views as capital_views
 from .contracts import views as contract_views
@@ -21,6 +21,8 @@ app_name = "crm"
 
 urlpatterns = [
     path("", views.home, name="home"),
+    path("search/", search.search, name="search"),
+    path("prefs/", prefs.prefs_save, name="prefs_save"),
     path("companies/", views.company_list, name="company_list"),
     path("companies/new/", views.company_create, name="company_create"),
     path("companies/<int:pk>/", views.company_detail, name="company_detail"),

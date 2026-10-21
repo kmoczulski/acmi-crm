@@ -1,4 +1,4 @@
-"""In-app notifications: the bell in the sidebar.
+"""In-app notifications: the bell in the top bar.
 
 Sent when someone else assigns you a task, @mentions you, comments on something you own,
 moves one of your deals, or a company you own replies; plus a once-a-day sweep for your
@@ -8,6 +8,7 @@ import re
 from datetime import timedelta
 
 from django.contrib.auth import get_user_model
+from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 from .models import Comment, Notification, Task
@@ -18,9 +19,13 @@ MENTION = re.compile(r"@([A-Za-z][\w.-]*)")
 def send(user, kind, text, url="", actor=None, key=""):
     if user is None or (actor is not None and user.pk == actor.pk) or not user.is_active:
         return None
-    if key and Notification.objects.filter(user=user, key=key).exists():
+    if key and Notification.objects.filter(user=user, key=key[:120]).exists():
         return None
-    return Notification.objects.create(user=user, kind=kind, text=text[:500], url=url[:500], actor=actor, key=key[:120])
+    try:
+        with transaction.atomic():
+            return Notification.objects.create(user=user, kind=kind, text=text[:500], url=url[:500], actor=actor, key=key[:120])
+    except IntegrityError:  # another request sent this keyed alert a moment ago
+        return None
 
 
 def _name(user):

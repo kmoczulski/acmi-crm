@@ -36,6 +36,14 @@ the ARA Facility project's keywords, so the Cozen call (and later MBI B101 mail)
 `backups/db-2026-10-21-before-fortus-domain.sqlite3`, `...-before-cozen.sqlite3`. greystar.com and terracon.com still
 have no company.
 
+**UX overhaul 2026-10-21** (Kellen asked; branch `ux-overhaul`, details in `docs/UX_REVIEW.md`): CoStar-style top
+navigation instead of the sidebar, search everywhere (Ctrl K and a big box on the dashboard), a + New menu, a
+customizable dashboard (drag, resize, hide, add widgets; saved per person), a saved-views bar on every list, the
+Investor report merged into one **Tenant pipeline** page (Board / Table / Report), Companies opening on Active, stage
+and due-date colours, breadcrumbs, and duplicate due alerts fixed. Migration `0055_user_prefs` (UserPrefs table,
+SavedView.object_type widened, unique keyed notifications after removing duplicates). Merge and the real-database
+migration wait for Kellen's OK; back up first. The pages read UserPrefs, so merge and migrate together.
+
 **Next, in order**
 1. **Granola (time-sensitive: Granola only keeps 30 days).**
    - Kellen connects the Granola connector in Claude (Settings › Connectors). Its tools are `list_meetings`,

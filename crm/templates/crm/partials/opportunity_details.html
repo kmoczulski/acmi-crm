@@ -1,6 +1,6 @@
 {% load crm_tags humanize %}
 <dl class="details">
-  <dt>Stage</dt><dd><span class="stage">{{ opp.get_stage_display }}</span> <span class="muted">{{ opp.win_probability }}% win</span></dd>
+  <dt>Stage</dt><dd><span class="stage stage-{{ opp.stage }}">{{ opp.get_stage_display }}</span> <span class="muted">{{ opp.win_probability }}% win</span></dd>
   <dt>Company</dt><dd><a href="{{ opp.company.get_absolute_url }}">{{ opp.company.name }}</a></dd>
   <dt>Site</dt><dd>{% if opp.campus %}{{ opp.campus }}{% else %}{{ opp.site|default:"TBD" }}{% endif %}</dd>
   {% if opp.owner %}<dt>Owner</dt><dd>{{ opp.owner|username }}</dd>{% endif %}

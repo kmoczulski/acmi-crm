@@ -1,4 +1,5 @@
 {% extends "crm/base.html" %}
+{% load crm_tags %}
 {% block title %}People · ACMI CRM{% endblock %}
 {% block content %}
 <div class="page-head">
@@ -6,7 +7,7 @@
   <span class="spacer"></span>
   <a class="btn btn-primary" href="{% url 'crm:person_create' %}">New person</a>
 </div>
-{% include "crm/partials/views_bar.html" %}
+{% view_bar "person" %}
 {% include "crm/partials/filters.html" with search_placeholder="Name, email, title, company" %}
 {% include "crm/partials/table.html" %}
 {% endblock %}

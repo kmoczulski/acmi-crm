@@ -1,0 +1,29 @@
+{% load crm_tags humanize %}{# Dashboard widget: this week's meetings (week) #}
+<div class="week-panel">
+  <h3>
+    {% if week.offset == 0 %}This week{% elif week.offset == 1 %}Next week{% elif week.offset == -1 %}Last week{% else %}Week of {{ week.monday|date:"M j" }}{% endif %}
+    <span class="muted" style="text-transform:none;letter-spacing:0;font-weight:400">· {{ week.monday|date:"M j" }} – {{ week.sunday|date:"M j" }} · {{ week.count }} meeting{{ week.count|pluralize }}</span>
+    <span class="week-nav">
+      <a class="btn btn-small" href="{% qs_set week=week.offset|add:'-1' %}" title="Previous week">‹</a>
+      {% if week.offset != 0 %}<a class="btn btn-small" href="{% qs_set week='' %}">Today</a>{% endif %}
+      <a class="btn btn-small" href="{% qs_set week=week.offset|add:'1' %}" title="Next week">›</a>
+      <a class="btn btn-small {% if not week.everyone %}btn-primary{% endif %}" href="{% qs_set cal='' %}">Mine</a>
+      <a class="btn btn-small {% if week.everyone %}btn-primary{% endif %}" href="{% qs_set cal='all' %}">Everyone</a>
+      <a class="btn btn-small" href="{% url 'crm:meeting_list' %}">Month</a>
+    </span>
+  </h3>
+  <div class="week-grid" style="grid-template-columns: repeat({{ week.days|length }}, minmax(0, 1fr))">
+    {% for d in week.days %}
+    <div class="week-day {% if d.today %}today{% endif %} {% if d.past %}past{% endif %}">
+      <div class="week-date"><span>{{ d.date|date:"D" }}</span> <strong>{{ d.date|date:"j" }}</strong></div>
+      {% for m in d.meetings %}
+        <button type="button" class="cal-event week-event {% if m.companies.all %}ext{% endif %}" data-id="{{ m.pk }}" title="{{ m.title }}">
+          <span class="week-time">{{ m.start|time:"g:i A" }}</span>
+          <span class="week-title">{% if m.summary %}📝 {% endif %}{{ m.title }}</span>
+          {% for c in m.companies.all|slice:":2" %}<span class="week-co">{{ c.name }}</span>{% endfor %}
+        </button>
+      {% empty %}<div class="muted week-empty">—</div>{% endfor %}
+    </div>
+    {% endfor %}
+  </div>
+</div>

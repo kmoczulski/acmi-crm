@@ -1,0 +1,4 @@
+{% load crm_tags humanize %}{# Dashboard widget: companies by outreach stage (stage_counts) #}
+<div class="cards">
+        {% for value, label, n in stage_counts %}<a class="card" href="{% url 'crm:company_list' %}?status={{ value }}"><div class="label">{{ label }}</div><div class="value">{{ n|intcomma }}</div></a>{% endfor %}
+      </div>

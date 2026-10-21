@@ -3,6 +3,7 @@
 {% block title %}Projects · ACMI CRM{% endblock %}
 {% block content %}
 <div class="page-head"><h1>Campuses &amp; projects</h1></div>
+{% view_bar "projects" %}
 <p class="muted" style="margin-top:0">Correspondence is tagged with a project when its own text (not quoted replies or signatures)
   mentions one of the project's keywords; projects inside a campus are tagged with the campus too. Campaign and news outreach is
   tagged <span class="chip chip-prospecting">Prospecting</span> instead. Prospective land sites are saved from <a href="{% url 'crm:land_search' %}">Land search</a>.</p>

@@ -2,6 +2,7 @@
 {% load crm_tags %}
 {% block title %}{{ task.title }} · ACMI CRM{% endblock %}
 {% block content %}
+<nav class="crumbs no-print" aria-label="Breadcrumb"><a href="{% url 'crm:task_list' %}">My tasks</a>{% if task.company %} › <a href="{{ task.company.get_absolute_url }}">{{ task.company.name }}</a>{% endif %}</nav>
 <div class="record-head">
   <form method="post" action="{% url 'crm:task_toggle' task.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}">
     <input type="checkbox" {% if task.done %}checked{% endif %} onchange="this.form.submit()" title="Mark done" style="width:18px;height:18px"></form>

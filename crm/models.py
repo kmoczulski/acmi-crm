@@ -958,6 +958,10 @@ class Notification(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
+        constraints = [
+            # Two page loads at once both ran the daily due sweep and sent the same alert twice.
+            models.UniqueConstraint(fields=["user", "key"], condition=~models.Q(key=""), name="notification_once_per_key"),
+        ]
 
     def __str__(self):
         return self.text
@@ -1050,7 +1054,9 @@ class SavedView(models.Model):
     """A named set of filters/sort/columns, stored as the table's query string."""
 
     name = models.CharField(max_length=120)
-    object_type = models.CharField(max_length=20, choices=ObjectType.choices)
+    # An ObjectType for the Companies / People tables and the land map, or a page key ("tasks", "pipeline"...)
+    # for the shared view bar on every other list (crm/prefs.py VIEW_PAGES).
+    object_type = models.CharField(max_length=40)
     query = models.TextField(blank=True)
     owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name="saved_views")
     shared = models.BooleanField(default=False, help_text="Visible to the whole team")
@@ -1062,6 +1068,21 @@ class SavedView(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class UserPrefs(models.Model):
+    """One person's layout choices: dashboard widgets, hidden table columns, density (see crm/prefs.py)."""
+
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="prefs")
+    data = models.JSONField(default=dict, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "user preferences"
+        verbose_name_plural = "user preferences"
+
+    def __str__(self):
+        return f"Preferences for {self.user}"
 
 
 # ---------------------------------------------------------------------------

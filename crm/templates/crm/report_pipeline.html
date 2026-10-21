@@ -1,23 +1,25 @@
 {% extends "crm/base.html" %}
 {% load crm_tags humanize %}
-{% block title %}Pipeline report · ACMI CRM{% endblock %}
+{% block title %}Tenant pipeline report · ACMI CRM{% endblock %}
 {% block content %}
 <style>
-  .pipeline-table { table-layout: fixed; width: 100%; }
-  .pipeline-table th, .pipeline-table td { overflow-wrap: anywhere; vertical-align: top; }
-  .pipeline-table th.num, .pipeline-table td.num { white-space: normal; }
+  /* On screen columns size to their content; on paper they share the page width. */
+  .pipeline-table th, .pipeline-table td { vertical-align: top; }
+  .pipeline-table td:last-child { white-space: normal; min-width: 180px; }
+  .pipeline-table .stage { white-space: nowrap; }
+  @media print {
+    .pipeline-table { table-layout: fixed; width: 100%; }
+    .pipeline-table th, .pipeline-table td { overflow-wrap: anywhere; white-space: normal; }
+  }
 </style>
+{% include "crm/partials/pipeline_head.html" with tab="report" %}
+{% view_bar "report" %}
+<div class="report-sheet">
 {% include "crm/partials/report_logo.html" %}
 <div class="page-head">
   <h1>ACMI Properties pipeline <span class="muted" style="font-weight:400;font-size:14px">as of {{ as_of|date:"F j, Y" }}</span></h1>
-  <span class="spacer"></span>
-  <span class="no-print">
-    {% if show_all %}<a class="btn" href="?">Investor deals only</a>{% else %}<a class="btn" href="?all=1">Show every deal</a>{% endif %}
-    <a class="btn" href="{% url 'crm:pipeline_report_xlsx' %}{% if show_all %}?all=1{% endif %}">Download Excel</a>
-    <button class="btn btn-primary" onclick="window.print()">Print / PDF</button>
-  </span>
 </div>
-<p class="muted no-print" style="margin-top:-8px">{% if show_all %}Every deal in the CRM.{% else %}Deals ticked “On investor report”. Tick it on a deal's Edit form to add it here.{% endif %}</p>
+<p class="muted no-print" style="margin-top:-8px">{% if show_all %}Every deal in the CRM.{% else %}Deals ticked “On investor report”. Tick it on a deal's Edit form, or use Add to investor report on the company's Deals tab.{% endif %}</p>
 
 {% for s in sections %}
 <div class="panel">
@@ -25,7 +27,7 @@
   <div class="table-wrap"><table class="data compact pipeline-table"><colgroup><col style="width:10%"><col style="width:8%"><col style="width:8%"><col style="width:12%"><col style="width:8%"><col style="width:5%"><col style="width:7%"><col style="width:9%"><col style="width:6%"><col style="width:5%"><col style="width:6%"><col style="width:7%"><col style="width:9%"></colgroup>
     <thead><tr><th>Site</th><th>Deal type</th><th>Stage</th><th>Tenant</th><th>Asset type</th><th class="num">Acres</th><th class="num">Size (sf)</th><th class="num">Project cost</th><th class="num">$ PSF</th><th class="num">Win %</th><th>Owner</th><th>Target close</th><th>Next step / notes</th></tr></thead>
     <tbody>{% for o in s.rows %}
-      <tr><td>{{ o.site_label }}</td><td>{{ o.get_deal_type_display }}</td><td><span class="stage">{{ o.get_stage_display }}</span></td>
+      <tr><td>{{ o.site_label }}</td><td>{{ o.get_deal_type_display }}</td><td><span class="stage stage-{{ o.stage }}">{{ o.get_stage_display }}</span></td>
         <td><a href="{{ o.get_absolute_url }}">{{ o.company.name }}</a></td><td>{{ o.get_asset_type_display }}</td>
         <td class="num">{{ o.acreage_need|default_if_none:""|floatformat:"-2"|intcomma }}</td><td class="num">{{ o.sq_ft_need|default_if_none:""|intcomma }}</td>
         <td class="num">{% if o.value %}${{ o.value|floatformat:0|intcomma }}{% else %}TBD{% endif %}</td>
@@ -46,5 +48,6 @@
         <td class="num">${{ r.weighted|floatformat:0|intcomma }}</td><td colspan="3"></td></tr>
     {% endfor %}</tbody>
   </table></div>
+</div>
 </div>
 {% endblock %}

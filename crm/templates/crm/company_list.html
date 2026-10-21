@@ -1,4 +1,5 @@
 {% extends "crm/base.html" %}
+{% load crm_tags %}
 {% block title %}Companies · ACMI CRM{% endblock %}
 {% block content %}
 <div class="page-head">
@@ -7,7 +8,15 @@
   <a class="btn" href="{% url 'crm:duplicates' %}">Possible duplicates</a>
   <a class="btn btn-primary" href="{% url 'crm:company_create' %}">New company</a>
 </div>
-{% include "crm/partials/views_bar.html" %}
+<div class="chips">
+  {% with scope=request.GET.scope %}
+  <a class="{% if scope == 'active' %}on{% endif %}" href="{% qs_set scope='active' _v='' %}" title="In a deal, met or engaged, or emailed in the last 30 days">Active</a>
+  <a class="{% if scope == 'deal' %}on{% endif %}" href="{% qs_set scope='deal' _v='' %}">In a tenant deal</a>
+  <a class="{% if not scope %}on{% endif %}" href="{% qs_set scope='' _v='all' %}">All companies</a>
+  <span class="muted" style="font-size:12.5px">{{ page.paginator.count }} compan{{ page.paginator.count|pluralize:"y,ies" }}</span>
+  {% endwith %}
+</div>
+{% view_bar "company" %}
 {% include "crm/partials/filters.html" with search_placeholder="Name, sector, domain" %}
 <form method="post" action="{% url 'crm:company_bulk_owner' %}" id="bulk-form" class="bulkbar" hidden>{% csrf_token %}
   <input type="hidden" name="next" value="{{ request.get_full_path }}">

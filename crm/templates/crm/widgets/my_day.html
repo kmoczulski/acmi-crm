@@ -1,0 +1,24 @@
+{% load crm_tags humanize %}{# Dashboard widget: replies waiting, my tasks, my deals (day, overdue, upcoming) #}
+<div class="subhead">Replies waiting on us <span class="muted">({{ day.replies|length }})</span></div>
+<div class="clist" data-limit="10">
+      {% for r in day.replies %}
+        <div class="row-line">
+          <span><a href="{{ r.company.get_absolute_url }}?tab=activity">{{ r.company.name }}</a>{% if r.person %} · {{ r.person }}{% endif %}
+            {% if r.gist %}<span class="muted"> “{{ r.gist }}”</span>{% endif %}</span>
+          <span class="muted" style="white-space:nowrap">{{ r.occurred_at|date:"M j" }}</span>
+        </div>
+      {% empty %}<p class="muted" style="margin:4px 0">All caught up.</p>{% endfor %}
+      </div>
+      <div class="subhead">My tasks</div>
+      <ul class="tasklist clist" data-limit="10">
+        {% for t in overdue %}{% include "crm/partials/task_row.html" %}{% endfor %}
+        {% for t in upcoming %}{% include "crm/partials/task_row.html" %}{% endfor %}
+        {% if not overdue and not upcoming %}<li class="muted">Nothing due.</li>{% endif %}
+      </ul>
+      <div class="subhead">My deals that need a next step <span class="muted">({{ day.deals|length }} of {{ day.deal_count }})</span></div>
+<div class="clist" data-limit="10">
+      {% for r in day.deals %}
+        <div class="row-line"><span><a href="{{ r.opp.get_absolute_url }}">{{ r.opp.name }}</a> <span class="stage stage-{{ r.opp.stage }}">{{ r.opp.get_stage_display }}</span></span>
+          <span class="muted" style="font-size:12px">{{ r.reasons|join:" · " }}</span></div>
+      {% empty %}<p class="muted" style="margin:4px 0">Every deal you own has a next step.</p>{% endfor %}
+      </div>

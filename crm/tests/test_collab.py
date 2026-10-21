@@ -185,10 +185,10 @@ class TaskAndCommentTests(TestCase):
                                 summary="old", source=Activity.Source.GMAIL, source_id="r2")
         self.assertEqual(Notification.objects.filter(user=self.simon, kind="reply").count(), 1)
 
-    def test_sidebar_tree(self):
+    def test_top_menus(self):
         r = self.client.get(reverse("crm:home"))
-        for label in ("Dashboard", "Possible duplicates", "Investor report", "Meetings", "Mail review", ">Sites<", ">Map<",
-                      "Tenant deals", "Rent roll"):
+        for label in (">Home<", "Possible duplicates", ">Tenant pipeline<", ">Calendar<", "Mail review", ">Sites<", ">Map<",
+                      ">Companies<", "Rent roll"):
             self.assertContains(r, label)
 
 

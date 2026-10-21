@@ -2,6 +2,7 @@
 {% load crm_tags %}
 {% block title %}{{ project.name }} · ACMI CRM{% endblock %}
 {% block content %}
+<nav class="crumbs no-print" aria-label="Breadcrumb"><a href="{% url 'crm:project_list' %}">Projects</a> › <span>{{ project.name }}</span></nav>
 <div class="record-head">
   <h1>{{ project.name }}</h1>
   {% if project.parent %}<a class="chip chip-project" href="{{ project.parent.get_absolute_url }}">{{ project.parent.name }}</a>{% endif %}

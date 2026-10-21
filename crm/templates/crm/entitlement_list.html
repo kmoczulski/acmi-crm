@@ -13,6 +13,7 @@
   <button type="button" class="btn" onclick="document.getElementById('matrix').toggleAttribute('hidden')">Start a permit matrix</button>
   <a class="btn btn-primary" href="{% url 'crm:approval_create' %}">New approval</a>
 </div>
+{% view_bar "entitlements" %}
 <p class="muted" style="margin-top:0">Every approval a project or site needs, from rezoning to the certificate of occupancy: the agency and case, where it stands,
   who has the ball, the next hearing, and the conditions it came with.</p>
 <section class="panel" id="matrix" hidden>

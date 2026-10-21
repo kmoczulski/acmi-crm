@@ -1,4 +1,5 @@
 {% extends "crm/base.html" %}
+{% load crm_tags %}
 {% load humanize %}
 {% block title %}Sites · ACMI CRM{% endblock %}
 {% block content %}
@@ -13,6 +14,7 @@
   <a class="btn" href="{% url 'crm:land_search' %}">Open the map</a>
   <a class="btn btn-primary" href="{% url 'crm:land_briefs' %}" title="Comparison page plus a one-page brief with aerial per site. Tick sites below to pick some.">Compare all sites</a>
 </div>
+{% view_bar "sites" %}
 <div class="sites-stats">
   <div><b>{{ total }}</b><span>active site{{ total|pluralize }}</span></div>
   <div><b>{{ total_acres|floatformat:0|intcomma }}</b><span>acres mapped</span></div>

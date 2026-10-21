@@ -13,6 +13,7 @@
   <a class="btn {% if who == 'me' %}btn-primary{% endif %}" href="{% qs_set who='me' %}">Mine</a>
   <a class="btn {% if who == 'outside' %}btn-primary{% endif %}" href="{% qs_set who='outside' %}">With companies</a>
 </div>
+{% view_bar "meetings" %}
 
 <div class="cal-connect">
   {% if not google_ready %}

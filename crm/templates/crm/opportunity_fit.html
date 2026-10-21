@@ -4,7 +4,7 @@
 {% block content %}
 <div class="record-head">
   <div>
-    <div class="muted lc-small"><a href="{% url 'crm:opportunity_board' %}">Opportunities</a> › <a href="{{ opp.get_absolute_url }}">{{ opp.name }}</a></div>
+    <div class="muted lc-small"><a href="{% url 'crm:opportunity_board' %}">Tenant pipeline</a> › <a href="{{ opp.get_absolute_url }}">{{ opp.name }}</a></div>
     <h1>Site fit · {{ opp.company.name }}</h1>
     <div class="muted">{{ opp.name }}{% if opp.campus %} · {{ opp.campus.code }}{% endif %}</div>
   </div>

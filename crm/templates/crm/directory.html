@@ -8,6 +8,7 @@
   <a class="btn" href="{% url 'crm:firm_suggestions' %}">Sorted from email</a>
   {% if group == "capital" %}<a class="btn" href="{% url 'crm:capital_index' %}">Capital</a>{% endif %}
 </div>
+{% view_bar "directory" %}
 <p class="muted" style="margin-top:0">Lenders, brokers and investors, and the consultants, lawyers, engineers, contractors and vendors we work with.
   This is a separate list: none of them is a Company or a Person in the CRM, so they're never in a send queue, list or outreach report.
   Their email domains file their emails here instead of the review queue.</p>

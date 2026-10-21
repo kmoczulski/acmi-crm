@@ -50,11 +50,12 @@
   }
 
   function setBadge(n) {
-    const bell = document.querySelector('.nav-bell');
+    const bell = document.querySelector('.appbar .bell');
     if (!bell) return;
-    let tag = bell.querySelector('.tag-alert');
+    let tag = bell.querySelector('.count');
+    bell.classList.toggle('has-unread', !!n);
     if (!n) { if (tag) tag.remove(); return; }
-    if (!tag) { tag = document.createElement('span'); tag.className = 'tag tag-alert'; bell.append(' ', tag); }
+    if (!tag) { tag = document.createElement('span'); tag.className = 'count'; bell.append(tag); }
     tag.textContent = n;
   }
 
@@ -70,7 +71,7 @@
       setLastSeen(Math.max(...fresh.map(i => i.id)));  // shared by every open tab, so only one alerts
       if (pref('sound', true)) chime();
       // Looking at the app: an in-page toast. In another tab or window: a desktop notification (toast if blocked).
-      fresh.slice(-3).forEach(i => { if (!document.hidden || !desktop(i)) toast(i); });
+      fresh.filter((i, n) => fresh.findIndex(x => x.text === i.text) === n).slice(-3).forEach(i => { if (!document.hidden || !desktop(i)) toast(i); });
     } catch (e) { /* offline: try again next time */ }
   }
 

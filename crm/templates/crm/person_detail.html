@@ -2,6 +2,7 @@
 {% load crm_tags %}
 {% block title %}{{ person }} · ACMI CRM{% endblock %}
 {% block content %}
+<nav class="crumbs no-print" aria-label="Breadcrumb"><a href="{% url 'crm:person_list' %}">People</a> ›{% if person.company %} <a href="{{ person.company.get_absolute_url }}">{{ person.company.name }}</a> ›{% endif %} <span>{{ person }}</span></nav>
 <div class="record-head">
   <h1>{{ person }}</h1>
   {% if person.company %}<a href="{{ person.company.get_absolute_url }}">{{ person.company.name }}</a>{% endif %}
@@ -51,8 +52,8 @@
         <ul class="timeline">{% for a in recent_activity %}{% include "crm/partials/timeline_item.html" %}{% empty %}<li><span></span><span class="muted">No activity yet.</span></li>{% endfor %}</ul>
       </div>
       {% if opportunities %}
-      <div class="panel"><h3>Opportunities</h3>
-        {% for o in opportunities %}<div><a href="{{ o.get_absolute_url }}">{{ o.name }}</a> <span class="stage">{{ o.get_stage_display }}</span></div>{% endfor %}
+      <div class="panel"><h3>Tenant deals</h3>
+        {% for o in opportunities %}<div><a href="{{ o.get_absolute_url }}">{{ o.name }}</a> <span class="stage stage-{{ o.stage }}">{{ o.get_stage_display }}</span></div>{% endfor %}
       </div>
       {% endif %}
       {% include "crm/partials/tasks_notes.html" %}

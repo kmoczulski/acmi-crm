@@ -1,0 +1,14 @@
+{% load crm_tags humanize %}{# Dashboard widget: recent positive responses (replies) #}
+<div class="clist" data-limit="10">
+      {% for r in replies %}
+        <div style="padding:7px 0;border-bottom:1px solid var(--line)">
+          <div style="display:flex;justify-content:space-between;gap:8px">
+            <span><a href="{{ r.person.get_absolute_url }}">{{ r.person }}</a>{% if r.company %} · <a class="muted" href="{{ r.company.get_absolute_url }}">{{ r.company.name }}</a>{% endif %}</span>
+            <span class="muted" style="white-space:nowrap">{{ r.occurred_at|date:"M j" }}</span>
+          </div>
+          <div style="margin-top:3px">{% context_chip r %}</div>
+          {% if r.gist %}<div style="font-size:13px;margin-top:2px">“{{ r.gist }}”</div>{% endif %}
+          <div class="muted" style="font-size:12px">Re: {{ r.summary|cut:"Reply from "|truncatechars:70 }}{% with t=r.team_members.all %}{% if t %} · to {% for u in t %}{{ u|username }}{% if not forloop.last %}, {% endif %}{% endfor %}{% endif %}{% endwith %}</div>
+        </div>
+      {% empty %}<p class="muted">None yet.</p>{% endfor %}
+      </div>

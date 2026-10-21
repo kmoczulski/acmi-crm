@@ -184,7 +184,7 @@ class PipelinePageTests(TestCase):
                     reverse("crm:opportunity_board") + "?risk=1", self.opp.get_absolute_url(),
                     self.company.get_absolute_url(), reverse("crm:pipeline_report"),
                     reverse("crm:pipeline_report") + "?all=1", reverse("crm:company_list")]:
-            self.assertEqual(self.client.get(url).status_code, 200, url)
+            self.assertEqual(self.client.get(url, follow=True).status_code, 200, url)
 
     def test_home_shows_pipeline_value(self):
         r = self.client.get(reverse("crm:home"))

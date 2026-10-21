@@ -9,7 +9,7 @@ from datetime import timedelta
 from django.db.models import Count, F, Min, Q
 from django.utils import timezone
 
-from .models import Company, CompanyStatus, Person, Priority
+from .models import OPEN_STAGES, Company, CompanyStatus, Opportunity, Person, Priority
 
 
 @dataclass
@@ -143,6 +143,10 @@ class Table:
         return self.filtered().order_by(expr, "pk")
 
 
+ACTIVE_DAYS = 30
+ACTIVE_STATUSES = [CompanyStatus.ENGAGED, CompanyStatus.MEETING, CompanyStatus.OPPORTUNITY, CompanyStatus.TENANT]
+
+
 class CompanyTable(Table):
     columns = COMPANY_COLUMNS
     default_sort = "name"
@@ -158,6 +162,16 @@ class CompanyTable(Table):
 
     def filtered(self):
         qs = super().filtered()
+        # Scope chips on Companies: "active" = in a deal, at a later outreach stage or touched in the last 30 days.
+        scope = self.get("scope")
+        in_deal = Q(pk__in=Opportunity.objects.filter(stage__in=OPEN_STAGES).values("company_id"))
+        if scope == "deal":
+            qs = qs.filter(in_deal)
+        elif scope == "active":
+            qs = qs.filter(
+                in_deal | Q(status__in=ACTIVE_STATUSES)
+                | Q(last_interaction_at__gte=timezone.now() - timedelta(days=ACTIVE_DAYS))
+            )
         if statuses := self.getlist("status"):
             qs = qs.filter(status__in=statuses)
         if sector := self.get("sector"):

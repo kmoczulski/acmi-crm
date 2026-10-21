@@ -10,6 +10,7 @@
   <a class="btn {% if state == 'open' %}btn-primary{% endif %}" href="{% qs_set state='open' %}">Open</a>
   <a class="btn {% if state == 'done' %}btn-primary{% endif %}" href="{% qs_set state='done' %}">Done</a>
 </div>
+{% view_bar "tasks" %}
 <div class="panel">
   <form method="post" action="{% url 'crm:task_add' %}" class="inline-form">{% csrf_token %}
     <input type="hidden" name="next" value="{{ request.get_full_path }}">

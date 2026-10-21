@@ -12,7 +12,7 @@ from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
-from . import ai, company_page, documents, gcal, meetings, merge, notify, pipeline
+from . import ai, company_page, documents, gcal, meetings, merge, notify, pipeline, prefs
 from . import projects as project_tagging
 from .build import logic as build_logic
 from .capital import logic as capital_logic
@@ -26,7 +26,7 @@ from .forms import (
 from .models import (
     DOCUMENT_CATEGORIES, OPEN_STAGES, STAGE_ORDER, AISummary, Activity, Attachment, Campus, Comment, Company, CompanyStatus, DealSuggestionDismissal, Document,
     List, ListEntry, Note, ObjectType, Opportunity, OpportunityContact, OpportunityStage, Person, Project, SavedView,
-    CalendarSync, Meeting, Notification, Task, TenantNeeds,
+    CalendarSync, LandSite, Meeting, Notification, Task, TenantNeeds,
 )
 from .permissions import manager_required
 from .pipeline import risk_reasons
@@ -406,45 +406,69 @@ def week_calendar(request):
 
 
 def home(request):
+    """The dashboard: a search box and the widgets each person picked, in their order and sizes (crm/prefs.py).
+
+    Only the widgets on someone's dashboard are worked out.
+    """
     today = timezone.localdate()
-    my_tasks = Task.objects.filter(assignee=request.user, done=False).select_related("company", "person")
-    replies = list(
-        Activity.objects.filter(kind=Activity.Kind.REPLY, outcome__in=POSITIVE_OUTCOMES, person__isnull=False)
-        .select_related("person", "company").prefetch_related("team_members", "projects")
-        .order_by("-occurred_at")[:40]
-    )
-    for r in replies:
-        r.gist = reply_gist(r.body, r.person)
-    # Recent activity: last 7 days; "Show 7 more days" widens the window a week at a time.
-    try:
-        activity_days = min(max(int(request.GET.get("days", 7)), 7), 365)
-    except ValueError:
-        activity_days = 7
-    recent = recent_activity(
-        Activity.objects.filter(occurred_at__gte=timezone.now() - timezone.timedelta(days=activity_days)), limit=500,
-    )
-    day = pipeline.my_day(request.user)
-    for r in day["replies"]:
-        r.gist = reply_gist(r.body, r.person, limit=120)
-    stage_counts = dict(Company.objects.values_list("status").annotate(n=Count("id")))
-    risk = pipeline.at_risk()
-    return render(request, "crm/home.html", {
-        "overdue": [t for t in my_tasks if t.due_date and t.due_date < today],
-        "upcoming": [t for t in my_tasks if not t.due_date or t.due_date >= today][:15],
-        "recent": recent,
-        "activity_days": activity_days,
-        "replies": replies,
-        "day": day,
-        "stage_counts": [(value, label, stage_counts.get(value, 0)) for value, label in CompanyStatus.choices],
-        "summary": pipeline.summary(),
-        "at_risk": risk[:40],
-        "at_risk_count": len(risk),
-        "changes": pipeline.changes_since(7),
-        "suggestions": pipeline.suggestions(limit=40),
-        "week": week_calendar(request),
-        "deadlines": contract_dates.upcoming(14, today),
-        "critical": contract_dates.month_calendar(request.GET.get("crit"), today),
-    })
+    layout = prefs.dashboard_layout(request.user)
+    shown = {w["id"] for w in layout}
+    ctx = {
+        "layout": layout,
+        "customize": request.GET.get("customize") == "1",
+        "headless": prefs.HEADLESS,
+        "widths": prefs.WIDTHS,
+        "gallery": [{"id": k, "title": v[0], "description": v[3], "shown": k in shown} for k, v in prefs.WIDGETS.items()],
+    }
+    if "my_day" in shown:
+        my_tasks = Task.objects.filter(assignee=request.user, done=False).select_related("company", "person")
+        ctx["overdue"] = [t for t in my_tasks if t.due_date and t.due_date < today]
+        ctx["upcoming"] = [t for t in my_tasks if not t.due_date or t.due_date >= today][:15]
+        ctx["day"] = day = pipeline.my_day(request.user)
+        for r in day["replies"]:
+            r.gist = reply_gist(r.body, r.person, limit=120)
+    if "replies" in shown:
+        ctx["replies"] = replies = list(
+            Activity.objects.filter(kind=Activity.Kind.REPLY, outcome__in=POSITIVE_OUTCOMES, person__isnull=False)
+            .select_related("person", "company").prefetch_related("team_members", "projects")
+            .order_by("-occurred_at")[:40]
+        )
+        for r in replies:
+            r.gist = reply_gist(r.body, r.person)
+    if "activity" in shown:
+        # Last 7 days; "Show 7 more days" widens the window a week at a time.
+        try:
+            activity_days = min(max(int(request.GET.get("days", 7)), 7), 365)
+        except ValueError:
+            activity_days = 7
+        ctx["activity_days"] = activity_days
+        ctx["recent"] = recent_activity(
+            Activity.objects.filter(occurred_at__gte=timezone.now() - timezone.timedelta(days=activity_days)), limit=500,
+        )
+    if "funnel" in shown:
+        stage_counts = dict(Company.objects.values_list("status").annotate(n=Count("id")))
+        ctx["stage_counts"] = [(value, label, stage_counts.get(value, 0)) for value, label in CompanyStatus.choices]
+    if shown & {"kpis", "stages"}:
+        ctx["summary"] = pipeline.summary()
+    if shown & {"kpis", "attention"}:
+        risk = pipeline.at_risk()
+        ctx["at_risk"], ctx["at_risk_count"] = risk[:40], len(risk)
+    if "changes" in shown:
+        ctx["changes"] = pipeline.changes_since(7)
+    if "suggestions" in shown:
+        ctx["suggestions"] = pipeline.suggestions(limit=40)
+    if "week" in shown:
+        ctx["week"] = week_calendar(request)
+    if "deadlines" in shown:
+        ctx["deadlines"] = contract_dates.upcoming(14, today)
+    if "critical" in shown:
+        ctx["critical"] = contract_dates.month_calendar(request.GET.get("crit"), today)
+    if "my_sites" in shown:
+        ctx["my_sites"] = (
+            LandSite.objects.filter(Q(owner=request.user) | Q(team=request.user)).exclude(status=LandSite.Status.DROPPED)
+            .select_related("campus", "project").distinct().order_by("-created_at")[:30]
+        )
+    return render(request, "crm/home.html", ctx)
 
 
 # ---------------------------------------------------------------------------
@@ -453,6 +477,10 @@ def home(request):
 
 
 def company_list(request):
+    if not request.GET:
+        # Open on the companies we're talking to (or the person's default view), not all ~1,800 prospects A-Z.
+        default = SavedView.objects.filter(owner=request.user, object_type=ObjectType.COMPANY, is_default=True).first()
+        return redirect(request.path + "?" + (default.query if default and default.query else "scope=active"))
     table = CompanyTable(request.GET, request.user)
     return render(request, "crm/company_list.html", _table_context(request, table, ObjectType.COMPANY))
 
@@ -667,7 +695,7 @@ def opportunity_create(request):
         )
         return redirect(opp)
     return render(request, "crm/form.html", {
-        "form": form, "title": "New opportunity", "cancel": reverse("crm:opportunity_board"),
+        "form": form, "title": "New tenant deal", "cancel": reverse("crm:opportunity_board"),
     })
 
 
@@ -1018,33 +1046,45 @@ def list_entry_remove(request, pk):
 # ---------------------------------------------------------------------------
 
 
+def _view_target(object_type, next_url):
+    if object_type == ObjectType.COMPANY:
+        return reverse("crm:company_list")
+    if object_type == ObjectType.PERSON:
+        return reverse("crm:person_list")
+    fallback = reverse(prefs.VIEW_PAGES[object_type][1]) if object_type in prefs.VIEW_PAGES else reverse("crm:home")
+    return next_url if next_url and url_has_allowed_host_and_scheme(next_url, allowed_hosts=None) and next_url.startswith("/") else fallback
+
+
 @require_POST
 def saved_view_save(request):
+    """Save the current filters as a named view: Companies, People, or any page with the view bar (prefs.VIEW_PAGES)."""
     object_type = request.POST.get("object_type")
-    if object_type not in (ObjectType.COMPANY, ObjectType.PERSON):
+    if object_type not in (ObjectType.COMPANY, ObjectType.PERSON) and object_type not in prefs.VIEW_PAGES:
         return HttpResponseBadRequest("Unknown table")
-    name = request.POST.get("name", "").strip()
+    name = request.POST.get("name", "").strip()[:120]
+    # Drop paging so a view always opens on page 1.
+    params = {k: v for k, v in parse_qs(request.POST.get("query", "")).items() if k not in ("page", "_v")}
+    query = urlencode(params, doseq=True)
     if not name:
         messages.error(request, "Give the view a name.")
     else:
-        query = request.POST.get("query", "")
-        # Drop paging so a view always opens on page 1.
-        params = {k: v for k, v in parse_qs(query).items() if k != "page"}
-        SavedView.objects.update_or_create(
+        is_default = request.POST.get("is_default") == "on"
+        view, _ = SavedView.objects.update_or_create(
             owner=request.user, object_type=object_type, name=name,
-            defaults={"query": urlencode(params, doseq=True), "shared": request.POST.get("shared") == "on"},
+            defaults={"query": query, "shared": request.POST.get("shared") == "on", "is_default": is_default},
         )
-        messages.success(request, f"Saved view “{name}”.")
-    target = "crm:company_list" if object_type == ObjectType.COMPANY else "crm:person_list"
-    return redirect(reverse(target) + "?" + request.POST.get("query", ""))
+        if is_default:
+            SavedView.objects.filter(owner=request.user, object_type=object_type).exclude(pk=view.pk).update(is_default=False)
+        messages.success(request, f"Saved view “{name}”." + (" It opens when you come to this page." if is_default else ""))
+    return redirect(_view_target(object_type, request.POST.get("next")) + "?" + query)
 
 
 @require_POST
 def saved_view_delete(request, pk):
     view = get_object_or_404(SavedView, pk=pk, owner=request.user)
-    target = "crm:company_list" if view.object_type == ObjectType.COMPANY else "crm:person_list"
+    target = _view_target(view.object_type, request.POST.get("next"))
     view.delete()
-    return redirect(target)
+    return redirect(target + ("?_v=all" if view.object_type in prefs.VIEW_PAGES else ""))
 
 
 # ---------------------------------------------------------------------------
