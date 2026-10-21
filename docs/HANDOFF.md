@@ -1455,7 +1455,17 @@ team firms linked** to the directory.
 - `.claude/launch.json`: removed a temporary `task-edit-scratch` entry that the contract-upload merge (`1c8233d`)
   committed by accident.
 
-## Built 2026-10-21: Claude sorts email domains into the directory (branch `mail-sort`, not merged yet)
+## Built 2026-10-21: Claude sorts email domains into the directory
+
+**Merged 2026-10-21** (`e1a8b55`, CI green with 430 tests, pushed; branch and worktree removed). Real DB migrated through
+`0054_domain_sort` (backup `backups/db-2026-10-21-before-domain-sort.sqlite3`). **First run** (Kellen's OK): 60 domains
+sorted, **20 filed in the Directory** (checked by hand, all right: 7 contractors / GC bidders, 4 architects, 3 law firms
+incl. Holland & Knight, Structurepoint, a surveyor, a NEPA consultant, a land broker, a PR firm, BGO as an investor);
+the other 40 are suggestions on Mail review (13 directory at medium, 13 prospects, 8 not sure...). The scheduled sync
+keeps going at 60 a run through the rest of the queue (about 410 domains left). **Companies check**, all 236 candidates:
+**none flagged**; Claude read every one as a prospect, with reasons. The candidate filter is wide (an Exclude flag
+mostly means a prospect opted out, and "engineering services" matches prospects), so it's worth narrowing before
+anyone runs it again. The first try at the domains hit a dropped connection to Anthropic and simply stopped, as designed.
 
 Kellen, on the directory: "this should be automated from email traffic." He picked (2026-10-21): **auto-file the sure
 vendors, suggest the rest**, and **flag existing Companies** that look like vendors, without moving them.
@@ -1481,7 +1491,3 @@ vendors, suggest the rest**, and **flag existing Companies** that look like vend
 - Claude off (no key) or failing never fails the sync: sorting just stops for that run and tries again next time.
 - **Tests:** `crm/tests/test_domain_sort.py` (8, Claude mocked; 424 in all pass). Checked in a browser on a scratch database with
   made-up domains: the Mail review suggestions, File as Claude says, the Sorted from email page, Undo.
-- **To merge (waiting on Kellen):** CI, merge, back up, `migrate crm` (0054: one new table). The real queue has 489
-  domains (3,585 emails), so the first runs work through it at 60 a sync, about two hours of syncs, roughly 25 Claude
-  calls in all. That sends those emails' senders, subjects and opening text to Anthropic, as the relationship summaries
-  already do.
