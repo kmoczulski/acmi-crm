@@ -1439,7 +1439,7 @@ team firms linked** to the directory.
 
 ## Built 2026-10-21: rename tasks and edit their details in place (Kellen: "I should be able to edit the name of tasks and the details")
 
-Branch `task-edit` (worktree `.claude/worktrees/task-edit`). No migration, no data change.
+**Merged 2026-10-21** (`a371a03`, CI green, pushed; branch and worktree removed). No migration, no data change.
 - **Task page:** click the name (or the ✎ next to it) to rename; Enter or Save keeps it, Esc puts it back. The
   Description panel is always there: Edit (or "Add details" when empty) opens a textarea; Ctrl+Enter saves, Esc
   cancels. Links in the description are clickable. On a phone the description and comments come before the side form.
