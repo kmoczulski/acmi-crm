@@ -1172,8 +1172,9 @@ comments in a sidebar with tagging and Claude's notes on what changed, everythin
 timeline from an effective date compared across versions, the same timeline on signed contracts with a way to confirm
 an extension and push the dates, and a critical dates calendar on the dashboard.
 
-Branch `contracts-ui`, migration `0051_contract_review` (new fields only, plus `critical=False` on existing
-payment / rent dates).
+**Merged 2026-10-21** (`acf31a2`, CI green on Postgres; this push also carried 12 earlier commits that had never been
+pushed). Migration `0051_contract_review` applied to the real DB (new fields only, plus `critical=False` on existing
+payment / rent dates); backup `backups/db-2026-10-21-before-contract-review.sqlite3`.
 
 - **Reader as paper** (`/contracts/<id>/read/<doc>/`): each page is a letter-size sheet on a grey desk, "Page n of N"
   at the foot. PDFs also have an "Original PDF" view (the file in a frame; `contract_file` now allows same-origin
