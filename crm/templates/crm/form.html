@@ -11,4 +11,5 @@
 </div>
 {% endblock %}
 {% block scripts %}
+{% if company_names %}<datalist id="company-names"></datalist>{% include "crm/partials/company_names_js.html" %}{% endif %}
 {% endblock %}

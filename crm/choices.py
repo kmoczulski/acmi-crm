@@ -26,13 +26,14 @@ TTL = 30  # seconds before another server process picks up an edit
 SYSTEM = {
     "ObjectType", "Activity.Kind", "Activity.Source", "Activity.Context", "Notification.Kind", "MailFilter.Kind",
     "NewsScan.Status", "NewsItem.Kind", "NewsItem.Decision", "SendBatch.Status", "SendItem.Status",
-    "ContractDocument.TextStatus", "ContractDate.Unit", "CampusReport.Status", "Repeat",
+    "ContractDocument.TextStatus", "ContractDate.Unit", "CampusReport.Status", "Repeat", "CapitalLog.Kind",
 }
 # Lists where the code only names a few values (or none): a new option needs nothing more. On every other list a new
 # option picks the built-in option it works like.
 OPEN = {
     "DealType", "AssetType", "OpportunityContact.Role", "Task.Label", "Contract.Kind", "ContractDate.Kind",
     "ApprovalDocument.Kind", "TeamMember.Role", "ChangeOrder.Reason", "BudgetLine.Group", "CampusUpdate.Workstream",
+    "TermSheet.Kind",
 }
 TITLES = {
     "Priority": ("Contacts", "Priority"), "CompanyStatus": ("Contacts", "Company stage"),
@@ -54,8 +55,10 @@ TITLES = {
     "Bid.Status": ("Build", "Bid status"), "BudgetLine.Group": ("Build", "Budget group"),
     "ChangeOrder.Status": ("Build", "Change order status"), "ChangeOrder.Reason": ("Build", "Change order reason"),
     "Draw.Status": ("Build", "Draw status"), "LandownerLetter.Method": ("Land", "Letter sent by"),
+    "CapitalSource.Kind": ("Capital", "Capital source type"), "CapitalSource.Status": ("Capital", "Capital source stage"),
+    "TermSheet.Kind": ("Capital", "Term sheet type"), "TermSheet.Status": ("Capital", "Term sheet status"),
 }
-AREAS = ["Land", "Tenants", "Contracts", "Entitlements", "Campuses", "Build", "Tasks", "Contacts", "Other"]
+AREAS = ["Land", "Tenants", "Contracts", "Entitlements", "Campuses", "Build", "Capital", "Tasks", "Contacts", "Other"]
 
 _registry = {}  # key -> {"cls", "defaults": [(value, label)], "fields": [model field], "max_length"}
 _by_cls = {}  # TextChoices class -> key

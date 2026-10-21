@@ -12,6 +12,7 @@ from django.utils import timezone
 
 from .choices import Order
 from .build import logic as build_logic
+from .capital import logic as capital_logic
 from .contracts import dates as contract_dates
 from .entitlements import logic as entitlement_logic
 from .land import diligence, tracker
@@ -136,7 +137,9 @@ def _project(project, today):
         flags.append(f"no activity in {(today - last_touch).days} days" if last_touch else "no activity recorded")
     en_facts, en_flags = entitlement_logic.campus_lines(project.approvals.all(), today)
     build_facts, build_flags = build_logic.campus_lines(project, today)
-    facts[:0], flags[:0] = build_facts + en_facts, build_flags + en_flags  # schedule, money and approvals lead
+    cap_facts, cap_flags = capital_logic.campus_lines(project, today)
+    # schedule, money, approvals and the capital raise lead
+    facts[:0], flags[:0] = build_facts + en_facts + cap_facts, build_flags + en_flags + cap_flags
     return {"kind": "project", "obj": project, "name": project.name, "url": project.get_absolute_url(),
             "status": "", "update": update, "facts": facts, "flags": flags,
             "waiting": _waiting_note(update, today), "last_touch": last_touch}

@@ -1,0 +1,67 @@
+{% extends "crm/base.html" %}
+{% load crm_tags %}
+{% block title %}Capital · {{ project.name }} · ACMI CRM{% endblock %}
+{% block content %}
+{% include "crm/partials/report_logo.html" %}
+<div class="record-head">
+  <div>
+    <div class="muted lc-small no-print"><a href="{% url 'crm:capital_index' %}">Capital</a> › <a href="{{ project.get_absolute_url }}">{{ project.name }}</a></div>
+    <h1>Capital · {{ project.name }}</h1>
+    <div class="muted">{% if project.campus %}{{ project.campus.name }} · {% endif %}capital stack, lenders and investors, term sheets · {{ today|date:"M j, Y" }}</div>
+  </div>
+  <div class="record-nav no-print"><button type="button" class="btn" onclick="window.print()">Print / PDF</button></div>
+</div>
+
+<div class="campus-layout">
+  <div>
+    <section class="panel" id="sources">
+      <h3>Sources ({{ sources|length }})</h3>
+      <table class="data compact">
+        <thead><tr><th>Provider</th><th>Stage</th><th class="num">Sought</th><th class="num">Committed</th><th>Latest terms</th><th>Ball / next</th><th>Last touch</th></tr></thead>
+        <tbody>{% for s in sources %}
+          <tr{% if s.status == 'passed' or s.status == 'declined' %} class="muted"{% endif %}>
+            <td class="wrap"><a href="{{ s.get_absolute_url }}"><b>{{ s.provider }}</b></a><div class="muted lc-small">{{ s.label|default:s.get_kind_display }}{% if s.owner %} · {{ s.owner|username }}{% endif %}</div></td>
+            <td><span class="pill cap-{{ s.status }}">{{ s.get_status_display }}</span></td>
+            <td class="num lc-small">{{ s.amount_sought|money|default:"–" }}</td>
+            <td class="num lc-small">{{ s.amount_committed|money|default:"–" }}</td>
+            <td class="wrap lc-small">{% if s.ts %}<a href="{{ s.ts.get_absolute_url }}">v{{ s.ts.version }}</a>{% if s.ts.rate %} · {{ s.ts.rate }}{% endif %}{% if s.ts.term_months %} · {{ s.ts.term_months }} mo{% endif %}
+                {% if s.expiring_in is not None %}<div class="{% if s.expiring_in < 0 %}overdue{% elif s.expiring_in <= 14 %}soon{% else %}muted{% endif %}">{% if s.expiring_in < 0 %}expired{% else %}expires{% endif %} {{ s.ts.expires_on|date:"M j" }}</div>{% endif %}{% else %}–{% endif %}</td>
+            <td class="wrap lc-small">{% if s.waiting_on %}{{ s.get_waiting_on_display }}{% if s.waiting_days is not None %} · {{ s.waiting_days }} d{% endif %}<br>{% endif %}{{ s.next_step|truncatechars:60 }}{% if s.next_step_on %} <span class="{% if s.next_left < 0 %}overdue{% elif s.next_left <= 7 %}soon{% else %}muted{% endif %}">· {{ s.next_step_on|date:"M j" }}</span>{% endif %}</td>
+            <td class="lc-small">{% if s.touch_on %}<span class="{% if s.quiet %}overdue{% endif %}">{{ s.touch_on|date:"M j" }}</span> <span class="muted">{{ s.touch_what }}</span>{% else %}–{% endif %}</td>
+          </tr>
+        {% empty %}<tr><td colspan="7" class="muted">No sources yet. Add the equity partner and each lender you're talking to below.</td></tr>{% endfor %}</tbody>
+      </table>
+      <form method="post" action="{% url 'crm:capital_quick_add' project.pk %}" class="dd-form no-print" style="margin-top:10px">{% csrf_token %}
+        <label>Provider <input name="provider" list="company-names" autocomplete="off" required placeholder="Lender, investor or agency"></label>
+        <label>Type <select name="kind">{% for v, l in form.fields.kind.choices %}{% if v %}<option value="{{ v }}"{% if v == "construction" %} selected{% endif %}>{{ l }}</option>{% endif %}{% endfor %}</select></label>
+        <label>Stage <select name="status">{% for v, l in form.fields.status.choices %}{% if v %}<option value="{{ v }}">{{ l }}</option>{% endif %}{% endfor %}</select></label>
+        <label>Sought ($) <input name="amount_sought" type="number" step="1" min="0"></label>
+        <div class="dd-wide"><button class="btn btn-small btn-primary">Add source</button> <span class="muted lc-small">A company already in the CRM links by name, so its emails and meetings count as touches.</span></div>
+      </form>
+    </section>
+
+    {% if compare %}<section class="panel" id="compare">
+      <h3>Latest terms side by side <a class="no-print" href="{% url 'crm:capital_compare' %}?{% for t in latest %}ts={{ t.pk }}&amp;{% endfor %}" style="float:right;text-transform:none;letter-spacing:0">Open / print</a></h3>
+      {% include "crm/partials/capital_compare_table.html" with sheets=latest rows=compare %}
+    </section>{% endif %}
+
+    <section class="panel" id="touches">
+      <h3>Recent touches · 60 days</h3>
+      {% for t in feed %}<div class="cap-touch"><span class="lc-small">{{ t.date|date:"M j" }}</span><span class="k">{{ t.kind }}</span>
+        <span>{% if t.url %}<a href="{{ t.url }}">{{ t.text|truncatechars:110 }}</a>{% else %}{{ t.text|truncatechars:110 }}{% endif %}</span>
+        <a class="lc-small" href="{{ t.source.get_absolute_url }}">{{ t.source.provider }}</a></div>
+      {% empty %}<p class="muted lc-small" style="margin:0">No emails, meetings or logged calls with these providers in the last 60 days.</p>{% endfor %}
+    </section>
+  </div>
+  <div>
+    <section class="panel">
+      <h3>Capital stack</h3>
+      {% include "crm/partials/capital_stack.html" %}
+    </section>
+  </div>
+</div>
+<datalist id="company-names"></datalist>
+{% endblock %}
+{% block scripts %}
+{% include "crm/partials/company_names_js.html" %}
+{% endblock %}

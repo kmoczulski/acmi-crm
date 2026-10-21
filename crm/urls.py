@@ -2,6 +2,7 @@ from django.urls import path
 
 from . import campus_views, views
 from .build import views as build_views
+from .capital import views as capital_views
 from .contracts import views as contract_views
 from .entitlements import views as entitlement_views
 from .tenants import views as tenant_views
@@ -53,6 +54,13 @@ urlpatterns = [
     path("campuses/<str:code>/", campus_views.campus_summary, name="campus_summary"),
     path("campuses/<str:code>/reports/<int:pk>/", campus_views.campus_report, name="campus_report"),
     path("campuses/updates/<int:pk>/delete/", campus_views.campus_update_delete, name="campus_update_delete"),
+    path("capital/", capital_views.capital_index, name="capital_index"),
+    path("capital/new/", capital_views.source_create, name="capital_source_create"),
+    path("capital/compare/", capital_views.compare, name="capital_compare"),
+    path("capital/term-sheets/<int:pk>/file/", capital_views.term_sheet_file, name="term_sheet_file"),
+    path("capital/<int:pk>/", capital_views.source_detail, name="capital_source"),
+    path("projects/<int:pk>/capital/", capital_views.project_capital, name="project_capital"),
+    path("projects/<int:pk>/capital/add/", capital_views.quick_add, name="capital_quick_add"),
     path("entitlements/", entitlement_views.approval_list, name="approval_list"),
     path("entitlements/new/", entitlement_views.approval_create, name="approval_create"),
     path("entitlements/matrix/", entitlement_views.approval_matrix, name="approval_matrix"),

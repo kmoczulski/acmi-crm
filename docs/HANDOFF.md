@@ -1223,3 +1223,54 @@ payment / rent dates); backup `backups/db-2026-10-21-before-contract-review.sqli
   real agreement has gone through `read_timeline` or `annotate_changes` yet.
 - **Not yet:** comment highlights in the redline view are by change, not exact words (the redline's text isn't the
   document's text); holidays aren't skipped in business days; "Original PDF" for Word files (download only).
+
+## Built 2026-10-21: the capitalization tracker (branch `capital-tracker`, not merged yet)
+
+Kellen: "We have equity (Fortress) but have to work through getting debt, so being able to track meetings and term
+sheets etc. would be helpful." Sources, terms and conversations only; the pro forma stays in Excel.
+
+- **Sources** (`crm/capital/`, models `CapitalSource`, `TermSheet`, `CapitalLog`, migration `0052_capital`): one per
+  piece of a project's stack and who might provide it: equity (JV / LP), preferred equity, mezz, construction loan,
+  senior, bridge, permanent, C-PACE, bonds / IRB, seller financing, grants / incentives, tax credits. Provider is a
+  `Company` (typed, with the CRM's names offered; an unknown name is kept as text with an "Add as a company" button),
+  sought and committed amounts, stage (identified → reached out → in discussion → term sheet → committee / approved →
+  docs / closing → closed, or we passed / they passed), when it got there, contact, who runs it, ball in court and since
+  when, next step and its date, notes.
+- **Pages:** `/capital/` (sidebar Campuses › Capital; also "Capital" on each campus card on Projects) lists every
+  source by project with stage counts, latest terms, last touch, ball / next step, an "Expiring and due · 60 days" box,
+  "Waiting on whom" and "Gone quiet" (in play, no touch in 21 days); filters for in play / closed / all, debt / equity,
+  campus; prints with the logo. `/projects/<id>/capital/` (Capital panel on the project page) has the stack (equity,
+  debt, grants; lenders quoting the same loan count once in the totals), the sources table with a quick-add row, the
+  latest terms side by side and the last 60 days of touches. `/capital/<id>/` is one source.
+- **Term sheets:** each version uploaded (PDF / Word, text read by `contracts/text.py`) with the key terms: amount,
+  rate as quoted, spread, fixed rate, floor, term, extensions, amortization, LTC, LTV, min DSCR, debt yield, origination
+  and exit fees, other fees, interest reserve, recourse, guaranties, prepayment, equity required, pref return,
+  promote, covenants, deposit, conditions, offer expiry, close-by date. Status received / we marked it up / signed or
+  accepted / declined / expired. Adding one moves the source forward to Term sheet. "Versions side by side" on the
+  source and `/capital/compare/?ts=..` (printable, logo) mark the terms that differ.
+- **Claude** (`capital/ai.py`, structured JSON at effort high, the `contracts/ai.py` pattern): "Have Claude fill in the
+  key terms" on upload, or "Fill in with Claude" later. Fills blank terms only, each with the sentence it came from
+  matched back to the text and its page ("source p. N" opens the PDF there). Typing over a term drops its quote.
+- **Touches:** emails with the provider's company (tagged to this project, its sites or campus, or untagged; ones
+  tagged only to other projects are left out), Granola / calendar meetings (linked to the company, an attendee from its
+  domains or our contact, or the provider's short name in the title: "Fortress Investment Group LLC" matches "Fortress
+  / ACMI weekly"), and the source's log (calls, notes, status changes, term sheets). Upcoming meetings show too.
+- **Signed agreement:** "Start the loan agreement" (or JV agreement for equity) creates a draft `Contract` (kind
+  Loan / JV, provider as counterparty, the project's campus) and links it; or link an existing one. Its dates follow
+  the usual contract rules once signed.
+- **Hooks:** dashboard Deadlines (tag Capital): the newest open term sheet's expiry and close-by date and each source's
+  next step. Critical dates calendar: only a **signed / accepted** term sheet or commitment's expiry and close-by date
+  (tag Loan or Capital), keeping the "executed only" rule. Bell reminders to whoever runs the source: offer expiring 14,
+  7, 1 days ahead, on the day, once lapsed; next step the day before, on the day, once missed. Campus summary project
+  lines: each active source's stage, latest terms, ball and next step; flags for an offer expiring within 14 days, a
+  next step due or missed, a source gone quiet. Settings › Dropdown lists has a Capital area.
+- **Permissions:** everyone signed in adds and edits; Managers delete sources and term sheets; a log entry can be
+  removed by whoever wrote it or a Manager.
+- **Data to add once merged (waiting on Kellen):** Fortress isn't a company in the CRM (13 meetings have "Fortress" in
+  the title; fortress.com has no company), so the equity source starts as a name; add the company and its domain so its
+  emails count. The real DB has projects MEIH, The Forge, ARA Facility, NSIH, Greystar.
+- **Tests:** `crm/tests/test_capital.py` (19), 380 in all pass. Checked in a browser on a scratch database with
+  made-up lenders (portfolio, project page, source page, logging a call, a stage change, dashboard Deadlines, the
+  compare print). Claude is mocked in tests; no real term sheet has gone through it.
+- **Not yet:** a Capital panel on the contract page (left alone while another session changes the contract upload
+  form); OCR for scanned term sheets (Claude reads the PDF, but quotes can't be matched to text).
