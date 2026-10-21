@@ -26,7 +26,7 @@ TTL = 30  # seconds before another server process picks up an edit
 SYSTEM = {
     "ObjectType", "Activity.Kind", "Activity.Source", "Activity.Context", "Notification.Kind", "MailFilter.Kind",
     "NewsScan.Status", "NewsItem.Kind", "NewsItem.Decision", "SendBatch.Status", "SendItem.Status",
-    "ContractDocument.TextStatus", "CampusReport.Status", "Repeat",
+    "ContractDocument.TextStatus", "ContractDate.Unit", "CampusReport.Status", "Repeat",
 }
 # Lists where the code only names a few values (or none): a new option needs nothing more. On every other list a new
 # option picks the built-in option it works like.

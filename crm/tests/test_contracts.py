@@ -194,7 +194,7 @@ class StructureTests(TestCase):
         self.assertIn('<mark class="cr-hl" id="hl"><button type="button" class="cr-term" data-term="Buyer">Buyer'
                       '</button> shall deposit $100,000</mark>', out)  # widened to cover the whole term
         self.assertIn('<a class="cr-xref" href="/x?hl=1-2#hl" data-num="7.1">Section 7.1</a>', out)
-        self.assertIn('<span class="cr-anchor" id="s-5.2"></span><a class="cr-badge" href="/y">§ 5.2 changed</a>5.2 '
+        self.assertIn('<span class="cr-anchor" id="s-5.2"></span><a class="cr-badge" data-x href="/y">§ 5.2 changed</a>5.2 '
                       'Feasibility', out)
 
 
@@ -202,7 +202,7 @@ class RedlineTests(TestCase):
     def test_word_changes_and_rewrapping(self):
         html, stats = compare.redline("The Deposit is $100,000\npayable at signing.", "The Deposit is $250,000 "
                                       "payable at signing.")
-        self.assertIn("<del>$100,000</del>", html)
+        self.assertIn("<del data-x>$100,000</del>", html)
         self.assertIn("<ins>$250,000</ins>", html)
         self.assertEqual((stats["changes"], stats["inserted"], stats["deleted"]), (1, 1, 1))
         _, same = compare.redline("one two\nthree four", "one two three\nfour")

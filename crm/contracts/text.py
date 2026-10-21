@@ -28,27 +28,37 @@ W = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
 
 def extract(data, name):
     """(text, page_starts, status) for a file's bytes; status is a ContractDocument.TextStatus value."""
+    return extract_full(data, name)[:3]
+
+
+def extract_full(data, name):
+    """(text, page_starts, status, tracked): extract() plus a Word file's tracked changes, as
+    [{"type": "ins" | "del", "start", "end", "author", "date", "text"}] against the text (a deletion sits at a point and
+    keeps the words it took out). The text is the document with every change accepted."""
     suffix = name.lower().rsplit(".", 1)[-1] if "." in name else ""
+    changes = []
     try:
         if suffix == "pdf":
             pages = _pdf_pages(data)
         elif suffix == "docx":
-            pages = _docx_pages(data)
+            pages = _docx_pages(data, changes)
         elif suffix in ("txt", "md"):
             pages = [data.decode("utf-8", errors="replace")]
         else:
-            return "", [], "unsupported"
+            return "", [], "unsupported", []
     except Exception as exc:  # damaged, password-protected, or not really that file type
         log.warning("Could not read %s: %s", name, exc)
-        return "", [], "error"
+        return "", [], "error", []
     text, starts = join_pages([clean(p) for p in pages])
+    text, starts, tracked = _take_marks(text, starts, changes)
     if len(text) > MAX_CHARS:
         text = text[:MAX_CHARS]
         starts = [s for s in starts if s < MAX_CHARS]
+        tracked = [c for c in tracked if c["end"] <= MAX_CHARS]
     # A scan has pages but (almost) no text layer: Claude can still read the PDF itself, the reader can't.
     if suffix == "pdf" and len(re.sub(r"\s", "", text)) < 40 * max(1, len(starts)):
-        return text, starts, "scan"
-    return text, starts, "ok" if text.strip() else "scan"
+        return text, starts, "scan", []
+    return text, starts, "ok" if text.strip() else "scan", tracked
 
 
 def _pdf_pages(data):
@@ -60,30 +70,96 @@ def _pdf_pages(data):
     return [page.extract_text() or "" for page in reader.pages]
 
 
-def _docx_pages(data):
-    """Paragraph text from a .docx, split where Word put page breaks. Auto-numbered headings lose their numbers
-    (Word draws them), so cross-references in Word files link less often than in PDFs."""
+# Tracked changes ride through cleaning as private-use marks: open + id ... close for an insertion, del + id for the
+# point where a deletion was; _take_marks() turns them into offsets.
+INS_OPEN, INS_CLOSE, DEL_AT, ID_BASE = "\ue000", "\ue001", "\ue002", 0xE100
+
+
+def _docx_pages(data, changes=None):
+    """Paragraph text from a .docx, split where Word put page breaks, with tracked changes accepted (insertions kept,
+    deletions left out) and noted in `changes`. Auto-numbered headings lose their numbers (Word draws them), so
+    cross-references in Word files link less often than in PDFs."""
+    changes = [] if changes is None else changes
     with zipfile.ZipFile(io.BytesIO(data)) as z:
         root = ElementTree.fromstring(z.read("word/document.xml"))
     pages, lines = [], []
-    for p in root.iter(W + "p"):
-        parts = []
-        for el in p.iter():
-            if el.tag == W + "t":
-                parts.append(el.text or "")
-            elif el.tag == W + "tab":
+    parts = []
+
+    def change(el, kind):
+        changes.append({"type": kind, "author": el.get(W + "author") or "", "date": (el.get(W + "date") or "")[:10],
+                        "text": ""})
+        return chr(ID_BASE + len(changes) - 1)
+
+    def walk(el):
+        nonlocal parts, lines
+        for child in el:
+            tag = child.tag
+            if tag in (W + "ins", W + "moveTo"):
+                parts.append(INS_OPEN + change(child, "ins"))
+                walk(child)
+                parts.append(INS_CLOSE)
+            elif tag in (W + "del", W + "moveFrom"):
+                mark = change(child, "del")
+                changes[-1]["text"] = "".join(t.text or "" for t in child.iter() if t.tag in (W + "delText", W + "t"))
+                parts.append(DEL_AT + mark)
+            elif tag == W + "t":
+                parts.append(child.text or "")
+            elif tag == W + "tab":
                 parts.append("\t")
-            elif el.tag in (W + "br", W + "cr", W + "lastRenderedPageBreak"):
-                if el.tag == W + "lastRenderedPageBreak" or el.get(W + "type") == "page":
+            elif tag in (W + "br", W + "cr", W + "lastRenderedPageBreak"):
+                if tag == W + "lastRenderedPageBreak" or child.get(W + "type") == "page":
                     if parts or lines:
                         lines.append("".join(parts))
                         pages.append("\n".join(lines))
                         parts, lines = [], []
                 else:
                     parts.append("\n")
+            elif tag in (W + "pPr", W + "rPr", W + "delText"):
+                continue
+            else:
+                walk(child)
+
+    for p in root.iter(W + "p"):
+        walk(p)
         lines.append("".join(parts))
+        parts = []
     pages.append("\n".join(lines))
     return pages
+
+
+def _take_marks(text, starts, changes):
+    """Strip the tracked-change marks out of the text: (text, page_starts, tracked) with offsets in the clean text."""
+    if not changes or not any(c in text for c in (INS_OPEN, DEL_AT)):
+        return text.replace(INS_CLOSE, ""), starts, []
+    out, tracked, open_ = [], [], []
+    removed = []  # positions in the marked text that were dropped, to move the page starts back
+    pos, i = 0, 0
+    while i < len(text):
+        ch = text[i]
+        if ch in (INS_OPEN, DEL_AT) and i + 1 < len(text):
+            info = changes[ord(text[i + 1]) - ID_BASE] if 0 <= ord(text[i + 1]) - ID_BASE < len(changes) else None
+            removed += [i, i + 1]
+            if info is not None:
+                if ch == INS_OPEN:
+                    open_.append({**info, "start": pos})
+                elif info["text"]:
+                    tracked.append({**info, "start": pos, "end": pos})
+            i += 2
+            continue
+        if ch == INS_CLOSE:
+            removed.append(i)
+            if open_:
+                c = open_.pop()
+                if pos > c["start"]:
+                    tracked.append({**c, "end": pos})
+            i += 1
+            continue
+        out.append(ch)
+        pos += 1
+        i += 1
+    starts = [s - bisect_right(removed, s - 1) for s in starts]
+    tracked.sort(key=lambda c: (c["start"], c["type"] != "del"))
+    return "".join(out), starts, tracked
 
 
 def clean(text):
@@ -274,17 +350,30 @@ def _term_pattern(terms):
     return re.compile(r"(?<![\w])(" + alts + r")(?![\w])")
 
 
-def reader_html(text, page_starts, *, terms=(), links=None, anchors=None, badges=None, highlight=None):
+def reader_html(text, page_starts, *, terms=(), links=None, anchors=None, badges=None, highlight=None, tracked=None,
+                marks=None):
     """The document as HTML, page by page: defined terms are buttons, cross-references are links, section headings
     carry anchors (and "amended by" badges), and the `highlight` range (start, end) is marked with id="hl".
 
     links: {start: (end, href, {data attribute: value})} for the cross-references that resolve.
     anchors: {position: element id} for empty anchors (section headings, definitions).
     badges: {position: [(label, href)]} shown at that position (before a section heading).
+    tracked: Word tracked changes (ContractDocument.tracked): insertions underlined, deletions struck through in place.
+    marks: [(start, end, id)] comment ranges, highlighted; they may overlap anything.
+
+    Everything added that isn't the document's own text carries data-x, so the page can count characters back to
+    offsets in `text` (for pinning a comment to a selection).
     """
     links, anchors, badges = links or {}, anchors or {}, badges or {}
     spans = []  # (start, end, open tag, close tag), never overlapping
+    ins = [(c["start"], c["end"], c) for c in tracked or [] if c.get("type") == "ins" and c["end"] > c["start"]]
+    for start, end, c in ins:
+        who = html.escape(f"Added by {c.get('author') or 'unknown'}" + (f", {c['date']}" if c.get("date") else ""))
+        spans.append((start, end, f'<ins class="tc-ins" data-author="{html.escape(c.get("author", ""))}" title="{who}">',
+                      "</ins>"))
     for start, (end, href, attrs) in sorted(links.items()):
+        if any(s < end and start < e for s, e, _ in ins):
+            continue  # inside a tracked insertion
         data = "".join(f' data-{k}="{html.escape(str(v))}"' for k, v in attrs.items())
         spans.append((start, end, f'<a class="cr-xref" href="{html.escape(href)}"{data}>', "</a>"))
     pattern = _term_pattern(terms)
@@ -326,11 +415,18 @@ def reader_html(text, page_starts, *, terms=(), links=None, anchors=None, badges
         points.setdefault(pos, []).append(f'<span class="cr-anchor" id="{html.escape(ident)}"></span>')
     for pos, items in badges.items():
         points.setdefault(pos, []).append(
-            "".join(f'<a class="cr-badge" href="{html.escape(h)}">{html.escape(label)}</a>' for label, h in items))
+            "".join(f'<a class="cr-badge" data-x href="{html.escape(h)}">{html.escape(label)}</a>' for label, h in items))
+    for c in tracked or []:
+        if c.get("type") == "del" and c.get("text"):
+            who = html.escape(f"Deleted by {c.get('author') or 'unknown'}" + (f", {c['date']}" if c.get("date") else ""))
+            points.setdefault(c["start"], []).append(
+                f'<del class="tc-del" data-x data-author="{html.escape(c.get("author", ""))}" title="{who}">'
+                f'{html.escape(c["text"], quote=False)}</del>')
+    marks = [(s, e, i) for s, e, i in marks or [] if e > s]
 
     out, span_i = [], 0
     for n, (ps, pe) in enumerate(pages, start=1):
-        out.append(f'<section class="cr-page" id="page-{n}"><div class="cr-page-no">Page {n}</div><div class="cr-text">')
+        out.append(f'<section class="cr-page" id="page-{n}"><div class="cr-text" data-ps="{ps}">')
         page_spans = []
         while span_i < len(spans) and spans[span_i][0] < pe:
             if spans[span_i][1] <= pe:
@@ -341,6 +437,7 @@ def reader_html(text, page_starts, *, terms=(), links=None, anchors=None, badges
             cuts.update((s, e))
         if highlight:
             cuts.update(p for p in highlight if ps <= p <= pe)
+        cuts.update(p for s, e, _ in marks for p in (s, e) if ps < p < pe)
         opens = {s: (e, o, c) for s, e, o, c in page_spans}
         closing = {}
         marking = bool(highlight and highlight[0] < ps < highlight[1])
@@ -357,7 +454,9 @@ def reader_html(text, page_starts, *, terms=(), links=None, anchors=None, badges
                 out.append(open_tag)
                 closing[end] = close_tag
             nxt = cut_list[k + 1]
-            out.append(html.escape(text[pos:nxt], quote=False))
+            piece = html.escape(text[pos:nxt], quote=False)
+            on = [str(i) for s, e, i in marks if s <= pos and nxt <= e]
+            out.append(f'<mark class="cm-mark" data-c="{" ".join(on)}">{piece}</mark>' if on and piece else piece)
             if nxt in closing:
                 out.append(closing.pop(nxt))
             if marking and highlight and nxt == highlight[1]:
@@ -365,5 +464,5 @@ def reader_html(text, page_starts, *, terms=(), links=None, anchors=None, badges
                 marking = False
         if marking:
             out.append("</mark>")
-        out.append("</div></section>")
+        out.append(f'</div><div class="cr-page-no">Page {n} of {len(pages)}</div></section>')
     return "".join(out)

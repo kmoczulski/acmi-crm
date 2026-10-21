@@ -441,6 +441,7 @@ def home(request):
         "suggestions": pipeline.suggestions(limit=40),
         "week": week_calendar(request),
         "deadlines": contract_dates.upcoming(14, today),
+        "critical": contract_dates.month_calendar(request.GET.get("crit"), today),
     })
 
 

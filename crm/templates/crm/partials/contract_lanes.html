@@ -1,0 +1,19 @@
+{# Timeline lanes: lanes (one per version, each with marks at pos %), ticks (month marks and today). #}
+<div class="tl-chart">
+  <div class="tl-axis">{% for t in ticks %}<span class="tl-tick{% if t.today %} tl-today{% endif %}" style="left:{{ t.pos }}%">{{ t.label }}</span>{% endfor %}</div>
+  {% for lane in lanes %}
+  <div class="tl-lane">
+    {% if lanes|length > 1 %}<div class="tl-lane-name">{{ lane.label|truncatechars:36 }}</div>{% endif %}
+    <div class="tl-track">
+      {% for t in ticks %}{% if t.today %}<span class="tl-now" style="left:{{ t.pos }}%"></span>{% endif %}{% endfor %}
+      {% for m in lane.marks %}
+      <a class="tl-mark tl-k-{{ m.kind }}{% if m.done %} tl-done{% endif %}{% if m.computed %} tl-computed{% endif %}{% if m.up %} tl-up{% endif %}" style="left:{{ m.pos }}%"
+         href="{% if m.href %}{{ m.href }}{% else %}#tl-{{ m.key }}{% endif %}" data-key="{{ m.key }}"
+         title="{% for r in m.rows %}{{ r.label }}{% if r.amount %} (${{ r.amount|floatformat:0 }}){% endif %}{% if r.how %}: {{ r.how }}{% endif %}{% if not forloop.last %} · {% endif %}{% endfor %} · {{ m.when|date:'M j, Y' }}">
+        <span class="tl-dot"></span><span class="tl-label">{% for r in m.rows %}{% if forloop.counter < 4 %}{{ r.label|truncatechars:26 }}<br>{% elif forloop.last %}+{{ forloop.counter|add:-3 }} more<br>{% endif %}{% endfor %}<b>{{ m.when|date:"M j" }}</b></span>
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+</div>

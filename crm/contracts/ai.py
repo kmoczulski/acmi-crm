@@ -19,6 +19,7 @@ from django.utils import timezone
 
 from ..ai import enabled
 from ..models import ContractAnswer, ContractDate, ContractDocument
+from . import timeline
 
 log = logging.getLogger(__name__)
 
@@ -61,7 +62,24 @@ The documents are in the order they took effect; later ones control and an amend
 what came before. Give each date as it stands now, once. Compute a calendar date only from anchor dates that are in \
 the documents or the facts given, and follow the agreement's own rules for business days and weekends. When a date \
 can't be fixed yet (it hangs on an event that hasn't happened), leave "date" empty and explain it in "rule". Copy \
-"quote" word for word from the document it comes from: the one or two sentences that set the date."""
+"quote" word for word from the document it comes from: the one or two sentences that set the date.
+
+Also give each date as a rule so the team can rework the timeline from another effective date: a short "key" \
+(use feasibility_end, deposit, deposit_2, deposit_hard, title_objection, approvals, closing, outside_closing, \
+extension, extension_2, expiration, rent_start and the like), what it counts from ("anchor": "effective" for the \
+Effective Date or another date's key; empty for a fixed calendar date), "offset" and "unit" (days, business, weeks, \
+months; a date before its anchor has a negative offset). For an extension option, "extends" is the key of the date it \
+pushes out and "extend_by" / "extend_unit" how far; put any fee in "amount" and the notice it needs in "rule"."""
+
+RULE_PROPS = {
+    "key": {"type": "string", "description": "Short snake_case name, e.g. feasibility_end."},
+    "anchor": {"type": "string", "description": "'effective', another date's key, or empty for a fixed date."},
+    "offset": {"anyOf": [{"type": "integer"}, {"type": "null"}], "description": "Units after the anchor."},
+    "unit": {"type": "string", "enum": ["days", "business", "weeks", "months", ""]},
+    "extends": {"type": "string", "description": "Extension options: the key of the date it pushes out."},
+    "extend_by": {"anyOf": [{"type": "integer"}, {"type": "null"}]},
+    "extend_unit": {"type": "string", "enum": ["days", "business", "weeks", "months", ""]},
+}
 
 DATES_SCHEMA = {
     "type": "object",
@@ -78,8 +96,9 @@ DATES_SCHEMA = {
                     "amount": {"type": "string", "description": "Dollars tied to it (deposit, fee), digits only, or empty."},
                     "document": {"type": "integer", "description": "Number of the document it comes from."},
                     "quote": {"type": "string", "description": "The sentence(s) that set it, copied exactly."},
+                    **RULE_PROPS,
                 },
-                "required": ["kind", "label", "date", "rule", "amount", "document", "quote"],
+                "required": ["kind", "label", "date", "rule", "amount", "document", "quote", *RULE_PROPS],
                 "additionalProperties": False,
             },
         },
@@ -396,12 +415,153 @@ def find_dates(contract, user=None):
         start = end = None
         if doc is not None and doc.text:
             start, end = anchor(doc.text, None, None, item["quote"])
-        made.append(ContractDate.objects.create(
+        d = ContractDate(
             contract=contract, kind=item["kind"], label=item["label"][:200], date=when, rule=item["rule"][:300],
             amount=_amount(item["amount"]), quote=item["quote"], source=doc, source_start=start, source_end=end,
-            confirmed=False, from_claude=True, created_by=user,
-        ))
+            confirmed=False, from_claude=True, created_by=user, critical=item["kind"] != ContractDate.Kind.PAYMENT,
+            **_rule_parts(item),
+        )
+        timeline.fill_rule(d, made + list(contract.dates.all()))
+        d.save()
+        made.append(d)
         have.add((item["kind"], when))
+    return made
+
+
+def _slug(raw):
+    return re.sub(r"[^a-z0-9_]+", "_", (raw or "").strip().lower()).strip("_")[:40]
+
+
+def _rule_parts(item):
+    """The key / anchor / offset / extension fields Claude gave for a date, cleaned for a ContractDate."""
+    unit = lambda u: u if u in timeline.UNITS else ""  # noqa: E731
+    out = {"key": _slug(item.get("key")), "anchor": _slug(item.get("anchor")), "offset": item.get("offset"),
+           "unit": unit(item.get("unit")), "extends": _slug(item.get("extends")), "extend_by": item.get("extend_by"),
+           "extend_unit": unit(item.get("extend_unit"))}
+    if out["offset"] is None or not out["anchor"]:
+        out.update(anchor="", offset=None, unit="")
+    if not out["extends"] or out["extend_by"] is None:
+        out.update(extends="", extend_by=None, extend_unit="")
+    return out
+
+
+# ---------------------------------------------------------------------------
+# One version's timeline, and margin notes on a redline
+# ---------------------------------------------------------------------------
+
+TIMELINE_SYSTEM = DATES_SYSTEM + """
+
+This time you read one version of the agreement (a negotiation draft, or the signed agreement as amended by a given \
+document) so the team can compare versions' timelines. Give every date as a rule from the Effective Date or another \
+date, even when the version fills in a calendar date, and keep "date" only for dates fixed on the calendar. When keys \
+from other versions are listed, use the same key for the same date so they line up."""
+
+
+def read_timeline(doc, user=None):
+    """Have Claude read one version's dates as rules and keep them on the document (ContractDocument.timeline).
+    A draft is read alone; a signed document with the agreement it amends up to it."""
+    contract = doc.contract
+    docs = chain(contract)
+    signed = [d for d in docs if not d.is_draft and readable(d)]
+    by_pk = {d.pk: d for d in signed}
+    if doc.is_draft or doc.pk not in by_pk:
+        scope = [doc]
+    else:
+        scope = signed[:[d.pk for d in signed].index(doc.pk) + 1]
+    if not readable(doc):
+        raise Unavailable("This version has no text to read.")
+    scope = fit(scope)
+    keys = sorted({t.get("key") for d in docs if d.pk != doc.pk for t in (d.timeline or []) if t.get("key")}
+                  | set(contract.dates.exclude(key="").values_list("key", flat=True)))
+    prompt = facts(contract, scope) + f"\n\nREAD THE TIMELINE OF: document {len(scope)}, {doc.title}."
+    if keys:
+        prompt += "\nKEYS USED IN OTHER VERSIONS: " + ", ".join(keys)
+    message = _stream(TIMELINE_SYSTEM, doc_blocks(scope, citations=False) + [{"type": "text", "text": prompt}], 16000,
+                      {"effort": "high", "format": {"type": "json_schema", "schema": DATES_SCHEMA}})
+    if message.stop_reason == "max_tokens":
+        raise Unavailable("The timeline was cut off. Try again.")
+    text = next((b.text for b in message.content if getattr(b, "type", "") == "text"), "")
+    try:
+        found = json.loads(text)["dates"]
+    except (ValueError, KeyError, TypeError) as exc:
+        raise Unavailable("Claude's timeline couldn't be read. Try again.") from exc
+    out, taken = [], set()
+    for item in found:
+        src = scope[item["document"] - 1] if 1 <= item["document"] <= len(scope) else doc
+        start, end = anchor(src.text, None, None, item["quote"]) if src.text else (None, None)
+        parts = _rule_parts(item)
+        key = timeline.unique_key(parts["key"] or timeline.KIND_KEYS.get(item["kind"], "date"), taken)
+        taken.add(key)
+        when = _date(item["date"])
+        amount = _amount(item["amount"])
+        out.append({**parts, "key": key, "kind": item["kind"] if item["kind"] in ContractDate.Kind.values else "other",
+                    "label": item["label"][:200], "date": when.isoformat() if when else None, "rule": item["rule"][:300],
+                    "amount": str(amount) if amount is not None else None, "quote": item["quote"][:2000],
+                    "doc": src.pk, "start": start, "end": end})
+    doc.timeline, doc.timeline_at = out, timezone.now()
+    doc.save(update_fields=["timeline", "timeline_at"])
+    return out
+
+
+NOTES_SYSTEM = """You review a redline between two versions of a real estate agreement for ACMI Properties, which \
+assembles land and develops manufacturing campuses for defense, aerospace and energetics companies. For each numbered \
+change, write the margin comment a careful deal lawyer would leave for the team: what the change does in plain words \
+(not a restatement of the words struck and added), who it favors, and what it means for ACMI (money, dates, risk, \
+obligations). Flag a change that looks unintended, inconsistent with the rest of the agreement, or unfavorable to \
+ACMI. Typo and formatting fixes get a few words. One to three sentences each. You are not giving legal advice."""
+
+NOTES_SCHEMA = {
+    "type": "object",
+    "properties": {"notes": {"type": "array", "items": {
+        "type": "object",
+        "properties": {"n": {"type": "integer"}, "comment": {"type": "string"},
+                       "flag": {"type": "boolean", "description": "True when the team should look at it closely."}},
+        "required": ["n", "comment", "flag"], "additionalProperties": False}}},
+    "required": ["notes"],
+    "additionalProperties": False,
+}
+MAX_NOTES = 150
+
+
+def annotate_changes(contract, old, new, items, user=None):
+    """Claude's margin note on each change in a redline (compare.redline's items), kept as comments on the newer
+    document, pinned to the change. Earlier notes from Claude on that document that nobody replied to are replaced.
+    Returns the comments made."""
+    from django.db.models import Count
+
+    from ..models import Comment
+
+    items = items[:MAX_NOTES]
+    if not items:
+        return []
+    docs = fit([old, new])
+    lines = [facts(contract, docs), "", f"REDLINE: document 1 ({old.title}) to document 2 ({new.title}). Changes:"]
+    for c in items:
+        ctx = new.text[max(0, c["start"] - 160):c["start"]].split("\n")[-1][-160:]
+        line = f'[{c["n"]}] near "...{ctx}"'
+        if c["deleted"]:
+            line += f' REMOVED: "{c["deleted"][:600]}"'
+        if c["inserted"]:
+            line += f' ADDED: "{c["inserted"][:600]}"'
+        lines.append(line)
+    message = _stream(NOTES_SYSTEM, doc_blocks(docs, citations=False) + [{"type": "text", "text": "\n".join(lines)}],
+                      16000, {"effort": EFFORT, "format": {"type": "json_schema", "schema": NOTES_SCHEMA}})
+    text = next((b.text for b in message.content if getattr(b, "type", "") == "text"), "")
+    try:
+        notes = {n["n"]: n for n in json.loads(text)["notes"]}
+    except (ValueError, KeyError, TypeError) as exc:
+        raise Unavailable("Claude's notes couldn't be read. Try again.") from exc
+    (Comment.objects.filter(document=new, by_claude=True, parent__isnull=True).annotate(r=Count("replies"))
+     .filter(r=0).delete())
+    made = []
+    for c in items:
+        note = notes.get(c["n"])
+        if not note or not note["comment"].strip():
+            continue
+        body = ("Flag: " if note["flag"] else "") + note["comment"].strip()
+        made.append(Comment.objects.create(
+            contract=contract, document=new, start=c["start"], end=c["end"], by_claude=True,
+            quote=(c["inserted"] or c["deleted"])[:500], body=f"Change {c['n']}. {body}"[:4000]))
     return made
 
 

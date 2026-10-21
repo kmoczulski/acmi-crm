@@ -63,17 +63,28 @@ def watchers(comment):
     if comment.site_id:
         people.add(comment.site.owner)
         people.update(comment.site.team.all())
-    if comment.company_id and not comment.opportunity_id and not comment.task_id and not comment.site_id:
+    if comment.contract_id:
+        people.add(comment.contract.owner)
+        people.add(comment.contract.created_by)
+    if comment.parent_id:
+        people.add(comment.parent.author)
+        people.update(r.author for r in comment.parent.replies.exclude(pk=comment.pk).select_related("author"))
+    if (comment.company_id and not comment.opportunity_id and not comment.task_id and not comment.site_id
+            and not comment.contract_id):
         people.add(comment.company.owner)
-    people.update(c.author for c in Comment.objects.filter(
-        company=comment.company_id, opportunity=comment.opportunity_id, task=comment.task_id, site=comment.site_id,
-    ).exclude(pk=comment.pk).select_related("author")[:20])
+    if not comment.contract_id:
+        people.update(c.author for c in Comment.objects.filter(
+            company=comment.company_id, opportunity=comment.opportunity_id, task=comment.task_id, site=comment.site_id,
+            contract=None,
+        ).exclude(pk=comment.pk).select_related("author")[:20])
     return {p for p in people if p}
 
 
 def comment_added(comment):
     record = comment.record()
-    url = record.get_absolute_url() + "#comments"
+    url = comment.link()
+    if comment.document_id:
+        record = f"{comment.document.title} ({record})"
     snippet = comment.body if len(comment.body) < 120 else comment.body[:117] + "…"
     mentioned = mentioned_users(comment.body)
     comment.mentions.set(mentioned)

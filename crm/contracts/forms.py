@@ -57,9 +57,10 @@ class ContractForm(StyledForm):
 class DocumentForm(forms.ModelForm):
     class Meta:
         model = ContractDocument
-        fields = ["kind", "title", "file", "dated", "sent_by", "url", "summary"]
+        fields = ["kind", "title", "file", "dated", "sent_by", "author", "url", "summary"]
         widgets = {"dated": _date(), "summary": forms.Textarea(attrs={"rows": 2})}
-        labels = {"file": "File (PDF or Word)", "sent_by": "Draft sent by", "url": "Link (optional)"}
+        labels = {"file": "File (PDF or Word)", "sent_by": "Draft sent by", "author": "Redlined by (optional)",
+                  "url": "Link (optional)"}
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -90,15 +91,19 @@ class DocumentForm(forms.ModelForm):
 class DateForm(forms.ModelForm):
     class Meta:
         model = ContractDate
-        fields = ["kind", "label", "date", "amount", "rule"]
+        fields = ["kind", "label", "date", "amount", "rule", "critical", "key", "anchor", "offset", "unit", "extends",
+                  "extend_by", "extend_unit"]
         widgets = {"date": _date()}
-        labels = {"amount": "Amount ($)"}
+        labels = {"amount": "Amount ($)", "key": "Key (for counting from it)", "anchor": "Counts from",
+                  "offset": "How many", "extends": "Extension: pushes out", "extend_by": "by", "extend_unit": "unit"}
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["label"].required = False
         self.fields["label"].widget.attrs["placeholder"] = "Defaults to the type, e.g. Second deposit due"
         self.fields["rule"].widget.attrs["placeholder"] = "e.g. 90 days after the Effective Date"
+        self.fields["anchor"].widget.attrs["placeholder"] = "effective, or another date's key (read from the rule)"
+        self.fields["extends"].widget.attrs["placeholder"] = "e.g. feasibility_end"
 
     def clean(self):
         data = super().clean()

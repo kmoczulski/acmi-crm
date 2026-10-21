@@ -1,5 +1,5 @@
 {% extends "crm/base.html" %}
-{% load crm_tags %}
+{% load crm_tags static %}
 {% block title %}{{ doc.title }} · {{ contract.title }} · ACMI CRM{% endblock %}
 {% block content %}
 <div class="record-head">
@@ -7,24 +7,52 @@
     <div class="muted lc-small"><a href="{% url 'crm:contract_list' %}">Contracts</a> › <a href="{{ contract.get_absolute_url }}">{{ contract.title }}</a></div>
     <h1>{{ doc.title }}</h1>
     <div class="muted">{{ doc.get_kind_display }}{% if doc.dated %} · {{ doc.dated|date:"M j, Y" }}{% endif %}{% if doc.pages %} · {{ doc.pages }} page{{ doc.pages|pluralize }}{% endif %}
+      {% if doc.is_draft and doc.made_by %} · by {{ doc.made_by }}{% endif %}
       {% if base %} · amends <a href="{% url 'crm:contract_reader' contract.pk base.pk %}">{{ base.title }}</a>{% endif %}
       {% if changed %} · <span title="Badges in the text show where later amendments changed a section">{{ changed }} section{{ changed|pluralize }} changed later</span>{% endif %}</div>
   </div>
   <div class="record-nav">
-    {% if doc.href %}<a class="btn" href="{{ doc.href }}" target="_blank" rel="noopener">Original file</a>{% endif %}
+    {% if prev %}<a class="btn" href="{% url 'crm:contract_compare' contract.pk %}?a={{ prev.pk }}&b={{ doc.pk }}">Redline vs. {{ prev.title|truncatechars:24 }}</a>{% endif %}
+    <a class="btn" href="{% url 'crm:contract_timeline' contract.pk %}">Timeline</a>
+    {% if doc.href %}<a class="btn" href="{{ doc.href }}" target="_blank" rel="noopener">Download</a>{% endif %}
     <a class="btn" href="{{ contract.get_absolute_url }}#ask">Ask Claude</a>
   </div>
 </div>
-<div class="cr-docs">{% for d in docs %}{% if d.text %}<a class="chip{% if d.pk == doc.pk %} active{% endif %}" href="{% url 'crm:contract_reader' contract.pk d.pk %}">{{ forloop.counter }}. {{ d.title|truncatechars:40 }}</a>{% endif %}{% endfor %}</div>
+<div class="cr-bar">
+  <div class="cr-docs">{% for d in docs %}{% if d.text %}<a class="chip{% if d.pk == doc.pk %} active{% endif %}" href="{% url 'crm:contract_reader' contract.pk d.pk %}">{{ forloop.counter }}. {{ d.title|truncatechars:40 }}</a>{% endif %}{% endfor %}</div>
+  {% if is_pdf %}<div class="seg">
+    <a class="seg-btn{% if view == 'page' %} on{% endif %}" href="?view=page">Pages</a>
+    <a class="seg-btn{% if view == 'pdf' %} on{% endif %}" href="?view=pdf" title="The PDF exactly as filed">Original PDF</a>
+  </div>{% endif %}
+</div>
+{% if doc.tracked %}<div class="cr-legend lc-small"><b>Tracked changes in this file:</b>
+  {% for a, n in authors %}<span class="tc-key"><ins>added</ins> <del>removed</del> {{ a }}</span>{% endfor %}</div>{% endif %}
 
 <div class="cr-layout">
-  <article class="panel cr-doc">
-    {% if body %}{{ body }}{% elif doc.text_status == "scan" %}
-      <p class="muted">This is a scan with no text layer, so the reader can't show it. Claude can still read it: ask on the contract page. <a href="{{ doc.href }}" target="_blank" rel="noopener">Open the PDF</a>.</p>
-    {% else %}<p class="muted">No text could be read from this file.</p>{% endif %}
-  </article>
+  <div class="cr-desk">
+    {% if view == "pdf" %}
+      <iframe class="cr-pdf" src="{{ doc.href }}#view=FitH" title="{{ doc.title }}"></iframe>
+    {% elif body %}
+      <article class="cr-doc" id="cr-doc" data-doc="{{ doc.pk }}">{{ body }}</article>
+    {% elif doc.text_status == "scan" %}
+      <article class="cr-sheet"><p class="muted">This is a scan with no text layer, so the page view can't show it. Claude can still read it: ask on the contract page.{% if is_pdf %} <a href="?view=pdf">Open the original PDF</a>.{% endif %}</p></article>
+    {% else %}<article class="cr-sheet"><p class="muted">No text could be read from this file.</p></article>{% endif %}
+  </div>
   <aside class="cr-side">
-    <section class="panel cr-panel" id="cr-panel">
+    <div class="tabs cr-tabs" role="tablist">
+      <button type="button" class="tab on" data-tab="comments">Comments{% if open_comments %} <span class="count">{{ open_comments }}</span>{% endif %}</button>
+      <button type="button" class="tab" data-tab="terms">Terms</button>
+      {% if outline %}<button type="button" class="tab" data-tab="sections">Sections</button>{% endif %}
+    </div>
+    <section class="cr-pane" data-pane="comments">
+      {% if body %}<p class="muted lc-small cm-hint">Select words in the document to comment on them. Type @ and a name to tag someone; they get a notification.</p>{% endif %}
+      {% for c in comments %}{% if not c.resolved %}{% include "crm/partials/contract_thread.html" with back=request.get_full_path %}{% endif %}{% endfor %}
+      {% if not open_comments %}<p class="muted lc-small">No open comments.</p>{% endif %}
+      {% if comments|length > open_comments %}<details class="cm-done"><summary class="lc-small muted">Resolved</summary>
+        {% for c in comments %}{% if c.resolved %}{% include "crm/partials/contract_thread.html" with back=request.get_full_path %}{% endif %}{% endfor %}
+      </details>{% endif %}
+    </section>
+    <section class="cr-pane panel cr-panel" data-pane="terms" id="cr-panel" hidden>
       <h3 id="cr-panel-title">How to read</h3>
       <div id="cr-panel-body" class="lc-small">
         <p><span class="cr-term">Dotted words</span> are defined terms: click one to see its definition (and how a later document changed it).</p>
@@ -32,15 +60,27 @@
         <p>{{ glossary|length }} defined term{{ glossary|length|pluralize }} found.</p>
       </div>
     </section>
-    {% if outline %}<section class="panel cr-outline">
-      <h3>Sections</h3>
+    {% if outline %}<section class="cr-pane panel cr-outline" data-pane="sections" hidden>
       <ul>{% for num, head in outline %}<li><a href="#s-{{ num }}">{{ head|truncatechars:60 }}</a></li>{% endfor %}</ul>
     </section>{% endif %}
   </aside>
 </div>
+
+<form method="post" action="{% url 'crm:contract_comment' contract.pk %}" id="cm-new" class="cm-pop" hidden>{% csrf_token %}
+  <input type="hidden" name="action" value="add"><input type="hidden" name="doc" value="{{ doc.pk }}">
+  <input type="hidden" name="next" value="{{ request.get_full_path }}">
+  <input type="hidden" name="start"><input type="hidden" name="end"><input type="hidden" name="quote">
+  <div class="cm-pop-quote lc-small muted"></div>
+  <textarea name="body" rows="3" required data-mentions placeholder="Comment… @name to tag someone"></textarea>
+  <div class="inline-form"><button class="btn btn-primary btn-small">Comment</button><button type="button" class="btn btn-small" data-close>Cancel</button></div>
+</form>
+<button type="button" id="cm-add" class="cm-add" hidden>💬 Comment</button>
 {{ glossary|json_script:"cr-glossary" }}
+{{ users|json_script:"cm-users" }}
 {% endblock %}
 {% block scripts %}
+<script src="{% static 'crm/mentions.js' %}?v={{ ASSET_VERSION }}"></script>
+<script src="{% static 'crm/contract_review.js' %}?v={{ ASSET_VERSION }}"></script>
 <script>
   (function () {
     const glossary = JSON.parse(document.getElementById('cr-glossary').textContent);
@@ -48,9 +88,9 @@
     const body = document.getElementById('cr-panel-body');
     const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
     function show(heading, nodes) {
+      ContractReview.tab('terms');
       title.textContent = heading;
       body.replaceChildren(...nodes);
-      document.getElementById('cr-panel').scrollIntoView({block: 'nearest'});
     }
     document.addEventListener('click', e => {
       const term = e.target.closest('.cr-doc .cr-term');
@@ -76,6 +116,7 @@
         });
       }
     });
+    ContractReview.init({doc: document.getElementById('cr-doc')});
   })();
 </script>
 {% endblock %}

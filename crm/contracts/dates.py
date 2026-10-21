@@ -169,3 +169,79 @@ def campus_lines(contracts, today):
 
 
 US_THEM = (("us", "us"), ("them", "them"), ("third", "a third party"))
+
+
+# ---------------------------------------------------------------------------
+# The dashboard's critical dates calendar
+# ---------------------------------------------------------------------------
+
+TAGS = {Contract.Kind.PDA: "PDA", Contract.Kind.LOI: "LOI", Contract.Kind.PSA: "PSA", Contract.Kind.OPTION: "Option",
+        Contract.Kind.LEASE: "Lease"}
+
+
+def critical_between(first, last, today=None):
+    """Everything marked critical from `first` to `last`: contract dates (done ones too, checked off), critical-date
+    tasks, open diligence and closing items, and entitlement deadlines. Rows like upcoming()'s, plus done."""
+    from ..entitlements import logic as entitlement_logic
+    from ..land import diligence
+    from ..models import Task
+    from . import closing
+
+    today = today or timezone.localdate()
+    rows = []
+    qs = (ContractDate.objects.filter(confirmed=True, critical=True, date__gte=first, date__lte=last)
+          .exclude(contract__status=Contract.Status.TERMINATED).select_related("contract", "contract__owner"))
+    for d in qs:
+        rows.append(SimpleNamespace(date=d.date, label=d.label, amount=d.amount, url=d.contract.get_absolute_url()
+                                    + "#dates", what=d.contract.title, who=d.contract.owner, done=d.done,
+                                    tag=TAGS.get(d.contract.kind, "Contract")))
+    for t in (Task.objects.filter(label=Task.Label.CRITICAL, due_date__gte=first, due_date__lte=last)
+              .select_related("assignee", "site")):
+        rows.append(SimpleNamespace(date=t.due_date, label=t.title, amount=None, url=t.get_absolute_url(),
+                                    what=t.site.name if t.site_id else "", who=t.assignee, done=t.done, tag="Task"))
+    window = max(0, (last - today).days)
+    extra = [SimpleNamespace(date=i.due_on, label=i.name, amount=None, what=i.site.name, who=i.owner, tag="DD",
+                             url=f"/land/sites/{i.site_id}/diligence/#dd-{i.pk}") for i in diligence.due(window, today)]
+    extra += [SimpleNamespace(date=i.due_on, label=i.name, amount=None, url=i.contract.get_absolute_url() + "#closing",
+                              what=i.contract.title, who=i.contract.owner, tag="Closing")
+              for i in closing.due(window, today)]
+    extra += entitlement_logic.due_rows(window, today)
+    for r in extra:
+        if r.date and first <= r.date <= last:
+            r.done = False
+            rows.append(r)
+    for r in rows:
+        r.left = (r.date - today).days
+        r.late = r.left < 0 and not r.done
+    rows.sort(key=lambda r: (r.date, r.done, r.label))
+    return rows
+
+
+def month_calendar(month=None, today=None):
+    """The calendar panel: {"month" (its first day), "prev", "next", "weeks": [[{"date", "in_month", "today",
+    "items"}]], "count", "tags"}. `month` is "YYYY-MM"; weeks run Monday to Sunday."""
+    from datetime import date
+
+    today = today or timezone.localdate()
+    try:
+        y, m = (int(x) for x in (month or "").split("-"))
+        first = date(y, m, 1)
+    except ValueError:
+        first = today.replace(day=1)
+    nxt = (first + timedelta(days=32)).replace(day=1)
+    start = first - timedelta(days=first.weekday())
+    end = nxt - timedelta(days=1)
+    end += timedelta(days=6 - end.weekday())
+    rows = critical_between(start, end, today)
+    by_day = {}
+    for r in rows:
+        by_day.setdefault(r.date, []).append(r)
+    weeks, d = [], start
+    while d <= end:
+        weeks.append([{"date": d + timedelta(days=i), "in_month": (d + timedelta(days=i)).month == first.month,
+                       "today": d + timedelta(days=i) == today, "items": by_day.get(d + timedelta(days=i), [])}
+                      for i in range(7)])
+        d += timedelta(days=7)
+    return {"month": first, "prev": (first - timedelta(days=1)).replace(day=1), "next": nxt, "weeks": weeks,
+            "count": sum(1 for r in rows if r.date.month == first.month), "tags": sorted({r.tag for r in rows}),
+            "this_month": first == today.replace(day=1)}

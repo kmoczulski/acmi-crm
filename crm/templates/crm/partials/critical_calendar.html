@@ -1,0 +1,33 @@
+{% load crm_tags %}{# The dashboard's critical dates calendar: cal = contracts.dates.month_calendar(). #}
+<div class="panel cc-panel" id="critical-dates">
+  <h3>Critical dates · {{ cal.month|date:"F Y" }}
+    <span class="muted" style="text-transform:none;letter-spacing:0;font-weight:400">· {{ cal.count }} this month</span>
+    <span class="week-nav">
+      <a class="btn btn-small" href="{% qs_set crit=cal.prev|date:'Y-m' %}#critical-dates" title="Previous month">‹</a>
+      {% if not cal.this_month %}<a class="btn btn-small" href="{% qs_set crit='' %}#critical-dates">Today</a>{% endif %}
+      <a class="btn btn-small" href="{% qs_set crit=cal.next|date:'Y-m' %}#critical-dates" title="Next month">›</a>
+    </span>
+  </h3>
+  {% if cal.tags %}<div class="cc-filters">{% for t in cal.tags %}<button type="button" class="chip cc-tag cc-t-{{ t|slugify }} on" data-tag="{{ t|slugify }}">{{ t }}</button>{% endfor %}</div>{% endif %}
+  <div class="cc-grid">
+    {% for name in "Mon,Tue,Wed,Thu,Fri,Sat,Sun"|split_commas %}<div class="cc-dow">{{ name }}</div>{% endfor %}
+    {% for week in cal.weeks %}{% for day in week %}
+      <div class="cc-day{% if not day.in_month %} out{% endif %}{% if day.today %} today{% endif %}">
+        <div class="cc-num">{{ day.date|date:"j" }}</div>
+        {% for r in day.items %}
+          <a class="cc-item cc-t-{{ r.tag|slugify }}{% if r.done %} done{% elif r.late %} late{% endif %}" data-tag="{{ r.tag|slugify }}" href="{{ r.url }}"
+             title="{{ r.label }}{% if r.what %} · {{ r.what }}{% endif %}{% if r.amount %} · {{ r.amount|money }}{% endif %}{% if r.who %} · {{ r.who|username }}{% endif %}">
+            {% if r.done %}✓ {% endif %}<b>{{ r.tag }}</b> {{ r.label|truncatechars:34 }}{% if r.what %}<span class="cc-what">{{ r.what|truncatechars:30 }}</span>{% endif %}</a>
+        {% endfor %}
+      </div>
+    {% endfor %}{% endfor %}
+  </div>
+  <p class="muted lc-small" style="margin:8px 0 0">Every contract date marked critical (PSAs, options, leases, PDAs), critical-date tasks, due diligence, closing items and entitlement deadlines. Uncheck "Critical date" on a contract date to leave it off.</p>
+</div>
+<script>
+  document.querySelectorAll('.cc-tag').forEach(b => b.addEventListener('click', () => {
+    b.classList.toggle('on');
+    const off = new Set([...document.querySelectorAll('.cc-tag:not(.on)')].map(x => x.dataset.tag));
+    document.querySelectorAll('.cc-item').forEach(i => { i.hidden = off.has(i.dataset.tag); });
+  }));
+</script>

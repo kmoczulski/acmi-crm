@@ -1,19 +1,20 @@
 {% extends "crm/base.html" %}
-{% load crm_tags humanize %}
+{% load crm_tags humanize static %}
 {% block title %}{{ contract.title }} · Contracts · ACMI CRM{% endblock %}
 {% block content %}
 <div class="record-head">
   <div>
     <div class="muted lc-small"><a href="{% url 'crm:contract_list' %}">Contracts</a>{% if contract.campus %} › {{ contract.campus.code }}{% endif %}</div>
     <h1>{{ contract.title }} <span class="pill ct-{{ contract.status }}">{{ contract.get_status_display }}</span></h1>
-    <div class="muted">{{ contract.get_kind_display }}{% if contract.counterparty %} with {{ contract.counterparty }}{% endif %}{% if contract.our_entity %} · {{ contract.our_entity }}{% endif %}
+    <div class="muted ct-facts"><a href="{% url 'crm:contract_list' %}?kind={{ contract.kind }}">{{ contract.get_kind_display }}</a>{% if contract.counterparty %} with {% if contract.company %}<a href="{{ contract.company.get_absolute_url }}">{{ contract.counterparty }}</a>{% else %}<a href="#details">{{ contract.counterparty }}</a>{% endif %}{% endif %}{% if contract.our_entity %} · <a href="#details">{{ contract.our_entity }}</a>{% endif %}
       {% if contract.site %} · <a href="{% url 'crm:land_site_detail' contract.site.pk %}">{{ contract.site.name }}</a>{% endif %}
       {% if contract.opportunity %} · <a href="{{ contract.opportunity.get_absolute_url }}">{{ contract.opportunity.company.name }} deal</a>{% endif %}
-      {% if contract.price %} · {{ contract.price|money }}{% endif %}{% if contract.acres %} · {{ contract.acres|floatformat:1|intcomma }} ac{% endif %}
-      {% if contract.effective_date %} · effective {{ contract.effective_date|date:"M j, Y" }}{% endif %}</div>
+      {% if contract.price %} · <a href="#ask" data-ask="What is the purchase price, how is it paid, and can it change (per-acre adjustments, credits, prorations)?">{{ contract.price|money }}</a>{% endif %}{% if contract.acres %} · <a href="#ask" data-ask="How much land does this cover, how is the acreage determined, and does the price adjust with a survey?">{{ contract.acres|floatformat:1|intcomma }} ac</a>{% endif %}
+      {% if contract.effective_date %} · <a href="{% url 'crm:contract_timeline' contract.pk %}">effective {{ contract.effective_date|date:"M j, Y" }}</a>{% endif %}</div>
   </div>
   <div class="record-nav">
     {% if compare_pair|length == 2 %}<a class="btn" href="{% url 'crm:contract_compare' contract.pk %}?a={{ compare_pair.0.pk }}&b={{ compare_pair.1.pk }}">Redline</a>{% endif %}
+    <a class="btn" href="{% url 'crm:contract_timeline' contract.pk %}">Timeline</a>
     <a class="btn" href="#details">Edit details</a>
   </div>
 </div>
@@ -25,6 +26,14 @@
   {% if contract.counsel %}<span><b>Counsel:</b> {{ contract.counsel }}</span>{% endif %}
   {% if contract.owner %}<span><b>Runs it:</b> {{ contract.owner|username }}</span>{% endif %}
 </div>
+{% endif %}
+
+{% if timeline %}
+<section class="panel ct-timeline" id="timeline">
+  <h3>Timeline <span class="muted" style="text-transform:none;letter-spacing:0;font-weight:400">· {{ timeline.version.label }}{% if not timeline.version.kept %} (from {{ timeline.eff|date:"M j, Y" }}){% endif %}</span>
+    <a href="{% url 'crm:contract_timeline' contract.pk %}" style="float:right;text-transform:none;letter-spacing:0">Pick an effective date · compare versions{% if contract.status == "signed" %} · extensions{% endif %}</a></h3>
+  {% with lanes=timeline.lanes ticks=timeline.ticks %}{% include "crm/partials/contract_lanes.html" %}{% endwith %}
+</section>
 {% endif %}
 
 <div class="ct-layout">
@@ -87,7 +96,8 @@
       <h3>Agreement file</h3>
       <ol class="ct-chain">{% for d in signed %}
         <li class="ct-doc{% if d.superseded_by %} superseded{% endif %}">
-          <div><span class="tag">{{ d.get_kind_display }}</span> {% if d.text %}<a href="{% url 'crm:contract_reader' contract.pk d.pk %}"><b>{{ d.title }}</b></a>{% else %}<b>{{ d.title }}</b>{% endif %}</div>
+          <div><span class="tag">{{ d.get_kind_display }}</span> {% if d.text %}<a href="{% url 'crm:contract_reader' contract.pk d.pk %}"><b>{{ d.title }}</b></a>{% else %}<b>{{ d.title }}</b>{% endif %}
+            {% with n=comment_counts|get_item:d.pk %}{% if n %}<a class="ct-ccount" href="{% url 'crm:contract_reader' contract.pk d.pk %}" title="Open comments">💬 {{ n }}</a>{% endif %}{% endwith %}</div>
           <div class="muted lc-small">{% if d.dated %}{{ d.dated|date:"M j, Y" }}{% else %}undated{% endif %}{% if d.pages %} · {{ d.pages }} page{{ d.pages|pluralize }}{% endif %}
             {% if d.text_status == "scan" %} · <span title="Claude can read the PDF; the reader can't">scan</span>{% elif d.text_status and d.text_status != "ok" %} · {{ d.get_text_status_display }}{% endif %}
             {% if d.superseded_by %} · replaced by {{ d.superseded_by.title }}{% endif %}
@@ -100,8 +110,9 @@
       <h4 class="ct-sub">Negotiation rounds</h4>
       <ol class="ct-chain">{% for d in drafts %}
         <li class="ct-doc">
-          <div><span class="tag ct-from-{{ d.sent_by|default:'none' }}">{% if d.sent_by %}{{ d.get_sent_by_display }}{% else %}Draft{% endif %}</span> {% if d.text %}<a href="{% url 'crm:contract_reader' contract.pk d.pk %}">{{ d.title }}</a>{% else %}{{ d.title }}{% endif %}</div>
-          <div class="muted lc-small">{% if d.dated %}sent {{ d.dated|date:"M j, Y" }}{% endif %}{% if d.pages %} · {{ d.pages }} page{{ d.pages|pluralize }}{% endif %}
+          <div><span class="tag ct-from-{{ d.sent_by|default:'none' }}">{% if d.sent_by %}{{ d.get_sent_by_display }}{% else %}Draft{% endif %}</span> {% if d.text %}<a href="{% url 'crm:contract_reader' contract.pk d.pk %}">{{ d.title }}</a>{% else %}{{ d.title }}{% endif %}
+            {% with n=comment_counts|get_item:d.pk %}{% if n %}<a class="ct-ccount" href="{% url 'crm:contract_reader' contract.pk d.pk %}" title="Open comments">💬 {{ n }}</a>{% endif %}{% endwith %}</div>
+          <div class="muted lc-small">{% if d.made_by %}by {{ d.made_by }} · {% endif %}{% if d.dated %}sent {{ d.dated|date:"M j, Y" }}{% endif %}{% if d.tracked %} · {{ d.tracked|length }} tracked change{{ d.tracked|length|pluralize }}{% endif %}{% if d.pages %} · {{ d.pages }} page{{ d.pages|pluralize }}{% endif %}
             {% if d.prev %} · <a href="{% url 'crm:contract_compare' contract.pk %}?a={{ d.prev.pk }}&b={{ d.pk }}">redline vs. previous</a>{% endif %}
             {% if d.href %} · <a href="{{ d.href }}" target="_blank" rel="noopener">file</a>{% endif %}</div>
           {% if d.summary %}<div class="lc-small">{{ d.summary }}</div>{% endif %}
@@ -139,8 +150,11 @@
           <td><form method="post">{% csrf_token %}<input type="hidden" name="action" value="date_done"><input type="hidden" name="date_id" value="{{ d.pk }}">
             <button class="ct-check" title="{% if d.done %}Mark not done{% else %}Mark done{% endif %}">{% if d.done %}✓{% else %}○{% endif %}</button></form></td>
           <td>{% if d.date %}<b>{{ d.date|date:"M j, Y" }}</b>{% if not d.done %}<div class="lc-small {% if d.left < 0 %}overdue{% elif d.left <= 7 %}soon{% else %}muted{% endif %}">{% if d.left < 0 %}{{ d.late }} day{{ d.late|pluralize }} late{% elif d.left == 0 %}today{% else %}in {{ d.left }} day{{ d.left|pluralize }}{% endif %}</div>{% endif %}{% else %}<span class="muted">not fixed</span>{% endif %}</td>
-          <td class="wrap">{{ d.label }}{% if d.amount %} · {{ d.amount|money }}{% endif %}
+          <td class="wrap">{{ d.label }}{% if d.amount %} · {{ d.amount|money }}{% endif %}{% if not d.critical %} <span class="muted lc-small" title="Not on the dashboard calendar">· not critical</span>{% endif %}
             {% if d.rule %}<div class="muted lc-small">{{ d.rule }}</div>{% endif %}
+            {% if d.anchor and d.offset is not None %}<div class="muted lc-small">↻ {{ d.offset }} {{ d.get_unit_display|default:"days" }} after {% if d.anchor == "effective" %}the Effective Date{% else %}{{ d.anchor }}{% endif %}</div>{% endif %}
+            {% if d.kind == "extension" and not d.done %}<a class="lc-small" href="{% url 'crm:contract_timeline' contract.pk %}#extensions">{% if d.extends %}Exercise it…{% else %}Set what it extends{% endif %}</a>{% endif %}
+            {% if d.history %}<details class="lc-small"><summary class="muted">moved {{ d.history|length }}×</summary>{% for h in d.history %}<div>{% if h.to %}{% if h.from %}{{ h.from }} → {% endif %}{{ h.to }}{% else %}exercised {{ h.exercised }}{% endif %} · {{ h.why }}{% if h.by %} · {{ h.by }}{% endif %}</div>{% endfor %}</details>{% endif %}
             {% if d.source_href %}<a class="lc-small" href="{{ d.source_href }}" title="{{ d.quote|truncatechars:300 }}">source</a>{% endif %}
             <details class="lc-small ct-edit"><summary>edit</summary>
               <form method="post" class="fields">{% csrf_token %}<input type="hidden" name="action" value="date_edit"><input type="hidden" name="date_id" value="{{ d.pk }}">
@@ -149,6 +163,16 @@
                 <label>Date <input type="date" name="date" value="{{ d.date|date:'Y-m-d' }}"></label>
                 <label>Amount ($) <input name="amount" value="{{ d.amount|default_if_none:'' }}"></label>
                 <label>How it's set <input name="rule" value="{{ d.rule }}"></label>
+                <label class="check"><input type="checkbox" name="critical"{% if d.critical %} checked{% endif %}> Critical date (on the dashboard calendar)</label>
+                <details><summary class="muted">Rule for the timeline</summary>
+                  <label>Key <input name="key" value="{{ d.key }}"></label>
+                  <label>Counts from <input name="anchor" value="{{ d.anchor }}" placeholder="effective, or another date's key"></label>
+                  <label>How many <input name="offset" type="number" value="{{ d.offset|default_if_none:'' }}"></label>
+                  <label>Unit <select name="unit"><option value="">–</option>{% for v, l in units %}<option value="{{ v }}"{% if v == d.unit %} selected{% endif %}>{{ l }}</option>{% endfor %}</select></label>
+                  <label>Extension: pushes out <input name="extends" value="{{ d.extends }}" placeholder="e.g. feasibility_end"></label>
+                  <label>by <input name="extend_by" type="number" value="{{ d.extend_by|default_if_none:'' }}"></label>
+                  <label>unit <select name="extend_unit"><option value="">–</option>{% for v, l in units %}<option value="{{ v }}"{% if v == d.extend_unit %} selected{% endif %}>{{ l }}</option>{% endfor %}</select></label>
+                </details>
                 <button class="btn btn-small btn-primary">Save</button>
                 <button class="btn-link lc-small" name="action" value="date_delete" formnovalidate onclick="return confirm('Delete this date?')">Delete</button>
               </form></details></td>
@@ -225,5 +249,12 @@
     pop.style.left = Math.max(8, Math.min(window.scrollX + r.left - 20, window.scrollX + document.documentElement.clientWidth - pop.offsetWidth - 8)) + 'px';
   });
   document.addEventListener('keydown', e => { if (e.key === 'Escape') pop.hidden = true; });
+  // Facts in the header that Claude can explain fill the question box.
+  document.querySelectorAll('[data-ask]').forEach(a => a.addEventListener('click', () => {
+    const box = document.querySelector('#ask textarea');
+    if (box) { box.value = a.dataset.ask; setTimeout(() => box.focus(), 50); }
+  }));
 </script>
+<script src="{% static 'crm/contract_review.js' %}?v={{ ASSET_VERSION }}"></script>
+<script>ContractReview.citable();</script>
 {% endblock %}

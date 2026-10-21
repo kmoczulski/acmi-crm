@@ -906,6 +906,15 @@ class Comment(models.Model):
     opportunity = models.ForeignKey(Opportunity, null=True, blank=True, on_delete=models.CASCADE, related_name="comments")
     task = models.ForeignKey(Task, null=True, blank=True, on_delete=models.CASCADE, related_name="comments")
     site = models.ForeignKey("LandSite", null=True, blank=True, on_delete=models.CASCADE, related_name="comments")
+    contract = models.ForeignKey("Contract", null=True, blank=True, on_delete=models.CASCADE, related_name="comments")
+    document = models.ForeignKey("ContractDocument", null=True, blank=True, on_delete=models.CASCADE,
+                                 related_name="comments", help_text="The contract document it's pinned to")
+    start = models.PositiveIntegerField(null=True, blank=True, help_text="Where in the document's text it's pinned")
+    end = models.PositiveIntegerField(null=True, blank=True)
+    quote = models.TextField(blank=True, help_text="The words it's pinned to")
+    parent = models.ForeignKey("self", null=True, blank=True, on_delete=models.CASCADE, related_name="replies")
+    resolved = models.BooleanField(default=False)
+    by_claude = models.BooleanField(default=False, help_text="Claude's note on a change in a redline")
     mentions = models.ManyToManyField(User, blank=True, related_name="mentioned_in")
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -916,7 +925,14 @@ class Comment(models.Model):
         return self.body[:60]
 
     def record(self):
-        return self.task or self.opportunity or self.site or self.company
+        return self.task or self.opportunity or self.site or self.contract or self.company
+
+    def link(self):
+        """Where the comment opens: a contract comment on its document in the reader, anything else on its record."""
+        if self.document_id:
+            root = self.parent or self
+            return reverse("crm:contract_reader", args=[self.contract_id, self.document_id]) + f"#c-{root.pk}"
+        return self.record().get_absolute_url() + "#comments"
 
 
 class Notification(models.Model):
@@ -1935,6 +1951,14 @@ class ContractDocument(models.Model):
     pages = models.PositiveIntegerField(default=0)
     text_status = models.CharField(max_length=12, choices=TextStatus.choices, blank=True)
     position = models.PositiveSmallIntegerField(default=0, help_text="Order among documents with the same date")
+    author = models.CharField("redlined by", max_length=200, blank=True,
+                              help_text="Who made this round's changes, e.g. Venable (seller's counsel)")
+    tracked = models.JSONField(default=list, blank=True, editable=False,
+                               help_text='Word tracked changes: [{"type": "ins"|"del", "start", "end", "author", '
+                                         '"date", "text"}]')
+    timeline = models.JSONField(default=list, blank=True, editable=False,
+                                help_text="The dates this version sets, as rules (crm/contracts/timeline.py)")
+    timeline_at = models.DateTimeField(null=True, blank=True, editable=False)
     added_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
     added_at = models.DateTimeField(auto_now_add=True)
 
@@ -1957,6 +1981,17 @@ class ContractDocument(models.Model):
         from bisect import bisect_right
 
         return max(1, bisect_right(self.page_starts or [0], index))
+
+    @property
+    def made_by(self):
+        """Who made this version's changes: the named author, else our uploader for our drafts, else the other side."""
+        if self.author:
+            return self.author
+        if self.sent_by == self.Sender.THEM:
+            return self.contract.counterparty or "The other side"
+        if self.added_by_id:
+            return self.added_by.get_full_name() or self.added_by.username
+        return "ACMI" if self.sent_by == self.Sender.US else ""
 
 
 class ContractTemplate(models.Model):
@@ -2038,6 +2073,12 @@ class ContractDate(models.Model):
         COVENANT = "covenant", "Covenant / reporting"
         OTHER = "other", "Other"
 
+    class Unit(models.TextChoices):
+        DAYS = "days", "days"
+        BUSINESS = "business", "business days"
+        WEEKS = "weeks", "weeks"
+        MONTHS = "months", "months"
+
     contract = models.ForeignKey(Contract, on_delete=models.CASCADE, related_name="dates")
     kind = models.CharField(max_length=12, choices=Kind.choices, default=Kind.OTHER)
     label = models.CharField(max_length=200)
@@ -2054,6 +2095,18 @@ class ContractDate(models.Model):
     source_end = models.PositiveIntegerField(null=True, blank=True)
     quote = models.TextField(blank=True, help_text="The language that sets the date")
     from_claude = models.BooleanField(default=False)
+    critical = models.BooleanField("critical date", default=True, help_text="Shows on the dashboard's calendar")
+    key = models.SlugField(max_length=40, blank=True, help_text="Stable name other dates count from, e.g. feasibility_end")
+    anchor = models.SlugField(max_length=40, blank=True,
+                              help_text="What it counts from: effective, or another date's key; empty = a fixed date")
+    offset = models.IntegerField(null=True, blank=True, help_text="How many units after the anchor")
+    unit = models.CharField(max_length=10, choices=Unit.choices, blank=True)
+    extends = models.SlugField(max_length=40, blank=True,
+                               help_text="An extension option: the key of the date it pushes out")
+    extend_by = models.IntegerField(null=True, blank=True)
+    extend_unit = models.CharField(max_length=10, choices=Unit.choices, blank=True)
+    history = models.JSONField(default=list, blank=True, editable=False,
+                               help_text='Moves: [{"from", "to", "why", "by", "on"}]')
     created_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
     created_at = models.DateTimeField(auto_now_add=True)
 

@@ -5,6 +5,7 @@
     <label>Title <input name="title" value="{{ d.title }}"></label>
     <label>Dated <input type="date" name="dated" value="{{ d.dated|date:'Y-m-d' }}"></label>
     <label>Draft sent by <select name="sent_by">{% for v, l in senders|offer:d.sent_by %}<option value="{{ v }}"{% if v == d.sent_by %} selected{% endif %}>{{ l }}</option>{% endfor %}</select></label>
+    <label>Redlined by <input name="author" value="{{ d.author }}" placeholder="e.g. Venable (seller's counsel)"></label>
     <label>Link <input name="url" value="{{ d.url }}"></label>
     <label>Summary <textarea name="summary" rows="2">{{ d.summary }}</textarea></label>
     <label>Replace the file <input type="file" name="file"></label>

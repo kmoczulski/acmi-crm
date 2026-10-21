@@ -1156,3 +1156,59 @@ app, and for the sidebar to be organised properly with the map kept separate fro
   marked done. The site's feasibility milestone is set to Oct 22. PSA signed stays Jun 22 (the executed file is dated
   2026.06.22; Trello gives the effective date as Jun 24). Backup: `backups/db-2026-10-19-before-etc-psa.sqlite3`.
   The site card's Critical dates now lists completed dates too, checked off.
+
+## Built 2026-10-21: contract review (paper reader, real redlines, comments, closing timeline, critical dates calendar)
+
+Kellen asked for the contracts pages to read like a PDF or Word document, an actual redline that says who made it,
+comments in a sidebar with tagging and Claude's notes on what changed, everything in a summary clickable, a closing
+timeline from an effective date compared across versions, the same timeline on signed contracts with a way to confirm
+an extension and push the dates, and a critical dates calendar on the dashboard.
+
+Branch `contracts-ui`, migration `0051_contract_review` (new fields only, plus `critical=False` on existing
+payment / rent dates).
+
+- **Reader as paper** (`/contracts/<id>/read/<doc>/`): each page is a letter-size sheet on a grey desk, "Page n of N"
+  at the foot. PDFs also have an "Original PDF" view (the file in a frame; `contract_file` now allows same-origin
+  framing). Terms, sections and comments are sidebar tabs.
+- **Redline** (`/contracts/<id>/compare/`): Word-style, each author's changes in their color (struck / double
+  underline, change bar, numbered). "Redlined by" legend with counts, and a Changes sidebar: one card per change with
+  who made it and the round it came from. Comparing rounds that aren't next to each other, `compare.blame()` credits
+  each change to the round that made it. Who: `ContractDocument.author` ("Redlined by", new field on upload/edit), else
+  our uploader for our drafts, else the counterparty for theirs (`ContractDocument.made_by`).
+- **Word tracked changes:** a .docx's own `w:ins` / `w:del` are kept with author and date
+  (`ContractDocument.tracked`, `text.extract_full`); the reader shows them in place and the redline credits them to the
+  Word author. The text is the document with changes accepted.
+- **Comments** (`Comment.contract / document / start / end / quote / parent / resolved / by_claude`): select words in
+  the reader or redline → Comment; the words stay highlighted, the card sits in the sidebar, replies thread under it,
+  Resolve hides the highlight. `@name` picks a teammate (`static/crm/mentions.js`) and notifies them; the contract's
+  owner and people in the thread hear about replies. Offsets are counted from the page text in the browser
+  (`static/crm/contract_review.js`; anything added on top of the document carries `data-x`) and checked against the
+  quote on the server, which re-finds the quote if they drifted.
+- **Claude's notes on a redline:** "Have Claude explain each change" (`ai.annotate_changes`, structured output, one
+  note per numbered change, "Flag:" on ones to look at) saves them as Claude comments pinned to each change; redoing it
+  replaces notes nobody replied to. The cited "summary of the changes" answer is still there.
+- **Clickable summaries:** in answers and abstracts every paragraph or bullet that cites the agreement opens its
+  source quote (pop-up, then the reader at the passage). The contract header's facts link too (type → list, counterparty
+  → company, site, price / acres → ask Claude, effective date → timeline).
+- **Closing timeline** (`/contracts/<id>/timeline/`, `crm/contracts/timeline.py`): a date is fixed or a rule (N days /
+  business days / weeks / months after the Effective Date or another date's key). Pick any effective date ("What-if")
+  and every date is worked out; tick versions to see them as lanes on one axis and side by side, with changed rows
+  marked. Each version's dates come from "Read timeline" (`ai.read_timeline`, structured, keeps keys aligned with other
+  versions); "Use these dates as critical dates" turns a version into suggestions on the contract. Typed rules are read
+  without Claude (`parse_rule`, `parse_extension`: "ninety (90) days after the Effective Date", "extend the Feasibility
+  Period by thirty (30) days"). `find_dates` now returns the rule parts too. The contract page has the timeline strip.
+- **Signed contracts / extensions:** an extension option (kind Extension, `extends` = the key it pushes, `extend_by`)
+  shows on the timeline with what it would move. "I've exercised it…" takes the notice date and the new date, moves the
+  target and every date that counts from it (and, if ticked, other dates on the same day), keeps each old date in
+  `ContractDate.history`, marks the option done, sets the feasibility decision to Extend, and updates the site's
+  timeline. "Move a date by hand" does the same without an option.
+- **Critical dates calendar** (dashboard, `dates.month_calendar`, `?crit=YYYY-MM`): month grid of every contract date
+  marked critical (new `ContractDate.critical`, on by default; recurring payments off), tagged PSA / LOI / Option /
+  Lease / PDA, done ones checked off, late ones outlined; plus critical-date tasks, open diligence and closing items,
+  and entitlement deadlines. Tag chips filter it.
+- **Tests:** `crm/tests/test_contract_review.py` (17), 361 in all pass. Checked in the browser on a scratch database
+  with made-up contracts (reader, select-to-comment with @mention, redline attribution and change threads, timeline
+  lanes, exercising an extension, contract page, calendar, PDF frame headers). Claude calls are mocked in tests; no
+  real agreement has gone through `read_timeline` or `annotate_changes` yet.
+- **Not yet:** comment highlights in the redline view are by change, not exact words (the redline's text isn't the
+  document's text); holidays aren't skipped in business days; "Original PDF" for Word files (download only).

@@ -1,0 +1,29 @@
+{% load crm_tags %}{# One comment thread in a contract sidebar: c (a root comment with .thread), back (the page to return to). #}
+<article class="cm-card{% if c.by_claude %} cm-claude{% endif %}{% if c.resolved %} cm-resolved{% endif %}" id="c-{{ c.pk }}" data-c="{{ c.pk }}"{% if c.start is not None %} data-o="{{ c.start }}"{% endif %}>
+  <div class="cm-head">
+    {% if c.by_claude %}<span class="cm-avatar cm-avatar-claude" aria-hidden="true">C</span><b>Claude</b>
+    {% else %}<span class="cm-avatar" aria-hidden="true">{{ c.author|username|default:"?"|slice:":1" }}</span><b>{{ c.author|username|default:"Someone" }}</b>{% endif %}
+    <span class="muted">{{ c.created_at|date:"M j, g:i a" }}</span>
+    <span class="spacer"></span>
+    <form method="post" action="{% url 'crm:contract_comment' contract.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{{ back }}"><input type="hidden" name="comment" value="{{ c.pk }}">
+      <button class="btn-link lc-small" name="action" value="resolve" title="{% if c.resolved %}Reopen{% else %}Resolve{% endif %}">{% if c.resolved %}Reopen{% else %}✓ Resolve{% endif %}</button>
+      {% if c.author == user or can_manage %}<button class="btn-link lc-small" name="action" value="delete" onclick="return confirm('Delete this comment{% if c.thread %} and its replies{% endif %}?')" title="Delete">×</button>{% endif %}
+    </form>
+  </div>
+  {% if c.quote %}<button type="button" class="cm-quote" data-go="{{ c.pk }}">“{{ c.quote|truncatechars:140 }}”</button>{% endif %}
+  <div class="cm-body">{{ c.body|mentions }}</div>
+  {% for r in c.thread %}
+    <div class="cm-reply">
+      <div class="cm-head"><span class="cm-avatar" aria-hidden="true">{{ r.author|username|default:"?"|slice:":1" }}</span><b>{{ r.author|username|default:"Someone" }}</b> <span class="muted">{{ r.created_at|date:"M j, g:i a" }}</span>
+        <span class="spacer"></span>
+        {% if r.author == user or can_manage %}<form method="post" action="{% url 'crm:contract_comment' contract.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{{ back }}"><input type="hidden" name="comment" value="{{ r.pk }}"><button class="btn-link lc-small" name="action" value="delete" onclick="return confirm('Delete this reply?')" title="Delete">×</button></form>{% endif %}
+      </div>
+      <div class="cm-body">{{ r.body|mentions }}</div>
+    </div>
+  {% endfor %}
+  <form method="post" action="{% url 'crm:contract_comment' contract.pk %}" class="cm-reply-form">{% csrf_token %}
+    <input type="hidden" name="action" value="reply"><input type="hidden" name="parent" value="{{ c.pk }}"><input type="hidden" name="next" value="{{ back }}">
+    <textarea name="body" rows="1" required data-mentions placeholder="Reply… @name to tag someone"></textarea>
+    <button class="btn btn-small">Reply</button>
+  </form>
+</article>
