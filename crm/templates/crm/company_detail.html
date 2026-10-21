@@ -11,82 +11,113 @@
   {% include "crm/partials/record_nav.html" with detail_url="crm:company_detail" back_url=back_url %}
 </div>
 
-<div class="record">
-  <aside>
-    <div class="panel">
-      <h3>Details <button type="button" class="btn btn-small" style="float:right" onclick="document.getElementById('edit-dialog').showModal()">Edit</button></h3>
-      {% include "crm/partials/company_details.html" %}
-      {% include "crm/partials/edit_dialog.html" with title="company" %}
-      {% if IS_MANAGER %}
-      <details style="margin-top:10px"><summary class="muted" style="font-size:12px;cursor:pointer">Merge another company into this one</summary>
-        <form method="post" action="{% url 'crm:company_merge_into' company.pk %}" class="inline-form" style="margin-top:6px"
-              onsubmit="return confirm('Merge that company into {{ company.name|escapejs }}? Its people, emails and documents move here and it is deleted.')">{% csrf_token %}
-          <input name="other" list="merge-company-names" placeholder="Company name" required style="flex:1">
-          <button class="btn-small">Merge</button>
-        </form>
-        <datalist id="merge-company-names">{% for n in merge_candidates %}<option value="{{ n }}">{% endfor %}</datalist>
-      </details>
-      <details class="danger-zone"><summary>Delete this company</summary>
-        <form method="post" action="{% url 'crm:company_delete' company.pk %}" style="margin-top:8px"
-              onsubmit="return confirm('Delete {{ company.name|escapejs }} and its whole timeline, tasks, notes and opportunities? This cannot be undone.')">{% csrf_token %}
-          <label class="muted" style="font-size:12px;display:block;margin-bottom:6px"><input type="checkbox" name="people" value="delete"> Also delete its {{ people|length }} people</label>
-          <button class="btn-small btn-danger">Delete company</button>
-        </form>
-      </details>
-      {% endif %}
-    </div>
-    {% include "crm/partials/record_side.html" %}
-  </aside>
+<nav class="tabs co-tabs" aria-label="Company sections">
+  <a href="{% qs_set tab='' bg='' tpage='' mpage='' kind='' %}" class="{% if tab == 'overview' %}active{% endif %}">Overview</a>
+  <a href="{% qs_set tab='meetings' bg='' tpage='' kind='' %}" class="{% if tab == 'meetings' %}active{% endif %}">Meetings <span class="count">{{ meeting_count }}</span></a>
+  <a href="{% qs_set tab='actions' bg='' tpage='' mpage='' kind='' %}" class="{% if tab == 'actions' %}active{% endif %}">Action items <span class="count{% if open_action_count %} count-hot{% endif %}">{{ open_action_count }}</span></a>
+  <a href="{% qs_set tab='activity' mpage='' %}" class="{% if tab == 'activity' %}active{% endif %}">Activity</a>
+  <a href="{% qs_set tab='people' bg='' tpage='' mpage='' kind='' %}" class="{% if tab == 'people' %}active{% endif %}">People <span class="count">{{ people|length }}</span></a>
+  <a href="{% qs_set tab='opportunities' bg='' tpage='' mpage='' kind='' %}" class="{% if tab == 'opportunities' %}active{% endif %}">Deals <span class="count">{{ opportunities|length }}</span></a>
+</nav>
 
-  <section>
-    <nav class="tabs">
-      {% with base=request.path %}
-      <a href="{% qs_set tab='' bg='' tpage='' %}" class="{% if tab == 'overview' %}active{% endif %}">Overview</a>
-      <a href="{% qs_set tab='activity' %}" class="{% if tab == 'activity' %}active{% endif %}">Activity</a>
-      <a href="{% qs_set tab='people' %}" class="{% if tab == 'people' %}active{% endif %}">People ({{ people|length }})</a>
-      <a href="{% qs_set tab='opportunities' %}" class="{% if tab == 'opportunities' %}active{% endif %}">Opportunities ({{ opportunities|length }})</a>
-      {% endwith %}
-    </nav>
-
+<div class="co-record">
+  <section class="co-main">
     {% if tab == 'overview' %}
-      <div class="cards">
-        <div class="card"><div class="label">Stage</div><div class="value">{{ company.get_status_display }}</div></div>
-        <div class="card"><div class="label">Owner</div><div class="value">{{ company.owner|username|default:"—" }}</div></div>
-        <div class="card"><div class="label">Last touch</div>
-          <div class="value">{% if company.last_interaction_at %}{{ company.days_since_touch }} days ago{% else %}Never{% endif %}</div>
-          <div class="sub">{{ company.touch_count }} outreach email{{ company.touch_count|pluralize }}{% if company.last_response %} · {{ company.last_response }}{% endif %}</div></div>
-        <div class="card"><div class="label">Who knows them</div><div class="value">{{ company.strongest_connection_user|username|default:"—" }}</div>
-          {% if company.connection_strength %}<div class="sub">{{ company.connection_strength }} connection{% if team|length > 1 %} · {{ team|length }} teammates in touch{% endif %}</div>{% endif %}</div>
-        <div class="card"><div class="label">Next meeting</div><div class="value">{{ company.next_interaction_at|date:"M j"|default:"—" }}</div></div>
-        <div class="card"><div class="label">Fit score</div><div class="value">{% if company.fit_score %}{{ company.fit_score }} / 5{% else %}—{% endif %}</div>
-          {% if company.fit_score %}<div class="sub">{{ fit_definition }}</div>{% endif %}</div>
-        <div class="card"><div class="label">Projects</div><div class="value" style="font-size:14px">{% for p, n in company_projects %}<a class="chip chip-project" href="{{ p.get_absolute_url }}" title="{{ n }} emails">{{ p.name }}</a>{% empty %}—{% endfor %}</div></div>
-        <div class="card"><div class="label">Campus interest</div><div class="value">{{ company.campus_label|default:"—" }}</div></div>
-        <div class="card"><div class="label">Open tasks</div><div class="value">{{ open_tasks|length }}</div>
-          {% with t=open_tasks.0 %}{% if t %}<div class="sub {% if t.is_overdue %}overdue{% endif %}">Next: {{ t.title|truncatechars:30 }}{% if t.due_date %} · {{ t.due_date|date:"M j" }}{% endif %}</div>{% endif %}{% endwith %}</div>
-        <div class="card"><div class="label">Latest news trigger</div>
-          {% if latest_news %}<div class="sub" style="color:var(--text)">{% if latest_news.url %}<a href="{{ latest_news.url }}" target="_blank" rel="noopener">{{ latest_news.summary|truncatechars:70 }}</a>{% else %}{{ latest_news.summary|truncatechars:70 }}{% endif %}</div>
-          <div class="sub">{{ latest_news.occurred_at|date:"M j, Y" }}{% if latest_news.outcome %} · {{ latest_news.outcome }}{% endif %}</div>{% else %}<div class="value">—</div>{% endif %}</div>
+      <div class="co-facts">
+        <div><span class="label">Stage</span><span class="value">{{ company.get_status_display }}</span></div>
+        <div><span class="label">Owner</span><span class="value">{{ company.owner|username|default:"—" }}</span></div>
+        <div><span class="label">Last touch</span><span class="value">{% if company.last_interaction_at %}{{ company.days_since_touch }} days ago{% else %}Never{% endif %}</span>
+          <span class="sub">{{ company.touch_count }} outreach email{{ company.touch_count|pluralize }}{% if company.last_response %} · {{ company.last_response }}{% endif %}</span></div>
+        <div><span class="label">Next meeting</span><span class="value">{% if next_meeting %}<a href="#meeting-{{ next_meeting.pk }}">{{ next_meeting.start|date:"M j" }}</a>{% else %}{{ company.next_interaction_at|date:"M j"|default:"—" }}{% endif %}</span></div>
+        <div><span class="label">Who knows them</span><span class="value">{{ company.strongest_connection_user|username|default:"—" }}</span>
+          {% if company.connection_strength %}<span class="sub">{{ company.connection_strength }}{% if team|length > 1 %} · {{ team|length }} teammates in touch{% endif %}</span>{% endif %}</div>
+        <div><span class="label">Fit</span><span class="value">{% if company.fit_score %}{{ company.fit_score }} / 5{% else %}—{% endif %}</span>
+          {% if company.fit_score %}<span class="sub">{{ fit_definition|truncatechars:40 }}</span>{% endif %}</div>
+        <div><span class="label">Campus interest</span><span class="value">{{ company.campus_label|default:"—" }}</span></div>
+        {% if company_projects %}<div><span class="label">Projects</span><span class="value">{% for p, n in company_projects %}<a class="chip chip-project" href="{{ p.get_absolute_url }}" title="{{ n }} emails">{{ p.name }}</a>{% endfor %}</span></div>{% endif %}
+        {% if latest_news %}<div class="co-fact-wide"><span class="label">Latest news</span>
+          <span class="sub" style="color:var(--text)">{% if latest_news.url %}<a href="{{ latest_news.url }}" target="_blank" rel="noopener">{{ latest_news.summary|truncatechars:80 }}</a>{% else %}{{ latest_news.summary|truncatechars:80 }}{% endif %}</span>
+          <span class="sub">{{ latest_news.occurred_at|date:"M j, Y" }}</span></div>{% endif %}
       </div>
 
-      {% include "crm/partials/ai_summary.html" %}
-      <div class="panel">
-        <h3>Recent activity <a href="{% qs_set tab='activity' %}" style="float:right;text-transform:none;letter-spacing:0">View all</a></h3>
-        <ul class="timeline">{% for a in recent_activity %}{% include "crm/partials/timeline_item.html" %}{% empty %}<li><span></span><span class="muted">No activity yet.</span></li>{% endfor %}</ul>
+      <div class="grid-2 co-pair">
+        <div class="panel">
+          <h3>Who we know <a href="{% qs_set tab='people' %}" class="h3-link">All {{ people|length }}</a></h3>
+          {% for p in people|slice:":5" %}
+            <div class="row-line"><span><a href="{{ p.get_absolute_url }}">{{ p }}</a>{% if p.title %} <span class="muted">· {{ p.title|truncatechars:40 }}</span>{% endif %}</span>
+              <span class="muted">{{ p.last_interaction_at|ago|default:"no touch yet" }}</span></div>
+          {% empty %}<p class="muted" style="margin:0">No people yet. <a href="{% url 'crm:person_create' %}?company={{ company.pk }}">Add one</a></p>{% endfor %}
+        </div>
+        <div class="panel">
+          <h3>Open deals <a href="{% qs_set tab='opportunities' %}" class="h3-link">All {{ opportunities|length }}</a></h3>
+          {% for o in open_deals %}
+            <div class="row-line"><span><a href="{{ o.get_absolute_url }}">{{ o.name }}</a> <span class="stage">{{ o.get_stage_display }}</span>
+              {% if o.next_step %}<div class="muted" style="font-size:12px">Next: {{ o.next_step|truncatechars:70 }}</div>{% endif %}</span>
+              <span class="muted" style="text-align:right">{{ o.value|money }}{% if o.site_label %}<br>{{ o.site_label }}{% endif %}</span></div>
+          {% empty %}<p class="muted" style="margin:0">No open deals. <a href="{% url 'crm:opportunity_create' %}?company={{ company.pk }}">New opportunity</a></p>{% endfor %}
+        </div>
       </div>
-      {% if meetings %}
+
+      <div class="co-section-head">
+        <h2>Meetings</h2>
+        {% if meeting_count > latest_meetings|length %}<a href="{% qs_set tab='meetings' %}">All {{ meeting_count }} meetings →</a>{% endif %}
+      </div>
+      {% for c in latest_meetings %}{% include "crm/partials/company_meeting_card.html" %}
+      {% empty %}<div class="panel muted">No meetings with {{ company.name }} yet. Granola notes and calendar invites with their people land here.</div>{% endfor %}
+
       <div class="panel">
-        <h3>Meetings <a href="{% url 'crm:meeting_list' %}?who=outside" style="float:right;text-transform:none;letter-spacing:0">Calendar</a></h3>
-        {% for m in meetings %}
-          <div class="row-line"><span><a href="{{ m.get_absolute_url }}">{{ m.title }}</a>{% if m.summary %} 📝{% endif %}{% if m.action_items %} <span class="muted">{{ m.action_items|length }} action item{{ m.action_items|length|pluralize }}</span>{% endif %}</span>
-            <span class="muted">{{ m.start|date:"M j, Y" }}</span></div>
-        {% endfor %}
+        <h3>Open action items and tasks <a href="{% qs_set tab='actions' %}" class="h3-link">All</a></h3>
+        {% include "crm/partials/company_actions.html" with limit=6 %}
+      </div>
+
+      <details class="panel co-fold">
+        <summary>AI summary{% if ai_summary %} <span class="fold-hint">{{ ai_summary.headline|truncatechars:110 }}</span>{% endif %}</summary>
+        {% include "crm/partials/ai_summary.html" %}
+      </details>
+      <details class="panel co-fold" id="notes">
+        <summary>Notes <span class="count">{{ notes|length }}</span>{% with n=notes.0 %}{% if n %} <span class="fold-hint">{{ n.body|truncatechars:90 }}</span>{% endif %}{% endwith %}</summary>
+        {% include "crm/partials/company_notes.html" %}
+      </details>
+      <details class="panel co-fold">
+        <summary>Comments <span class="count">{{ comments|length }}</span></summary>
+        {% include "crm/partials/comments.html" %}
+      </details>
+      <details class="panel co-fold">
+        <summary>Recent activity <span class="fold-hint">email, notes and changes</span></summary>
+        <ul class="timeline">{% for a in recent_activity %}{% include "crm/partials/timeline_item.html" %}{% empty %}<li><span></span><span class="muted">No activity yet.</span></li>{% endfor %}</ul>
+        <a href="{% qs_set tab='activity' %}">Full timeline →</a>
+      </details>
+
+    {% elif tab == 'meetings' %}
+      {% for c in meeting_cards %}{% include "crm/partials/company_meeting_card.html" %}
+      {% empty %}<div class="panel muted">No meetings with {{ company.name }} yet.</div>{% endfor %}
+      {% if meeting_page.paginator.num_pages > 1 %}
+      <div class="pager">
+        {% if meeting_page.has_previous %}<a href="{% qs_set mpage=meeting_page.previous_page_number %}">‹ Newer</a>{% endif %}
+        <span>Page {{ meeting_page.number }} of {{ meeting_page.paginator.num_pages }} · {{ meeting_count }} meetings</span>
+        {% if meeting_page.has_next %}<a href="{% qs_set mpage=meeting_page.next_page_number %}">Older ›</a>{% endif %}
       </div>
       {% endif %}
-      {% include "crm/partials/tasks_notes.html" %}
-      {% include "crm/partials/comments.html" %}
+
+    {% elif tab == 'actions' %}
+      <div class="panel">
+        <h3>Open</h3>
+        {% include "crm/partials/company_actions.html" %}
+      </div>
+      {% if done_action_count %}
+      <details class="panel co-fold">
+        <summary>Done <span class="count">{{ done_action_count }}</span></summary>
+        {% for i in done_items %}{% include "crm/partials/action_item.html" with m=i.meeting show_meeting=True %}{% endfor %}
+        {% if done_tasks %}<ul class="tasklist">{% for t in done_tasks %}{% include "crm/partials/task_row.html" %}{% endfor %}</ul>{% endif %}
+      </details>
+      {% endif %}
 
     {% elif tab == 'activity' %}
+      <div class="co-kinds" role="group" aria-label="Show">
+        {% for key, label, n in activity_chips %}
+          <a href="{% qs_set kind=key tpage='' %}" class="{% if activity_kind == key %}active{% endif %}">{{ label }} <span class="count">{{ n }}</span></a>
+        {% endfor %}
+      </div>
       <div class="panel">{% include "crm/partials/timeline.html" %}</div>
 
     {% elif tab == 'people' %}
@@ -112,7 +143,45 @@
       </table></div>
     {% endif %}
   </section>
+
+  <aside class="co-side">
+    <div class="panel">
+      <h3>Details <button type="button" class="btn btn-small" style="float:right" onclick="document.getElementById('edit-dialog').showModal()">Edit</button></h3>
+      {% include "crm/partials/company_details.html" %}
+      {% include "crm/partials/edit_dialog.html" with title="company" %}
+      {% if IS_MANAGER %}
+      <details style="margin-top:10px"><summary class="muted" style="font-size:12px;cursor:pointer">Merge another company into this one</summary>
+        <form method="post" action="{% url 'crm:company_merge_into' company.pk %}" class="inline-form" style="margin-top:6px"
+              onsubmit="return confirm('Merge that company into {{ company.name|escapejs }}? Its people, emails and documents move here and it is deleted.')">{% csrf_token %}
+          <input name="other" list="merge-company-names" placeholder="Company name" required style="flex:1">
+          <button class="btn-small">Merge</button>
+        </form>
+        <datalist id="merge-company-names">{% for n in merge_candidates %}<option value="{{ n }}">{% endfor %}</datalist>
+      </details>
+      <details class="danger-zone"><summary>Delete this company</summary>
+        <form method="post" action="{% url 'crm:company_delete' company.pk %}" style="margin-top:8px"
+              onsubmit="return confirm('Delete {{ company.name|escapejs }} and its whole timeline, tasks, notes and opportunities? This cannot be undone.')">{% csrf_token %}
+          <label class="muted" style="font-size:12px;display:block;margin-bottom:6px"><input type="checkbox" name="people" value="delete"> Also delete its {{ people|length }} people</label>
+          <button class="btn-small btn-danger">Delete company</button>
+        </form>
+      </details>
+      {% endif %}
+    </div>
+    {% include "crm/partials/record_side.html" %}
+  </aside>
 </div>
 {% endblock %}
 {% block scripts %}
+<script>
+  // Long summaries start clipped with a fade; the button shows the rest in place.
+  document.querySelectorAll('[data-clamp]').forEach(el => {
+    const btn = el.nextElementSibling;
+    if (el.scrollHeight <= el.clientHeight + 8) { el.classList.remove('clamp'); return; }
+    btn.hidden = false;
+    btn.addEventListener('click', () => {
+      const open = el.classList.toggle('clamp') === false;
+      btn.textContent = open ? 'Show less' : 'Show full summary';
+    });
+  });
+</script>
 {% endblock %}

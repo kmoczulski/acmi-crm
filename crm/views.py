@@ -12,7 +12,7 @@ from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
-from . import ai, documents, gcal, meetings, merge, notify, pipeline
+from . import ai, company_page, documents, gcal, meetings, merge, notify, pipeline
 from . import projects as project_tagging
 from .build import logic as build_logic
 from .capital import logic as capital_logic
@@ -510,14 +510,22 @@ def company_detail(request, pk):
         "added_documents": company.documents.select_related("added_by", "opportunity"),
         "comments": company.comments.select_related("author", "opportunity", "task")[:50],
         "comment_target": ("company", company.pk),
-        "meetings": company.meetings.order_by("-start")[:6],
         "document_categories": DOCUMENT_CATEGORIES,
         **_summary_context(company=company),
         "merge_candidates": _merge_candidates(company),
         "company_projects": project_tagging.company_projects(company),
+        **company_page.meeting_context(company, request, tab),
+        "users": active_users(),
     }
+    ctx["open_deals"] = [o for o in ctx["opportunities"] if o.is_open]
+    ctx["other_tasks"] = [t for t in open_tasks if t.pk not in ctx["meeting_task_ids"]]
+    ctx["open_action_count"] = len(ctx["open_items"]) + len(ctx["other_tasks"])
+    ctx["done_tasks"] = [t for t in ctx["done_tasks"] if t.pk not in ctx["meeting_task_ids"]]
+    ctx["done_action_count"] = len(ctx["done_items"]) + len(ctx["done_tasks"])
     if tab == "activity":
-        ctx["timeline"] = _timeline(activities, request)
+        filtered, ctx["activity_kind"] = company_page.filter_activity(activities, request.GET.get("kind"))
+        ctx["timeline"] = _timeline(filtered, request)
+        ctx["activity_chips"] = company_page.activity_chips(activities)
     return render(request, "crm/company_detail.html", ctx)
 
 
@@ -1248,8 +1256,11 @@ def meeting_panel(request, pk):
     m = get_object_or_404(Meeting.objects.prefetch_related("companies", "team"), pk=pk)
     tasks = Task.objects.in_bulk([i["task_id"] for i in m.action_items if i.get("task_id")])
     items = [{**i, "index": n, "task": tasks.get(i.get("task_id"))} for n, i in enumerate(m.action_items)]
+    for i in items:
+        i["done"] = bool(i["task"] and i["task"].done)
     return render(request, "crm/partials/meeting_panel.html", {
         "m": m, "items": items, "summary_html": meetings.render_markdown(m.summary), "users": active_users(),
+        "next": m.get_absolute_url(),  # the pop-up is fetched, so its forms return to the calendar, not the fragment
     })
 
 
@@ -1293,4 +1304,4 @@ def meeting_make_task(request, pk):
         m.save(update_fields=["action_items"])
         notify.task_assigned(task, request.user)
         messages.success(request, f"Task created for {assignee.get_full_name() or assignee.username}: {task.title}")
-    return redirect(m.get_absolute_url())
+    return redirect(_safe_next(request, m.get_absolute_url()))

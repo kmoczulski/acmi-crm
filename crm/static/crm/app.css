@@ -1315,3 +1315,88 @@ tr.bd-total td { font-weight: 700; border-top: 2px solid var(--line); }
 .cap-terms dd { margin: 0; }
 .cap-touch { display: grid; grid-template-columns: 70px 80px 1fr auto; gap: 8px; padding: 5px 0; border-bottom: 1px solid #f0f2f5; font-size: 13px; }
 .cap-touch .k { color: var(--muted); font-size: 12px; }
+
+/* ==========================================================================
+   Company page (company_detail.html, company_meeting_card.html, action_item.html, company_actions.html)
+   ========================================================================== */
+.co-tabs { position: sticky; top: 0; z-index: 5; background: var(--bg); overflow-x: auto; overflow-y: hidden;
+  white-space: nowrap; scrollbar-width: none; padding-top: 4px; }
+.co-tabs a { flex: none; }
+.co-tabs .count, .co-kinds .count, .co-fold .count { background: #eef0f3; color: var(--muted); border-radius: 8px;
+  padding: 0 6px; font-size: 11px; font-weight: 600; }
+.co-tabs .count-hot { background: var(--warn-bg); color: var(--warn); }
+.co-record { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 20px; align-items: start; }
+
+.co-facts { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; margin-bottom: 16px; }
+/* Each cell draws its right and bottom rule; the -1px margins push the outer ones under the container's border. */
+.co-facts > div { padding: 8px 12px; display: flex; flex-direction: column; min-width: 0;
+  border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); margin: 0 -1px -1px 0; }
+.co-facts .label { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+.co-facts .value { font-weight: 600; overflow-wrap: anywhere; }
+.co-facts .sub { font-size: 12px; color: var(--muted); }
+.co-facts .co-fact-wide { grid-column: span 2; }
+.co-pair .panel { margin-bottom: 0; }
+.co-pair { margin-bottom: 16px; }
+.h3-link { float: right; text-transform: none; letter-spacing: 0; font-weight: 500; }
+
+.co-section-head { display: flex; align-items: baseline; justify-content: space-between; margin: 4px 0 8px; }
+.co-section-head h2 { font-size: 16px; margin: 0; }
+.mcard { background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--accent);
+  border-radius: var(--radius); margin-bottom: 14px; }
+.mcard-upcoming { border-left-color: var(--good); }
+.mcard-head { display: flex; gap: 12px; align-items: flex-start; padding: 12px 14px; border-bottom: 1px solid var(--line); }
+.mcard-date { flex: none; width: 44px; text-align: center; border: 1px solid var(--line); border-radius: var(--radius);
+  line-height: 1.1; padding: 3px 0; }
+.mcard-date span { display: block; font-size: 10.5px; text-transform: uppercase; color: var(--muted); }
+.mcard-date strong { font-size: 17px; }
+.mcard-title { flex: 1; min-width: 0; }
+.mcard-title h4 { margin: 0 0 2px; font-size: 15px; }
+.mcard-title .muted { font-size: 12.5px; }
+.mcard-links { display: flex; gap: 10px; font-size: 12px; white-space: nowrap; }
+.mcard-body { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); }
+.mcard-summary, .mcard-actions { padding: 10px 14px 12px; min-width: 0; }
+.mcard-actions { border-left: 1px solid var(--line); background: #fbfcfd; }
+.mcard h5, .co-sub { margin: 0 0 6px; font-size: 11.5px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+.co-sub { margin-top: 4px; }
+.mcard .granola h4:first-child { margin-top: 0; }
+.granola.clamp { max-height: 240px; overflow: hidden;
+  -webkit-mask-image: linear-gradient(#000 75%, transparent); mask-image: linear-gradient(#000 75%, transparent); }
+.clamp-toggle { margin-top: 4px; }
+.clamp-toggle[hidden] { display: none; }
+.mcard h5 .muted, .co-sub .muted { text-transform: none; letter-spacing: 0; font-weight: 400; margin-left: 4px; }
+.mk-task > summary { display: inline-block; cursor: pointer; font-size: 12px; color: var(--accent); margin-top: 4px; list-style: none; }
+.mk-task > summary::-webkit-details-marker { display: none; }
+.mk-task[open] > summary { display: none; }
+
+.action-item .ai-line { display: flex; gap: 8px; align-items: flex-start; }
+.action-item .ai-line input[type=checkbox] { margin-top: 3px; }
+.action-item .ai-text { flex: 1; min-width: 0; }
+.ai-dot { flex: none; width: 12px; height: 12px; margin-top: 4px; border: 2px solid #c7ccd4; border-radius: 50%; }
+.ai-done strong { text-decoration: line-through; color: var(--muted); }
+.mcard-actions .action-item { background: var(--panel); }
+.more-link { display: inline-block; font-size: 12.5px; margin: 2px 0 8px; }
+
+.co-fold { padding: 0; }
+.co-fold > summary { cursor: pointer; padding: 11px 14px; font-size: 13px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: .04em; color: var(--muted); list-style-position: inside; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.co-fold[open] > summary { border-bottom: 1px solid var(--line); }
+.co-fold > :not(summary) { margin: 12px 14px; }
+.co-fold > .panel { border: 0; padding: 0; background: none; }
+.fold-hint { text-transform: none; letter-spacing: 0; font-weight: 400; margin-left: 6px; }
+
+.co-kinds { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.co-kinds a { border: 1px solid var(--line); background: var(--panel); border-radius: 99px; padding: 3px 12px; font-size: 13px; color: var(--text); }
+.co-kinds a.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+.co-kinds a.active .count { background: rgba(255,255,255,.2); color: #fff; }
+
+@media (max-width: 1100px) { .co-record { grid-template-columns: minmax(0, 1fr); } }
+.co-side { min-width: 0; }
+@media (max-width: 700px) {
+  .mcard-body { grid-template-columns: 1fr; }
+  .mcard-actions { border-left: 0; border-top: 1px solid var(--line); }
+  .mcard-head { flex-wrap: wrap; }
+  .mcard-links { width: 100%; padding-left: 56px; }
+  .co-facts { grid-template-columns: 1fr 1fr; }
+}
+/* End company page */

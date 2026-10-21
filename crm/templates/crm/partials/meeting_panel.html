@@ -17,26 +17,7 @@
     <div>
       {% if items %}
       <h3>Action items</h3>
-      {% for i in items %}
-        <div class="action-item">
-          <div><strong>{{ i.title }}</strong>{% if i.owner %} <span class="tag">{{ i.owner }}</span>{% endif %}</div>
-          {% if i.detail %}<div class="muted" style="font-size:12px">{{ i.detail }}</div>{% endif %}
-          {% if i.task %}
-            <div style="font-size:12px;margin-top:3px">✓ Task: <a href="{{ i.task.get_absolute_url }}">{{ i.task.title|truncatechars:50 }}</a>
-              · {{ i.task.assignee|username }}{% if i.task.done %} · done{% endif %}</div>
-          {% else %}
-            <form method="post" action="{% url 'crm:meeting_make_task' m.pk %}" class="inline-form" style="margin-top:4px">{% csrf_token %}
-              <input type="hidden" name="index" value="{{ i.index }}">
-              <select name="assignee" style="font-size:12px">
-                <option value="">{% if i.owner %}{{ i.owner }} (from notes){% else %}Me{% endif %}</option>
-                {% for u in users %}<option value="{{ u.pk }}">{{ u.get_full_name|default:u.username }}</option>{% endfor %}
-              </select>
-              <input type="date" name="due_date" style="font-size:12px"> <input type="time" name="due_time" style="font-size:12px" title="Time (optional)">
-              <button class="btn-small">Make task</button>
-            </form>
-          {% endif %}
-        </div>
-      {% endfor %}
+      {% for i in items %}{% include "crm/partials/action_item.html" %}{% endfor %}
       {% endif %}
 
       <h3>Summary</h3>
