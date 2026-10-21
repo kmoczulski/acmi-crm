@@ -30,8 +30,11 @@ selected; the briefs page has a Choose sites panel.
 
 **Granola import 2026-10-21** (Kellen asked): Oct 16 to Oct 20, 7 meetings (6 new, Greystar refreshed) from
 `data/imports/granola/2026-10-21.json`, full summaries; backup `backups/db-2026-10-21-before-granola-import.sqlite3`.
-Booz Allen matched a company; cozen.com, fortusfederal.us, greystar.com and terracon.com have no company, so those
-meetings aren't on a company timeline.
+Booz Allen matched a company. Then (Kellen): `fortusfederal.us` added to Fortus Technologies (1781); Cozen O'Connor
+added (1795, our outside counsel, Jonathan Ciriello; flagged Exclude so it stays out of outreach); "MBI B101" added to
+the ARA Facility project's keywords, so the Cozen call (and later MBI B101 mail) tags to ARA Facility / MEIH. Backups
+`backups/db-2026-10-21-before-fortus-domain.sqlite3`, `...-before-cozen.sqlite3`. greystar.com and terracon.com still
+have no company.
 
 **Next, in order**
 1. **Granola (time-sensitive: Granola only keeps 30 days).**
