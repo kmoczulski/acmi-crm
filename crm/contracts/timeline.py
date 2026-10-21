@@ -33,7 +33,7 @@ KIND_KEYS = {
 ANCHOR_WORDS = (
     (r"effective date|date (?:of|hereof)|execution|mutual execution|signing", "effective"),
     (r"feasibility|due diligence|inspection|study period|review period", "feasibility_end"),
-    (r"title (?:commitment|report)|survey", "title_objection"),
+    (r"title (?:commitment|report|defects?|objections?)|survey", "title_objection"),
     (r"approval|entitlement|rezoning|permit", "approvals"),
     (r"closing", "closing"),
     (r"expiration|termination", "expiration"),
@@ -50,9 +50,23 @@ RULE = re.compile(
     r"(?:(?:immediately\s+)?(?P<dir>after|following|from|before|prior\s+to)\s+)(?P<anchor>[^.;:]{0,90})",
     re.I,
 )
+# "on or before the end of the Feasibility Period", "before the Feasibility Period expires": the same day as it.
+RULE_AT = re.compile(
+    r"(?:on or before|no later than|by|before|prior to|at)\s+(?:the\s+)?(?:end|expiration|expiry|close)\s+of\s+"
+    r"(?:the\s+)?(?P<anchor>[^.;:,(]{0,60})"
+    r"|(?:before|by)\s+(?:the\s+)?(?P<anchor2>[^.;:,(]{0,60}?)\s+(?:expires|ends|terminates)",
+    re.I,
+)
+# "10 days' advance notice of the Closing Date": that many days before it.
+RULE_NOTICE = re.compile(
+    _NUM + r"\s*(?P<kind>business\s+|calendar\s+)?(?P<unit>days?|weeks?|months?)['’]?\s+(?:advance|prior)\s+"
+    r"(?:written\s+)?notice\s+(?:of|before)\s+(?:the\s+)?(?P<anchor>[^.;:]{0,60})",
+    re.I,
+)
 EXTEND = re.compile(
-    r"extend\w*\s+(?:the\s+)?(?P<what>[^.;]{0,60}?)\s+(?:for|by)\s+(?:an?\s+|one\s+)?(?:additional\s+)?"
-    r"(?:period\s+of\s+)?" + _NUM + r"\s*(?P<kind>business\s+|calendar\s+)?(?P<unit>days?|weeks?|months?)", re.I,
+    r"extend\w*\s+(?:(?:it|them|the\s+(?P<what>[^.;]{0,60}?))\s+)?(?:(?:for|by)\s+)?(?:an?\s+|one\s+)?"
+    r"(?:additional\s+)?(?:period\s+of\s+)?" + _NUM + r"\s*(?P<kind>business\s+|calendar\s+)?"
+    r"(?P<unit>days?|weeks?|months?)", re.I,
 )
 
 
@@ -104,19 +118,28 @@ def parse_rule(text):
             continue
         sign = -1 if m.group("dir").lower().startswith(("before", "prior")) else 1
         return {"offset": sign * n, "unit": unit, "anchor": anchor}
+    for m in RULE_NOTICE.finditer(text or ""):
+        n, anchor = _number(m), anchor_key(m.group("anchor"))
+        if n is not None and anchor:
+            return {"offset": -n, "unit": _unit(m), "anchor": anchor}
+    for m in RULE_AT.finditer(text or ""):
+        anchor = anchor_key(m.group("anchor") or m.group("anchor2"))
+        if anchor and anchor != "effective":
+            return {"offset": 0, "unit": "days", "anchor": anchor}
     return None
 
 
 def parse_extension(text):
-    """{"extends", "extend_by", "extend_unit"} for "extend the Feasibility Period by thirty (30) days", or None."""
-    m = EXTEND.search(text or "")
-    if not m:
-        return None
-    n = _number(m)
-    target = anchor_key(m.group("what")) or "closing"
-    if n is None or target == "effective":
-        return None
-    return {"extends": target, "extend_by": n, "extend_unit": _unit(m)}
+    """{"extends", "extend_by", "extend_unit"} for "extend the Feasibility Period by thirty (30) days" or "notice by
+    the end of the Feasibility Period extends it 120 days", or None. extends is "" when the text doesn't say what."""
+    for m in EXTEND.finditer(text or ""):
+        n = _number(m)
+        if n is None:
+            continue
+        rest = (text or "").replace(m.group(0), " ")
+        target = anchor_key(m.group("what")) or anchor_key(rest)
+        return {"extends": "" if target == "effective" else target, "extend_by": n, "extend_unit": _unit(m)}
+    return None
 
 
 def add(d, n, unit="days"):
@@ -146,7 +169,7 @@ def describe(t):
     n, unit = t["offset"], dict(ContractDate.Unit.choices).get(t.get("unit") or "days", "days")
     if abs(n) == 1:
         unit = unit[:-1]
-    anchor = "the Effective Date" if t["anchor"] == "effective" else t["anchor"].replace("_", " ")
+    anchor = "the Effective Date" if t["anchor"] == "effective" else re.sub(r"_\d+$", "", t["anchor"]).replace("_", " ")
     return f"{abs(n)} {unit} {'before' if n < 0 else 'after'} {anchor}" if n else f"on {anchor}"
 
 
@@ -174,15 +197,31 @@ def fill_rule(d, siblings=None):
         if found and found["anchor"] != d.key:
             d.anchor, d.offset, d.unit = found["anchor"], found["offset"], found["unit"]
     if d.kind == ContractDate.Kind.EXTENSION and not d.extends:
-        found = parse_extension(text)
+        found = parse_extension(" ".join(x for x in (d.label, text) if x))
         if found:
-            d.extends, d.extend_by, d.extend_unit = found["extends"], found["extend_by"], found["extend_unit"]
+            d.extends = found["extends"] or d.extends
+            if d.extend_by is None:
+                d.extend_by, d.extend_unit = found["extend_by"], found["extend_unit"]
     keys = {s.key for s in siblings if s.key}
-    if d.anchor and d.anchor != "effective" and d.anchor not in keys:
-        # Counted from a date the contract doesn't have under that key: the kind's own key may be taken by "_2".
-        match = next((s.key for s in siblings if s.key and s.key.startswith(d.anchor)), "")
-        d.anchor = match or d.anchor
+    for field in ("anchor", "extends"):
+        value = getattr(d, field)
+        if value and value != "effective" and value not in keys:
+            # Named by kind ("feasibility_end") but the contract's date has another key: find it by kind.
+            kind = next((k for k, v in KIND_KEYS.items() if v == value), None)
+            match = next((s.key for s in siblings if s.key and (s.key.startswith(value) or s.kind == kind)), "")
+            setattr(d, field, match or value)
     return d
+
+
+def ensure_keys(contract):
+    """Dates entered before rules existed (by hand, or from Trello) get their key and rule read now, in the order
+    they were added, so other dates can count from them and extensions know what they push."""
+    dates = list(contract.dates.filter(confirmed=True).order_by("pk"))
+    for d in dates:
+        if not d.key or (d.kind == ContractDate.Kind.EXTENSION and not d.extends):
+            fill_rule(d, dates)
+            d.save(update_fields=["key", "anchor", "offset", "unit", "extends", "extend_by", "extend_unit"])
+    return dates
 
 
 def term(d):
@@ -308,7 +347,9 @@ def lanes(versions, span, today=None):
         if d >= first:
             ticks.append({"pos": pct(d), "label": f"{d:%b} ’{d:%y}" if d.month == 1 else f"{d:%b}"})
         d = add(d, 1, "months")
-    return out, ticks + [{"pos": pct(today), "label": "Today", "today": True}]
+    now = pct(today)
+    ticks = [t for t in ticks if abs(t["pos"] - now) > 5]  # a month label under "Today" would overlap it
+    return out, ticks + [{"pos": now, "label": "Today", "today": True}]
 
 
 # ---------------------------------------------------------------------------
@@ -316,35 +357,50 @@ def lanes(versions, span, today=None):
 # ---------------------------------------------------------------------------
 
 
-def dependents(target, dates):
-    """Open dates that count from `target` (directly or down the chain), in order."""
+def dependents(target, dates, skip=()):
+    """Open dates that count from `target` (directly or down the chain), in order. `skip`: pks never moved (the
+    extension being exercised counts from the date it extends, but it doesn't move with it)."""
     out, frontier = [], [target]
     while frontier:
         t = frontier.pop(0)
         for d in dates:
-            if t.key and d.anchor == t.key and d.offset is not None and not d.done and d not in out and d != target:
+            if (t.key and d.anchor == t.key and d.offset is not None and not d.done and d not in out and d != target
+                    and d.pk not in skip):
                 out.append(d)
                 frontier.append(d)
     return out
 
 
-def proposal(ext_or_target, today=None):
-    """What exercising an extension (or pushing a date) would do: {"target", "new", "follow": [(date, new)],
-    "same_day": [dates on the old day that don't count from it]}."""
+def proposal(ext_or_target, today=None, target_pk=None):
+    """What exercising an extension (or pushing a date) would do, worked out so nobody has to type a date:
+    {"target", "new" (its new date), "follow": [(date, new)] (dates that count from it), "also": [(date, new,
+    same_day)] (other open dates after it, offered to move by the same number of days; same-day ones ticked),
+    "choices": dates an extension might push, when the agreement doesn't say which}."""
     d = ext_or_target
-    dates = list(d.contract.dates.filter(confirmed=True))
-    if d.kind == ContractDate.Kind.EXTENSION and d.extends:
-        target = next((x for x in dates if x.key == d.extends), None)
+    dates = ensure_keys(d.contract)
+    d = next((x for x in dates if x.pk == d.pk), d)
+    choices = []
+    if d.kind == ContractDate.Kind.EXTENSION:
+        target = next((x for x in dates if target_pk and x.pk == int(target_pk)), None) or next(
+            (x for x in dates if d.extends and x.key == d.extends), None)
+        if target is None:
+            choices = [x for x in dates if x.pk != d.pk and x.date and x.kind != ContractDate.Kind.EXTENSION]
         new = add(target.date, d.extend_by, d.extend_unit or "days") if target and target.date else None
     else:
         target, new = d, None
-    if target is None:
-        return None
-    follow = [(x, add(new, x.offset, x.unit or "days") if new else None) for x in dependents(target, dates)]
-    moved = {target.pk, *(x.pk for x, _ in follow)}
-    same_day = [x for x in dates if x.date and target.date and x.date == target.date and x.pk not in moved
-                and not x.done and x.pk != d.pk]
-    return {"target": target, "new": new, "follow": follow, "same_day": same_day}
+    follow, also = [], []
+    if target is not None:
+        moved_to = {target.key: new}  # down the chain: each date counts from its own anchor's new date
+        follow = []
+        for x in dependents(target, dates, skip={d.pk}):
+            when = add(moved_to.get(x.anchor), x.offset, x.unit or "days") if new else None
+            moved_to[x.key] = when
+            follow.append((x, when))
+        moved = {target.pk, d.pk, *(x.pk for x, _ in follow)}
+        shift = timedelta(days=(new - target.date).days) if new and target.date else None
+        also = [(x, x.date + shift if shift else None, x.date == target.date) for x in dates
+                if x.date and target.date and x.date >= target.date and x.pk not in moved and not x.done]
+    return {"ext": d, "target": target, "new": new, "follow": follow, "also": also, "choices": choices}
 
 
 def _move(d, new, why, user, today):
@@ -354,7 +410,8 @@ def _move(d, new, why, user, today):
     d.history = [*(d.history or []), {"from": old.isoformat() if old else None, "to": new.isoformat(), "why": why,
                                       "by": (user.get_full_name() or user.username) if user else "", "on": today.isoformat()}]
     d.date = new
-    d.save(update_fields=["date", "history"])
+    d.done, d.done_at, d.done_by = False, None, None  # a deadline pushed out is open again
+    d.save(update_fields=["date", "history", "done", "done_at", "done_by"])
     return d, old, new
 
 
@@ -367,10 +424,11 @@ def push(target, new, user, why, also=(), ext=None, notice_on=None):
 
     today = timezone.localdate()
     contract = target.contract
+    target = next(x for x in ensure_keys(contract) if x.pk == target.pk)  # its key, so the chain can follow
     shift = (new - target.date).days if target.date else 0
     moved = [m for m in [_move(target, new, why, user, today)] if m]
     all_dates = list(contract.dates.filter(confirmed=True))
-    for d in dependents(target, all_dates):
+    for d in dependents(target, all_dates, skip={ext.pk} if ext is not None else ()):
         base = next((x.date for x in [target, *all_dates] if x.key == d.anchor), None)
         m = _move(d, add(base, d.offset, d.unit or "days"), f"{why} (counts from {target.label})", user, today)
         if m:

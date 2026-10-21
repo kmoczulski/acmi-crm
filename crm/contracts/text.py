@@ -369,8 +369,8 @@ def reader_html(text, page_starts, *, terms=(), links=None, anchors=None, badges
     ins = [(c["start"], c["end"], c) for c in tracked or [] if c.get("type") == "ins" and c["end"] > c["start"]]
     for start, end, c in ins:
         who = html.escape(f"Added by {c.get('author') or 'unknown'}" + (f", {c['date']}" if c.get("date") else ""))
-        spans.append((start, end, f'<ins class="tc-ins" data-author="{html.escape(c.get("author", ""))}" title="{who}">',
-                      "</ins>"))
+        spans.append((start, end, f'<ins class="tc-ins {c.get("cls", "")}" data-tc="{c.get("n", "")}" '
+                                  f'data-author="{html.escape(c.get("author", ""))}" title="{who}">', "</ins>"))
     for start, (end, href, attrs) in sorted(links.items()):
         if any(s < end and start < e for s, e, _ in ins):
             continue  # inside a tracked insertion
@@ -420,7 +420,8 @@ def reader_html(text, page_starts, *, terms=(), links=None, anchors=None, badges
         if c.get("type") == "del" and c.get("text"):
             who = html.escape(f"Deleted by {c.get('author') or 'unknown'}" + (f", {c['date']}" if c.get("date") else ""))
             points.setdefault(c["start"], []).append(
-                f'<del class="tc-del" data-x data-author="{html.escape(c.get("author", ""))}" title="{who}">'
+                f'<del class="tc-del {c.get("cls", "")}" data-x data-tc="{c.get("n", "")}" '
+                f'data-author="{html.escape(c.get("author", ""))}" title="{who}">'
                 f'{html.escape(c["text"], quote=False)}</del>')
     marks = [(s, e, i) for s, e, i in marks or [] if e > s]
 

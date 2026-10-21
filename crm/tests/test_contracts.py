@@ -285,10 +285,10 @@ class ContractPagesTests(TestCase):
         self.upload(c, "PSA draft 2.txt", b"The Deposit is $250,000.", kind="draft", dated="2026-01-20",
                     sent_by="them")
         page = self.client.get(c.get_absolute_url())
-        self.assertContains(page, "redline vs. previous")
+        self.assertContains(page, "compare with previous")
         a, b = ContractDocument.objects.order_by("dated")
         r = self.client.get(f"/contracts/{c.pk}/compare/?a={a.pk}&b={b.pk}")
-        self.assertContains(r, "<del>$100,000.</del>")
+        self.assertContains(r, "<del data-x>$100,000.</del>")
         self.assertContains(r, "<ins>$250,000.</ins>")
 
     def test_dates_by_hand_and_permissions(self):

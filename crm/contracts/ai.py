@@ -534,8 +534,10 @@ def annotate_changes(contract, old, new, items, user=None):
     items = items[:MAX_NOTES]
     if not items:
         return []
-    docs = fit([old, new])
-    lines = [facts(contract, docs), "", f"REDLINE: document 1 ({old.title}) to document 2 ({new.title}). Changes:"]
+    docs = fit([d for d in (old, new) if d is not None])
+    lines = [facts(contract, docs), "", (f"REDLINE: document 1 ({old.title}) to document 2 ({new.title}). Changes:"
+                                         if old is not None and len(docs) == 2 else
+                                         f"TRACKED CHANGES in {new.title} (the last document). Changes:")]
     for c in items:
         ctx = new.text[max(0, c["start"] - 160):c["start"]].split("\n")[-1][-160:]
         line = f'[{c["n"]}] near "...{ctx}"'
