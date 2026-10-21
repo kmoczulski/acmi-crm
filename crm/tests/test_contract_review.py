@@ -119,8 +119,8 @@ class TimelineTests(TestCase):
         ext = self.add(kind="extension", label="Feasibility extension", date=date(2026, 5, 16), amount=25000,
                        rule="Buyer may extend the Feasibility Period by thirty (30) days")
         page = self.client.get(f"/contracts/{self.c.pk}/timeline/")
-        self.assertContains(page, "I've exercised it")
-        self.assertContains(page, "Also move Deposit goes hard")
+        self.assertContains(page, "Confirm the extension")
+        self.assertContains(page, "Deposit goes hard")
         r = self.client.post(f"/contracts/{self.c.pk}/timeline/", {
             "action": "exercise", "date_id": ext.pk, "notice_on": "2026-05-10", "new_date": "2026-06-30",
             "also": [hard.pk], "note": "Fee wired"})
@@ -149,7 +149,7 @@ class TimelineTests(TestCase):
                  rule="thirty (30) days after the end of the Feasibility Period")
         page = self.client.get(f"/contracts/{self.c.pk}/timeline/?eff=2026-04-01&v=kept")
         self.assertContains(page, "What-if")
-        self.assertContains(page, "Tue Jun 30, 2026")  # Apr 1 + 90 days, worked out from the rule
+        self.assertContains(page, "Jun 30, 2026")  # Apr 1 + 90 days, worked out from the rule
         self.client.post(f"/contracts/{self.c.pk}/timeline/", {"action": "push", "date_id": feas.pk,
                                                                 "new_date": "2026-06-15", "note": "Seller agreed"})
         self.assertEqual(self.c.dates.get(kind="closing").date, date(2026, 7, 15))
@@ -164,8 +164,8 @@ class TimelineTests(TestCase):
             {"key": "feasibility_end", "label": "Feasibility ends", "kind": "feasibility", "anchor": "effective",
              "offset": 60, "unit": "days", "date": None, "amount": "100000"}])
         page = self.client.get(f"/contracts/{self.c.pk}/timeline/?eff=2026-03-02&v={d1.pk}&v={d2.pk}")
-        self.assertContains(page, "Sun May 31, 2026")
-        self.assertContains(page, "Fri May 1, 2026")
+        self.assertContains(page, "May 31, 2026")
+        self.assertContains(page, "May 1, 2026")
         self.assertContains(page, "changed")
         r = self.client.post(f"/contracts/{self.c.pk}/timeline/", {"action": "keep", "doc": d2.pk, "eff": "2026-03-02"})
         self.assertRedirects(r, self.c.get_absolute_url() + "#dates", fetch_redirect_response=False)
@@ -175,7 +175,7 @@ class TimelineTests(TestCase):
     def test_contract_page_shows_timeline(self):
         self.add(kind="feasibility", label="Feasibility ends", date=date(2026, 5, 31))
         page = self.client.get(self.c.get_absolute_url())
-        self.assertContains(page, 'class="tl-mark tl-k-feasibility')
+        self.assertContains(page, 'class="tl-dot tl-k-feasibility')
         self.assertContains(page, f"/contracts/{self.c.pk}/timeline/")
 
 
@@ -225,8 +225,8 @@ class RedlineAndCommentTests(TestCase):
         self.assertEqual((text[ins["start"]:ins["end"]], ins["author"], ins["date"]), ("$250,000", "Venable", "2026-10-02"))
         self.assertEqual((dele["text"], dele["author"], dele["start"]), ("$100,000", "Kellen Moczulski", ins["start"]))
         html = textmod.reader_html(text, starts, tracked=tracked)
-        self.assertIn('<del class="tc-del" data-x data-author="Kellen Moczulski"', html)
-        self.assertIn('<ins class="tc-ins" data-author="Venable" title="Added by Venable, 2026-10-02">$250,000</ins>', html)
+        self.assertIn('data-author="Kellen Moczulski" title="Deleted by Kellen Moczulski, 2026-10-01">$100,000</del>', html)
+        self.assertIn('data-author="Venable" title="Added by Venable, 2026-10-02">$250,000</ins>', html)
         # Uploaded through the contract page, the reader shows them
         self.client.post(self.c.get_absolute_url(), {"action": "upload", "kind": "draft", "dated": "2026-10-02",
                                                      "title": "Round 3", "sent_by": "them",
@@ -325,7 +325,7 @@ class ClaudeTimelineTests(TestCase):
         fmt = stream.call_args.kwargs["output_config"]["format"]["schema"]
         self.assertIn("anchor", fmt["properties"]["dates"]["items"]["required"])
         page = self.client.get(f"/contracts/{self.c.pk}/timeline/?v={self.doc.pk}")
-        self.assertContains(page, "Tue Jun 30, 2026")  # Mar 2 + 90 + 30
+        self.assertContains(page, "Jun 30, 2026")  # Mar 2 + 90 + 30
 
     def test_find_dates_keeps_rules(self):
         found = json.dumps({"dates": [self.item(date="2026-05-31")]})
@@ -371,3 +371,139 @@ class CalendarTests(TestCase):
         nxt = (self.today.replace(day=1) + timedelta(days=32)).strftime("%Y-%m")
         self.assertContains(self.client.get(f"/?crit={nxt}"), "Critical dates · ")
 
+
+@override_settings(MEDIA_ROOT=tempfile.mkdtemp())
+class ExecutedExtensionTests(TestCase):
+    """The ETC PSA as it was entered: dates from Trello with rules in words and no keys, and an extension whose
+    rule says "extends it 120 days" without naming what it extends in the usual way."""
+
+    def setUp(self):
+        self.user = make_manager(User.objects.create_user("kellen", first_name="Kellen", last_name="Moczulski"))
+        self.client.force_login(self.user)
+        self.site = LandSite.objects.create(name="4390 Indian Head Hwy", status="contract")
+        self.c = Contract.objects.create(title="4390 Indian Head Hwy PSA", kind="psa", status="signed", site=self.site,
+                                         effective_date=date(2026, 6, 24), owner=self.user)
+
+        def mk(**kw):
+            return ContractDate.objects.create(contract=self.c, **kw)
+
+        self.feas = mk(kind="feasibility", label="Feasibility Period Expiration", date=date(2026, 10, 22),
+                       rule="120 days after the Effective Date, 5:00 p.m. Eastern")
+        mk(kind="title", label="Notice of Title Defects Deadline", date=date(2026, 10, 22),
+           rule="On or before the end of the Feasibility Period")
+        self.ext = mk(kind="extension", label="Extension Notice Deadline", date=date(2026, 10, 22), amount=10000,
+                      rule="Written notice by the end of the Feasibility Period extends it 120 days "
+                           "($10,000 extension deposit)")
+        mk(kind="title", label="Seller's Response to Title Defects", date=date(2026, 11, 1),
+           rule="10 days after the Notice of Title Defects (assuming notice on Oct 22)")
+        mk(kind="notice", label="Notice of Closing Date", date=date(2026, 12, 11),
+           rule="10 days' advance notice of the Closing Date to the Seller")
+        mk(kind="closing", label="Closing Date Deadline", date=date(2026, 12, 21),
+           rule="No more than 60 days after the Feasibility Period ends")
+        ContractDocument.objects.create(contract=self.c, kind="original", title="FE PSA - executed", text=ORIGINAL)
+
+    def test_works_out_the_extension_and_pushes_the_chain(self):
+        page = self.client.get(f"/contracts/{self.c.pk}/timeline/")
+        self.assertContains(page, "Feb 19, 2027")  # Oct 22 + 120 days, worked out, not typed
+        self.assertContains(page, "Confirm the extension")
+        self.assertContains(page, "is the final executed agreement")
+        r = self.client.post(f"/contracts/{self.c.pk}/timeline/", {"action": "exercise", "date_id": self.ext.pk,
+                                                                    "target": self.feas.pk, "notice_on": "2026-10-19"})
+        self.assertEqual(r.status_code, 302)
+        got = {d.label: (d.date, d.done) for d in self.c.dates.all()}
+        self.assertEqual(got["Feasibility Period Expiration"], (date(2027, 2, 19), False))
+        self.assertEqual(got["Notice of Title Defects Deadline"][0], date(2027, 2, 19))
+        self.assertEqual(got["Seller's Response to Title Defects"][0], date(2027, 3, 1))
+        self.assertEqual(got["Closing Date Deadline"][0], date(2027, 4, 20))
+        self.assertEqual(got["Notice of Closing Date"][0], date(2027, 4, 10))
+        self.assertEqual(got["Extension Notice Deadline"], (date(2026, 10, 22), True))  # exercised, not moved
+        self.c.refresh_from_db()
+        self.assertEqual(self.c.decision, "extend")
+        self.site.refresh_from_db()
+        self.assertEqual(self.site.milestones["feasibility_end"], "2027-02-19")
+        self.assertContains(self.client.get(f"/contracts/{self.c.pk}/timeline/"), "Exercised Oct 19, 2026")
+
+    def test_contract_page_marks_the_executed_agreement(self):
+        page = self.client.get(self.c.get_absolute_url())
+        self.assertContains(page, "Final executed")
+        self.assertContains(page, "is the final executed agreement")
+
+
+@override_settings(MEDIA_ROOT=tempfile.mkdtemp())
+class DropUploadTests(TestCase):
+    def setUp(self):
+        self.user = make_manager(User.objects.create_user("kellen", first_name="Kellen", last_name="Moczulski"))
+        self.client.force_login(self.user)
+
+    def test_guess_from_the_file_name(self):
+        from crm.contracts import intake
+
+        self.assertEqual(intake.guess("ACMI PDA - Long Wall - LW Redline 2026.10.19.docx"),
+                         {"kind": "draft", "title": "ACMI PDA - Long Wall - LW Redline 2026.10.19",
+                          "dated": date(2026, 10, 19)})
+        self.assertEqual(intake.guess("First Amendment to PSA.pdf")["kind"], "amendment")
+        self.assertEqual(intake.guess("FE PSA - executed - 20260622.pdf")["kind"], "original")
+
+    def test_drop_on_a_contract_without_claude(self):
+        c = Contract.objects.create(title="Long Wall PDA", kind="pda", owner=self.user)
+        with mock.patch.dict("os.environ", {"ANTHROPIC_API_KEY": ""}):
+            r = self.client.post(f"/contracts/{c.pk}/drop/", {
+                "file": SimpleUploadedFile("LW Redline 2026.10.19.docx", tracked_docx())})
+            again = self.client.post(f"/contracts/{c.pk}/drop/", {"file": SimpleUploadedFile("copy.docx", tracked_docx())})
+        self.assertTrue(r.json()["ok"])
+        doc = ContractDocument.objects.get()
+        self.assertEqual((doc.kind, doc.dated, len(doc.tracked)), ("draft", date(2026, 10, 19), 2))
+        self.assertIn("Already in the file", again.json()["error"])
+        self.assertEqual(ContractDocument.objects.count(), 1)
+
+    def test_drop_a_new_agreement_with_claude(self):
+        found = json.dumps({"document": {"kind": "original", "title": "Wamsley PSA (executed)", "dated": "2026-03-02",
+                                         "sent_by": "", "author": "", "summary": "The signed purchase agreement."},
+                            "contract": {"title": "Wamsley PSA", "kind": "psa", "counterparty": "Wamsley Farm LLC",
+                                         "our_entity": "ACMI Properties MEIH LLC", "price": "4,200,000",
+                                         "acres": "212.5", "effective_date": "2026-03-02", "status": "signed"}})
+        patch, stream = fake_claude([text_block(found)])
+        with mock.patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test"}), patch:
+            r = self.client.post("/contracts/new/drop/", {"file": SimpleUploadedFile("scan_0042.txt", ORIGINAL.encode())})
+        data = r.json()
+        c = Contract.objects.get()
+        self.assertEqual(data["url"], c.get_absolute_url())
+        self.assertEqual((c.title, c.kind, c.status, c.counterparty, str(c.price), c.effective_date),
+                         ("Wamsley PSA", "psa", "signed", "Wamsley Farm LLC", "4200000.00", date(2026, 3, 2)))
+        doc = c.documents.get()
+        self.assertEqual((doc.kind, doc.title, doc.summary),
+                         ("original", "Wamsley PSA (executed)", "The signed purchase agreement."))
+        self.assertIn("contract's", " ".join(data["filled"]))
+        self.assertEqual(stream.call_args.kwargs["output_config"]["effort"], "low")
+
+
+@override_settings(MEDIA_ROOT=tempfile.mkdtemp())
+class WordRedlineTests(TestCase):
+    def setUp(self):
+        self.user = make_manager(User.objects.create_user("kellen", first_name="Kellen"))
+        self.client.force_login(self.user)
+        self.c = Contract.objects.create(title="Long Wall PDA", kind="pda")
+
+    def test_tracked_view_and_reread(self):
+        from django.core.files.base import ContentFile
+        from django.core.management import call_command
+
+        v1 = ContractDocument.objects.create(
+            contract=self.c, kind="original", title="PDA 2026.06.23", dated=date(2026, 6, 23), page_starts=[0],
+            text="2. DEPOSIT.\nBuyer shall deposit $100,000 with the Escrow Agent.", text_status="ok")
+        v2 = ContractDocument(contract=self.c, kind="draft", title="LW Redline", dated=date(2026, 10, 19),
+                              text="2. DEPOSIT.\nBuyer shall deposit $250,000 with the Escrow Agent.", page_starts=[0],
+                              text_status="ok")
+        v2.file.save("LW Redline.docx", ContentFile(tracked_docx()), save=True)  # uploaded before tracking: none kept
+        call_command("reread_contract_files", stdout=io.StringIO())
+        v2.refresh_from_db()
+        self.assertEqual(len(v2.tracked), 2)
+        page = self.client.get(f"/contracts/{self.c.pk}/compare/?b={v2.pk}&view=tracked")
+        self.assertContains(page, "Tracked in the Word file (2)")
+        self.assertContains(page, "Venable")
+        self.assertContains(page, "Kellen Moczulski")
+        self.assertContains(page, 'data-tc="1"')
+        self.assertContains(page, f"Compared with {v1.title}")
+        detail = self.client.get(self.c.get_absolute_url())
+        self.assertContains(detail, "(2 tracked)")
+        self.assertContains(detail, "compare with previous")
