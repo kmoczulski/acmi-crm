@@ -56,6 +56,16 @@ Status / Notes, landscape fit-to-width printing with repeated headers. Owner ("A
 puts the three sections in one table so their columns line up. No migration. Formulas have no saved values until
 Excel opens the file, so phone and email previews show those cells blank.
 
+**The Forge lenders 2026-10-21** (Kellen asked): two lender calls that morning weren't on any lender page, because
+neither bank was in the CRM (Shore United's 10 emails sat in Mail review; B&H's call was a forwarded invite, not on
+the synced calendar). Added both to the directory as banks (Shore United with `shoreunitedbank.com` and 3 contacts,
+which filed its 10 queued emails; B&H Bank with Jeff Rouse and Paul Covill, **domain unknown: add it on the firm
+page**), and both as construction-loan sources on The Forge (B&H at Term sheet, $2M sought, terms in its notes; Shore
+United In discussion). Imported both Granola notes from `data/imports/granola/2026-10-21-lenders.json`; Shore United's
+had no Granola summary, so it carries B&H's next steps (Kellen: the same tasks for both). Four tasks for Kellen (9-12),
+linked from both meetings. Shore United still shows a second calendar row for the same call (the bank's own invite,
+different title). Backup `backups/db-2026-10-21-before-forge-lenders.sqlite3`.
+
 **Next, in order**
 1. **Granola (time-sensitive: Granola only keeps 30 days).**
    - Kellen connects the Granola connector in Claude (Settings › Connectors). Its tools are `list_meetings`,
