@@ -1224,7 +1224,10 @@ payment / rent dates); backup `backups/db-2026-10-21-before-contract-review.sqli
 - **Not yet:** comment highlights in the redline view are by change, not exact words (the redline's text isn't the
   document's text); holidays aren't skipped in business days; "Original PDF" for Word files (download only).
 
-## Built 2026-10-21: the capitalization tracker (branch `capital-tracker`, not merged yet)
+## Built 2026-10-21: the capitalization tracker
+
+**Merged 2026-10-21** (`d1d1393`, CI green on Postgres). Migration `0052_capital` applied to the real DB (new tables
+only); backup `backups/db-2026-10-21-before-capital.sqlite3`. No providers or sources entered yet.
 
 Kellen: "We have equity (Fortress) but have to work through getting debt, so being able to track meetings and term
 sheets etc. would be helpful." Sources, terms and conversations only; the pro forma stays in Excel.
