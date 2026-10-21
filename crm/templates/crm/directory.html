@@ -5,6 +5,7 @@
 <div class="page-head">
   <h1>{{ title }}</h1>
   <span class="spacer"></span>
+  <a class="btn" href="{% url 'crm:firm_suggestions' %}">Sorted from email</a>
   {% if group == "capital" %}<a class="btn" href="{% url 'crm:capital_index' %}">Capital</a>{% endif %}
 </div>
 <p class="muted" style="margin-top:0">Lenders, brokers and investors, and the consultants, lawyers, engineers, contractors and vendors we work with.

@@ -24,7 +24,7 @@
       <li>The Company is deleted. This can't be undone from the app.</li>
     </ul>
     <form method="post" class="inline-form" onsubmit="return confirm('Move {{ company.name|escapejs }} to the directory and delete the Company?')">{% csrf_token %}
-      <label>Type <select name="kind">{% for v, l in kinds %}<option value="{{ v }}"{% if pv.existing and v == pv.existing.kind or not pv.existing and v == "consultant" %} selected{% endif %}>{{ l }}</option>{% endfor %}</select></label>
+      <label>Type <select name="kind">{% for v, l in kinds %}<option value="{{ v }}"{% if pv.existing and v == pv.existing.kind or not pv.existing and picked and v == picked or not pv.existing and not picked and v == "consultant" %} selected{% endif %}>{{ l }}</option>{% endfor %}</select></label>
       <button class="btn btn-primary">Move to directory</button>
       <a class="btn" href="{{ company.get_absolute_url }}">Cancel</a>
     </form>

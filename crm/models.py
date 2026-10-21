@@ -945,6 +945,7 @@ class Notification(models.Model):
         STAGE = "stage", "Deal stage changed"
         MEETING = "meeting", "Meeting"
         DEADLINE = "deadline", "Deadline"
+        DIRECTORY = "directory", "Filed in the directory"
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="notifications")
     kind = models.CharField(max_length=12, choices=Kind.choices)
@@ -3095,3 +3096,54 @@ class FirmEmail(models.Model):
 
     def __str__(self):
         return f"{self.address}: {self.subject}"
+
+
+class DomainSort(models.Model):
+    """Claude's read of who's behind an email domain, from the mail itself (signatures, subjects, the domain): a
+    prospect (a Company), a firm for the directory (with its type) or neither. For a domain waiting in the mail review
+    queue, a clear directory firm is filed automatically (status Filed, with Undo); anything else is a suggestion on
+    Mail review. For an existing Company (company set), a suggestion that it's really a vendor, which a Manager acts
+    on with Move to directory."""
+
+    class Verdict(models.TextChoices):
+        DIRECTORY = "directory", "Directory firm"
+        COMPANY = "company", "Prospect (Company)"
+        IGNORE = "ignore", "Neither (newsletter, personal, one-off)"
+        UNSURE = "unsure", "Not sure"
+
+    class Confidence(models.TextChoices):
+        HIGH = "high", "High"
+        MEDIUM = "medium", "Medium"
+        LOW = "low", "Low"
+
+    class Status(models.TextChoices):
+        SUGGESTED = "suggested", "Suggested"
+        FILED = "filed", "Filed by Claude"
+        UNDONE = "undone", "Undone"
+        DONE = "done", "Acted on"
+        DISMISSED = "dismissed", "Dismissed"
+
+    domain = models.CharField(max_length=255, db_index=True)
+    company = models.ForeignKey(Company, null=True, blank=True, on_delete=models.CASCADE, related_name="sorts")
+    verdict = models.CharField(max_length=10, choices=Verdict.choices)
+    kind = models.CharField(max_length=14, blank=True, help_text="The directory type, for a directory firm")
+    name = models.CharField(max_length=200, blank=True, help_text="The organization's name as the mail gives it")
+    confidence = models.CharField(max_length=6, choices=Confidence.choices, default=Confidence.LOW)
+    reason = models.CharField(max_length=400, blank=True)
+    contacts = models.JSONField(default=list, blank=True, help_text="[{name, title, email, phone}] from signatures")
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.SUGGESTED)
+    firm = models.ForeignKey(Firm, null=True, blank=True, on_delete=models.SET_NULL, related_name="sorts")
+    created_firm = models.BooleanField(default=False, help_text="The firm was started by this filing")
+    decided_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    decided_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.domain}: {self.get_verdict_display()}"
+
+    @property
+    def kind_label(self):
+        return dict(Firm.Kind.choices).get(self.kind, self.kind)

@@ -9,3 +9,6 @@ echo ==== %date% %time% >> logs\sync_mail.log
 rem Google Calendar for everyone who connected it (Meetings page).
 echo ---- calendar >> logs\sync_mail.log
 .venv\Scripts\python.exe manage.py sync_calendar >> logs\sync_mail.log 2>&1
+rem Claude sorts new email domains: sure consultants, vendors and lenders go to the Directory.
+echo ---- sorting >> logs\sync_mail.log
+.venv\Scripts\python.exe manage.py sort_domains >> logs\sync_mail.log 2>&1

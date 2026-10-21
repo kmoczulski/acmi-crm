@@ -15,6 +15,13 @@ from . import sync
 def mail_home(request):
     mailbox = Mailbox.objects.filter(user=request.user).first()
     queue = sync.review_queue()
+    from crm.directory import sort
+
+    sorts = sort.suggestions()
+    for g in queue:
+        g["sort"] = sorts.get(g["domain"])
+        if g["sort"] and g["sort"].verdict == "company" and g["sort"].name:
+            g["suggested_name"] = g["sort"].name  # Claude's reading of the name, from the signatures
     return render(request, "crm/mail.html", {
         "mailbox": mailbox,
         "has_password": bool(mailbox and mailbox.get_password()),
@@ -25,6 +32,7 @@ def mail_home(request):
         "filters": MailFilter.objects.all(),
         "filter_kinds": MailFilter.Kind.choices,
         "firm_kinds": Firm.Kind.choices,
+        "filings": sort.recent_filings(),
         "default_email": request.user.email,
     })
 
@@ -165,4 +173,10 @@ def cron_sync(request):
         gcal.sync_all()
     except Exception as exc:  # a calendar problem must not fail the mail sync
         out["calendar_error"] = str(exc)
+    from crm.directory import sort  # Claude sorts the new domains, as in scripts/sync_mail.cmd
+
+    try:
+        out["sorting"] = sort.auto_sort()
+    except Exception as exc:  # noqa: BLE001 - sorting must not fail the mail sync
+        out["sorting_error"] = str(exc)
     return JsonResponse(out)

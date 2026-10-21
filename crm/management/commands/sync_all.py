@@ -1,6 +1,6 @@
-"""Mail, then Google Calendar for everyone who connected it: what scripts/sync_mail.cmd runs on the laptop, and what
-the Cloud Run sync job runs every 15 minutes in production (Cloud Scheduler). A calendar problem never fails the mail
-part."""
+"""Mail, then Google Calendar for everyone who connected it, then Claude sorting new email domains: what
+scripts/sync_mail.cmd runs on the laptop, and what the Cloud Run sync job runs every 15 minutes in production (Cloud
+Scheduler). A calendar or sorting problem never fails the mail part."""
 from django.core.management.base import BaseCommand
 
 from crm import gcal
@@ -17,3 +17,9 @@ class Command(BaseCommand):
             gcal.sync_all(stdout=self.stdout)
         except Exception as exc:  # noqa: BLE001 - logged, and the mail sync above already counted
             self.stderr.write(f"calendar sync failed: {exc}")
+        from crm.directory import sort  # Claude sorts the review queue's new domains
+
+        try:
+            self.stdout.write("sorting: " + ", ".join(f"{k} {v}" for k, v in sort.auto_sort().items()))
+        except Exception as exc:  # noqa: BLE001 - never fails the sync
+            self.stderr.write(f"domain sorting failed: {exc}")

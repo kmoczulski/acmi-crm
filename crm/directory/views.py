@@ -8,9 +8,10 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from ..capital import logic as capital_logic
-from ..models import Company, Firm, UnmatchedEmail
+from ..ai import enabled as ai_enabled
+from ..models import Company, DomainSort, Firm, UnmatchedEmail
 from ..permissions import is_manager, refuse
-from . import logic
+from . import logic, sort
 from .forms import FirmForm
 
 GROUPS = {"capital": "Lenders and investors", "services": "Consultants and vendors"}
@@ -95,6 +96,7 @@ def firm_detail(request, pk):
         "upcoming": logic.upcoming_meetings(firm),
         "group": "capital" if firm.is_capital else "services",
         "groups": GROUPS,
+        "filings": firm.sorts.filter(status=DomainSort.Status.FILED),
     })
 
 
@@ -120,7 +122,8 @@ def company_move(request, pk):
                            (("contact", stats["contacts"]), ("email", stats["emails"]), ("note", stats["notes"])))
         messages.success(request, f"Moved {firm.name} to the directory: {counts}. The Company is deleted.")
         return redirect(firm)
-    return render(request, "crm/company_move.html", {"company": company, "pv": preview, "kinds": Firm.Kind.choices})
+    return render(request, "crm/company_move.html", {"company": company, "pv": preview, "kinds": Firm.Kind.choices,
+                                                     "picked": request.GET.get("kind", "")})
 
 
 @require_POST
@@ -134,3 +137,51 @@ def file_domain(request):
     messages.success(request, f"{domain} → {firm.name} in the directory: {moved} email{'s' if moved != 1 else ''} "
                               "filed there.")
     return redirect("crm:mail")
+
+
+# ---------------------------------------------------------------------------
+# Claude's sorting (sort.py): filings to undo, suggestions to take, Companies that look like vendors
+# ---------------------------------------------------------------------------
+
+
+def suggestions(request):
+    """What Claude has filed from email lately (with Undo) and the Companies it thinks are vendors."""
+    if request.method == "POST":
+        if not is_manager(request.user):
+            return refuse(request)
+        try:
+            out = sort.review_companies(limit=20)
+        except sort.Unavailable as e:
+            messages.error(request, str(e))
+        else:
+            messages.success(request, f"Claude checked {out['checked']} compan{'ies' if out['checked'] != 1 else 'y'}: "
+                                      f"{out['flagged']} look{'s' if out['flagged'] == 1 else ''} like vendors.")
+        return redirect("crm:firm_suggestions")
+    return render(request, "crm/directory_suggestions.html", {
+        "flags": sort.company_flags(), "filings": sort.recent_filings(days=30),
+        "left": len(sort.company_candidates()), "can_manage": is_manager(request.user), "ai_ready": ai_enabled(),
+    })
+
+
+@require_POST
+def sort_action(request, pk):
+    """file (take Claude's suggestion for a queued domain), undo (an automatic filing) or dismiss."""
+    s = get_object_or_404(DomainSort, pk=pk)
+    action = request.POST.get("action", "")
+    back = "crm:mail" if request.POST.get("back") == "mail" else "crm:firm_suggestions"
+    if action == "file" and s.company_id is None and s.status == DomainSort.Status.SUGGESTED:
+        if not UnmatchedEmail.objects.filter(domain=s.domain).exists():
+            messages.error(request, f"{s.domain} isn't in the review queue any more.")
+            return redirect(back)
+        firm, moved = sort.file(s, request.user)
+        messages.success(request, f"{s.domain} → {firm.name} in the directory: {moved} email{'s' if moved != 1 else ''}"
+                                  " filed there.")
+    elif action == "undo":
+        if sort.undo(s, request.user):
+            messages.success(request, f"Undone: {s.domain} is back in Mail review.")
+    elif action == "dismiss":
+        if s.company_id and not is_manager(request.user):
+            return refuse(request)
+        s.status, s.decided_by, s.decided_at = DomainSort.Status.DISMISSED, request.user, timezone.now()
+        s.save()
+    return redirect(back)

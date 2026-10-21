@@ -1436,3 +1436,34 @@ team firms linked** to the directory.
 - Code: `base.html` (the pin button and two small scripts) and a marked section at the end of `app.css` ("Sidebar
   auto-hide … End sidebar auto-hide"). Checked in a browser on a scratch database at 1280 wide (hidden, hover, pin,
   pin kept across pages, unpin) and 375 wide.
+
+## Built 2026-10-21: Claude sorts email domains into the directory (branch `mail-sort`, not merged yet)
+
+Kellen, on the directory: "this should be automated from email traffic." He picked (2026-10-21): **auto-file the sure
+vendors, suggest the rest**, and **flag existing Companies** that look like vendors, without moving them.
+
+- **After each mail sync** (`manage.py sort_domains`, added to `scripts/sync_mail.cmd`, `sync_all` and the cron
+  endpoint; `crm/directory/sort.py`): Claude reads each review-queue domain it hasn't seen (busiest first, up to 60 a
+  run, 20 per call, effort low; up to 5 emails each with the sender, subject and 500 characters of the body, where the
+  signatures are). For each, a `DomainSort` (migration `0054_domain_sort`): prospect (Company), directory firm (with
+  type), neither (newsletter, personal, one-off) or not sure (government bodies go here), confidence, a one-line
+  reason and the signature contacts (only people at that domain).
+- **Directory + high confidence:** filed automatically (`logic.file_domain`: an existing firm of that name gets the
+  domain, else a new one) with the contacts and the waiting mail, and every Manager gets a bell note ("Claude filed
+  x.com in the Directory as ...", one note per sync run). **Undo** (Directory › Sorted from email, the firm page, or the link on Mail review)
+  puts the mail back in the queue, takes the domain off the firm, deletes a firm the filing started if nothing else is
+  on it, and that domain is never filed automatically again.
+- **Everything else is a suggestion** on its Mail review row ("Claude: Directory, law firm (medium)", the reason, and
+  File as Claude says; for a prospect, Claude's name for it fills the Add as company box). **Claude never creates a
+  Company**, so nothing reaches outreach without someone deciding.
+- **Existing Companies** (Directory › Sorted from email › Check N more Companies with Claude, Managers, 20 a click; or
+  `sort_domains --companies`): candidates are Companies with no tenant deal and a service-like sector or name, or
+  flagged Exclude. Claude reads the record and its recent mail; the ones it reads as vendors are listed with the reason,
+  Move to directory (the type preselected) and Keep as company. Nothing moves on its own.
+- Claude off (no key) or failing never fails the sync: sorting just stops for that run and tries again next time.
+- **Tests:** `crm/tests/test_domain_sort.py` (8, Claude mocked; 424 in all pass). Checked in a browser on a scratch database with
+  made-up domains: the Mail review suggestions, File as Claude says, the Sorted from email page, Undo.
+- **To merge (waiting on Kellen):** CI, merge, back up, `migrate crm` (0054: one new table). The real queue has 489
+  domains (3,585 emails), so the first runs work through it at 60 a sync, about two hours of syncs, roughly 25 Claude
+  calls in all. That sends those emails' senders, subjects and opening text to Anthropic, as the relationship summaries
+  already do.

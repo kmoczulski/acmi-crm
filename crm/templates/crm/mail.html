@@ -56,6 +56,8 @@
 
 <div class="panel">
   <h3>New domains to review ({{ queue|length }})</h3>
+  {% if filings %}<p class="lc-small" style="margin-top:0">Claude filed {{ filings|length }} domain{{ filings|length|pluralize }} in the Directory from email in the last two weeks
+    ({% for f in filings|slice:":5" %}{{ f.domain }}{% if not forloop.last %}, {% endif %}{% endfor %}{% if filings|length > 5 %}…{% endif %}). <a href="{% url 'crm:firm_suggestions' %}">Review or undo</a></p>{% endif %}
   <p class="muted" style="font-size:13px;margin-top:0">Emails with people at domains no company owns yet. Create a company (or attach the domain to an existing one) and the waiting emails land on its timeline. File vendors, law firms, consultants and lenders in the Directory: they stay out of outreach and their mail is kept there. Ignore anything else that isn't a prospect. Protect anything that should never be stored.</p>
   {% if queue %}
   <form method="post" action="{% url 'crm:review_bulk' %}" id="bulk-form" class="inline-form" style="margin-bottom:8px">{% csrf_token %}
@@ -71,7 +73,10 @@
     {% for g in queue %}
       <tr>
         <td><input type="checkbox" class="pick" name="domains" value="{{ g.domain }}" form="bulk-form"></td>
-        <td><strong>{{ g.domain }}</strong><div class="muted" style="font-size:12px">last {{ g.last|date:"M j" }}</div></td>
+        <td><strong>{{ g.domain }}</strong><div class="muted" style="font-size:12px">last {{ g.last|date:"M j" }}</div>
+          {% with s=g.sort %}{% if s %}<div class="lc-small" style="max-width:240px;margin-top:4px" title="{{ s.reason }}"><b>Claude:</b> {% if s.verdict == "directory" %}Directory, {{ s.kind_label|lower }}{% elif s.verdict == "company" %}prospect{% if s.name %}, {{ s.name }}{% endif %}{% else %}{{ s.get_verdict_display|lower }}{% endif %} <span class="muted">({{ s.get_confidence_display|lower }})</span>
+            <div class="muted">{{ s.reason|truncatechars:140 }}</div>
+            {% if s.verdict == "directory" %}<form method="post" action="{% url 'crm:firm_sort_action' s.pk %}" style="display:inline">{% csrf_token %}<input type="hidden" name="action" value="file"><input type="hidden" name="back" value="mail"><button class="btn-small" title="File it as {{ s.name|default:g.domain }}, {{ s.kind_label|lower }}">File as Claude says</button></form>{% endif %}</div>{% endif %}{% endwith %}</td>
         <td>
           <form method="post" action="{% url 'crm:review_dismiss' %}" class="inline-form" style="flex-wrap:nowrap">{% csrf_token %}
             <input type="hidden" name="domain" value="{{ g.domain }}">
