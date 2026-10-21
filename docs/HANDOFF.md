@@ -1291,6 +1291,32 @@ sheets etc. would be helpful." Sources, terms and conversations only; the pro fo
 - **Not yet:** a Capital panel on the contract page (left alone while another session changes the contract upload
   form); OCR for scanned term sheets (Claude reads the PDF, but quotes can't be matched to text).
 
+## Built 2026-10-21: the company page rework (Kellen: "really hard to navigate… meeting summaries should be more apparent")
+
+**Merged 2026-10-21** (`befd879`, CI green, pushed; branch and worktree removed). No migration, no data change.
+- **Layout:** tabs that stay at the top as you scroll: Overview, Meetings (n), Action items (n open), Activity, People
+  (n), Deals (n). The record's Details, team connections, documents and lists moved to a right-hand column (below the
+  page under 1100px wide). The overview runs: a strip of key facts (stage, owner, last touch, next meeting, who knows
+  them, fit, campus, projects, latest news) → Who we know (top 5 people) and Open deals side by side → the latest
+  meetings → open action items and tasks → folded panels for AI summary, Notes, Comments and Recent activity.
+- **Meetings as cards** (`partials/company_meeting_card.html`): the next upcoming meeting plus the last three held,
+  each with the Granola summary rendered in place (long ones start clipped, "Show full summary" opens the rest on the
+  page) and its Next Steps listed beside it as action items. The summary drops its "Next Steps" section
+  (`meetings.summary_without_actions`) so items aren't shown twice. The Meetings tab has every meeting, 10 a page.
+- **Action items** (`partials/action_item.html`, now shared with the meeting pop-up): owner, a checkbox once a task
+  exists (ticking it closes the task), and Make task (assignee, due date, time). On a card the form opens from a
+  "+ Make task" link. `meeting_make_task` now honours `next`, so Make task returns to the company page; the pop-up
+  passes the calendar URL, as before. The Action items tab lists open items across all the company's meetings, then
+  the company's other tasks (tasks made from items aren't listed twice), with done ones folded.
+- **Activity tab:** chips for All / Meetings / Email / Notes and tasks / Changes and news, with counts
+  (`?kind=`, `crm/company_page.py ACTIVITY_FILTERS`).
+- **Code:** the meeting and action-item logic is in `crm/company_page.py`, so `company_detail` in `views.py` only gained
+  a few lines. CSS is one marked section at the end of `app.css` ("Company page … End company page").
+- **Tests:** `crm/tests/test_company_page.py` (8). Checked in a browser on a scratch database with a made-up company,
+  three meetings and tasks: desktop at 800 and 1440 wide and phone at 375 wide (no sideways scroll), Make task from a
+  card and from the Action items tab, ticking an item done, the Activity filter, expanding a summary.
+- **Not yet:** the person page still has the old layout; the same cards would fit there.
+
 ## Built 2026-10-21: the directory (consultants, vendors, lawyers, engineers, lenders) (branch `directory`, not merged yet)
 
 Kellen, 2026-10-21, on keeping brokers and banks out of Companies: "If anything it should be a separate CRM for

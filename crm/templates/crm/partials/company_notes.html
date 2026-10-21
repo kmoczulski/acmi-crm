@@ -1,0 +1,13 @@
+{% load crm_tags %}
+<form method="post" action="{% url 'crm:note_add' %}">{% csrf_token %}
+  <input type="hidden" name="{{ record_field }}" value="{{ record.pk }}">
+  <input type="hidden" name="next" value="{{ request.get_full_path }}">
+  {{ note_form.body }}
+  <button class="btn-small" style="margin-top:6px">Add note</button>
+</form>
+{% for n in notes %}
+  <div style="border-top:1px solid var(--line);padding-top:8px;margin-top:8px">
+    <div style="white-space:pre-wrap">{{ n.body }}</div>
+    <div class="muted" style="font-size:12px">{{ n.author|username }} · {{ n.created_at|date:"M j, Y" }}</div>
+  </div>
+{% endfor %}
