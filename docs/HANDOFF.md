@@ -1290,3 +1290,50 @@ sheets etc. would be helpful." Sources, terms and conversations only; the pro fo
   sheet has gone through it.
 - **Not yet:** a Capital panel on the contract page (left alone while another session changes the contract upload
   form); OCR for scanned term sheets (Claude reads the PDF, but quotes can't be matched to text).
+
+## Built 2026-10-21: the directory (consultants, vendors, lawyers, engineers, lenders) (branch `directory`, not merged yet)
+
+Kellen, 2026-10-21, on keeping brokers and banks out of Companies: "If anything it should be a separate CRM for
+consultants etc." He picked (2026-10-21): **one directory** shared with the lenders and investors rather than two lists;
+a **Move to directory** button on a company, moving **only Cozen O'Connor** for now (the ~40 consulting-sector
+Companies are often defense consultants that could be tenants, so they're moved one at a time by hand); and **project
+team firms linked** to the directory.
+
+- **One list, `Firm`** (`crm/directory/`, migration `0053_directory`, which renames `CapitalProvider` → `Firm` and
+  `CapitalEmail` → `FirmEmail` in place, so the capital tables and rows carry over). Type is capital (bank, debt fund,
+  debt broker / advisor, equity investor, agency) or services (law firm, architect, engineer, environmental, surveyor,
+  contractor / builder, consultant / advisor, real estate broker, title / escrow, accountant / tax, insurance, vendor /
+  supplier, other). `Firm.is_capital` says which side; an option added in Settings › Dropdown lists › Contacts ›
+  Directory type picks the built-in type it works like. A capital source's provider field offers only the capital side.
+  Never a Company or Person, so never in a send queue, list or outreach report.
+- **Pages:** `/directory/` (sidebar Contacts › Directory; Capital › Lenders and investors opens it on the capital side;
+  the old `/capital/providers/` redirects there): All / Lenders and investors / Consultants and vendors, a type filter,
+  search by name, domain or contact; each firm's capital sources and project team roles and its last email.
+  `/directory/<id>/` is one firm: project teams, capital sources, emails / meetings / capital log (120 days), contacts
+  (kept on the firm, not as People), details.
+- **Email:** the mail sync files mail from a firm's domains as `FirmEmail` (`mail/sync.py _park`, the hook the capital
+  providers used) instead of the review queue. A firm's domain is never guessed onto a Company by name (the sync's
+  name-spelling match skips it), can't be added to a Company (company form) or approved from the review queue, and a
+  Company's domain can't be added to a firm (use Move to directory instead). Adding a domain to a firm moves what's
+  already in the review queue onto it.
+- **Mail review:** each queued domain has **File in directory** (name, type): the domain goes on a firm (an existing
+  one of that name gets it added) and its queued mail moves there.
+- **Move to directory** (company page, Managers only; `/companies/<id>/move-to-directory/` shows what happens first):
+  domains and website to the firm; people become contacts and are deleted as People; emails become `FirmEmail`; notes,
+  calls, comments (company's and its people's) are appended to the firm's notes; meetings stay on the calendar and show
+  on the firm through its domains and contacts; it comes off any lists; the Company is deleted. Joins a firm of the same
+  name if one exists. Blocked while the company has a tenant deal, document, contract or open task.
+- **Project team:** a `TeamMember` links to its firm (`directory`, found by name or started on save, type from the role:
+  civil → engineer, attorney → law firm, GC → contractor...). The Build page's firm field offers directory names and
+  links each firm to its page. The real DB has no team members yet.
+- **Tests:** `crm/tests/test_directory.py` (16), plus the capital tests updated for the rename; the whole suite (398)
+  passes. Checked in a browser on a scratch database with made-up firms: the directory and its filters, moving a
+  made-up law firm Company (its email, meeting, contact and notes arrived on the firm), File in directory from Mail
+  review, the Build page's team links, and the capital pages after the rename.
+- **To merge (waiting on Kellen):** push the branch, CI, fast-forward main, back up and `migrate crm` (0053: renames two
+  tables, no data loss). It touches `company_detail.html` with one line, and the `company-page` branch is changing that
+  file; whichever merges second resolves it, and any other new migration must be 0054 or later.
+- **Then (Kellen's OK):** move Cozen O'Connor (1795). Checked read-only: no deals, documents, contracts, tasks, lists,
+  notes or comments; 1 person (becomes a contact); 6 meeting entries (the meetings stay and show on the firm). Its
+  Exclude flag goes with the Company. Back up first. `terracon.com` and `greystar.com` still have no Company: decide
+  each in Mail review (Add as company, or File in directory).

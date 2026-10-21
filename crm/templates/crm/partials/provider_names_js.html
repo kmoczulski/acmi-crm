@@ -1,14 +1,18 @@
 <script>
 (function () {
-  const dl = document.getElementById('provider-names');
-  if (!dl) return;
-  let loaded = false;
-  document.querySelectorAll('input[list="provider-names"]').forEach(input => input.addEventListener('focus', () => {
-    if (loaded) return;
-    loaded = true;
-    fetch('{% url "crm:capital_provider_names" %}').then(r => r.json()).then(names => {
-      dl.innerHTML = names.map(n => `<option value="${n.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;')}">`).join('');
-    });
-  }));
+  // Typed firm names, loaded on first focus: provider-names offers the directory's lenders and investors (a capital
+  // source's provider), firm-names every firm (a project team).
+  [['provider-names', 'capital'], ['firm-names', '']].forEach(([id, group]) => {
+    const dl = document.getElementById(id);
+    if (!dl) return;
+    let loaded = false;
+    document.querySelectorAll(`input[list="${id}"]`).forEach(input => input.addEventListener('focus', () => {
+      if (loaded) return;
+      loaded = true;
+      fetch('{% url "crm:firm_names" %}' + (group ? '?group=' + group : '')).then(r => r.json()).then(names => {
+        dl.innerHTML = names.map(n => `<option value="${n.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;')}">`).join('');
+      });
+    }));
+  });
 })();
 </script>

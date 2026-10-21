@@ -33,7 +33,7 @@ SYSTEM = {
 OPEN = {
     "DealType", "AssetType", "OpportunityContact.Role", "Task.Label", "Contract.Kind", "ContractDate.Kind",
     "ApprovalDocument.Kind", "TeamMember.Role", "ChangeOrder.Reason", "BudgetLine.Group", "CampusUpdate.Workstream",
-    "TermSheet.Kind", "CapitalProvider.Kind",
+    "TermSheet.Kind",
 }
 TITLES = {
     "Priority": ("Contacts", "Priority"), "CompanyStatus": ("Contacts", "Company stage"),
@@ -55,8 +55,9 @@ TITLES = {
     "Bid.Status": ("Build", "Bid status"), "BudgetLine.Group": ("Build", "Budget group"),
     "ChangeOrder.Status": ("Build", "Change order status"), "ChangeOrder.Reason": ("Build", "Change order reason"),
     "Draw.Status": ("Build", "Draw status"), "LandownerLetter.Method": ("Land", "Letter sent by"),
-    "CapitalSource.Kind": ("Capital", "Capital source type"), "CapitalProvider.Kind": ("Capital", "Provider type"), "CapitalSource.Status": ("Capital", "Capital source stage"),
+    "CapitalSource.Kind": ("Capital", "Capital source type"), "CapitalSource.Status": ("Capital", "Capital source stage"),
     "TermSheet.Kind": ("Capital", "Term sheet type"), "TermSheet.Status": ("Capital", "Term sheet status"),
+    "Firm.Kind": ("Contacts", "Directory type"),
 }
 AREAS = ["Land", "Tenants", "Contracts", "Entitlements", "Campuses", "Build", "Capital", "Tasks", "Contacts", "Other"]
 

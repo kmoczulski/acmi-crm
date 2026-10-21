@@ -1,0 +1,33 @@
+{% extends "crm/base.html" %}
+{% block title %}Move {{ company.name }} to the directory · ACMI CRM{% endblock %}
+{% block content %}
+<div class="record-head">
+  <div>
+    <div class="muted lc-small"><a href="{{ company.get_absolute_url }}">{{ company.name }}</a> › Move to directory</div>
+    <h1>Move {{ company.name }} to the directory</h1>
+    <div class="muted">For a consultant, lawyer, engineer, vendor or lender: not a prospect, so never in outreach.</div>
+  </div>
+</div>
+<section class="panel" style="max-width:720px">
+  {% if pv.blockers %}
+    <p><b>Can't move it yet:</b> it has {{ pv.blockers|join:", " }}. Those belong to a Company; move or remove them first.</p>
+    <a class="btn" href="{{ company.get_absolute_url }}">Back to the company</a>
+  {% else %}
+    <p>What happens:</p>
+    <ul>
+      <li>{% if pv.existing %}It joins <a href="{{ pv.existing.get_absolute_url }}">{{ pv.existing.name }}</a>, already in the directory.{% else %}A directory entry named <b>{{ company.name }}</b> is made{% if company.domains %} with {{ company.domains|join:", " }}{% endif %}.{% endif %}
+        Mail from {% if company.domains %}those domains{% else %}its domains{% endif %} is filed there from now on.</li>
+      <li>{{ pv.people|length }} {{ pv.people|length|pluralize:"person becomes a contact,people become contacts" }} on the firm{% if pv.people %} ({% for p in pv.people %}{{ p }}{% if not forloop.last %}, {% endif %}{% endfor %}){% endif %}, and {{ pv.people|length|pluralize:"is,are" }} deleted as People, so they leave every list and send queue.</li>
+      <li>{{ pv.emails }} email{{ pv.emails|pluralize }} {{ pv.emails|pluralize:"is,are" }} filed on the firm; {{ pv.notes }} {{ pv.notes|pluralize:"entry,entries" }} from its notes, calls and comments {{ pv.notes|pluralize:"is,are" }} added to the firm's notes.</li>
+      <li>{{ pv.meetings }} meeting{{ pv.meetings|pluralize }} stay{{ pv.meetings|pluralize:"s," }} on the calendar and show on the firm through its domains and contacts.</li>
+      {% if pv.lists %}<li>It comes off {{ pv.lists }} list{{ pv.lists|pluralize }}.</li>{% endif %}
+      <li>The Company is deleted. This can't be undone from the app.</li>
+    </ul>
+    <form method="post" class="inline-form" onsubmit="return confirm('Move {{ company.name|escapejs }} to the directory and delete the Company?')">{% csrf_token %}
+      <label>Type <select name="kind">{% for v, l in kinds %}<option value="{{ v }}"{% if pv.existing and v == pv.existing.kind or not pv.existing and v == "consultant" %} selected{% endif %}>{{ l }}</option>{% endfor %}</select></label>
+      <button class="btn btn-primary">Move to directory</button>
+      <a class="btn" href="{{ company.get_absolute_url }}">Cancel</a>
+    </form>
+  {% endif %}
+</section>
+{% endblock %}

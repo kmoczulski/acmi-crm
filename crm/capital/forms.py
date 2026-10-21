@@ -1,7 +1,7 @@
 from django import forms
 
 from ..forms import StyledForm, UserChoiceField, active_users
-from ..models import CapitalProvider, CapitalSource, Contract, Project, TermSheet
+from ..models import CapitalSource, Contract, Firm, Project, TermSheet
 from . import logic
 
 MAX_UPLOAD_MB = 60
@@ -12,8 +12,8 @@ def _date():
 
 
 class SourceForm(StyledForm):
-    """The provider is typed (the capital providers' names are offered): a known one links, a new name starts a
-    provider. Providers are their own list, never Companies, so they stay out of outreach."""
+    """The provider is typed (the directory's lenders and investors are offered): a known firm links, a new name starts
+    one in the directory. The directory is never Companies, so providers stay out of outreach."""
 
     provider_name = forms.CharField(max_length=200, label="Provider",
                                     widget=forms.TextInput(attrs={"list": "provider-names", "autocomplete": "off",
@@ -47,48 +47,15 @@ class SourceForm(StyledForm):
     def save(self, commit=True, user=None):
         source = super().save(commit=False)
         name = self.cleaned_data["provider_name"]
-        provider = CapitalProvider.objects.filter(name__iexact=name).first()
+        provider = Firm.objects.filter(name__iexact=name).first()
         if provider is None:
-            kind = CapitalProvider.Kind.INVESTOR if source.kind in CapitalSource.EQUITY else (
-                CapitalProvider.Kind.AGENCY if source.kind in ("grant", "tax_credit") else CapitalProvider.Kind.BANK)
-            provider = CapitalProvider.objects.create(name=name, kind=kind, created_by=user)
+            kind = Firm.Kind.INVESTOR if source.kind in CapitalSource.EQUITY else (
+                Firm.Kind.AGENCY if source.kind in ("grant", "tax_credit") else Firm.Kind.BANK)
+            provider = Firm.objects.create(name=name, kind=kind, created_by=user)
         source.provider = provider
         if commit:
             source.save()
         return source
-
-
-class ProviderForm(StyledForm):
-    domains_text = forms.CharField(required=False, label="Email domains",
-                                   help_text="Separated by commas, e.g. truist.com. Emails and meetings with these "
-                                             "domains show on the provider.")
-
-    class Meta:
-        model = CapitalProvider
-        fields = ["name", "kind", "website", "notes"]
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.fields["domains_text"].initial = ", ".join(self.instance.domains or [])
-
-    def clean_domains_text(self):
-        raw = (self.cleaned_data.get("domains_text") or "").replace(";", ",").replace(" ", ",")
-        domains = [d.strip().lower().lstrip("@") for d in raw.split(",") if d.strip()]
-        bad = [d for d in domains if "." not in d or "@" in d]
-        if bad:
-            raise forms.ValidationError(f"Not a domain: {', '.join(bad)}")
-        taken = CapitalProvider.objects.exclude(pk=self.instance.pk).filter(
-            pk__in=[pk for d, pk in logic.provider_domains().items() if d in domains])
-        if taken:
-            raise forms.ValidationError(f"Already on {', '.join(p.name for p in taken)}.")
-        return domains
-
-    def save(self, commit=True):
-        provider = super().save(commit=False)
-        provider.domains = self.cleaned_data["domains_text"]
-        if commit:
-            provider.save()
-        return provider
 
 
 class TermSheetForm(StyledForm):
