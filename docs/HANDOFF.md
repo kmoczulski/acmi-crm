@@ -41,8 +41,9 @@ navigation instead of the sidebar, search everywhere (Ctrl K and a big box on th
 customizable dashboard (drag, resize, hide, add widgets; saved per person), a saved-views bar on every list, the
 Investor report merged into one **Tenant pipeline** page (Board / Table / Report), Companies opening on Active, stage
 and due-date colours, breadcrumbs, and duplicate due alerts fixed. Migration `0055_user_prefs` (UserPrefs table,
-SavedView.object_type widened, unique keyed notifications after removing duplicates). Merge and the real-database
-migration wait for Kellen's OK; back up first. The pages read UserPrefs, so merge and migrate together.
+SavedView.object_type widened, unique keyed notifications after removing duplicates). **Merged 2026-10-21**
+(`88ad5e0`, CI green, 446 tests) and migrated on the real database (it had no duplicate alerts, so nothing was
+removed). Backup `backups/db-2026-10-21-before-ux-overhaul.sqlite3`.
 
 **Next, in order**
 1. **Granola (time-sensitive: Granola only keeps 30 days).**
