@@ -20,7 +20,7 @@ from ..models import (
     BOARD_COLOURS, LABEL_COLOURS, Board, BoardLabel, BoardList, Card, CardAttachment, Checklist, ChecklistItem,
 )
 from ..permissions import is_manager, manager_required, refuse
-from . import logic
+from . import bound, logic
 from .forms import BoardForm, BoardSettingsForm, MembersForm
 
 CARD_SELECT = ("list", "opportunity__company", "company", "site", "contract", "firm", "approval", "capital_source",
@@ -74,8 +74,16 @@ def board_create(request):
         messages.error(request, "A board needs a name.")
         return redirect(reverse("crm:boards") + "?new=board")
     d = form.cleaned_data
-    board = logic.create_board(d["name"], request.user, kind=d["kind"], template=d["template"] or "blank", campus=d["campus"],
-                               project=d["project"], colour=d["colour"], description=d["description"])
+    template = d["template"] or "blank"
+    if template.startswith("record:"):
+        board = bound.create_record_board(template.split(":", 1)[1], request.user, name=d["name"], campus=d["campus"],
+                                          project=d["project"], colour=d["colour"])
+        if d["description"]:
+            board.description = d["description"]
+            board.save(update_fields=["description"])
+    else:
+        board = logic.create_board(d["name"], request.user, kind=d["kind"], template=template, campus=d["campus"],
+                                   project=d["project"], colour=d["colour"], description=d["description"])
     messages.success(request, f"Board “{board.name}” created.")
     return redirect(board)
 
@@ -131,6 +139,8 @@ def board_detail(request, pk):
         by_list.setdefault(c.list_id, []).append(c)
     for l in lists:
         l.open_cards = by_list.get(l.pk, [])
+        if l.feed:
+            l.feed_items = bound.feed_items(l, l.open_cards)
     filtered = any(request.GET.get(k) for k in ("q", "member", "label", "due", "mine"))
     open_card = request.GET.get("card", "")
     return render(request, "crm/board.html", {
@@ -141,7 +151,18 @@ def board_detail(request, pk):
         "archived_lists": board.lists.filter(archived=True),
         "archived_cards": Card.objects.filter(list__board=board, archived=True).select_related("list").order_by("-updated_at")[:50],
         "can_manage": is_manager(request.user),
+        "record_type": bound.RECORD_TYPES.get(board.record_type) if board.kind == Board.Kind.BOUND else None,
     })
+
+
+def _refuse_move(card, lst, user):
+    """Why `card` can't go to `lst` (a feed fills itself; a bound list holds one record type), or "" after making the
+    record change a drop on a bound list stands for."""
+    if lst.feed:
+        return f"{lst.name} fills itself from the records; cards can't be moved into it."
+    if lst.maps_to and card.list_id != lst.pk:
+        return bound.drop_on_bound(card, lst, user) or ""
+    return ""
 
 
 @require_POST
@@ -231,9 +252,16 @@ def list_edit(request, pk):
         logic.sort_list(lst, request.POST.get("by", ""))
     elif action == "move_cards":
         target = get_object_or_404(BoardList, pk=request.POST.get("to_list"), board=lst.board, archived=False)
+        refused = []
         for c in list(lst.cards.filter(archived=False).order_by("position", "id")):
+            if why := _refuse_move(c, target, request.user):
+                refused.append(why)
+                continue
             logic.place(c, target, 10**6, request.user)
-        messages.success(request, f"Moved every card to {target.name}.")
+        if refused:
+            messages.error(request, f"{len(refused)} card{'s' if len(refused) != 1 else ''} stayed: {refused[0]}")
+        else:
+            messages.success(request, f"Moved every card to {target.name}.")
     return redirect(_back(request, lst.board.get_absolute_url()))
 
 
@@ -246,6 +274,13 @@ def list_edit(request, pk):
 def card_add(request, list_pk):
     lst = get_object_or_404(BoardList.objects.select_related("board"), pk=list_pk, archived=False)
     title = request.POST.get("title", "").strip()
+    if lst.feed or lst.maps_to:
+        why = (f"{lst.name} fills itself from the records." if lst.feed else
+               f"{lst.name} holds {bound.RECORD_TYPES[lst.board.record_type].noun}s; add one from its page.")
+        if _fetch(request):
+            return HttpResponseBadRequest(why)
+        messages.error(request, why)
+        return redirect(lst.board.get_absolute_url())
     if not title:
         if _fetch(request):
             return HttpResponseBadRequest("A card needs a title.")
@@ -358,6 +393,9 @@ def card_edit(request, pk):
         lst = get_object_or_404(BoardList, pk=request.POST.get("list"), board=board, archived=False)
         pos = request.POST.get("position", "")
         index = int(pos) - 1 if pos.isdigit() else 10**6
+        if why := _refuse_move(card, lst, user):
+            messages.error(request, why)
+            return redirect(_card_url(card))
         logic.place(card, lst, index, user)
     elif action == "copy":
         new = logic.copy_card(card, user, request.POST.get("title", "").strip() or None)
@@ -401,6 +439,8 @@ def card_move(request, pk):
         index = int(request.POST.get("index", "0"))
     except ValueError:
         index = 0
+    if why := _refuse_move(card, lst, request.user):
+        return JsonResponse({"ok": False, "error": why}, status=400)
     position = logic.place(card, lst, index, request.user)
     return JsonResponse({"ok": True, "list": lst.pk, "position": position})
 

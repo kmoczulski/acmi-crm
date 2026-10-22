@@ -23,6 +23,20 @@ def reply_notification(sender, instance, created, **kwargs):
         reply_received(instance)
 
 
+@receiver(post_save, sender="crm.Opportunity")
+@receiver(post_save, sender="crm.LandSite")
+@receiver(post_save, sender="crm.CapitalSource")
+@receiver(post_save, sender="crm.Approval")
+@receiver(post_save, sender="crm.Contract")
+def record_board_follows(sender, instance, raw=False, **kwargs):
+    # A status changed anywhere moves the record's card on record boards (crm/boards/bound.py).
+    if raw:
+        return
+    from .boards.bound import record_saved
+
+    record_saved(instance)
+
+
 @receiver(post_save, sender="crm.ChoiceOption")
 @receiver(post_delete, sender="crm.ChoiceOption")
 def dropdown_edited(sender, **kwargs):

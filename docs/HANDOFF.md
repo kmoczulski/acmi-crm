@@ -95,6 +95,16 @@ Forge and ARA Facility are lists on it; the layout and how attorney / designer w
 "Applied Research Associates" (backup `backups/db-2026-10-22-before-ara-merge.sqlite3`; 1,769 companies). The other
 decisions in `TRELLO_MAPPING.md` are still open.
 
+**Boards, step 2 (`boards-bound`) 2026-10-22, first part** (Kellen: "Yes", start it): bound and feed lists, on branch
+`boards-bound` (not merged, not pushed; the real database is not migrated). Migration `0057_board_record_type`
+(one blank column). Details in "Built 2026-10-22: boards-bound, part 1" at the end of this file. Still to do in this
+step: the Tenant pipeline and Sites tabs drawn by the boards component, Lists → Boards with redirects, and the My
+cards widget.
+
+**Capital partner data room** (Kellen asked 2026-10-22: partners see the pipeline and a company's card, not the
+internal details): proposal and six questions in `docs/DATA_ROOM.md`, built on the land-search client share links.
+Nothing built yet; it waits on Kellen's answers, and the links only work once the hub is on the internet.
+
 **Next, in order**
 1. **Granola (time-sensitive: Granola only keeps 30 days).**
    - Kellen connects the Granola connector in Claude (Settings › Connectors). Its tools are `list_meetings`,
@@ -1758,3 +1768,34 @@ boards".
 - **Not in this step** (next branches): bound lists (a list per status, the pipeline and Sites boards on this engine),
   feed lists, the Lists → Boards migration, the My cards widget, the Trello import, checklist → task conversion,
   CSV export, a Help page section.
+
+## Built 2026-10-22: boards-bound, part 1 (bound and feed lists)
+
+Branch `boards-bound` (not merged). Migration `0057_board_record_type`: `Board.record_type`. 487 tests pass locally
+on SQLite (17 new in `crm/tests/test_boards_bound.py`); CI on Postgres not run yet.
+
+- **Record boards** (`crm/boards/bound.py`): `create_record_board(type)` makes one list per status
+  (`BoardList.maps_to`) of a deal, site, capital source, entitlement or contract, and a card for every record in the
+  board's campus or project. Dropping a card on another bound list changes the record through the record page's own
+  path (a deal's stage notification, a site's status log). A status changed anywhere else moves the card (a
+  `post_save` hook in `signals.py`; archived cards stay archived; a drop doesn't log the move twice). Cards can't be
+  typed into a bound list, and an unlinked card can't be dropped into one. "+ New board" offers "Record board: …" for
+  each type.
+- **Feed lists** (`BoardList.feed`: `sites`, `critical_dates`, `open_tasks`, `contracts`): read-only, filled from the
+  board's campus or project each time the board opens (sites not Dropped, furthest along first; contract dates not
+  done, by date; open tasks on the campus's sites and deals or linked from the board's cards). A card stored in a feed
+  list for one of its records (what `import_trello` will make, so Trello comments stay reachable) shows in the
+  record's place. Nothing can be dropped or typed into a feed. The Project board template's Land sites, Critical
+  dates and Open tasks are feeds now.
+- **Card facts:** contracts, entitlements and capital sources show "Waiting on … since …".
+- **`manage.py boards_setup [--apply]`** (dry run by default; leaves boards that exist alone): the Tenant pipeline
+  record board (every deal, all campuses) and the MEIH board as decided in `docs/TRELLO_MAPPING.md` (Land sites,
+  Critical dates, The Forge – 4390 / ETC, ARA Facility – deal, ARA Facility – sites and design, Consultants, Open
+  tasks; the seven category labels plus Ongoing, To do, Contact information; Kellen, Simon, David and Dave as
+  members).
+- **Checked in a browser** on a scratch database: the MEIH board's feeds (an overdue and a today date chip, the dropped
+  site hidden, a stored card shown in its site's place) and a keyboard move on the pipeline board that changed the
+  deal's stage and notified its owner; no console errors.
+- **On the real database, after merging:** back up, `migrate`, then `boards_setup` (dry run, then `--apply`).
+- **Not in this part:** the existing Tenant pipeline and Sites Board tabs still use their own boards (moving them onto
+  this component is next), Lists → Boards, the My cards widget.

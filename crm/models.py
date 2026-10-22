@@ -3191,10 +3191,12 @@ class Board(models.Model):
         CAMPUS = "campus", "Campus board"
         TEAM = "team", "Team board"
         CUSTOM = "custom", "Custom board"
-        BOUND = "bound", "Record board"  # lists bound to a record's statuses (next phase, boards-bound)
+        BOUND = "bound", "Record board"  # lists bound to a record type's statuses (crm/boards/bound.py)
 
     name = models.CharField(max_length=120)
     kind = models.CharField(max_length=10, choices=Kind.choices, default=Kind.CUSTOM)
+    record_type = models.CharField(max_length=20, blank=True,
+                                   help_text="On a record board: the record its bound lists hold (opportunity, site…)")
     campus = models.ForeignKey(Campus, null=True, blank=True, on_delete=models.SET_NULL, related_name="boards")
     project = models.ForeignKey(Project, null=True, blank=True, on_delete=models.SET_NULL, related_name="boards")
     description = models.TextField(blank=True)
@@ -3228,9 +3230,9 @@ class BoardList(models.Model):
     position = models.IntegerField(default=0)
     archived = models.BooleanField(default=False)
     maps_to = models.CharField(max_length=40, blank=True,
-                               help_text="On a record board: the status value this list holds (next phase)")
+                               help_text="On a record board: the status value this list holds")
     feed = models.CharField(max_length=20, blank=True,
-                            help_text="A read-only list filled from records: critical_dates, open_tasks… (next phase)")
+                            help_text="A read-only list filled from the board's records: critical_dates, open_tasks…")
 
     class Meta:
         ordering = ["position", "id"]

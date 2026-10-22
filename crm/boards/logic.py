@@ -16,10 +16,12 @@ from ..models import (
 
 GAP = 1000
 
-# Board templates: the lists a new board starts with. "project" is the team's MEIH Trello layout.
+# Board templates: the lists a new board starts with, each a name or (name, feed). "project" is the team's MEIH
+# Trello layout, with its sites, dates and tasks filled from the records (crm/boards/bound.py).
 TEMPLATES = {
     "blank": ("Blank", []),
-    "project": ("Project board", ["Land sites", "Critical dates", "Deal and design", "Contacts and consultants", "Open tasks"]),
+    "project": ("Project board", [("Land sites", "sites"), ("Critical dates", "critical_dates"), "Deal and design",
+                                  "Contacts and consultants", ("Open tasks", "open_tasks")]),
     "deal": ("Deal steps", ["To do", "Doing", "Waiting on them", "Done"]),
 }
 # Every new board starts with the team's Trello categories (Task.Label) as labels.
@@ -61,8 +63,9 @@ def create_board(name, user, kind=Board.Kind.CUSTOM, template="blank", campus=No
                                  description=description, position=(last.position + 1) if last else 1, created_by=user)
     if user is not None:
         board.members.add(user)
-    for n, list_name in enumerate(TEMPLATES.get(template, TEMPLATES["blank"])[1], 1):
-        BoardList.objects.create(board=board, name=list_name, position=n * GAP)
+    for n, spec in enumerate(TEMPLATES.get(template, TEMPLATES["blank"])[1], 1):
+        list_name, feed = spec if isinstance(spec, tuple) else (spec, "")
+        BoardList.objects.create(board=board, name=list_name, position=n * GAP, feed=feed)
     for n, (label, colour_) in enumerate(DEFAULT_LABELS, 1):
         BoardLabel.objects.create(board=board, name=label, colour=colour_, position=n)
     return board
@@ -215,6 +218,7 @@ def record_facts(card):
     elif field == "contract":
         add("Status", r.get_status_display())
         add("Counterparty", r.counterparty)
+        add("Waiting on", _waiting(r))
         nxt = r.dates.filter(done=False, date__isnull=False).order_by("date").first()
         if nxt:
             add("Next date", f"{nxt.label} · {nxt.date:%b} {nxt.date.day}")
@@ -222,9 +226,11 @@ def record_facts(card):
         add("Type", r.get_kind_display())
     elif field == "approval":
         add("Status", r.get_status_display())
+        add("Waiting on", _waiting(r))
         add("Next step", r.next_step)
     elif field == "capital_source":
         add("Status", r.get_status_display())
+        add("Waiting on", _waiting(r))
         add("Project", r.project.name)
     elif field == "meeting":
         add("When", r.start)
@@ -235,6 +241,14 @@ def record_facts(card):
     if owner is not None:
         add("Owner", owner.get_full_name() or owner.username)
     return facts
+
+
+def _waiting(r):
+    """"Them since Oct 3" for a record's ball-in-court field, or ""."""
+    if not r.waiting_on:
+        return ""
+    since = f" since {r.waiting_since:%b} {r.waiting_since.day}" if r.waiting_since else ""
+    return r.get_waiting_on_display() + since
 
 
 def record_cards(record):

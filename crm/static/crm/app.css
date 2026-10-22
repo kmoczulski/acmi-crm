@@ -1750,6 +1750,14 @@ main { padding: 20px 28px 40px; max-width: 1680px; margin: 0 auto; }
 .bl-title { font-size: 13.5px; line-height: 1.35; overflow-wrap: anywhere; }
 .bl-record { font-size: 11.5px; color: var(--accent); display: flex; gap: 4px; align-items: baseline; }
 .bl-record-kind { font-size: 10px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+/* Feed and bound lists (crm/boards/bound.py): a feed fills itself and opens the record; a bound list moves it. */
+.bl-kind { font-size: 11.5px; margin: -4px 6px 6px; }
+.bl-feed .bl-head { border-bottom: 1px dashed var(--line); margin-bottom: 6px; }
+.bl-feed-item { cursor: default; }
+.bl-feed-link { color: inherit; text-decoration: none; }
+.bl-feed-link:hover .bl-title, .bl-feed-link:focus-visible .bl-title { text-decoration: underline; }
+.bl-card[data-fixed] { cursor: pointer; }
+.bl-feed-empty { font-size: 12.5px; padding: 6px; list-style: none; }
 .bl-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; font-size: 11.5px; color: var(--muted); min-height: 18px; }
 .bl-meta .spacer { flex: 1; }
 .bl-due { display: inline-flex; align-items: center; gap: 4px; padding: 0 6px; border-radius: 4px; font-weight: 600; background: #eef0f3; color: #3c4453; }
