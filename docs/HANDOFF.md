@@ -82,6 +82,19 @@ green, 470 tests) and **migrated on the real database** the same night on the la
 "Built 2026-10-21: boards-core" below. Kellen also took the defaults on the UX second pass's eight questions: its
 "Second pass" section and screenshots are now in `docs/UX_REVIEW.md` and `docs/ux-review-2/`.
 
+**Trello review 2026-10-22** (Kellen asked; read-only, nothing written to the database or Trello): Kellen's JSON
+exports of Maryland / MEIH, Properties-Prospecting and Properties-General (the Trello connector didn't load in the
+session) are converted to the `trello_fetch.py` layout in `data/imports/trello/2026-10-22/` (gitignored; the originals
+are in `raw/`). The per-board mapping and the open decisions are in `docs/TRELLO_MAPPING.md`. **Trello's export keeps
+only the newest 1,000 actions per board:** MEIH's 118 comments are complete, but Prospecting has 186 of 1,660 and
+General 55 of 697, so run `trello_fetch.py` before importing those two. Mirror cards show at least one more board that
+wasn't exported. Recommendation: `boards-bound` before `boards-import`. **Kellen decided the same day:** the CRM wins
+wherever it and Trello disagree, but every Trello comment comes over with its author and date; one MEIH board (The
+Forge and ARA Facility are lists on it; the layout and how attorney / designer work is tracked are in
+`TRELLO_MAPPING.md`, "Decided"). **ARA merged** on the real database: "ARA (Applied Research Associates)" folded into
+"Applied Research Associates" (backup `backups/db-2026-10-22-before-ara-merge.sqlite3`; 1,769 companies). The other
+decisions in `TRELLO_MAPPING.md` are still open.
+
 **Next, in order**
 1. **Granola (time-sensitive: Granola only keeps 30 days).**
    - Kellen connects the Granola connector in Claude (Settings › Connectors). Its tools are `list_meetings`,
