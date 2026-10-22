@@ -1,15 +1,15 @@
-# ACMI CRM: Handoff (as of 2026-10-18, evening)
+# ACMI CRM: Handoff (as of 2026-10-21, night)
 
 Read this first when picking the project up in a new chat, along with
 `attio_spec.md` in this folder. Start with "Pick up here"; the dated sections after it are the history.
 
-## Pick up here (2026-10-18, evening)
+## Pick up here (2026-10-21, night)
 
 **Where things stand**
-- `main` has everything below; the last code commit is `71a9109`, pushed to `kmoczulski/acmi-crm`. 320 tests pass and
-  CI is green on Postgres. No worktrees or branches are open, and nothing is half-built.
-- The real database (`db.sqlite3`, about 600 MB) is migrated through `0040_flyers_letters`. Latest backup:
-  `backups/db-2026-10-18-before-flyers-letters.sqlite3`.
+- `main` has everything below; the last code commit is `b65042a` (`boards-core`), pushed to `kmoczulski/acmi-crm`. 470
+  tests pass and CI is green on Postgres. No worktrees or branches are open (here or on GitHub); nothing is half-built.
+- The real database (`db.sqlite3`, about 600 MB) is migrated through `0056_boards`. Latest backup:
+  `backups/db-2026-10-21-before-boards.sqlite3`.
 - `ANTHROPIC_API_KEY` is set in `.env`, so the Claude features run for real. `ACMI_TRANSCRIPT_DIR` is not set yet.
 - Built since the audit, each with its own section below: roadmap phase 1 (GitHub and CI, the transcript archive, the
   campus summary with Claude's weekly draft, Cloud Run plumbing); contracts and critical dates, modeled on Notessa;
@@ -66,7 +66,7 @@ had no Granola summary, so it carries B&H's next steps (Kellen: the same tasks f
 linked from both meetings. Shore United still shows a second calendar row for the same call (the bank's own invite,
 different title). Backup `backups/db-2026-10-21-before-forge-lenders.sqlite3`.
 
-**UX second pass 2026-10-22** (Kellen asked; run in a cloud session on a scratch database of made-up data at live scale,
+**UX second pass 2026-10-21** (Kellen asked; run in a cloud session on a scratch database of made-up data at live scale,
 nothing changed in the repo or the real database): 29 findings with screenshots, timings and an axe-core scan, as a web page
 https://claude.ai/artifact/7MeJEVyTfnFBXXDgVefAtj. Headlines: the capture gap is structural (meetings link only to
 Companies, never to directory firms; a bank's "medium" verdict never auto-files; search can't see the review queue), there
@@ -75,10 +75,11 @@ query per row, 11 phone pages render wider than the screen, and errors and setup
 The "Second pass" section for `docs/UX_REVIEW.md` and the screenshot set for `docs/ux-review-2/` are drafted and wait
 for Kellen's answers to the eight scope questions in the page's last section. Fixes start after that, one branch per area.
 
-**Boards, step 1 (`boards-core`) 2026-10-22** (Kellen: "go with the defaults and start boards-core"): Trello-style boards on
-the CRM's records, built as designed in the last section of this file. Migration `0056_boards`. **Merged 2026-10-22** (CI
-green, 470 tests). **The real database is not migrated yet:** back it up, then `manage.py migrate crm`. Details in
-"Built 2026-10-22: boards-core" below. Kellen also took the defaults on the UX second pass's eight questions: its
+**Boards, step 1 (`boards-core`) 2026-10-21** (Kellen: "go with the defaults and start boards-core"): Trello-style boards on
+the CRM's records, built as designed in the last section of this file. Migration `0056_boards`. **Merged 2026-10-21** (CI
+green, 470 tests) and **migrated on the real database** the same night on the laptop (backup
+`backups/db-2026-10-21-before-boards.sqlite3`; the new tables start empty; the dashboard and Boards render). Details in
+"Built 2026-10-21: boards-core" below. Kellen also took the defaults on the UX second pass's eight questions: its
 "Second pass" section and screenshots are now in `docs/UX_REVIEW.md` and `docs/ux-review-2/`.
 
 **Next, in order**
@@ -89,12 +90,27 @@ green, 470 tests). **The real database is not migrated yet:** back it up, then `
      and transcripts into `data/imports/granola/<date>.json` (the format is at the top of `crm/meetings.py`), then
      runs `manage.py import_meetings <file>` and `manage.py export_transcripts`. Details are under "roadmap phase 1" ›
      Transcript archive.
+   - **The daily task, and so the Granola connector it uses, goes on Kellen's acmiproperties Claude account**, not the
+     account these Code sessions use (Kellen, 2026-10-21), so don't set it up from here. The import writes the real
+     database on the laptop, so the task has to run where it can reach this folder (`data/imports/granola/`, `.venv`).
    - A direct sync from the CRM, with no Claude in the middle, needs the Granola API, which needs Granola's Business
      or Enterprise plan ([docs](https://docs.granola.ai/help-center/sharing/integrations/granola-api)). That's
      Kellen's call.
 2. **Trello boards, the next steps** (design in the last section of this file; `boards-core` is merged):
    `boards-bound` (bound and feed lists; the Tenant pipeline and Sites Board tabs on the boards component; Lists → Boards
    migration and redirects; the My cards widget), then `boards-import` (the Trello JSON export), then `boards-polish`.
+   - **Kellen, 2026-10-21:** review every Trello board he can access, restructure them to the hub's layout as they come
+     in (in the hub only; nothing changes in Trello), and bring over every comment, timestamp and the rest of the
+     history, attributed to the team. The data comes from `scripts/trello_fetch.py` (read-only, the news-review app's
+     key; Kellen runs it at the laptop, because auto mode won't let Claude use another app's key, and the Trello
+     connector didn't load in the session that was already running when he connected it). The review and
+     `import_trello` read its output in `data/imports/trello/<date>/`. Report the per-board mapping to Kellen before
+     writing anything, and decide with him whether `boards-bound` goes first.
+   - **Attribution by full name**, never `pipeline_import.TEAM`: its usernames are the old lowercase ones (from when
+     "dave" was DeNardo), so its `get_or_create(username=...)` would create six duplicate users today. Kellen
+     Moczulski → `Kellen`, Simon Shewmaker → `Simon`, David DeNardo → `David`, David Dowell → `Dave`, Paul Kadzielski →
+     `Paul`, John Burer → `John`. Comments keep their Trello author and date; people outside the team keep their name
+     in the text.
 3. **UX second pass fixes** (`docs/UX_REVIEW.md`, "Second pass"; Kellen took the defaults): one branch per area in this
    order: capture gaps and Granola; duplicates and undo; accessibility, phone, states and wording; roles, outside-facing
    output, rough edges.
@@ -112,13 +128,15 @@ green, 470 tests). **The real database is not migrated yet:** back it up, then `
 - The contracts module emulates Notessa (notessa.ai): cited answers, the amendment chain, defined terms, templates.
 
 **Waiting on Kellen**
-- Connect Granola (above).
-- Migrate the real database to `0056_boards` (backup first; see "How to work in this repo").
-- For `boards-import`: the Trello JSON exports (the MEIH board; NSIH if there is one), as files under `data/imports/`.
+- Connect Granola and set up the daily task, on the acmiproperties Claude account (above).
+- Run `.venv/Scripts/python -I scripts/trello_fetch.py` at the laptop (read-only, a few minutes): every board Kellen
+  can see, with its full history, into `data/imports/trello/<date>/`. The Trello review and import start from there.
+- Who "Dave" is in the tracker's Lead column: 9 deals are owned by David DeNardo and 1 by David Dowell, because the
+  Oct 14 import read "Dave" as DeNardo. The hub's `Dave` account is David Dowell.
 - Confirm who stays a Manager (Admin › Groups). Everyone with an account is one today.
 - Pick a restricted shared-drive folder for `ACMI_TRANSCRIPT_DIR`. Transcripts can hold NDA material, and Maryland
   needs all-party consent to record.
-- Set a retention rule for `backups/`: 15 full copies, 5.4 GB.
+- Set a retention rule for `backups/`: 32 full copies, about 15 GB (2026-10-21).
 - Change the Gmail app password, turn on device encryption on the laptop, and encrypt the Google tokens at rest.
 - Turn billing on in Google Cloud so the app can be deployed.
 - Read the built-in landowner letters (`BUILTINS` in `crm/land/letters.py`) before the first mailing. They describe
@@ -679,7 +697,7 @@ in the shared drive (Tenancy > Elbit 26 Defense > Site Assessment).
 
 ## Open items
 
-The current list is under "Pick up here" at the top (2026-10-18).
+The current list is under "Pick up here" at the top (2026-10-21).
 
 ## Built 2026-10-16: Fayetteville, NC (Cumberland County)
 
@@ -1545,7 +1563,7 @@ vendors, suggest the rest**, and **flag existing Companies** that look like vend
 - **Tests:** `crm/tests/test_domain_sort.py` (8, Claude mocked; 424 in all pass). Checked in a browser on a scratch database with
   made-up domains: the Mail review suggestions, File as Claude says, the Sorted from email page, Undo.
 
-## Designed 2026-10-22: Trello boards on top of the CRM's records (step 1 built the same day; see the section after this one)
+## Designed 2026-10-21: Trello boards on top of the CRM's records (step 1 built the same day; see the section after this one)
 
 Kellen asked how to layer Trello's functionality in, exactly. The team ran two Trello boards: **Properties-Prospecting**
 (lists per stage; already imported as tenant deals, `pipeline_import.py`) and the **MEIH board** (lists per deal:
@@ -1672,14 +1690,16 @@ query-count test guards it.
 - Cards without a task still get due reminders (recommended: yes, through the existing sweep).
 - Boards open to everyone signed in, with members only for "My boards" (recommended), or members-only visibility.
 
-## Built 2026-10-22: boards-core (Kellen: "go with the defaults and start boards-core")
+## Built 2026-10-21: boards-core (Kellen: "go with the defaults and start boards-core")
 
-**Merged 2026-10-22** (branch `boards-core`, CI green on Postgres, 470 tests). Migration `0056_boards`: Board, BoardList,
+**Merged 2026-10-21** (branch `boards-core`, CI green on Postgres, 470 tests). Migration `0056_boards`: Board, BoardList,
 BoardLabel, Card, Checklist, ChecklistItem, CardAttachment, CardEvent, `Comment.card`, and a `card` notification kind.
-**The real database still needs the migration** (backup, then `manage.py migrate crm`); nothing else changes for existing
-data. Decisions taken as recommended: Lists become Boards (next step), the pipeline and Sites boards move onto the
-component (next step), Trello attachments link rather than download, cards get due reminders through the daily sweep,
-every board is open to everyone signed in with members only deciding "My boards".
+**Migrated on the real database 2026-10-21** (backup `backups/db-2026-10-21-before-boards.sqlite3`, taken right after a
+mail sync; the eight new tables start empty); nothing else changes for existing data. The `boards-core` and
+`docs-trello-boards` branches are deleted on GitHub. Decisions taken as recommended: Lists become Boards (next step),
+the pipeline and Sites boards move onto the component (next step), Trello attachments link rather than download, cards
+get due reminders through the daily sweep, every board is open to everyone signed in with members only deciding "My
+boards".
 
 - **Code:** `crm/boards/` (`logic.py`: positions 1,000 apart with renumbering, moves, templates, record links and facts,
   the activity log; `views.py`; `forms.py`), templates `boards.html`, `board.html`, `partials/board_list.html`,
