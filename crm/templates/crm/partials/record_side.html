@@ -12,6 +12,7 @@
 </div>
 
 {% include "crm/partials/documents_panel.html" %}
+{% if boards is not None and record_field == "company" %}{% include "crm/partials/boards_row.html" %}{% endif %}
 <div class="panel">
   <h3>Lists</h3>
   {% for e in list_entries %}

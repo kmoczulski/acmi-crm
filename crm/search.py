@@ -9,7 +9,7 @@ from django.urls import reverse
 from django.utils.timezone import localtime
 
 from .models import (
-    OPEN_STAGES, Campus, Company, Contract, Firm, LandSite, Meeting, Opportunity, Person, Project,
+    OPEN_STAGES, Campus, Card, Company, Contract, Firm, LandSite, Meeting, Opportunity, Person, Project,
 )
 
 PER_GROUP = 6
@@ -20,6 +20,7 @@ PAGES = [
     ("My tasks", "crm:task_list", "", "to do todo", "Home"),
     ("Calendar", "crm:meeting_list", "", "meetings month granola", "Home"),
     ("Notifications", "crm:notification_list", "", "alerts bell", "Home"),
+    ("Boards", "crm:boards", "", "trello cards lists kanban", "Home"),
     ("Tenant pipeline", "crm:opportunity_board", "", "deals opportunities board investor", "Tenants"),
     ("Tenant pipeline report", "crm:pipeline_report", "", "investor report pdf excel", "Tenants"),
     ("Companies", "crm:company_list", "", "tenants prospects accounts", "Tenants"),
@@ -49,6 +50,7 @@ NEW_ITEMS = [
     ("Company", "crm:company_create", ""),
     ("Person", "crm:person_create", ""),
     ("Task", "crm:task_list", "Opens My tasks with the new-task box"),
+    ("Card", "crm:boards", "On a board of your choice"),
     ("Contract", "crm:contract_create", "Upload or start one"),
     ("Site", "crm:land_search", "Build one on the map"),
     ("Entitlement", "crm:approval_create", ""),
@@ -62,7 +64,8 @@ def page_links():
 
 
 def new_links():
-    return [{"label": label, "url": reverse(name) + ("#new-task" if label == "Task" else ""), "hint": hint}
+    extra = {"Task": "#new-task", "Card": "?new=card"}
+    return [{"label": label, "url": reverse(name) + extra.get(label, ""), "hint": hint}
             for label, name, hint in NEW_ITEMS]
 
 
@@ -128,6 +131,11 @@ def results(text):
     add("Meetings", [
         _hit(m.title, m.get_absolute_url(), f"{localtime(m.start):%b} {localtime(m.start).day}, {m.start.year}")
         for m in Meeting.objects.filter(title__icontains=text).order_by("-start")[:4]
+    ])
+    add("Cards", [
+        _hit(c.title, c.get_absolute_url(), f"{c.list.board.name} › {c.list.name}", "Card")
+        for c in Card.objects.filter(title__icontains=text, archived=False, list__archived=False, list__board__archived=False)
+        .select_related("list__board").order_by("-updated_at")[:PER_GROUP]
     ])
     return groups
 

@@ -1,0 +1,25 @@
+{% load crm_tags %}
+<section class="bl-list" data-list="{{ l.pk }}" aria-labelledby="bl-h-{{ l.pk }}">
+  <header class="bl-head">
+    <h2 id="bl-h-{{ l.pk }}" class="bl-name">{{ l.name }} <span class="muted bl-n" data-count>{{ l.open_cards|length }}</span></h2>
+    <details class="menu-wrap bl-menu">
+      <summary class="btn-link bl-dots" aria-label="List actions for {{ l.name }}">⋯</summary>
+      <div class="menu">
+        <form method="post" action="{% url 'crm:board_list_edit' l.pk %}" class="bl-rename">{% csrf_token %}<input type="hidden" name="action" value="rename"><input name="name" value="{{ l.name }}" maxlength="120" aria-label="List name"><button class="btn-small">Rename</button></form>
+        <form method="post" action="{% url 'crm:board_list_edit' l.pk %}">{% csrf_token %}<input type="hidden" name="action" value="move"><button class="menu-btn" name="to" value="left">Move left</button><button class="menu-btn" name="to" value="right">Move right</button></form>
+        <form method="post" action="{% url 'crm:board_list_edit' l.pk %}">{% csrf_token %}<input type="hidden" name="action" value="sort"><button class="menu-btn" name="by" value="due">Sort by due date</button><button class="menu-btn" name="by" value="name">Sort by name</button><button class="menu-btn" name="by" value="label">Sort by label</button></form>
+        <form method="post" action="{% url 'crm:board_list_edit' l.pk %}" onsubmit="return confirm('Archive the list “{{ l.name|escapejs }}” and its cards? Archived items brings them back.')">{% csrf_token %}<input type="hidden" name="action" value="archive"><button class="menu-btn">Archive this list</button></form>
+      </div>
+    </details>
+  </header>
+  <ol class="bl-cards" data-list="{{ l.pk }}" aria-label="Cards in {{ l.name }}">
+    {% for c in l.open_cards %}{% include "crm/partials/board_card.html" %}{% endfor %}
+  </ol>
+  <form method="post" action="{% url 'crm:card_add' l.pk %}" class="bl-add" data-add-card>{% csrf_token %}
+    <button type="button" class="btn-link bl-add-open" data-add-open>+ Add a card</button>
+    <div class="bl-add-box" hidden>
+      <textarea name="title" rows="2" maxlength="300" placeholder="Card title" aria-label="New card title in {{ l.name }}"></textarea>
+      <div><button class="btn-small btn-primary">Add card</button> <button type="button" class="btn-small" data-add-cancel>Cancel</button></div>
+    </div>
+  </form>
+</section>

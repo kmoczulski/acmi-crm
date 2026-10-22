@@ -35,9 +35,9 @@
   document.querySelectorAll('[data-nav-toggle]').forEach(b => b.addEventListener('click', () => root.classList.toggle('nav-open')));
 
   // Recently opened records, newest first (this browser only).
-  const RECORD = /^\/(companies|people|opportunities|land\/sites|contracts|projects|tasks|directory|capital|entitlements|land\/assignments)\/\d+\/?$/;
+  const RECORD = /^\/(companies|people|opportunities|land\/sites|contracts|projects|tasks|directory|capital|entitlements|land\/assignments|boards)\/\d+\/?$/;
   const KIND = {companies: 'Company', people: 'Person', opportunities: 'Tenant deal', 'land/sites': 'Site', contracts: 'Contract',
-    projects: 'Project', tasks: 'Task', directory: 'Directory', capital: 'Capital', entitlements: 'Entitlement', 'land/assignments': 'Client search'};
+    projects: 'Project', tasks: 'Task', directory: 'Directory', capital: 'Capital', entitlements: 'Entitlement', 'land/assignments': 'Client search', boards: 'Board'};
   const m = location.pathname.match(RECORD);
   if (m) {
     const title = (document.querySelector('main h1')?.textContent || document.title.replace(/ · ACMI CRM$/, '')).trim().replace(/\s+/g, ' ');

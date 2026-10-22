@@ -11,7 +11,7 @@ from django.contrib.auth import get_user_model
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 
-from .models import Comment, Notification, Task
+from .models import Card, Comment, Notification, Task
 
 MENTION = re.compile(r"@([A-Za-z][\w.-]*)")
 
@@ -43,6 +43,13 @@ def task_assigned(task, actor):
              task.get_absolute_url(), actor)
 
 
+def card_members_added(card, users, actor):
+    """People just added to a card hear about it (not the person who added them, if that's themselves)."""
+    for u in users:
+        send(u, Notification.Kind.CARD, f"{_name(actor)} added you to a card: {card.title} ({card.list.board.name})",
+             card.get_absolute_url(), actor, key=f"card:{card.pk}:{u.pk}")
+
+
 def mentioned_users(text):
     """@kellen, @Simon or @simon.shewmaker -> users (username or first name, case-insensitive)."""
     users = list(get_user_model().objects.filter(is_active=True))
@@ -71,16 +78,19 @@ def watchers(comment):
     if comment.contract_id:
         people.add(comment.contract.owner)
         people.add(comment.contract.created_by)
+    if comment.card_id:
+        people.add(comment.card.created_by)
+        people.update(comment.card.members.all())
     if comment.parent_id:
         people.add(comment.parent.author)
         people.update(r.author for r in comment.parent.replies.exclude(pk=comment.pk).select_related("author"))
     if (comment.company_id and not comment.opportunity_id and not comment.task_id and not comment.site_id
-            and not comment.contract_id):
+            and not comment.contract_id and not comment.card_id):
         people.add(comment.company.owner)
     if not comment.contract_id:
         people.update(c.author for c in Comment.objects.filter(
             company=comment.company_id, opportunity=comment.opportunity_id, task=comment.task_id, site=comment.site_id,
-            contract=None,
+            card=comment.card_id, contract=None,
         ).exclude(pk=comment.pk).select_related("author")[:20])
     return {p for p in people if p}
 
@@ -149,6 +159,11 @@ def due_sweep(user):
         late = (today - t.due_date).days
         text = f"Due today: {t.title}" if late == 0 else f"Overdue {late} day{'s' if late != 1 else ''}: {t.title}"
         send(user, Notification.Kind.DUE, text, t.get_absolute_url(), None, key=f"due:{t.pk}:{today}")
+    for c in Card.objects.filter(members=user, done=False, archived=False, due__lte=today, list__archived=False,
+                                 list__board__archived=False).select_related("list__board"):
+        late = (today - c.due).days
+        text = (f"Due today: {c.title}" if late == 0 else f"Overdue {late} day{'s' if late != 1 else ''}: {c.title}") + f" ({c.list.board.name})"
+        send(user, Notification.Kind.DUE, text, c.get_absolute_url(), None, key=f"due-card:{c.pk}:{today}")
     from .capital import logic as capital
     from .contracts import closing, dates
     from .entitlements import logic as entitlements

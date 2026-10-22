@@ -14,6 +14,7 @@ from django.views.decorators.http import require_POST
 
 from . import ai, company_page, documents, gcal, meetings, merge, notify, pipeline, prefs
 from . import projects as project_tagging
+from .boards import logic as board_logic
 from .build import logic as build_logic
 from .capital import logic as capital_logic
 from .contracts import dates as contract_dates
@@ -24,7 +25,7 @@ from .forms import (
     TaskForm, active_users,
 )
 from .models import (
-    DOCUMENT_CATEGORIES, OPEN_STAGES, STAGE_ORDER, AISummary, Activity, Attachment, Campus, Comment, Company, CompanyStatus, DealSuggestionDismissal, Document,
+    DOCUMENT_CATEGORIES, OPEN_STAGES, STAGE_ORDER, AISummary, Activity, Attachment, Board, Campus, Comment, Company, CompanyStatus, DealSuggestionDismissal, Document,
     List, ListEntry, Note, ObjectType, Opportunity, OpportunityContact, OpportunityStage, Person, Project, SavedView,
     CalendarSync, LandSite, Meeting, Notification, Task, TenantNeeds,
 )
@@ -546,6 +547,7 @@ def company_detail(request, pk):
         "company_projects": project_tagging.company_projects(company),
         **company_page.meeting_context(company, request, tab),
         "users": active_users(),
+        "boards": Board.objects.filter(archived=False), "record_cards": board_logic.record_cards(company),
     }
     ctx["open_deals"] = [o for o in ctx["opportunities"] if o.is_open]
     ctx["other_tasks"] = [t for t in open_tasks if t.pk not in ctx["meeting_task_ids"]]
@@ -897,7 +899,9 @@ def comment_add(request):
     target = {}
     from .models import LandSite
 
-    for field, model in (("task", Task), ("opportunity", Opportunity), ("site", LandSite), ("company", Company)):
+    from .models import Card
+
+    for field, model in (("task", Task), ("opportunity", Opportunity), ("site", LandSite), ("company", Company), ("card", Card)):
         if value := request.POST.get(field):
             target[field] = get_object_or_404(model, pk=value)
     if not body or not target:
@@ -906,6 +910,9 @@ def comment_add(request):
     if "task" in target:
         target.setdefault("company", target["task"].company)
         target.setdefault("opportunity", target["task"].opportunity)
+    if "card" in target:
+        target.setdefault("company", target["card"].company)
+        target.setdefault("opportunity", target["card"].opportunity)
     if "opportunity" in target and target["opportunity"]:
         target.setdefault("company", target["opportunity"].company)
     comment = Comment.objects.create(body=body, author=request.user, **{k: v for k, v in target.items() if v})
@@ -1053,6 +1060,8 @@ def _view_target(object_type, next_url):
         return reverse("crm:company_list")
     if object_type == ObjectType.PERSON:
         return reverse("crm:person_list")
+    if object_type.startswith("board:") and object_type[6:].isdigit():
+        return reverse("crm:board", args=[int(object_type[6:])])
     fallback = reverse(prefs.VIEW_PAGES[object_type][1]) if object_type in prefs.VIEW_PAGES else reverse("crm:home")
     return next_url if next_url and url_has_allowed_host_and_scheme(next_url, allowed_hosts=None) and next_url.startswith("/") else fallback
 
@@ -1060,8 +1069,9 @@ def _view_target(object_type, next_url):
 @require_POST
 def saved_view_save(request):
     """Save the current filters as a named view: Companies, People, or any page with the view bar (prefs.VIEW_PAGES)."""
-    object_type = request.POST.get("object_type")
-    if object_type not in (ObjectType.COMPANY, ObjectType.PERSON) and object_type not in prefs.VIEW_PAGES:
+    object_type = request.POST.get("object_type", "")
+    is_board = object_type.startswith("board:") and object_type[6:].isdigit()
+    if object_type not in (ObjectType.COMPANY, ObjectType.PERSON) and object_type not in prefs.VIEW_PAGES and not is_board:
         return HttpResponseBadRequest("Unknown table")
     name = request.POST.get("name", "").strip()[:120]
     # Drop paging so a view always opens on page 1.
@@ -1086,7 +1096,7 @@ def saved_view_delete(request, pk):
     view = get_object_or_404(SavedView, pk=pk, owner=request.user)
     target = _view_target(view.object_type, request.POST.get("next"))
     view.delete()
-    return redirect(target + ("?_v=all" if view.object_type in prefs.VIEW_PAGES else ""))
+    return redirect(target + ("?_v=all" if view.object_type in prefs.VIEW_PAGES or view.object_type.startswith("board:") else ""))
 
 
 # ---------------------------------------------------------------------------

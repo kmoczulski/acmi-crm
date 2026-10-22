@@ -1,0 +1,102 @@
+{% extends "crm/base.html" %}
+{% load crm_tags static %}
+{% block title %}{{ board.name }} · Boards · ACMI CRM{% endblock %}
+{% block content %}
+<nav class="crumbs no-print" aria-label="Breadcrumb"><a href="{% url 'crm:boards' %}">Boards</a>{% if board.campus %} › {{ board.campus.code }}{% endif %}{% if board.project %} › <a href="{{ board.project.get_absolute_url }}">{{ board.project.name }}</a>{% endif %}</nav>
+<div class="page-head bl-pagehead">
+  <span class="bl-swatch bc-{{ board.colour }}" aria-hidden="true"></span>
+  <h1>{{ board.name }}</h1>
+  {% if board.archived %}<span class="pill pill-bad">Archived</span>{% endif %}
+  <span class="bl-members" aria-label="Members">{% for u in board.members.all %}<span class="avatar avatar-sm" title="{{ u|username }}">{{ u.first_name|default:u.username|slice:":1"|upper }}{{ u.last_name|slice:":1"|upper }}</span>{% endfor %}</span>
+  <details class="menu-wrap">
+    <summary class="btn btn-small">Members</summary>
+    <form class="menu vb-save" method="post" action="{% url 'crm:board_edit' board.pk %}">{% csrf_token %}<input type="hidden" name="action" value="members">
+      <p class="muted vb-hint">Members see this board under My boards. Everyone can open it.</p>
+      {% for u in users %}<label class="vb-check"><input type="checkbox" name="members" value="{{ u.pk }}" {% if u in board.members.all %}checked{% endif %}> {{ u|username }}</label>{% endfor %}
+      <button class="btn btn-primary btn-small">Save members</button>
+    </form>
+  </details>
+  <details class="menu-wrap">
+    <summary class="btn btn-small">Labels</summary>
+    <div class="menu bl-labels-menu">
+      {% for l in board.labels.all %}
+      <form method="post" action="{% url 'crm:board_edit' board.pk %}" class="bl-label-row">{% csrf_token %}<input type="hidden" name="action" value="label_edit"><input type="hidden" name="label" value="{{ l.pk }}">
+        <span class="bl-label lbl-{{ l.colour }}" aria-hidden="true">&nbsp;</span>
+        <input name="name" value="{{ l.name }}" maxlength="60" aria-label="Label name">
+        <select name="colour" aria-label="Label colour">{% for v, n in label_colours %}<option value="{{ v }}" {% if v == l.colour %}selected{% endif %}>{{ n }}</option>{% endfor %}</select>
+        <button class="btn-small">Save</button><button class="btn-small btn-danger" name="delete" value="1" aria-label="Delete label {{ l.name }}">×</button>
+      </form>
+      {% endfor %}
+      <form method="post" action="{% url 'crm:board_edit' board.pk %}" class="bl-label-row">{% csrf_token %}<input type="hidden" name="action" value="label_add">
+        <span class="bl-label" aria-hidden="true">&nbsp;</span>
+        <input name="name" placeholder="New label" maxlength="60" aria-label="New label name" required>
+        <select name="colour" aria-label="New label colour">{% for v, n in label_colours %}<option value="{{ v }}">{{ n }}</option>{% endfor %}</select>
+        <button class="btn-small btn-primary">Add</button>
+      </form>
+    </div>
+  </details>
+  <span class="spacer"></span>
+  <a class="btn btn-small" href="#archived">Archived items</a>
+  <details class="menu-wrap">
+    <summary class="btn btn-small">Board menu</summary>
+    <div class="menu bl-settings">
+      <form method="post" action="{% url 'crm:board_edit' board.pk %}" class="fields">{% csrf_token %}<input type="hidden" name="action" value="settings">
+        {% for f in settings_form %}<p><label for="{{ f.id_for_label }}">{{ f.label }}</label>{{ f }}</p>{% endfor %}
+        <button class="btn btn-primary btn-small">Save board</button>
+      </form>
+      {% if can_manage %}
+      <form method="post" action="{% url 'crm:board_edit' board.pk %}" style="margin-top:10px">{% csrf_token %}
+        {% if board.archived %}<button class="menu-btn" name="action" value="unarchive">Bring this board back</button>
+        {% else %}<button class="menu-btn" name="action" value="archive">Archive this board</button>{% endif %}
+        <button class="menu-btn bl-danger" name="action" value="delete" onclick="return confirm('Delete the board “{{ board.name|escapejs }}” and every card on it? This cannot be undone.')">Delete this board</button>
+      </form>
+      {% endif %}
+    </div>
+  </details>
+</div>
+{% if board.description %}<p class="muted bl-desc">{{ board.description }}</p>{% endif %}
+
+<form method="get" class="bl-filters" data-filters aria-label="Filter cards">
+  <label class="chip-check{% if request.GET.mine == '1' %} on{% endif %}"><input type="checkbox" name="mine" value="1" {% if request.GET.mine == '1' %}checked{% endif %}> Mine</label>
+  <label>Member <select name="member"><option value="">anyone</option>{% for u in users %}<option value="{{ u.pk }}" {% if request.GET.member == u.pk|stringformat:"s" %}selected{% endif %}>{{ u|username }}</option>{% endfor %}</select></label>
+  <label>Label <select name="label"><option value="">any</option>{% for l in board.labels.all %}<option value="{{ l.pk }}" {% if request.GET.label == l.pk|stringformat:"s" %}selected{% endif %}>{{ l.name }}</option>{% endfor %}</select></label>
+  <label>Due <select name="due"><option value="">any</option><option value="late" {% if request.GET.due == 'late' %}selected{% endif %}>Overdue</option><option value="week" {% if request.GET.due == 'week' %}selected{% endif %}>Next 7 days</option><option value="none" {% if request.GET.due == 'none' %}selected{% endif %}>No date</option><option value="done" {% if request.GET.due == 'done' %}selected{% endif %}>Done</option></select></label>
+  <label>Find <input type="search" name="q" value="{{ request.GET.q }}" placeholder="Title or description" size="18"></label>
+  <button class="btn-small">Filter</button>
+  {% if filtered %}<a class="btn-small btn" href="{{ request.path }}?_v=all">Clear</a>{% endif %}
+</form>
+{% view_bar page %}
+
+<div class="bl-board" id="board" data-board="{{ board.pk }}" data-open="{{ open_card }}" data-csrf="{{ csrf_token }}">
+  {% for l in lists %}{% include "crm/partials/board_list.html" %}{% endfor %}
+  <form method="post" action="{% url 'crm:board_edit' board.pk %}" class="bl-list bl-newlist" data-add-list>{% csrf_token %}
+    <input type="hidden" name="action" value="list_add">
+    <button type="button" class="btn-link bl-add-open" data-add-open>+ Add a list</button>
+    <div class="bl-add-box" hidden>
+      <input name="name" maxlength="120" placeholder="List name" aria-label="New list name">
+      <div><button class="btn-small btn-primary">Add list</button> <button type="button" class="btn-small" data-add-cancel>Cancel</button></div>
+    </div>
+  </form>
+  {% if not lists %}<p class="muted bl-empty">This board has no lists yet. Add one on the right, then add cards to it.</p>{% endif %}
+</div>
+{% if filtered and not lists %}{% endif %}
+<div id="bl-live" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+<p class="muted bl-hint">Drag a card to move it, or focus it and press <kbd>Space</kbd>, then the arrow keys, then <kbd>Space</kbd> again. <kbd>Enter</kbd> opens a card. <kbd>Esc</kbd> cancels a move.</p>
+
+<details id="archived" class="panel bl-archived">
+  <summary>Archived items <span class="muted">{{ archived_lists|length }} list{{ archived_lists|length|pluralize }} · {{ archived_cards|length }} card{{ archived_cards|length|pluralize }}</span></summary>
+  {% for l in archived_lists %}
+    <div class="bl-arch-row"><span>List: <strong>{{ l.name }}</strong></span>
+      <form method="post" action="{% url 'crm:board_list_edit' l.pk %}">{% csrf_token %}<input type="hidden" name="action" value="unarchive"><button class="btn-small">Send to board</button></form></div>
+  {% endfor %}
+  {% for c in archived_cards %}
+    <div class="bl-arch-row"><span>{{ c.title }} <span class="muted">· was in {{ c.list.name }}</span></span>
+      <span><form method="post" action="{% url 'crm:card_edit' c.pk %}" style="display:inline">{% csrf_token %}<input type="hidden" name="action" value="unarchive"><input type="hidden" name="next" value="{{ request.path }}"><button class="btn-small">Send to board</button></form>
+      {% if can_manage %}<form method="post" action="{% url 'crm:card_edit' c.pk %}" style="display:inline" onsubmit="return confirm('Delete “{{ c.title|escapejs }}” for good?')">{% csrf_token %}<input type="hidden" name="action" value="delete"><button class="btn-small btn-danger">Delete</button></form>{% endif %}</span></div>
+  {% endfor %}
+  {% if not archived_lists and not archived_cards %}<p class="muted" style="margin:8px 0 0">Nothing archived.</p>{% endif %}
+</details>
+
+<dialog id="card-dialog" class="card-dialog" aria-label="Card"><div id="card-body"><p class="muted" style="padding:30px">Loading…</p></div></dialog>
+{% endblock %}
+{% block scripts %}<script src="{% static 'crm/board.js' %}?v={{ ASSET_VERSION }}"></script>{% endblock %}

@@ -75,6 +75,12 @@ query per row, 11 phone pages render wider than the screen, and errors and setup
 The "Second pass" section for `docs/UX_REVIEW.md` and the screenshot set for `docs/ux-review-2/` are drafted and wait
 for Kellen's answers to the eight scope questions in the page's last section. Fixes start after that, one branch per area.
 
+**Boards, step 1 (`boards-core`) 2026-10-22** (Kellen: "go with the defaults and start boards-core"): Trello-style boards on
+the CRM's records, built as designed in the last section of this file. Migration `0056_boards`. **Merged 2026-10-22** (CI
+green, 470 tests). **The real database is not migrated yet:** back it up, then `manage.py migrate crm`. Details in
+"Built 2026-10-22: boards-core" below. Kellen also took the defaults on the UX second pass's eight questions: its
+"Second pass" section and screenshots are now in `docs/UX_REVIEW.md` and `docs/ux-review-2/`.
+
 **Next, in order**
 1. **Granola (time-sensitive: Granola only keeps 30 days).**
    - Kellen connects the Granola connector in Claude (Settings › Connectors). Its tools are `list_meetings`,
@@ -86,14 +92,18 @@ for Kellen's answers to the eight scope questions in the page's last section. Fi
    - A direct sync from the CRM, with no Claude in the middle, needs the Granola API, which needs Granola's Business
      or Enterprise plan ([docs](https://docs.granola.ai/help-center/sharing/integrations/granola-api)). That's
      Kellen's call.
-2. **Trello boards on the CRM's records** (designed 2026-10-22, last section of this file; waiting for Kellen's go on the
-   five decisions there). Four branches: `boards-core`, `boards-bound`, `boards-import`, `boards-polish`.
-3. **Sale comps per area, and off-market signals** (long holds, estates, tax-delinquent where counties publish it):
+2. **Trello boards, the next steps** (design in the last section of this file; `boards-core` is merged):
+   `boards-bound` (bound and feed lists; the Tenant pipeline and Sites Board tabs on the boards component; Lists → Boards
+   migration and redirects; the My cards widget), then `boards-import` (the Trello JSON export), then `boards-polish`.
+3. **UX second pass fixes** (`docs/UX_REVIEW.md`, "Second pass"; Kellen took the defaults): one branch per area in this
+   order: capture gaps and Granola; duplicates and undo; accessibility, phone, states and wording; roles, outside-facing
+   output, rough edges.
+4. **Sale comps per area, and off-market signals** (long holds, estates, tax-delinquent where counties publish it):
    the rest of roadmap item 7.
-4. **Owner-data gaps:** Hays has values for 42% of parcels and Charles has mailing addresses for 66%. Fill them from
+5. **Owner-data gaps:** Hays has values for 42% of parcels and Charles has mailing addresses for 66%. Fill them from
    assessor files with `load_owners`. This matters for landowner letters: an owner with no mailing address can't be
    written to.
-5. **Go-live once billing is on:** Cloud Run jobs and Scheduler, Cloud Storage, hub.acmigroup.com (`docs/ROADMAP.md`
+6. **Go-live once billing is on:** Cloud Run jobs and Scheduler, Cloud Storage, hub.acmigroup.com (`docs/ROADMAP.md`
    section 1).
 
 **Decided; don't reopen**
@@ -103,9 +113,8 @@ for Kellen's answers to the eight scope questions in the page's last section. Fi
 
 **Waiting on Kellen**
 - Connect Granola (above).
-- Answers to the UX second pass's eight scope questions (the page above), or "go with the defaults".
-- The five Trello-board decisions at the end of this file (replace Lists with Boards; bound boards for the pipeline and
-  sites; which Trello exports to import; due reminders on cards; board visibility).
+- Migrate the real database to `0056_boards` (backup first; see "How to work in this repo").
+- For `boards-import`: the Trello JSON exports (the MEIH board; NSIH if there is one), as files under `data/imports/`.
 - Confirm who stays a Manager (Admin › Groups). Everyone with an account is one today.
 - Pick a restricted shared-drive folder for `ACMI_TRANSCRIPT_DIR`. Transcripts can hold NDA material, and Maryland
   needs all-party consent to record.
@@ -1536,7 +1545,7 @@ vendors, suggest the rest**, and **flag existing Companies** that look like vend
 - **Tests:** `crm/tests/test_domain_sort.py` (8, Claude mocked; 424 in all pass). Checked in a browser on a scratch database with
   made-up domains: the Mail review suggestions, File as Claude says, the Sorted from email page, Undo.
 
-## Designed 2026-10-22: Trello boards on top of the CRM's records (not built; waiting for Kellen's go)
+## Designed 2026-10-22: Trello boards on top of the CRM's records (step 1 built the same day; see the section after this one)
 
 Kellen asked how to layer Trello's functionality in, exactly. The team ran two Trello boards: **Properties-Prospecting**
 (lists per stage; already imported as tenant deals, `pipeline_import.py`) and the **MEIH board** (lists per deal:
@@ -1662,3 +1671,57 @@ query-count test guards it.
   one), and whether to download attachments or link to Trello (recommended: link first).
 - Cards without a task still get due reminders (recommended: yes, through the existing sweep).
 - Boards open to everyone signed in, with members only for "My boards" (recommended), or members-only visibility.
+
+## Built 2026-10-22: boards-core (Kellen: "go with the defaults and start boards-core")
+
+**Merged 2026-10-22** (branch `boards-core`, CI green on Postgres, 470 tests). Migration `0056_boards`: Board, BoardList,
+BoardLabel, Card, Checklist, ChecklistItem, CardAttachment, CardEvent, `Comment.card`, and a `card` notification kind.
+**The real database still needs the migration** (backup, then `manage.py migrate crm`); nothing else changes for existing
+data. Decisions taken as recommended: Lists become Boards (next step), the pipeline and Sites boards move onto the
+component (next step), Trello attachments link rather than download, cards get due reminders through the daily sweep,
+every board is open to everyone signed in with members only deciding "My boards".
+
+- **Code:** `crm/boards/` (`logic.py`: positions 1,000 apart with renumbering, moves, templates, record links and facts,
+  the activity log; `views.py`; `forms.py`), templates `boards.html`, `board.html`, `partials/board_list.html`,
+  `board_card.html`, `card_dialog.html`, `board_tile.html`, `boards_row.html`; `static/crm/board.js`; styles at the end of
+  `app.css` (`.bl-*`, `.cd-*`, label and cover colours). URLs under `/boards/` (`crm:boards`, `board`, `card`, `card_edit`,
+  `card_move`, `card_checklist`, `card_attach`, `board_edit`, `board_list_edit`, `quick_card`, `record_add_to_board`).
+- **Pages:** `/boards/` (My boards, other boards, archived boards; + New board with the Blank, Project board (the MEIH
+  Trello layout) and Deal steps templates; + New card picks a board and list). `/boards/<id>/`: lists across the page,
+  cards with labels (colour + text), a record chip (type and name), the due chip with the word (Overdue, Today, Done),
+  checklist progress, attachment and comment counts, member initials; add a card at the foot of a list (Enter adds the
+  next), add a list; list menu (rename, move left/right, sort by due / name / label, archive); Members, Labels and Board
+  menu (name, description, colour, campus, project; archive and delete for Managers); the filter bar (Mine, member,
+  label, due, text) saved as views through the view bar (`SavedView.object_type = "board:<id>"`); Archived items with
+  "Send to board" and, for Managers, delete.
+- **Moving cards:** pointer drag within and across lists (the drop index is the position among the list's cards), and the
+  keyboard: Space picks a focused card up, arrows move it (up / down within the list, left / right across lists at the same
+  index), Space drops, Escape puts it back; every step is announced in a live region. One POST (`card_move`) saves a
+  move; a refused move snaps the card back. Positions: integers 1,000 apart; when two neighbours touch, the list is
+  renumbered (`logic.place`).
+- **Card dialog** (fetched into a `<dialog>`, `?card=<id>` deep link; opened directly, the URL redirects to the board with
+  the card open): rename in place, "in list … on board", description (Ctrl+Enter saves), labels, members (newly added
+  people get a bell note), start / due / time with a Done tick, a linked record with a few facts (stage, owner, last
+  touch, next date…) and "Open <record>", checklists (items with a date; ticks save without a reload; an item linked to a
+  Task keeps the task in step), attachments (a Drive link or an upload, served through `card_attachment_file`),
+  comments (the shared partial, mentions and watchers include the card's members), the activity log, Move (list and
+  position), Copy, Join / Leave, Cover colour, Archive; Delete only on an archived card and only for Managers.
+- **Records:** the Record tool in the dialog searches through `/search/` and links a company, deal, site, contract, firm,
+  entitlement, capital source, meeting or task (`logic.link_from_url`); "Rename the card after it" is optional. Company
+  pages get a Boards panel (on which boards, with "Add to board"); other record pages get it in `boards-bound`.
+- **Elsewhere:** Boards in the top bar after Calendar; search finds cards ("board › list"); + New › Card; recently opened
+  records include boards; cards due today or overdue reach their members in the daily due sweep (`notify.due_sweep`).
+- **Accessibility:** cards are focusable list items with a full label (title, due state, record), the keyboard path above,
+  a live region, named lists and controls, labels always carry text, due states carry words; axe-core reports no
+  violations on the board page or the card dialog. The board page runs a flat number of queries however many cards it
+  holds (a test guards it).
+- **Tests:** `crm/tests/test_boards.py` (21): positions and renumbering, moves and events, record links and facts, the
+  board page and filters, add by fetch, the move endpoint and its board boundary, every card action, add to board from a
+  company page, checklists and attachments, comments and notifications, list actions, board settings and Manager-only
+  archive / delete, saved views per board, search and + New, the due sweep, the query count.
+- **Checked in a browser** on a scratch database with made-up boards: keyboard pick-up / move / drop / cancel with the
+  announcements, pointer drag, inline add, the dialog, record linking through the picker, checklist ticks, 1440 and 390
+  px (the lists scroll sideways at 84vw each on a phone).
+- **Not in this step** (next branches): bound lists (a list per status, the pipeline and Sites boards on this engine),
+  feed lists, the Lists → Boards migration, the My cards widget, the Trello import, checklist → task conversion,
+  CSV export, a Help page section.

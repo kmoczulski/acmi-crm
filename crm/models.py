@@ -907,6 +907,8 @@ class Comment(models.Model):
     task = models.ForeignKey(Task, null=True, blank=True, on_delete=models.CASCADE, related_name="comments")
     site = models.ForeignKey("LandSite", null=True, blank=True, on_delete=models.CASCADE, related_name="comments")
     contract = models.ForeignKey("Contract", null=True, blank=True, on_delete=models.CASCADE, related_name="comments")
+    card = models.ForeignKey("Card", null=True, blank=True, on_delete=models.CASCADE, related_name="comments",
+                             help_text="A board card (crm/boards)")
     document = models.ForeignKey("ContractDocument", null=True, blank=True, on_delete=models.CASCADE,
                                  related_name="comments", help_text="The contract document it's pinned to")
     start = models.PositiveIntegerField(null=True, blank=True, help_text="Where in the document's text it's pinned")
@@ -925,7 +927,7 @@ class Comment(models.Model):
         return self.body[:60]
 
     def record(self):
-        return self.task or self.opportunity or self.site or self.contract or self.company
+        return self.card or self.task or self.opportunity or self.site or self.contract or self.company
 
     def link(self):
         """Where the comment opens: a contract comment on its document in the reader, anything else on its record."""
@@ -946,6 +948,7 @@ class Notification(models.Model):
         MEETING = "meeting", "Meeting"
         DEADLINE = "deadline", "Deadline"
         DIRECTORY = "directory", "Filed in the directory"
+        CARD = "card", "Card"
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="notifications")
     kind = models.CharField(max_length=12, choices=Kind.choices)
@@ -3168,3 +3171,211 @@ class DomainSort(models.Model):
     @property
     def kind_label(self):
         return dict(Firm.Kind.choices).get(self.kind, self.kind)
+
+
+# ---------------------------------------------------------------------------
+# Boards: Trello-style lists and cards on top of the CRM's records (crm/boards/). A card is a view of a record
+# wherever one exists; a card with no record is allowed and can be linked later.
+# ---------------------------------------------------------------------------
+
+BOARD_COLOURS = [("navy", "Navy"), ("sky", "Sky"), ("teal", "Teal"), ("green", "Green"), ("amber", "Amber"),
+                 ("rose", "Rose"), ("violet", "Violet"), ("slate", "Slate")]
+# Trello's label palette. The label's name is always shown next to its colour.
+LABEL_COLOURS = [("green", "Green"), ("yellow", "Yellow"), ("orange", "Orange"), ("red", "Red"), ("purple", "Purple"),
+                 ("blue", "Blue"), ("sky", "Sky"), ("lime", "Lime"), ("pink", "Pink"), ("black", "Black")]
+
+
+class Board(models.Model):
+    class Kind(models.TextChoices):
+        PROJECT = "project", "Project board"
+        CAMPUS = "campus", "Campus board"
+        TEAM = "team", "Team board"
+        CUSTOM = "custom", "Custom board"
+        BOUND = "bound", "Record board"  # lists bound to a record's statuses (next phase, boards-bound)
+
+    name = models.CharField(max_length=120)
+    kind = models.CharField(max_length=10, choices=Kind.choices, default=Kind.CUSTOM)
+    campus = models.ForeignKey(Campus, null=True, blank=True, on_delete=models.SET_NULL, related_name="boards")
+    project = models.ForeignKey(Project, null=True, blank=True, on_delete=models.SET_NULL, related_name="boards")
+    description = models.TextField(blank=True)
+    colour = models.CharField(max_length=12, choices=BOARD_COLOURS, default="navy")
+    position = models.PositiveIntegerField(default=0)
+    archived = models.BooleanField(default=False, db_index=True)
+    members = models.ManyToManyField(User, blank=True, related_name="boards",
+                                     help_text="Shown under My boards; everyone signed in can open any board")
+    created_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["position", "name"]
+
+    def __str__(self):
+        return self.name
+
+    def get_absolute_url(self):
+        return reverse("crm:board", args=[self.pk])
+
+    @property
+    def home_label(self):
+        return " / ".join(str(x) for x in [self.campus, self.project] if x)
+
+
+class BoardList(models.Model):
+    """A Trello list: one column of a board."""
+
+    board = models.ForeignKey(Board, on_delete=models.CASCADE, related_name="lists")
+    name = models.CharField(max_length=120)
+    position = models.IntegerField(default=0)
+    archived = models.BooleanField(default=False)
+    maps_to = models.CharField(max_length=40, blank=True,
+                               help_text="On a record board: the status value this list holds (next phase)")
+    feed = models.CharField(max_length=20, blank=True,
+                            help_text="A read-only list filled from records: critical_dates, open_tasks… (next phase)")
+
+    class Meta:
+        ordering = ["position", "id"]
+
+    def __str__(self):
+        return self.name
+
+
+class BoardLabel(models.Model):
+    board = models.ForeignKey(Board, on_delete=models.CASCADE, related_name="labels")
+    name = models.CharField(max_length=60)
+    colour = models.CharField(max_length=12, choices=LABEL_COLOURS, default="blue")
+    position = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ["position", "id"]
+
+    def __str__(self):
+        return self.name
+
+
+class Card(models.Model):
+    """One card. `list` names the column (as ListEntry.list does); `record()` is the CRM record it stands for."""
+
+    RECORD_FIELDS = ("opportunity", "site", "contract", "approval", "capital_source", "firm", "company", "meeting", "task")
+    RECORD_LABELS = {"opportunity": "Tenant deal", "site": "Site", "contract": "Contract", "approval": "Entitlement",
+                     "capital_source": "Capital source", "firm": "Directory", "company": "Company", "meeting": "Meeting",
+                     "task": "Task"}
+
+    list = models.ForeignKey(BoardList, on_delete=models.CASCADE, related_name="cards")
+    position = models.IntegerField(default=0)
+    title = models.CharField(max_length=300)
+    description = models.TextField(blank=True)
+    start = models.DateField(null=True, blank=True)
+    due = models.DateField(null=True, blank=True, db_index=True)
+    due_time = models.TimeField(null=True, blank=True)
+    done = models.BooleanField(default=False)
+    done_at = models.DateTimeField(null=True, blank=True)
+    cover = models.CharField(max_length=12, choices=LABEL_COLOURS, blank=True)
+    archived = models.BooleanField(default=False, db_index=True)
+    labels = models.ManyToManyField(BoardLabel, blank=True, related_name="cards")
+    members = models.ManyToManyField(User, blank=True, related_name="cards")
+    company = models.ForeignKey(Company, null=True, blank=True, on_delete=models.SET_NULL, related_name="cards")
+    opportunity = models.ForeignKey(Opportunity, null=True, blank=True, on_delete=models.SET_NULL, related_name="cards")
+    site = models.ForeignKey(LandSite, null=True, blank=True, on_delete=models.SET_NULL, related_name="cards")
+    contract = models.ForeignKey(Contract, null=True, blank=True, on_delete=models.SET_NULL, related_name="cards")
+    firm = models.ForeignKey(Firm, null=True, blank=True, on_delete=models.SET_NULL, related_name="cards")
+    approval = models.ForeignKey(Approval, null=True, blank=True, on_delete=models.SET_NULL, related_name="cards")
+    capital_source = models.ForeignKey(CapitalSource, null=True, blank=True, on_delete=models.SET_NULL, related_name="cards")
+    meeting = models.ForeignKey(Meeting, null=True, blank=True, on_delete=models.SET_NULL, related_name="cards")
+    task = models.ForeignKey(Task, null=True, blank=True, on_delete=models.SET_NULL, related_name="cards")
+    source_key = models.CharField(max_length=120, null=True, blank=True, unique=True, editable=False,
+                                  help_text="Import key (trello:<card id>) so a re-run updates instead of duplicating")
+    created_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["position", "id"]
+
+    def __str__(self):
+        return self.title
+
+    def get_absolute_url(self):
+        return reverse("crm:board", args=[self.list.board_id]) + f"?card={self.pk}"
+
+    @property
+    def board(self):
+        return self.list.board
+
+    def record_field(self):
+        return next((f for f in self.RECORD_FIELDS if getattr(self, f + "_id")), "")
+
+    def record(self):
+        field = self.record_field()
+        return getattr(self, field) if field else None
+
+    @property
+    def record_kind(self):
+        return self.RECORD_LABELS.get(self.record_field(), "")
+
+    @property
+    def due_state(self):
+        """"late", "today", "soon" (within 7 days) or "" for the due chip; nothing once done."""
+        if self.done or not self.due:
+            return ""
+        days = (self.due - timezone.localdate()).days
+        return "late" if days < 0 else "today" if days == 0 else "soon" if days <= 7 else ""
+
+
+class Checklist(models.Model):
+    card = models.ForeignKey(Card, on_delete=models.CASCADE, related_name="checklists")
+    name = models.CharField(max_length=120, default="Checklist")
+    position = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ["position", "id"]
+
+    def __str__(self):
+        return self.name
+
+
+class ChecklistItem(models.Model):
+    checklist = models.ForeignKey(Checklist, on_delete=models.CASCADE, related_name="items")
+    text = models.CharField(max_length=300)
+    done = models.BooleanField(default=False)
+    due = models.DateField(null=True, blank=True)
+    assignee = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    position = models.PositiveIntegerField(default=0)
+    task = models.ForeignKey(Task, null=True, blank=True, on_delete=models.SET_NULL, related_name="checklist_items",
+                             help_text="The real task this item became (reminders, My tasks)")
+
+    class Meta:
+        ordering = ["position", "id"]
+
+    def __str__(self):
+        return self.text
+
+
+class CardAttachment(models.Model):
+    card = models.ForeignKey(Card, on_delete=models.CASCADE, related_name="attachments")
+    name = models.CharField(max_length=300)
+    url = models.URLField(max_length=1000, blank=True, help_text="A Drive (or any) link")
+    file = models.FileField(upload_to="cards/%Y/%m/", blank=True)
+    added_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    added_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-added_at"]
+
+    def __str__(self):
+        return self.name
+
+
+class CardEvent(models.Model):
+    """The card's activity log: created, moved, renamed, label, member, due, done, archived, linked."""
+
+    card = models.ForeignKey(Card, on_delete=models.CASCADE, related_name="events")
+    when = models.DateTimeField(default=timezone.now, db_index=True)
+    user = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    kind = models.CharField(max_length=12)
+    text = models.CharField(max_length=300)
+
+    class Meta:
+        ordering = ["-when", "-id"]
+
+    def __str__(self):
+        return self.text

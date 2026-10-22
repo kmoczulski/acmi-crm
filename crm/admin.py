@@ -200,3 +200,21 @@ class LandownerLetterAdmin(admin.ModelAdmin):
     list_display = ("sent_on", "site", "owner_name", "method", "sent_by")
     list_filter = ("method", "site")
     search_fields = ("owner_name", "mailing")
+
+
+@admin.register(models.Board)
+class BoardAdmin(admin.ModelAdmin):
+    list_display = ("name", "kind", "campus", "project", "archived", "created_by", "created_at")
+    list_filter = ("kind", "archived")
+    search_fields = ("name",)
+
+
+@admin.register(models.Card)
+class CardAdmin(admin.ModelAdmin):
+    list_display = ("title", "list", "position", "due", "done", "archived", "created_by")
+    list_filter = ("archived", "done", "list__board")
+    search_fields = ("title",)
+
+
+admin.site.register(models.BoardList)
+admin.site.register(models.BoardLabel)

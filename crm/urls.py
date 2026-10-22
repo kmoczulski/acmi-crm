@@ -2,6 +2,7 @@ from django.urls import path
 from django.views.generic import RedirectView
 
 from . import campus_views, prefs, search, views
+from .boards import views as board_views
 from .build import views as build_views
 from .capital import views as capital_views
 from .contracts import views as contract_views
@@ -200,5 +201,19 @@ urlpatterns = [
     path("land/parcel/<int:pk>/project/", land_views.parcel_to_project, name="land_parcel_to_project"),
     path("projects/<int:pk>/sites/", land_views.project_site_set, name="project_site_set"),
     path("land/parcel/<int:pk>/notes/", land_views.parcel_notes, name="land_parcel_notes"),
+    path("boards/", board_views.board_index, name="boards"),
+    path("boards/new/", board_views.board_create, name="board_create"),
+    path("boards/new-card/", board_views.quick_card, name="quick_card"),
+    path("boards/add/", board_views.record_add_to_board, name="record_add_to_board"),
+    path("boards/<int:pk>/", board_views.board_detail, name="board"),
+    path("boards/<int:pk>/edit/", board_views.board_edit, name="board_edit"),
+    path("boards/lists/<int:pk>/", board_views.list_edit, name="board_list_edit"),
+    path("boards/lists/<int:list_pk>/cards/", board_views.card_add, name="card_add"),
+    path("boards/cards/<int:pk>/", board_views.card_dialog, name="card"),
+    path("boards/cards/<int:pk>/edit/", board_views.card_edit, name="card_edit"),
+    path("boards/cards/<int:pk>/move/", board_views.card_move, name="card_move"),
+    path("boards/cards/<int:pk>/checklist/", board_views.checklist_edit, name="card_checklist"),
+    path("boards/cards/<int:pk>/attach/", board_views.attachment_edit, name="card_attach"),
+    path("boards/attachments/<int:pk>/file/", board_views.attachment_file, name="card_attachment_file"),
     path("internal/sync-mail/", mail_views.cron_sync, name="cron_sync"),
 ]
