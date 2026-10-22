@@ -66,6 +66,15 @@ had no Granola summary, so it carries B&H's next steps (Kellen: the same tasks f
 linked from both meetings. Shore United still shows a second calendar row for the same call (the bank's own invite,
 different title). Backup `backups/db-2026-10-21-before-forge-lenders.sqlite3`.
 
+**UX second pass 2026-10-22** (Kellen asked; run in a cloud session on a scratch database of made-up data at live scale,
+nothing changed in the repo or the real database): 29 findings with screenshots, timings and an axe-core scan, as a web page
+https://claude.ai/artifact/7MeJEVyTfnFBXXDgVefAtj. Headlines: the capture gap is structural (meetings link only to
+Companies, never to directory firms; a bank's "medium" verdict never auto-files; search can't see the review queue), there
+is no daily Granola path, same-time meetings only merge on title, drag-and-drop has no keyboard path, five pages repeat one
+query per row, 11 phone pages render wider than the screen, and errors and setup messages are written for a developer.
+The "Second pass" section for `docs/UX_REVIEW.md` and the screenshot set for `docs/ux-review-2/` are drafted and wait
+for Kellen's answers to the eight scope questions in the page's last section. Fixes start after that, one branch per area.
+
 **Next, in order**
 1. **Granola (time-sensitive: Granola only keeps 30 days).**
    - Kellen connects the Granola connector in Claude (Settings › Connectors). Its tools are `list_meetings`,
@@ -77,12 +86,14 @@ different title). Backup `backups/db-2026-10-21-before-forge-lenders.sqlite3`.
    - A direct sync from the CRM, with no Claude in the middle, needs the Granola API, which needs Granola's Business
      or Enterprise plan ([docs](https://docs.granola.ai/help-center/sharing/integrations/granola-api)). That's
      Kellen's call.
-2. **Sale comps per area, and off-market signals** (long holds, estates, tax-delinquent where counties publish it):
+2. **Trello boards on the CRM's records** (designed 2026-10-22, last section of this file; waiting for Kellen's go on the
+   five decisions there). Four branches: `boards-core`, `boards-bound`, `boards-import`, `boards-polish`.
+3. **Sale comps per area, and off-market signals** (long holds, estates, tax-delinquent where counties publish it):
    the rest of roadmap item 7.
-3. **Owner-data gaps:** Hays has values for 42% of parcels and Charles has mailing addresses for 66%. Fill them from
+4. **Owner-data gaps:** Hays has values for 42% of parcels and Charles has mailing addresses for 66%. Fill them from
    assessor files with `load_owners`. This matters for landowner letters: an owner with no mailing address can't be
    written to.
-4. **Go-live once billing is on:** Cloud Run jobs and Scheduler, Cloud Storage, hub.acmigroup.com (`docs/ROADMAP.md`
+5. **Go-live once billing is on:** Cloud Run jobs and Scheduler, Cloud Storage, hub.acmigroup.com (`docs/ROADMAP.md`
    section 1).
 
 **Decided; don't reopen**
@@ -92,6 +103,9 @@ different title). Backup `backups/db-2026-10-21-before-forge-lenders.sqlite3`.
 
 **Waiting on Kellen**
 - Connect Granola (above).
+- Answers to the UX second pass's eight scope questions (the page above), or "go with the defaults".
+- The five Trello-board decisions at the end of this file (replace Lists with Boards; bound boards for the pipeline and
+  sites; which Trello exports to import; due reminders on cards; board visibility).
 - Confirm who stays a Manager (Admin › Groups). Everyone with an account is one today.
 - Pick a restricted shared-drive folder for `ACMI_TRANSCRIPT_DIR`. Transcripts can hold NDA material, and Maryland
   needs all-party consent to record.
@@ -1521,3 +1535,130 @@ vendors, suggest the rest**, and **flag existing Companies** that look like vend
 - Claude off (no key) or failing never fails the sync: sorting just stops for that run and tries again next time.
 - **Tests:** `crm/tests/test_domain_sort.py` (8, Claude mocked; 424 in all pass). Checked in a browser on a scratch database with
   made-up domains: the Mail review suggestions, File as Claude says, the Sorted from email page, Undo.
+
+## Designed 2026-10-22: Trello boards on top of the CRM's records (not built; waiting for Kellen's go)
+
+Kellen asked how to layer Trello's functionality in, exactly. The team ran two Trello boards: **Properties-Prospecting**
+(lists per stage; already imported as tenant deals, `pipeline_import.py`) and the **MEIH board** (lists per deal:
+Land Sites, Critical Dates, Deal and Design, Contacts and Consultants; labels deal info / legal / civil / architecture /
+program / land use / critical date; critical dates with times). Pieces of Trello are already in the CRM but each was
+built on its own: the Tenant pipeline Board tab (`opportunity_board`, `partials/board_js.html`), the Sites Board tab
+(`land_sites.html`), Lists with per-entry stages (`List`, `ListEntry`, `list_detail.html`), the task card
+(`task_detail.html`: rename in place, description, label, repeat, due time, comments) and comments with @mentions
+(`Comment`, `notify.py`). None of them has card ordering, checklists, attachments, members, an activity log,
+archiving or a keyboard path, and a record can't sit on more than one board.
+
+**The one rule that makes this a layer and not a second Trello:** a card is a view of a CRM record wherever one exists.
+Moving a card changes the record; changing the record moves the card. Cards with no record are allowed (a reminder,
+an idea), and can be linked later.
+
+### Model (`crm/boards/`, migration `0056_boards`)
+
+- `Board`: name, kind (`project`, `campus`, `team`, `custom`, `bound`), campus and project (optional), description,
+  colour, position, archived, members (M2M users, for "My boards"), created_by / at. Everyone signed in can open and
+  edit every board (same as records); Managers archive, delete and import.
+- `BoardList` (a Trello list, i.e. a column): board, name, position, archived, and two optional bindings:
+  - `maps_to` = a status value of the board's record type (`Opportunity.stage`, `LandSite.status`,
+    `CapitalSource.status`, `Approval.status`, `Contract.status`). A **bound list** is where every record with that
+    status sits; dropping a card there calls the existing stage path (`opportunity_set_stage` →
+    `notify.deal_stage_changed`, `LandSite` status + `LandSiteEvent`, and so on), and a stage change made anywhere
+    else moves the card (TrackedModel.save already notices the change; a hook in `signals.py` moves the card).
+  - `feed` = `critical_dates`, `open_tasks`, `upcoming_meetings`, `needs_filing`, `contracts`, `sites`: a **feed
+    list** is read-only and filled from the records of the board's campus or project, so the MEIH board's "Critical
+    Dates" list is the contract dates themselves and never goes stale. Cards in a feed list open the record.
+- `Card`: list, position (integers 1,000 apart, reindexed when a gap closes), title, description, start, due, due_time,
+  done (Trello's dueComplete), cover colour, archived, created_by / at / updated_at, `source_key` (unique; the import
+  uses `trello:<cardId>`), and one optional record link: company, opportunity, site, contract, firm, approval,
+  capital_source, meeting, task (explicit nullable FKs, as `Comment` does; `card.record()` returns the one that is
+  set). Labels M2M → `BoardLabel`; members M2M → users.
+- `BoardLabel`: board, name, colour (Trello's palette; the text is always shown next to the colour), position. New
+  boards start with the team's seven categories (`Task.Label`).
+- `Checklist` (card, name, position) and `ChecklistItem` (checklist, text, done, due, assignee, position, `task`
+  optional). "Make it a task" turns an item into a real `Task` (reminders, My tasks) and keeps both in step; a `Task`
+  with `card` set appears as an item.
+- `CardAttachment`: card, name, url or file (`upload_to="cards/%Y/%m/"`, the bucket in production), added_by / at.
+  A card linked to a company or deal also lists the record's `Document`s.
+- `Comment.card` (nullable FK): comments, @mentions, watchers and notifications work unchanged; watchers add the
+  card's members and creator.
+- `CardEvent`: card, when, user, kind (`created`, `moved`, `renamed`, `label`, `member`, `due`, `done`, `archived`,
+  `linked`), text. The card's activity log; moves of a bound card also land on the record's timeline as today.
+- Saved filters per board through `SavedView` with `object_type="board:<id>"`, so the view bar works as on every list.
+
+### Pages and behaviour
+
+- `/boards/`: My boards (tiles with colour, campus, card counts, "N due this week"), every board, archived boards.
+  "+ New board" offers blank, **Project board** (the MEIH layout: Land Sites feed, Critical Dates feed, Deal and
+  Design, Contacts and Consultants, Open tasks feed), **Deal board** (one list per step), **Record board** (pick the
+  record type; lists are its statuses, bound).
+- `/boards/<id>/`: lists across the page, cards with a cover stripe, labels (colour + text), the due chip (red
+  "Overdue", amber "Today", with the word), member avatars with names on hover and in the accessible label,
+  checklist progress ("3/7"), attachment and comment counts, and a record chip (type and name, linking to the
+  record). Add a card at the foot of a list (title, Enter adds the next). List menu: rename, add card, sort by due /
+  label / name, move all cards, archive. Board menu: members, labels, colour, archived items, export CSV, delete
+  (Managers). Filter bar: Mine, member, label, due (overdue, this week, none), text; saved as views.
+- **Moving cards**: pointer drag within and across lists (position saved), and a keyboard path: a card is focusable;
+  Space picks it up, arrows move it, Space drops, Esc cancels; every card also has a "Move…" menu (list and
+  position) so no one needs to drag. Moves are announced in a live region ("Moved Apex Optics to LOI / PDA
+  negotiation, position 2"). Lists reorder the same way. One component (`static/crm/board.js`) replaces
+  `partials/board_js.html` and the Sites board script.
+- **Card dialog** (`/boards/<id>/cards/<card>/`, opens in place, `?card=` deep link): title in place; "in list …"
+  with Move and Copy; members, labels, dates (start, due, time, reminder on/off), done; the linked record with a
+  search picker and the record's facts (stage, owner, last touch, next meeting); description (links, bold, bullets);
+  checklists; attachments (upload, drop, or a Drive link); comments; the activity log; Watch; Archive; "Make a task
+  from this card". Keyboard shortcuts as in Trello (`l` labels, `m` members, `d` due, Space assign me, `c` archive,
+  `e` edit description), listed on the Help page.
+- **Records**: company, deal, site, contract, firm and entitlement pages get an "On boards" row (board › list) and
+  "Add to board". Tasks get "Add to board". The meeting pop-up's action items get "Add to board" next to "Make task".
+- **Dashboard**: a "My cards" widget (due soon, assigned to me, across boards) in `prefs.WIDGETS`. **+ New** gets
+  "Card" (pick a board). **Search** covers cards by title and shows the board and list.
+- **Notifications**: added to a card, card due (the existing due sweep also covers cards with a due date and
+  members), mentioned (exists), a card moved into a list you watch (optional per list).
+
+### What the existing boards become
+
+- The Tenant pipeline Board tab and the Sites Board tab are rendered by the boards component as **bound boards**
+  ("Tenant pipeline", "Sites"; same tabs, same URLs, same colours), with a card auto-made for every open deal and
+  site (data migration) and kept in step by the stage hook. Capital, Entitlements and Contracts get the same board
+  view as a tab. Three hand-built boards become one engine with ordering and a keyboard path.
+- **Lists** (`/lists/`) become boards: each `List` → a `Board(kind="custom")`, its stages → `BoardList`s, each
+  `ListEntry` → a `Card` linked to the record. `/lists/…` redirects to `/boards/…`; the Lists pages and the
+  "Directory › Lists" menu item go away (one word for one thing: Boards).
+
+### Importing the real Trello boards (`manage.py import_trello <export.json> [--campus MEIH] [--project "4390 Indian Head Hwy"]`)
+
+Reads Trello's standard JSON export: open lists → `BoardList` (position from `pos`); cards → `Card` (name, desc, due,
+dueComplete, pos, closed → archived, idMembers → users through `pipeline_import.TEAM`, labels → `BoardLabel` with
+Trello's colours); checklists and checkItems → `Checklist` / `ChecklistItem` (state); attachments → `CardAttachment`
+(link to the Trello-hosted file first; `--download` fetches them into media); `commentCard` actions → `Comment` with
+the author mapped and the original date; `source_key="trello:<id>"` so a re-run updates instead of duplicating.
+Cards are linked to records by name (`merge.core_name` for companies and deals, site name, contract title); the
+**dry run** (default) prints a report of what will link where and what won't, for a human to settle before
+`--apply`. Back up first, and get Kellen's OK per board, as with every import.
+
+### Accessibility and speed
+
+Cards and lists are real buttons and regions with names; colour never travels alone (label text, due words, the
+record type on the chip); contrast checked for every label colour on the card background; the keyboard path above.
+One board page is one query per model (lists; cards with their record FKs selected; labels, members, checklist
+progress and counts annotated), ordered by position, archived excluded; 500 cards render in well under 200 ms. A
+query-count test guards it.
+
+### Order of work (one branch each, CI, fast-forward merge; backup before migrating the real database)
+
+1. `boards-core`: models and migration, board page, pointer and keyboard moves, card dialog (title, description,
+   labels, members, dates, record link, comments, activity), My boards, + New › Card, search, tests. 3–4 days.
+2. `boards-bound`: bound and feed lists; Tenant pipeline and Sites Board tabs on the component; Lists → Boards
+   migration and redirects; the My cards widget. 2–3 days.
+3. `boards-import`: `import_trello` with checklists, attachments and comments; dry run on Kellen's exports; apply
+   board by board. 1–2 days.
+4. `boards-polish`: checklist ↔ task sync, uploads to the bucket, templates, archived view, CSV export, Help page
+   section, shortcuts. 2 days.
+
+### Decided by Kellen before building
+
+- Replace Lists with Boards (recommended: yes).
+- Tenant pipeline and Sites boards move onto the boards component (recommended: yes; same look, one engine).
+- Which Trello boards to import (the MEIH board; Properties-Prospecting is already in as deals; NSIH if there is
+  one), and whether to download attachments or link to Trello (recommended: link first).
+- Cards without a task still get due reminders (recommended: yes, through the existing sweep).
+- Boards open to everyone signed in, with members only for "My boards" (recommended), or members-only visibility.
