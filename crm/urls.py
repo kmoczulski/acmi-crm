@@ -6,6 +6,7 @@ from .boards import views as board_views
 from .build import views as build_views
 from .capital import views as capital_views
 from .contracts import views as contract_views
+from .dataroom import views as room_views
 from .directory import views as directory_views
 from .entitlements import views as entitlement_views
 from .tenants import views as tenant_views
@@ -171,6 +172,15 @@ urlpatterns = [
     path("land/assignments/<int:pk>/sites/<int:entry_pk>/", asg_views.assignment_report, name="assignment_report"),
     path("land/assignments/<int:pk>/sites/<int:entry_pk>/edit/", asg_views.assignment_edit, name="assignment_edit"),
     path("g/<str:token>/", asg_views.guest_home, name="guest_home"),
+    # The capital partners' data room: partners' own pages (crm/dataroom/) and the Manager's page that runs it.
+    path("room/", room_views.room_home, name="room_home"),
+    path("room/login/", room_views.room_login, name="room_login"),
+    path("room/logout/", room_views.room_logout, name="room_logout"),
+    path("room/invite/<str:token>/", room_views.room_invite, name="room_invite"),
+    path("room/deals/<int:pk>/", room_views.room_deal, name="room_deal"),
+    path("room/files/<int:pk>/", room_views.room_file, name="room_file"),
+    path("data-rooms/", room_views.data_rooms, name="data_rooms"),
+    path("data-rooms/<int:pk>/", room_views.data_room_manage, name="data_room_manage"),
     path("g/<str:token>/<int:entry_pk>/", asg_views.guest_report, name="guest_report"),
     path("land/sites/", land_views.sites_page, name="land_sites_page"),
     path("land/sites/<int:pk>/manage/", land_views.site_detail, name="land_site_detail"),

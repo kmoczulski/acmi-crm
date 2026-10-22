@@ -1,0 +1,8 @@
+{% extends "crm/room/base.html" %}
+{% block title %}Link expired{% endblock %}
+{% block body %}
+<div class="r-card r-narrow">
+  <h1>This link doesn't work any more</h1>
+  <p>Sign-in links work once and expire after two weeks. Ask your ACMI contact for a new one, or <a href="{% url 'crm:room_login' %}">sign in</a> if you've already made your account.</p>
+</div>
+{% endblock %}

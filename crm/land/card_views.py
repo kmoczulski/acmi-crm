@@ -2,11 +2,11 @@
 stage, Claude summary) change the site and draw it again, so the card updates in place."""
 from datetime import date, time
 
-from django.contrib.auth import get_user_model
 from django.http import HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, render
 
 from ..models import LandSite, Task
+from ..permissions import team_users
 from . import site_card
 
 
@@ -42,7 +42,7 @@ def site_card_view(request, pk):
         elif action == "task_add":
             title = (request.POST.get("title") or "").strip()
             if title:
-                assignee = get_user_model().objects.filter(pk=request.POST.get("assignee") or 0, is_active=True).first()
+                assignee = team_users().filter(pk=request.POST.get("assignee") or 0).first()
                 site_card.add_task(site, request.user, title, _date(request.POST.get("due_date")),
                                    _time(request.POST.get("due_time")), assignee, request.POST.get("label", ""))
         elif action == "task_toggle":
@@ -64,7 +64,7 @@ def site_card_view(request, pk):
         site.refresh_from_db()
     ctx = site_card.context(site)
     ctx.update({"error": error, "statuses": LandSite.Status.choices, "today": date.today(),
-                "users": get_user_model().objects.filter(is_active=True).order_by("first_name", "username")})
+                "users": team_users().order_by("first_name", "username")})
     return render(request, "crm/partials/site_card.html", ctx)
 
 

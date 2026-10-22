@@ -137,7 +137,10 @@ class Recorder:
         if not hasattr(self, "_teammates"):
             from django.contrib.auth import get_user_model
 
-            self._teammates = {u.email.lower(): u for u in get_user_model().objects.exclude(email="")}
+            from ..permissions import PARTNERS
+
+            self._teammates = {u.email.lower(): u for u in get_user_model().objects.exclude(email="")
+                               .exclude(groups__name=PARTNERS)}
             self._teammates.update({m.email.lower(): m.user for m in Mailbox.objects.select_related("user")})
         return self._teammates.get((address or "").lower())
 

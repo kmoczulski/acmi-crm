@@ -13,6 +13,7 @@
   {% if opp.est_delivery %}<dt>Est. delivery</dt><dd>{{ opp.est_delivery|date:"M j, Y" }}</dd>{% endif %}
   {% if opp.timeline %}<dt>Timeline</dt><dd>{{ opp.timeline }}</dd>{% endif %}
   <dt>Investor report</dt><dd>{% if opp.investor_report %}Included{% else %}<span class="muted">Not included</span>{% endif %}</dd>
+  {% if opp.partner_note %}<dt>Note for capital partners</dt><dd class="prose">{{ opp.partner_note|linebreaksbr }}</dd>{% endif %}
   {% if opp.trello_url %}<dt>Trello</dt><dd><a href="{{ opp.trello_url }}" target="_blank" rel="noopener">Old Trello card</a></dd>{% endif %}
   {% if opp.notes %}<dt>Notes</dt><dd class="prose">{{ opp.notes|linebreaksbr }}</dd>{% endif %}
 </dl>

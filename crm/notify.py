@@ -7,7 +7,6 @@ tasks that are due or overdue. Nobody is notified about their own actions.
 import re
 from datetime import timedelta
 
-from django.contrib.auth import get_user_model
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 
@@ -52,7 +51,9 @@ def card_members_added(card, users, actor):
 
 def mentioned_users(text):
     """@kellen, @Simon or @simon.shewmaker -> users (username or first name, case-insensitive)."""
-    users = list(get_user_model().objects.filter(is_active=True))
+    from .permissions import team_users
+
+    users = list(team_users())
     found = set()
     for word in MENTION.findall(text or ""):
         w = word.lower().rstrip(".")

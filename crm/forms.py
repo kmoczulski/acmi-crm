@@ -1,5 +1,4 @@
 from django import forms
-from django.contrib.auth import get_user_model
 
 from .models import (
     Campus, CampusPlan, Company, Document, FitScore, List, Note, Opportunity, OpportunityContact, Person, Project, Task,
@@ -25,7 +24,9 @@ class UserChoiceField(forms.ModelChoiceField):
 
 
 def active_users():
-    return get_user_model().objects.filter(is_active=True).order_by("first_name", "username")
+    from .permissions import team_users
+
+    return team_users().order_by("first_name", "username")
 
 
 class StyledForm(forms.ModelForm):
@@ -147,9 +148,11 @@ class OpportunityForm(StyledForm):
         fields = [
             "name", "company", "stage", "probability", "priority", "owner", "team", "campus", "site", "deal_type",
             "asset_type", "value", "sq_ft_need", "acreage_need", "power_need_mw", "next_step", "next_step_due",
-            "target_close", "est_delivery", "timeline", "lead_source", "investor_report", "trello_url", "notes",
+            "target_close", "est_delivery", "timeline", "lead_source", "investor_report", "partner_note", "trello_url",
+            "notes",
         ]
         widgets = {
+            "partner_note": forms.Textarea(attrs={"rows": 3}),
             "next_step_due": forms.DateInput(attrs={"type": "date"}),
             "target_close": forms.DateInput(attrs={"type": "date"}),
             "est_delivery": forms.DateInput(attrs={"type": "date"}),

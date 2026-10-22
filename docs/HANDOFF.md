@@ -101,9 +101,10 @@ decisions in `TRELLO_MAPPING.md` are still open.
 step: the Tenant pipeline and Sites tabs drawn by the boards component, Lists → Boards with redirects, and the My
 cards widget.
 
-**Capital partner data room** (Kellen asked 2026-10-22: partners see the pipeline and a company's card, not the
-internal details): proposal and six questions in `docs/DATA_ROOM.md`, built on the land-search client share links.
-Nothing built yet; it waits on Kellen's answers, and the links only work once the hub is on the internet.
+**Capital partner data room 2026-10-22** (Kellen: Fortress only; partners make an account and sign in; every deal
+on the investor report with an on / off switch; win % off; files only when approved): built on branch `data-room`,
+stacked on `boards-bound` (merge that first). Migration `0058_data_room`. Details in "Built 2026-10-22: data room" at
+the end of this file; decisions in `docs/DATA_ROOM.md`. Partners can only reach it once the hub is on the internet.
 
 **Next, in order**
 1. **Granola (time-sensitive: Granola only keeps 30 days).**
@@ -1799,3 +1800,39 @@ on SQLite (17 new in `crm/tests/test_boards_bound.py`); CI on Postgres not run y
 - **On the real database, after merging:** back up, `migrate`, then `boards_setup` (dry run, then `--apply`).
 - **Not in this part:** the existing Tenant pipeline and Sites Board tabs still use their own boards (moving them onto
   this component is next), Lists → Boards, the My cards widget.
+
+## Built 2026-10-22: data room (capital partners)
+
+Branch `data-room`, stacked on `boards-bound` (not merged). Migration `0058_data_room`: DataRoom, DataRoomMember,
+DataRoomDeal, DataRoomFile, DataRoomView, and `Opportunity.partner_note` ("Note for capital partners", on the deal's
+Edit form). Code in `crm/dataroom/` (`logic.py`, `views.py`), templates in `crm/templates/crm/room/`, tests in
+`crm/tests/test_data_room.py` (16).
+
+- **Partner accounts:** a Manager invites a person (Settings › Capital partner data room); the hub shows a one-time
+  sign-in link (14 days; only its hash is stored) to send them. They choose a password (12+ characters, not common,
+  not like their name), which makes a user in the **Partners** group with username = their email. "New password
+  link" resets it; "Switch off" ends access at once (sign-in and any open session). They sign in at `/room/login/`
+  through their own backend (`crm.auth.PartnerBackend`), which works with the team's password sign-in off; the
+  team's sign-in refuses partner accounts and the partner sign-in refuses the team. Five wrong passwords lock an
+  account or address for 15 minutes (cache-based: per server instance on Cloud Run).
+- **Confinement:** `crm.middleware.PartnerOnlyMiddleware` sends a partner account back to `/room/` from every other
+  page (records, search, boards, admin, document downloads, the Manager page). Partners never count as the team:
+  `permissions.team_users()` now feeds the assignee and owner lists, @mentions, meeting attendee matching and mail
+  sync's teammates (so Fortress mail isn't mistaken for internal mail).
+- **What a partner sees** (built from an allow-list in `crm/dataroom/logic.py`, never from internal pages): the
+  pipeline as a table or a board by stage: tenant, campus / site, deal and asset type, stage, acres, size, project
+  cost and $ PSF (room setting), target close, est. delivery; win % and weighted only if the room turns them on.
+  Deals on the investor report, minus those switched off, never On hold or Cold / lost. A company card per deal:
+  company, website, sector, those facts, the deal's partner note and its approved documents. Never notes, next steps,
+  lead source, owners, contacts, emails, meetings, comments or Trello history.
+- **Files:** a Manager approves a deal's document or uploads a file (for a deal, or the top of the room). Uploads are
+  served through the room; a Drive link opens only if the partner has Drive access. Files of a switched-off deal
+  stop downloading. Every page view and download is in the room's log ("What they looked at").
+- **Manager page** (`/data-rooms/`): deal switches (with a "no partner note" hint), shared files, people and their
+  state, room settings (partner firm, intro, campuses, show costs, show win %, on / off), the log, and "See what
+  Fortress sees" (a preview that isn't logged).
+- **Checked in a browser** on a scratch database: the Manager page, making a partner account from the link, the
+  pipeline and company card as the partner (no internal fields), internal URLs bouncing to `/room/`, phone width.
+- **On the real database, after merging `boards-bound` then this:** back up, `migrate`, then Settings › Capital
+  partner data room › "Start a data room" (Fortress), write partner notes on the investor-report deals, invite the
+  Fortress people. Partners can only reach it once the hub is hosted (hub.acmigroup.com).

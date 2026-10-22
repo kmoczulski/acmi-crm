@@ -3,6 +3,15 @@
 Kellen asked for a data room for capital partners: they see the pipeline, open a company's card, and don't see the
 internal details. A proposal for Kellen to settle before anything is built.
 
+## Decided by Kellen, 2026-10-22 (built the same day on branch `data-room`)
+
+- **Fortress only** for now (the model allows a room per partner).
+- **Partners make an account and sign in**: a Manager invites a person by email, the hub makes a one-time sign-in
+  link (14 days) for the Manager to send, and the person picks their own password. No shared links.
+- **Every deal on the investor report**, each with a switch to take it out of the room.
+- **Win % off** (a room setting, off by default; costs on).
+- **Files only when approved**: a deal's document approved for the room, or a file uploaded for it.
+
 ## What the hub already has to build on
 
 - **Private share links** for land-search clients (`Assignment`, `/g/<token>/`): a long random token, on/off by a

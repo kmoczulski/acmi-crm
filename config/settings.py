@@ -65,6 +65,7 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "allauth.account.middleware.AccountMiddleware",
     "crm.middleware.LoginRequiredMiddleware",
+    "crm.middleware.PartnerOnlyMiddleware",
     "crm.middleware.CurrentUserMiddleware",
 ]
 
@@ -124,6 +125,8 @@ AUTHENTICATION_BACKENDS = [
     # Django's and allauth's backends, with passwords refused when ACMI_LOCAL_LOGIN is false (crm/auth.py).
     "crm.auth.PasswordBackend",
     "crm.auth.AllauthBackend",
+    # Capital partners' accounts, for the data room only (crm/dataroom/).
+    "crm.auth.PartnerBackend",
 ]
 
 LANGUAGE_CODE = "en-us"
