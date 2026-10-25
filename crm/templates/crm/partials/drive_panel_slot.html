@@ -1,0 +1,17 @@
+<div class="panel drive-panel" id="drive-panel" data-src="{% url 'crm:drive_panel' kind pk %}" aria-live="polite">
+  <h3>Drive files</h3><p class="muted" style="margin:0">Loading the Drive folder…</p>
+</div>
+<script>
+  (function () {
+    const box = document.getElementById('drive-panel');
+    if (!box) return;
+    async function load(refresh) {
+      try {
+        const r = await fetch(box.dataset.src + (refresh ? '?refresh=1' : ''), {credentials: 'same-origin'});
+        box.innerHTML = r.ok ? await r.text() : '<h3>Drive files</h3><p class="muted">Could not load the Drive panel.</p>';
+      } catch (err) { box.innerHTML = '<h3>Drive files</h3><p class="muted">Could not reach the server.</p>'; }
+    }
+    box.addEventListener('click', e => { if (e.target.closest('[data-drive-refresh]')) { e.preventDefault(); box.querySelector('h3').insertAdjacentHTML('afterend', '<p class="muted">Refreshing…</p>'); load(true); } });
+    load(false);
+  })();
+</script>

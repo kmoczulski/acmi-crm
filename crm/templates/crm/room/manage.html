@@ -38,15 +38,16 @@
 
   <div class="panel">
     <h3>Shared files <span class="muted">{{ files|length }}</span></h3>
-    <p class="muted" style="margin-top:0">Only files you approve here reach the partner, and every download is logged. A Drive link opens only if the partner also has access in Drive; an uploaded file is served through the room.</p>
-    {% for f in files %}<div class="role-row"><span>{{ f.title }} <span class="muted" style="font-size:12px">· {% if f.opportunity %}{{ f.opportunity.company.name }}{% else %}top of the room{% endif %}{% if f.link %} · Drive link{% endif %} · {{ f.approved_by|username }}, {{ f.approved_at|date:"M j" }}</span></span>
+    <p class="muted" style="margin-top:0">Only files you approve reach the partner, and every download is logged. Drive files are read from Drive when they click (no second copy; they never see Drive). Share Drive files from a company's or project's Drive files panel, or pick a deal's document below.</p>
+    {% for f in files %}<div class="role-row"><span>{{ f.title }} <span class="muted" style="font-size:12px">· {% if f.opportunity %}{{ f.opportunity.company.name }}{% else %}top of the room{% endif %}{% if f.source_drive_id %} · Drive{% elif f.link %} · link{% endif %} · {{ f.approved_by|username }}, {{ f.approved_at|date:"M j" }}</span>
+      {% if f.newer %}<form method="post" action="{% url 'crm:drive_swap' f.pk %}" class="dp-stale" style="margin:4px 0 0">{% csrf_token %}<input type="hidden" name="next" value="{{ request.path }}">Newer version in Drive: “{{ f.newer.name }}”.{% if f.newer.internal %} <label><input type="checkbox" name="confirm_internal" value="1"> It's marked internal / redline / draft; I confirm it's for {{ room.name }}</label>{% endif %} <button class="btn-small">Show the newer one</button></form>{% endif %}</span>
       <form method="post" style="margin:0" onsubmit="return confirm('Take “{{ f.title|escapejs }}” out of the room?')">{% csrf_token %}<input type="hidden" name="action" value="unshare"><input type="hidden" name="file" value="{{ f.pk }}"><button class="btn-link btn-small">Take out</button></form></div>
     {% empty %}<p class="muted">Nothing shared yet.</p>{% endfor %}
     {% if docs %}<h4 style="margin:14px 0 6px">Approve a deal's document</h4>
     <form method="post" class="stack-form">{% csrf_token %}<input type="hidden" name="action" value="approve_document">
       <select name="document" aria-label="Document to share" required><option value="">Pick a document…</option>{% for d in docs %}<option value="{{ d.pk }}">{{ d.opportunity.company.name }} · {{ d.title }}{% if d.url %} (Drive link){% endif %}</option>{% endfor %}</select>
       <button class="btn-small btn-primary">Share in the room</button></form>{% endif %}
-    <h4 style="margin:14px 0 6px">Or upload a file for the room</h4>
+    <h4 style="margin:14px 0 6px">Or upload a file that isn't in Drive</h4>
     <form method="post" enctype="multipart/form-data" class="stack-form">{% csrf_token %}<input type="hidden" name="action" value="upload">
       <input type="file" name="file" required aria-label="File">
       <input name="title" placeholder="Title (optional)" maxlength="300" aria-label="Title">

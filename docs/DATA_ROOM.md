@@ -50,3 +50,43 @@ internal details. A proposal for Kellen to settle before anything is built.
 5. **Files:** v1 with no files, or a per-deal list of documents you choose (each one logged when opened)?
 6. **Hosting:** a link only works once the hub is on the internet (hub.acmigroup.com, waiting on billing; `docs/ROADMAP.md`
    section 1). Until then it can be built and tested on the laptop. Go-live has to come first.
+
+## Drive folders and files (Kellen, 2026-10-25; built on branch `data-room`)
+
+Kellen: map Drive locations per tenancy folder or project folder; the team sees everything in them, and he approves
+from there what goes to the data room. Decided: keep serving the approved version and flag newer ones (no automatic
+swap); read Drive through a service account on the "1 ACMI Properties" shared drive only.
+
+- **Mapping:** each company and project page has a **Drive files** panel. Paste the folder's Drive link, or, for a
+  company, take the suggested folder: `3 Tenancy/<name>` matched by name ("Castelion (Ranger)" → Castelion).
+- **What the panel shows (team only):** every file under the folder, three levels deep, grouped by sub-folder (LOI,
+  PDA, Design…), one line per document at its current version: the newest date in the name (2026.03.23, 20260910,
+  5_15_26…, else Drive's modified time), the PDF when a .docx of the same version sits beside it. Older versions fold
+  under "N older". Folders with "archive" in the name, `~$` lock files, desktop.ini and shortcuts are skipped. Names
+  with internal, redline or draft are tagged Internal.
+- **Sharing (Managers):** "Share in <room> room" on a document. A company's file goes on its investor-report deal (pick
+  one if there are several); a project's at the top of the room. An Internal-tagged file needs a ticked confirmation.
+  Only a file that is the current version in that mapped folder can be shared.
+- **Newer versions:** when a newer dated version appears (beside the old one, or with the old one moved to Archive),
+  the panel and the room's Manager page say "Newer version" with **Show the newer one**. Until a Manager clicks it,
+  the room keeps serving the approved file.
+- **What Fortress gets:** the file's name and, on click, its bytes read from Drive at that moment through the hub
+  (Google Docs / Sheets / Slides exported as PDF / Excel / PDF). No copy is kept, no Drive address or folder reaches
+  them, and the download is logged. A deal's document whose link is a Drive file is served the same way.
+
+### Setting up Drive access (Kellen, once)
+
+1. In the Google Cloud project the hub's Google sign-in uses: **APIs & Services › Enable APIs** → enable **Google
+   Drive API**.
+2. **IAM & Admin › Service accounts › Create**: name it `acmi-hub-drive-reader`. Give it no project roles.
+3. In Google Drive: **Shared drives › 1 ACMI Properties › Manage members** → add the service account's email
+   (`acmi-hub-drive-reader@<project>.iam.gserviceaccount.com`) as **Viewer**. If Drive refuses an outside address,
+   a Workspace admin allows it for that shared drive. Add it nowhere else.
+4. On the laptop: the service account › **Keys › Add key › JSON**. Save it outside the project folder (e.g.
+   `C:\Users\Kemoc\.acmi\drive-reader.json`) and add `ACMI_DRIVE_SA_FILE=C:\Users\Kemoc\.acmi\drive-reader.json`
+   to `.env`. (If the organisation blocks key creation, skip this; the hosted hub doesn't need a key.)
+5. Add `ACMI_DRIVE_TENANCY_FOLDER=<the ID at the end of the 3 Tenancy folder's link>` to `.env` for the name
+   suggestions.
+6. `.venv/Scripts/pip install -r requirements.txt` (Google's auth library comes with `google-cloud-storage`).
+7. Hosted (Cloud Run): add the Cloud Run service's own service account as Viewer on the shared drive instead, and set
+   `ACMI_DRIVE_ADC=true`; no key file.

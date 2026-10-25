@@ -105,6 +105,11 @@ cards widget.
 on the investor report with an on / off switch; win % off; files only when approved): built on branch `data-room`,
 stacked on `boards-bound` (merge that first). Migration `0058_data_room`. Details in "Built 2026-10-22: data room" at
 the end of this file; decisions in `docs/DATA_ROOM.md`. Partners can only reach it once the hub is on the internet.
+**Drive folders 2026-10-25** (same branch, migration `0059_drive_folders`): a Drive files panel on company and project
+pages (map the tenancy or project folder; current versions, archive skipped), "Share in data room" from there, newer
+versions flagged with a swap, and the room serving Drive files through the hub. **Waiting on Kellen:** the Drive
+service account (steps in `docs/DATA_ROOM.md`, "Setting up Drive access"); until then the panels say "Drive isn't
+connected" and folders can still be mapped.
 
 **Next, in order**
 1. **Granola (time-sensitive: Granola only keeps 30 days).**
@@ -1836,3 +1841,15 @@ Edit form). Code in `crm/dataroom/` (`logic.py`, `views.py`), templates in `crm/
 - **On the real database, after merging `boards-bound` then this:** back up, `migrate`, then Settings › Capital
   partner data room › "Start a data room" (Fortress), write partner notes on the investor-report deals, invite the
   Fortress people. Partners can only reach it once the hub is hosted (hub.acmigroup.com).
+
+## Built 2026-10-25: Drive folders for companies, projects and the data room
+
+Branch `data-room` (on `boards-bound`; not merged). Migration `0059_drive_folders`: `Company.drive_folder`,
+`Project.drive_folder`, and `DataRoomFile.drive_id / drive_name / drive_folder / drive_mime`. `crm/drive.py` (read-only
+Drive API through a service account; version grouping by dated names; `current_documents`, `newer_version`,
+`suggest_folder`), `crm/dataroom/drive_views.py` (the panel, mapping, share, swap), `partials/drive_panel.html` and
+`drive_panel_slot.html` (fetched after the page loads). The room's file view streams Drive files
+(`dataroom.views._from_drive`); Drive errors show a plain message, never Google's. Google's auth library is imported
+only when Drive is used. 12 tests in `crm/tests/test_drive_files.py` against a fake Drive. Checked in a browser on a
+scratch database without Drive connected (panel, mapping); listing real folders waits on the service account. Design
+and setup: `docs/DATA_ROOM.md`, "Drive folders and files".

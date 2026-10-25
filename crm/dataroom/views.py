@@ -164,6 +164,11 @@ def room_file(request, pk):
     f = get_object_or_404(DataRoomFile.objects.select_related("document"), pk=pk, room=room)
     if f.opportunity_id and logic.deal_for(room, f.opportunity_id) is None:
         raise Http404  # the deal was switched off: its files go with it
+    if f.source_drive_id:
+        response = _from_drive(f)
+        if response.status_code == 200:
+            logic.log(room, member, "file", opportunity=f.opportunity, file=f)
+        return response
     logic.log(room, member, "file", opportunity=f.opportunity, file=f)
     if f.link:
         return HttpResponseRedirect(f.link)
@@ -171,6 +176,56 @@ def room_file(request, pk):
     if not stored:
         raise Http404
     return FileResponse(stored.open("rb"), as_attachment=True, filename=stored.name.rsplit("/", 1)[-1])
+
+
+def _newer_versions(files):
+    """{shared file pk: newer DriveFile} for Drive files whose folder now has a newer dated version."""
+    from .drive_views import _listing, _project_for, stale_files
+
+    out = {}
+    by_record = {}
+    for f in files:
+        if not f.drive_id or not f.drive_name:
+            continue
+        record = f.opportunity.company if f.opportunity_id else _project_for(f)
+        if record is not None and record.drive_folder:
+            by_record.setdefault((type(record), record.pk), (record, []))[1].append(f)
+    for record, shared in by_record.values():
+        docs, _ = _listing(record)
+        out.update({f.pk: newer for f, newer in stale_files(record, docs, shared)})
+    return out
+
+
+def _from_drive(f):
+    """Stream an approved Drive file to the partner: read from Drive now (so nothing is stored twice and the partner
+    never sees a Drive address), Google Docs and Sheets exported as PDF / Excel."""
+    from django.http import HttpResponse, StreamingHttpResponse
+
+    from .. import drive
+
+    try:
+        c = drive.client()
+        meta = c.meta(f.source_drive_id)
+        if meta.get("trashed"):
+            raise Http404
+        upstream, ext = c.download(meta["id"], meta.get("mimeType", ""))
+    except Http404:
+        raise
+    except drive.NotConnected:
+        return HttpResponse("This document can't be opened right now. Please ask your ACMI contact.", status=503,
+                            content_type="text/plain")
+    except Exception:  # Drive refused or is down: never show its error to a partner
+        return HttpResponse("This document can't be opened right now. Please try again later or ask your ACMI contact.",
+                            status=502, content_type="text/plain")
+    name = meta.get("name", f.title)
+    if ext and not name.lower().endswith(ext):
+        name += ext
+    response = StreamingHttpResponse(upstream.iter_content(64 * 1024),
+                                     content_type=upstream.headers.get("Content-Type", "application/octet-stream"))
+    from django.utils.http import content_disposition_header
+
+    response["Content-Disposition"] = content_disposition_header(True, name)
+    return response
 
 
 # ---------------------------------------------------------------------------
@@ -274,9 +329,13 @@ def data_room_manage(request, pk):
     shared_docs = set(room.files.exclude(document=None).values_list("document_id", flat=True))
     docs = (Document.objects.filter(opportunity__in=deals).exclude(pk__in=shared_docs)
             .select_related("opportunity__company").order_by("opportunity__company__name", "title"))
+    files = list(room.files.select_related("opportunity__company", "document", "approved_by"))
+    newer = _newer_versions(files)
+    for f in files:
+        f.newer = newer.get(f.pk)
     return render(request, "crm/room/manage.html", {
         "room": room, "form": RoomSettingsForm(instance=room), "members": room.members.select_related("user"),
-        "deals": deals, "docs": docs, "files": room.files.select_related("opportunity__company", "document"),
+        "deals": deals, "docs": docs, "files": files,
         "views": logic.recent_views(room), "new_link": new_link, "invite_days": logic.INVITE_DAYS,
         "preview_url": reverse("crm:room_home") + f"?room={room.pk}",
     })

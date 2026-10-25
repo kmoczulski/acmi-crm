@@ -266,6 +266,8 @@ class Project(models.Model):
     )
     campus = models.ForeignKey(Campus, null=True, blank=True, on_delete=models.SET_NULL, related_name="projects")
     address = models.CharField(max_length=255, blank=True)
+    drive_folder = models.CharField("Drive folder", max_length=100, blank=True,
+                                    help_text="The project's Google Drive folder (its ID), for the Drive files panel")
     keywords = models.JSONField(
         default=list, blank=True,
         help_text="Words or phrases that mark an email as about this project (case-insensitive, whole words)",
@@ -306,6 +308,8 @@ class Company(TrackedModel, InteractionFields):
     website = models.URLField(blank=True)
     linkedin = models.URLField("LinkedIn", blank=True)
     flags = models.JSONField(default=list, blank=True, help_text="e.g. Exclude, NASA Contractor")
+    drive_folder = models.CharField("Drive folder", max_length=100, blank=True,
+                                    help_text="The company's tenancy folder in Google Drive (its ID)")
     campus_plan = models.CharField("campus of interest", max_length=10, choices=CampusPlan.choices, blank=True)
     campus_interest = models.ManyToManyField(
         Campus, blank=True, related_name="interested_companies", help_text="Which ACMI campuses, if any"
@@ -3462,6 +3466,10 @@ class DataRoomFile(models.Model):
                                     related_name="data_room_files", help_text="Empty: shown at the top of the room")
     document = models.ForeignKey(Document, null=True, blank=True, on_delete=models.CASCADE, related_name="data_room_files")
     file = models.FileField(upload_to="dataroom/%Y/%m/", blank=True)
+    drive_id = models.CharField(max_length=100, blank=True, help_text="A Drive file, read from Drive when downloaded")
+    drive_name = models.CharField(max_length=300, blank=True, help_text="Its name in Drive when it was approved")
+    drive_folder = models.CharField(max_length=300, blank=True, help_text="Its sub-folder in the mapped folder")
+    drive_mime = models.CharField(max_length=120, blank=True)
     title = models.CharField(max_length=300)
     approved_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
     approved_at = models.DateTimeField(auto_now_add=True)
@@ -3473,9 +3481,23 @@ class DataRoomFile(models.Model):
         return self.title
 
     @property
+    def source_drive_id(self):
+        """The Drive file served through the room: one approved from a Drive folder, or a document's Drive link."""
+        if self.drive_id:
+            return self.drive_id
+        if self.document_id and self.document.url:
+            from .drive import file_id_from
+
+            return file_id_from(self.document.url)
+        return ""
+
+    @property
     def link(self):
-        """A Drive (or other) link the partner opens directly; empty for files served through the room."""
-        return self.document.url if self.document_id and self.document.url else ""
+        """A non-Drive link the partner opens directly; empty for files served through the room (Drive included,
+        so a partner never sees a Drive address or folder)."""
+        if self.document_id and self.document.url and not self.source_drive_id:
+            return self.document.url
+        return ""
 
     @property
     def stored_file(self):

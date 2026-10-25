@@ -6,6 +6,7 @@ from .boards import views as board_views
 from .build import views as build_views
 from .capital import views as capital_views
 from .contracts import views as contract_views
+from .dataroom import drive_views
 from .dataroom import views as room_views
 from .directory import views as directory_views
 from .entitlements import views as entitlement_views
@@ -181,6 +182,11 @@ urlpatterns = [
     path("room/files/<int:pk>/", room_views.room_file, name="room_file"),
     path("data-rooms/", room_views.data_rooms, name="data_rooms"),
     path("data-rooms/<int:pk>/", room_views.data_room_manage, name="data_room_manage"),
+    # Drive files panels on company and project pages, and sharing a Drive file in a data room (crm/drive.py).
+    path("drive/<str:kind>/<int:pk>/", drive_views.drive_panel, name="drive_panel"),
+    path("drive/<str:kind>/<int:pk>/folder/", drive_views.drive_folder_set, name="drive_folder_set"),
+    path("drive/<str:kind>/<int:pk>/share/", drive_views.drive_share, name="drive_share"),
+    path("drive/shared/<int:pk>/swap/", drive_views.drive_swap, name="drive_swap"),
     path("g/<str:token>/<int:entry_pk>/", asg_views.guest_report, name="guest_report"),
     path("land/sites/", land_views.sites_page, name="land_sites_page"),
     path("land/sites/<int:pk>/manage/", land_views.site_detail, name="land_site_detail"),
