@@ -28,7 +28,9 @@ def mail_home(request):
             g["suggested_name"] = g["sort"].name  # Claude's reading of the name, from the signatures
     return render(request, "crm/mail.html", {
         "mailbox": mailbox,
-        "has_password": bool(mailbox and mailbox.get_password()),
+        # Read through Mail in the hub (the Gmail API), a mailbox needs no app password.
+        "has_password": bool(mailbox and (mailbox.backend == Mailbox.Backend.GMAIL_API or mailbox.get_password()
+                                          or connect.is_on(request.user))),
         "env_var": f"ACMI_IMAP_PASSWORD_{request.user.username.upper()}",
         "mailboxes": Mailbox.objects.select_related("user"),
         "queue": queue,

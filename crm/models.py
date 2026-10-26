@@ -1201,6 +1201,9 @@ class Mailbox(models.Model):
     backend = models.CharField(max_length=12, choices=Backend.choices, default=Backend.IMAP)
     # The Gmail API's change marker: the next refresh asks Gmail what changed since this.
     history_id = models.CharField(max_length=40, blank=True, editable=False)
+    # Gmail API message ids queued for the timeline sync, oldest first (crm/mail/gmail_api.py); a big back-read is
+    # worked through max_messages at a time.
+    pending_ids = models.JSONField(default=list, blank=True, editable=False)
 
     class Meta:
         verbose_name_plural = "mailboxes"

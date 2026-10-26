@@ -152,7 +152,9 @@ pane (newest first, one attachments panel with versions grouped, outline, find i
 (backup `backups/db-2026-10-25-before-mail-connect.sqlite3`). `ACMI_TOKEN_KEY` is in `.env` (generated, never printed;
 `.env` backed up first to `backups/env-2026-10-25-before-token-key.bak`), so the stored Google token is now
 encrypted. **Kellen: copy the key into the password manager.** Mail can't be turned on until Google is set up (the
-"Before Mail can be turned on" list in "Built 2026-10-25: mail-connect"). Next: step 2, `mail-api-reader`.
+"Before Mail can be turned on" list in "Built 2026-10-25: mail-connect"). **Kellen turned Mail on the same night**
+(connected, no error). **Step 2 (`mail-api-reader`) built** on branch `mail-api-reader` (migration
+`0062_mailbox_pending_ids`, not merged): see "Built 2026-10-25: mail-api-reader" at the end of this file.
 
 **Next, in order**
 1. **Granola (time-sensitive: Granola only keeps 30 days).**
@@ -1935,3 +1937,36 @@ step is the switch, the permission and the safety around them.
   (Kellen's calendar) is encrypted (`enc1:`) and decrypts; mailboxes stay on IMAP; no one has Mail on yet.
   **If the key is ever lost,** tokens read as empty and people reconnect Google; nothing else breaks.
   The 22:47 scheduled sync ran clean on the encrypted token (mail caught up, calendar 366 meetings).
+
+
+## Built 2026-10-25: mail-api-reader (email client step 2; Kellen: "Yes, start step 2")
+
+Branch `mail-api-reader`, migration `0062_mailbox_pending_ids`. Still nothing new on screen apart from the Mail page's
+"read through Mail in the hub": this step changes how the timeline sync reads Gmail.
+
+- **Who switches:** each sync calls `sync.choose_backend`. A mailbox whose owner has Mail in the hub on (and whose
+  address is their own) is read through the Gmail API; Mail off, or the key gone, puts it back on IMAP. A switch
+  clears the marker. Kellen's mailbox switches on the first sync after this merges (his Mail is on).
+- **The reader** (`crm/mail/gmail_api.py`) produces the same `ParsedEmail` as IMAP and hands it to the same
+  `process_messages`, so classification, matching, Mail review, the directory and stages are untouched.
+  - Headers go through `parse_message` (it now takes text as well as bytes); bodies come from `format=full`, which
+    leaves attachment bytes in Gmail (names and sizes only, as before). Gmail's system labels are mapped to IMAP's
+    names (`INBOX` → `\Inbox`, `DRAFT` → `\Draft`...); Chat is skipped.
+  - **Thread ids are stored in decimal**, as IMAP's X-GM-THRID: the API's hex id is the same number.
+  - **First read / switch-over:** note Gmail's `historyId`, then queue everything `after:` a day before the last
+    IMAP sync (or the backfill window for a new mailbox), oldest first. **Later reads:** `history.list` from the
+    marker. A marker too old for Gmail (about a week) falls back to reading by date. Message-ID keys make every
+    overlap harmless (`activities already logged`).
+  - **The queue** (`Mailbox.pending_ids`) holds what's waiting; up to 500 a run (8 requests at a time), and it only
+    shrinks after the batch is logged, so a dropped connection loses nothing.
+  - Errors in plain words on the Mail page: Google refused access / another account → "Turn on Mail again".
+- **New-mail alerts** (`crm/mail/client.py on_new_mail`, the hook the web-push session built `notify.new_mail` for):
+  only messages that arrived since the last run (never a back-read), in the Inbox, Primary tab (Promotions,
+  Social, Updates, Forums stay quiet), not sent by you, not older than two days, and only while Mail is on. The
+  alert opens the thread in Gmail on the web until the hub has its own inbox; `notification_open` now allows
+  `https://mail.google.com/` and still refuses every other outside address.
+- **Tests:** `crm/tests/test_gmail_api.py` (17, Gmail faked), including the same two emails read by IMAP and then
+  the API giving the same two timeline rows and thread id.
+- **Merging on the laptop:** back up, fast-forward, `migrate crm`. The next 15-minute sync switches Kellen's mailbox
+  and reads back from a day before its last IMAP sync; check `logs/sync_mail.log` shows `activities already logged`
+  for the overlap and no error. To go back: turn Mail off (IMAP resumes from its last UID).

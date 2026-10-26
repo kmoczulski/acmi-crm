@@ -337,7 +337,7 @@ needs `team_users()` and the Partners group from #2, so step 1 waits for #2 to m
    encrypted tokens (including today's calendar tokens), revoke on switch-off; the Turn on Mail step with incremental
    `gmail.modify` consent; partner refusal at every layer; `Mailbox.backend` and `history_id`. No mail on screen yet.
    Migration 0061.
-2. **`mail-api-reader`**: `crm/mail/gmail_api.py` reading changes since the marker into the existing
+2. **`mail-api-reader`** (built 2026-10-25 on branch `mail-api-reader`; details in HANDOFF): `crm/mail/gmail_api.py` reading changes since the marker into the existing
    `process_messages`, hex-to-decimal thread ids, the switch-over back-read, IMAP kept for anyone not switched. Proof
    on a scratch copy that switching logs nothing twice.
 3. **`mail-inbox`** (read only): labels, the thread list from the private index, the reading pane (cleaned, sandboxed,

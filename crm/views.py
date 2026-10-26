@@ -941,7 +941,9 @@ def notification_open(request, pk):
     if n.read_at is None:
         n.read_at = timezone.now()
         n.save(update_fields=["read_at"])
-    return redirect(n.url if n.url.startswith("/") else reverse("crm:notification_list"))
+    # Hub pages, plus Gmail for new-mail alerts until the hub has its own inbox (crm/mail/client.py). Nowhere else.
+    ok = n.url.startswith("/") and not n.url.startswith("//") or n.url.startswith("https://mail.google.com/")
+    return redirect(n.url if ok else reverse("crm:notification_list"))
 
 
 def notification_poll(request):

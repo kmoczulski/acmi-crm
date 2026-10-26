@@ -9,7 +9,7 @@ import html
 import re
 from dataclasses import dataclass, field
 from datetime import datetime
-from email import message_from_bytes, policy
+from email import message_from_bytes, message_from_string, policy
 from email.utils import getaddresses, parseaddr, parsedate_to_datetime
 
 from django.utils import timezone
@@ -110,6 +110,11 @@ def _text_body(msg):
             html_part = content
         elif ctype in ("message/delivery-status", "text/rfc822-headers") and plain is None:
             plain = content
+    return finish_text(plain, html_part)
+
+
+def finish_text(plain, html_part):
+    """The plain part, else the HTML part without tags; whitespace tidied and cut to BODY_LIMIT."""
     text = plain
     if text is None and html_part:
         text = re.sub(r"(?is)<(script|style).*?</\1>", " ", html_part)
@@ -119,7 +124,11 @@ def _text_body(msg):
 
 
 def parse_message(raw, uid=0, thread_id="", labels=None):
-    msg = message_from_bytes(raw, policy=policy.default)
+    """raw: the message's bytes (IMAP), or its text (the Gmail API's already-decoded headers)."""
+    if isinstance(raw, str):
+        msg = message_from_string(raw, policy=policy.default)
+    else:
+        msg = message_from_bytes(raw, policy=policy.default)
     from_name, from_addr = parseaddr(str(msg.get("From", "")))
     try:
         occurred_at = parsedate_to_datetime(str(msg.get("Date", "")))

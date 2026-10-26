@@ -14,6 +14,7 @@
         Last sync: {{ mailbox.last_synced_at|date:"M j, g:i a"|default:"never" }} ·
         {{ mailbox.messages_seen }} messages read ·
         {% if mailbox.backfill_done %}caught up{% else %}first sync in progress (last {{ mailbox.backfill_days }} days){% endif %}
+        · {% if mailbox.backend == "gmail_api" %}read through <a href="{% url 'crm:mail_settings' %}">Mail in the hub</a>{% else %}read with an app password{% endif %}
       </p>
       {% if mailbox.last_error %}<p class="overdue" style="font-size:13px">{{ mailbox.last_error }}</p>{% endif %}
       {% if not has_password %}

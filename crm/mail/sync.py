@@ -383,23 +383,13 @@ def sync_mailbox(mailbox, client=None, max_messages=DEFAULT_MAX_MESSAGES):
     """
     _acquire_lock(mailbox)
     mailbox.refresh_from_db()
+    choose_backend(mailbox)
     recorder = Recorder()
     try:
-        with client or ImapClient(mailbox) as conn:
-            if conn.uid_validity and conn.uid_validity != mailbox.uid_validity:
-                # Gmail renumbered the folder; start over (activities dedupe on Message-ID).
-                mailbox.uid_validity = conn.uid_validity
-                mailbox.last_uid = 0
-                mailbox.backfill_done = False
-            since = None if mailbox.backfill_done else since_date(mailbox.backfill_days)
-            uids = conn.search(since=since, after_uid=mailbox.last_uid)
-            batch = uids[:max_messages]
-            if batch:
-                process_messages(mailbox, conn.fetch(batch), recorder)
-                mailbox.last_uid = batch[-1]
-                mailbox.messages_seen += len(batch)
-            mailbox.backfill_done = len(uids) <= max_messages
-            recorder.stats["messages remaining"] = max(0, len(uids) - len(batch))
+        if mailbox.backend == Mailbox.Backend.GMAIL_API:
+            _read_gmail(mailbox, client, max_messages, recorder)
+        else:
+            _read_imap(mailbox, client, max_messages, recorder)
         mailbox.last_error = ""
     except MailboxError as exc:
         mailbox.last_error = str(exc)
@@ -413,6 +403,54 @@ def sync_mailbox(mailbox, client=None, max_messages=DEFAULT_MAX_MESSAGES):
         mailbox.sync_lock_until = None
         mailbox.save()
     return recorder.stats
+
+
+def choose_backend(mailbox):
+    """Mail in the hub on (for the mailbox's own address) -> the Gmail API; off -> back to IMAP. A switch clears
+    the API's marker, so the next read starts again from a day before the last sync; Message-ID keys keep the
+    overlap from being logged twice."""
+    from . import connect
+
+    conn = connect.connection(mailbox.user)
+    own = mailbox.email.lower() in {(mailbox.user.email or "").lower(), (conn.google_email if conn else "").lower()}
+    want = Mailbox.Backend.GMAIL_API if own and connect.is_on(mailbox.user) else Mailbox.Backend.IMAP
+    if mailbox.backend != want:
+        log.info("Mail sync for %s switches to %s", mailbox, want)
+        mailbox.backend, mailbox.history_id, mailbox.pending_ids = want, "", []
+
+
+def _read_gmail(mailbox, client, max_messages, recorder):
+    from . import client as mail_client, gmail_api
+
+    emails, new, rest = gmail_api.read_changes(mailbox, client or gmail_api.GmailClient(mailbox.user), max_messages)
+    if emails:
+        process_messages(mailbox, emails, recorder)
+        mailbox.messages_seen += len(emails)
+    mailbox.pending_ids = rest
+    mailbox.backfill_done = not mailbox.pending_ids
+    recorder.stats["messages remaining"] = len(mailbox.pending_ids)
+    try:
+        recorder.stats["new mail alerts"] = mail_client.on_new_mail(mailbox, [e for e in emails if e.uid in new])
+    except Exception:  # an alert problem must never fail the sync
+        log.exception("New-mail alerts failed for %s", mailbox)
+
+
+def _read_imap(mailbox, client, max_messages, recorder):
+    with client or ImapClient(mailbox) as conn:
+        if conn.uid_validity and conn.uid_validity != mailbox.uid_validity:
+            # Gmail renumbered the folder; start over (activities dedupe on Message-ID).
+            mailbox.uid_validity = conn.uid_validity
+            mailbox.last_uid = 0
+            mailbox.backfill_done = False
+        since = None if mailbox.backfill_done else since_date(mailbox.backfill_days)
+        uids = conn.search(since=since, after_uid=mailbox.last_uid)
+        batch = uids[:max_messages]
+        if batch:
+            process_messages(mailbox, conn.fetch(batch), recorder)
+            mailbox.last_uid = batch[-1]
+            mailbox.messages_seen += len(batch)
+        mailbox.backfill_done = len(uids) <= max_messages
+        recorder.stats["messages remaining"] = max(0, len(uids) - len(batch))
 
 
 def sync_all(max_messages=DEFAULT_MAX_MESSAGES):
