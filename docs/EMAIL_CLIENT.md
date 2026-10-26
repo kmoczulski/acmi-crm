@@ -1,8 +1,11 @@
 # Email in the hub: design (2026-10-25)
 
 Kellen asked for an Outlook-style email client inside the hub: read, search, reply, compose and file mail without
-leaving it, next to the CRM records the mail is about. This is the design only. No code is written yet. Kellen answers
-the questions at the end first.
+leaving it, next to the CRM records the mail is about.
+
+**Decided, 2026-10-25:** Kellen took the recommended answer to all nine questions in section 9 ("Go with the
+recommended answers… and start step 1 (mail-connect) once PR #2 is merged"). Step 1 starts when PR #2 (`data-room`,
+stacked on #1 `boards-bound`) is merged.
 
 **Kellen, 2026-10-25:** "it shouldn't be required. Someone can turn it on and off." So Mail in the hub is **optional
 for each person**. It is off until you switch it on in your own settings, and you can switch it off again at any time.
@@ -49,6 +52,40 @@ Phone (narrow screens): one column at a time.
 **On the phone it only works once the hub is hosted** (hub.acmigroup.com, waiting on billing). Today the hub runs on
 the laptop, and Google only sends a sign-in back to `localhost` or a real https address, so a phone can't connect
 Gmail to the laptop's hub. The phone layout is built and tested now so it's ready on the day hosting goes live.
+
+### Long threads (Kellen: "threads that have over 80 messages… really hard to find attachments or the most recent message")
+
+Gmail opens a long thread at the top, hides the middle behind a "62 older messages" bar, and leaves attachments
+scattered through it. A deal thread with a lawyer, a broker and three redline rounds is exactly that. The hub's
+reading pane works differently:
+
+- **It opens on the newest message.** The latest message is shown first, open and in full. Older messages are folded
+  underneath, newest to oldest. A **Newest first / Oldest first** toggle is remembered per person. Opening a thread
+  with unread mail jumps to the first unread message, with a "New since you last read" line above it.
+- **Attachments panel at the top of every thread.** One list of every file in the thread: name, type icon, size, who
+  sent it, the date, and **Go to message**. It's newest first and searchable, with filters for PDF, Word, Excel and
+  images.
+  - **Versions grouped.** Files whose names differ only by a date, "v2", "redline", "clean" or "(1)" are grouped into
+    one row, with the newest on top and "4 versions" to expand. "PSA - ACMI redline 10.21.docx" and "PSA - ACMI
+    redline 10.24.docx" are one row, not two lost in 80 messages.
+  - **Noise hidden.** Logos and signature images (small inline images, `image001.png`), calendar `.ics` files and the
+    same file re-attached unchanged on a reply (same name and size) are hidden behind "Show all".
+  - **Open or download** straight from the list; nothing is stored in the hub. "Download all" gives a zip of the
+    newest version of each file.
+- **Message outline.** A thin strip beside the thread (a tab on the phone) lists every message in one line each:
+  sender, date, first words, and a paperclip if it has files. Click to jump. Filter it by person ("only Cozen's
+  messages") or to "only messages with attachments".
+- **Only the new words.** Each message shows just what that person wrote. The quoted history and the signature are
+  folded away (the same `new_text` the timelines already use), which is most of what makes an 80-message thread
+  long. **Show quoted text** brings them back.
+- **Find in this thread.** A search box scoped to the thread, with matches highlighted and "3 of 12" arrows.
+- **Jump to latest** is always on screen while you scroll an older part of the thread. On the phone it's a button
+  above the bottom bar.
+- **Speed.** The thread first loads every message's headers and attachment list only, enough for the outline and
+  the attachments panel, so an 80-message thread opens in about a second. Bodies load as you open each message. The
+  attachment list is kept in the private index, so the panel shows instantly next time.
+- Gmail itself starts a new thread after 100 messages, often with the same subject. The hub notices a thread with
+  the same subject and the same people and links it with "Earlier part of this conversation".
 
 ---
 
@@ -248,6 +285,9 @@ needs `team_users()` and the Partners group from #2, so step 1 waits for #2 to m
 3. **`mail-inbox`** (read only): labels, the thread list from the private index, the reading pane (cleaned, sandboxed,
    images blocked), Gmail search, attachment download, record chips, the phone layout and its width test. Migration
    0061 (the index).
+   **3b. `mail-long-threads`**: the long-thread reading pane from section 1: newest message first, the attachments
+   panel with versions grouped and noise hidden, the outline with person and attachment filters, find in thread, jump
+   to latest, and "Earlier part of this conversation". Tested on an 80-plus-message thread of made-up mail.
 4. **`mail-actions`**: archive, read / unread, star, labels and move, Trash.
 5. **`mail-compose`**: new message, reply, reply all, forward with attachments, Gmail drafts, templates, signature,
    undo send, immediate timeline logging. **Email** buttons on person and company pages open compose with the address

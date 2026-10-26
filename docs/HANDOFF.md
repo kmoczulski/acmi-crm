@@ -86,7 +86,9 @@ green, 470 tests) and **migrated on the real database** the same night on the la
 (labels, threads, reading pane, compose / reply / forward, Gmail search, File to a record and Open in Mail back) over
 the Gmail API with per-person sign-in (`gmail.modify`, Internal app so no Google verification), **optional per person**
 (Kellen: "it shouldn't be required"). Design, build order (migrations from 0060, after PRs #1 and #2) and Kellen's
-questions are in `docs/EMAIL_CLIENT.md`. Waiting on his answers before step 1 (`mail-connect`).
+questions are in `docs/EMAIL_CLIENT.md`. Kellen took all nine recommended answers and added a long-thread reading
+pane (newest first, one attachments panel with versions grouped, outline, find in thread; step 3b). **Step 1
+(`mail-connect`) starts once PR #2 (`data-room`) is merged.**
 
 **Next, in order**
 1. **Granola (time-sensitive: Granola only keeps 30 days).**
