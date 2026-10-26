@@ -3,10 +3,14 @@ from contextvars import ContextVar
 from django.conf import settings
 from django.contrib.auth.views import redirect_to_login
 from django.http import HttpResponseForbidden, HttpResponseNotFound
+from django.shortcuts import redirect
 
 _current_user = ContextVar("current_user", default=None)
 
-PUBLIC_PREFIXES = ("/accounts/", "/static/", "/admin/login/", "/healthz", "/internal/", "/g/")
+PUBLIC_PREFIXES = ("/accounts/", "/static/", "/admin/login/", "/healthz", "/internal/", "/g/", "/room/login/",
+                   "/room/invite/")
+# The capital partners' data room (crm/dataroom/): its own sign-in page, and the only pages a partner can open.
+ROOM_PREFIX = "/room/"
 # Password pages that only make sense while username / password sign-in is on.
 LOCAL_LOGIN_PREFIXES = ("/accounts/password/", "/accounts/signup/")
 
@@ -48,7 +52,24 @@ class LoginRequiredMiddleware:
                     return HttpResponseForbidden("Your account doesn't have admin access.")
                 return redirect_to_login(request.GET.get("next") or "/admin/")
         if not request.user.is_authenticated and not request.path.startswith(PUBLIC_PREFIXES):
+            if request.path.startswith(ROOM_PREFIX):
+                return redirect_to_login(request.get_full_path(), login_url="/room/login/")
             return redirect_to_login(request.get_full_path())
+        return self.get_response(request)
+
+
+class PartnerOnlyMiddleware:
+    """A capital partner's account opens its data room and nothing else: every other page (records, search, the
+    admin, exports, files) sends it back to the room. The room's pages then show only what the room allows."""
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        from .permissions import is_partner
+
+        if is_partner(request.user) and not request.path.startswith((ROOM_PREFIX, "/static/")):
+            return redirect(ROOM_PREFIX)
         return self.get_response(request)
 
 

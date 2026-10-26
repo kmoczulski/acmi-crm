@@ -26,7 +26,10 @@
     const r = await post(`/boards/cards/${card.dataset.card}/move/`, {list: ol.dataset.list, index: indexIn(ol, card)});
     if (!r.ok) {
       undo();
-      say('The move was not saved. Try again.');
+      let why = 'The move was not saved. Try again.';
+      try { why = (await r.json()).error || why; } catch (err) {}
+      say(why);
+      if (r.status === 400) alert(why);
       card.classList.add('bl-failed'); setTimeout(() => card.classList.remove('bl-failed'), 1200);
       return false;
     }
@@ -39,7 +42,7 @@
   const placeholder = document.createElement('li');
   placeholder.className = 'bl-placeholder'; placeholder.setAttribute('aria-hidden', 'true');
   board.addEventListener('dragstart', e => {
-    const card = e.target.closest('.bl-card'); if (!card || card.classList.contains('grabbed')) { if (card) e.preventDefault(); return; }
+    const card = e.target.closest('.bl-card'); if (!card || card.classList.contains('grabbed') || card.closest('[data-feed]')) { if (card) e.preventDefault(); return; }
     dragged = card; from = card.parentElement; fromNext = card.nextElementSibling;
     placeholder.style.height = card.getBoundingClientRect().height + 'px';
     e.dataTransfer.effectAllowed = 'move';
@@ -48,7 +51,7 @@
   });
   board.addEventListener('dragover', e => {
     if (!dragged) return;
-    const ol = e.target.closest('.bl-cards'); if (!ol) return;
+    const ol = e.target.closest('.bl-cards'); if (!ol || ol.hasAttribute('data-feed')) return;  // feeds fill themselves
     e.preventDefault();
     const after = cardsOf(ol).filter(c => c !== dragged).find(c => { const r = c.getBoundingClientRect(); return e.clientY < r.top + r.height / 2; });
     if (after) ol.insertBefore(placeholder, after); else ol.appendChild(placeholder);
@@ -85,12 +88,17 @@
     saveMove(card, ol, () => f.insertBefore(card, fn)).then(ok => { if (ok) say(`Dropped in ${listName(ol)}, position ${indexIn(ol, card) + 1}.`); card.focus(); });
   }
   board.addEventListener('keydown', e => {
-    const card = e.target.closest('.bl-card'); if (!card) return;
+    const card = e.target.closest('.bl-card'); if (!card || card.classList.contains('bl-feed-item')) return;
     if (e.key === 'Enter' && !grabbed) { e.preventDefault(); openCard(card); return; }
-    if (e.key === ' ') { e.preventDefault(); if (grabbed === card) release(card, false); else if (!grabbed) grab(card); return; }
+    if (e.key === ' ') {
+      e.preventDefault();
+      if (card.hasAttribute('data-fixed')) { say('This card belongs to a list that fills itself; it can\'t be moved.'); return; }
+      if (grabbed === card) release(card, false); else if (!grabbed) grab(card);
+      return;
+    }
     if (!grabbed || grabbed !== card) return;
     if (e.key === 'Escape') { e.preventDefault(); release(card, true); return; }
-    const ol = card.parentElement, lists = [...board.querySelectorAll('.bl-cards')], li = lists.indexOf(ol);
+    const ol = card.parentElement, lists = [...board.querySelectorAll('.bl-cards:not([data-feed])')], li = lists.indexOf(ol);
     if (e.key === 'ArrowUp' && card.previousElementSibling?.classList.contains('bl-card')) { ol.insertBefore(card, card.previousElementSibling); }
     else if (e.key === 'ArrowDown' && card.nextElementSibling?.classList.contains('bl-card')) { ol.insertBefore(card.nextElementSibling, card); }
     else if (e.key === 'ArrowLeft' && li > 0) { const t = lists[li - 1]; t.insertBefore(card, cardsOf(t)[indexIn(ol, card)] || null); }
@@ -156,7 +164,7 @@
   }
   board.addEventListener('click', e => {
     const card = e.target.closest('.bl-card');
-    if (card && !e.target.closest('a, button, input, form') && !grabbed) openCard(card);
+    if (card && !card.classList.contains('bl-feed-item') && !e.target.closest('a, button, input, form') && !grabbed) openCard(card);
   });
   dlg.addEventListener('click', e => { if (e.target === dlg || e.target.closest('[data-card-close]')) closeCard(); });
   dlg.addEventListener('cancel', e => { e.preventDefault(); closeCard(); });

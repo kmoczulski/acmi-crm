@@ -266,6 +266,8 @@ class Project(models.Model):
     )
     campus = models.ForeignKey(Campus, null=True, blank=True, on_delete=models.SET_NULL, related_name="projects")
     address = models.CharField(max_length=255, blank=True)
+    drive_folder = models.CharField("Drive folder", max_length=100, blank=True,
+                                    help_text="The project's Google Drive folder (its ID), for the Drive files panel")
     keywords = models.JSONField(
         default=list, blank=True,
         help_text="Words or phrases that mark an email as about this project (case-insensitive, whole words)",
@@ -306,6 +308,8 @@ class Company(TrackedModel, InteractionFields):
     website = models.URLField(blank=True)
     linkedin = models.URLField("LinkedIn", blank=True)
     flags = models.JSONField(default=list, blank=True, help_text="e.g. Exclude, NASA Contractor")
+    drive_folder = models.CharField("Drive folder", max_length=100, blank=True,
+                                    help_text="The company's tenancy folder in Google Drive (its ID)")
     campus_plan = models.CharField("campus of interest", max_length=10, choices=CampusPlan.choices, blank=True)
     campus_interest = models.ManyToManyField(
         Campus, blank=True, related_name="interested_companies", help_text="Which ACMI campuses, if any"
@@ -424,6 +428,10 @@ class Opportunity(TrackedModel):
     next_step_due = models.DateField(null=True, blank=True)
     investor_report = models.BooleanField(
         "on investor report", default=False, help_text="Show on the pipeline report sent to capital partners",
+    )
+    partner_note = models.TextField(
+        "note for capital partners", blank=True,
+        help_text="Shown to capital partners in the data room. Write it for outsiders: never internal notes.",
     )
     people = models.ManyToManyField(Person, blank=True, related_name="opportunities", through="OpportunityContact")
     land_sites = models.ManyToManyField("LandSite", blank=True, related_name="tenant_deals",
@@ -3191,10 +3199,12 @@ class Board(models.Model):
         CAMPUS = "campus", "Campus board"
         TEAM = "team", "Team board"
         CUSTOM = "custom", "Custom board"
-        BOUND = "bound", "Record board"  # lists bound to a record's statuses (next phase, boards-bound)
+        BOUND = "bound", "Record board"  # lists bound to a record type's statuses (crm/boards/bound.py)
 
     name = models.CharField(max_length=120)
     kind = models.CharField(max_length=10, choices=Kind.choices, default=Kind.CUSTOM)
+    record_type = models.CharField(max_length=20, blank=True,
+                                   help_text="On a record board: the record its bound lists hold (opportunity, site…)")
     campus = models.ForeignKey(Campus, null=True, blank=True, on_delete=models.SET_NULL, related_name="boards")
     project = models.ForeignKey(Project, null=True, blank=True, on_delete=models.SET_NULL, related_name="boards")
     description = models.TextField(blank=True)
@@ -3228,9 +3238,9 @@ class BoardList(models.Model):
     position = models.IntegerField(default=0)
     archived = models.BooleanField(default=False)
     maps_to = models.CharField(max_length=40, blank=True,
-                               help_text="On a record board: the status value this list holds (next phase)")
+                               help_text="On a record board: the status value this list holds")
     feed = models.CharField(max_length=20, blank=True,
-                            help_text="A read-only list filled from records: critical_dates, open_tasks… (next phase)")
+                            help_text="A read-only list filled from the board's records: critical_dates, open_tasks…")
 
     class Meta:
         ordering = ["position", "id"]
@@ -3379,3 +3389,132 @@ class CardEvent(models.Model):
 
     def __str__(self):
         return self.text
+
+
+# ---------------------------------------------------------------------------
+# Data room (crm/dataroom/): what capital partners see, with their own accounts
+# ---------------------------------------------------------------------------
+
+
+class DataRoom(models.Model):
+    """A capital partner's read-only view of the pipeline: the deals on the investor report (each can be switched
+    off), a company card per deal with only the fields in `crm/dataroom/logic.py`, and the files ACMI approved."""
+
+    name = models.CharField(max_length=120, help_text="e.g. Fortress")
+    partner = models.ForeignKey(Firm, null=True, blank=True, on_delete=models.SET_NULL, related_name="data_rooms")
+    intro = models.TextField(blank=True, help_text="Shown to the partner at the top of the room")
+    campuses = models.ManyToManyField(Campus, blank=True, related_name="+",
+                                      help_text="Only deals at these campuses; none ticked means every campus")
+    show_costs = models.BooleanField("show project cost and $ PSF", default=True)
+    show_win = models.BooleanField("show win % and weighted cost", default=False)
+    active = models.BooleanField(default=True, help_text="Off: nobody can sign in to this room")
+    created_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["name"]
+
+    def __str__(self):
+        return self.name
+
+    def get_absolute_url(self):
+        return reverse("crm:data_room_manage", args=[self.pk])
+
+
+class DataRoomMember(models.Model):
+    """One person at the partner. Invited by a Manager; the invite link lets them make their account (a password of
+    their own) and later resets it. Switching a member off stops their sign-in at once."""
+
+    room = models.ForeignKey(DataRoom, on_delete=models.CASCADE, related_name="members")
+    user = models.OneToOneField(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="data_room_member")
+    name = models.CharField(max_length=120)
+    email = models.EmailField(unique=True)
+    invite_hash = models.CharField(max_length=64, blank=True, db_index=True, editable=False)
+    invite_expires = models.DateTimeField(null=True, blank=True)
+    invited_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    invited_at = models.DateTimeField(null=True, blank=True)
+    accepted_at = models.DateTimeField(null=True, blank=True)
+    last_seen = models.DateTimeField(null=True, blank=True)
+    active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["name"]
+
+    def __str__(self):
+        return f"{self.name} <{self.email}>"
+
+
+class DataRoomDeal(models.Model):
+    """A deal's switch in a room. No row: a deal on the investor report is shown."""
+
+    room = models.ForeignKey(DataRoom, on_delete=models.CASCADE, related_name="deal_switches")
+    opportunity = models.ForeignKey(Opportunity, on_delete=models.CASCADE, related_name="data_room_switches")
+    shown = models.BooleanField(default=True)
+    changed_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    changed_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["room", "opportunity"], name="data_room_deal_unique")]
+
+
+class DataRoomFile(models.Model):
+    """A file ACMI approved for the room: one of the deal's documents, or a file uploaded for the room. Only these are
+    ever served to the partner, and every download is logged."""
+
+    room = models.ForeignKey(DataRoom, on_delete=models.CASCADE, related_name="files")
+    opportunity = models.ForeignKey(Opportunity, null=True, blank=True, on_delete=models.CASCADE,
+                                    related_name="data_room_files", help_text="Empty: shown at the top of the room")
+    document = models.ForeignKey(Document, null=True, blank=True, on_delete=models.CASCADE, related_name="data_room_files")
+    file = models.FileField(upload_to="dataroom/%Y/%m/", blank=True)
+    drive_id = models.CharField(max_length=100, blank=True, help_text="A Drive file, read from Drive when downloaded")
+    drive_name = models.CharField(max_length=300, blank=True, help_text="Its name in Drive when it was approved")
+    drive_folder = models.CharField(max_length=300, blank=True, help_text="Its sub-folder in the mapped folder")
+    drive_mime = models.CharField(max_length=120, blank=True)
+    title = models.CharField(max_length=300)
+    approved_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    approved_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["title"]
+
+    def __str__(self):
+        return self.title
+
+    @property
+    def source_drive_id(self):
+        """The Drive file served through the room: one approved from a Drive folder, or a document's Drive link."""
+        if self.drive_id:
+            return self.drive_id
+        if self.document_id and self.document.url:
+            from .drive import file_id_from
+
+            return file_id_from(self.document.url)
+        return ""
+
+    @property
+    def link(self):
+        """A non-Drive link the partner opens directly; empty for files served through the room (Drive included,
+        so a partner never sees a Drive address or folder)."""
+        if self.document_id and self.document.url and not self.source_drive_id:
+            return self.document.url
+        return ""
+
+    @property
+    def stored_file(self):
+        if self.file:
+            return self.file
+        return self.document.file if self.document_id and self.document.file else None
+
+
+class DataRoomView(models.Model):
+    """The room's log: every page a partner opened and every file they downloaded."""
+
+    room = models.ForeignKey(DataRoom, on_delete=models.CASCADE, related_name="views")
+    member = models.ForeignKey(DataRoomMember, null=True, blank=True, on_delete=models.SET_NULL, related_name="views")
+    when = models.DateTimeField(default=timezone.now, db_index=True)
+    page = models.CharField(max_length=20)  # home, deal, file, sign-in
+    opportunity = models.ForeignKey(Opportunity, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    file = models.ForeignKey(DataRoomFile, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+
+    class Meta:
+        ordering = ["-when", "-id"]

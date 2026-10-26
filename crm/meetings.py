@@ -20,7 +20,6 @@ import json
 import re
 from datetime import datetime, timedelta
 
-from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.utils import timezone
 from django.utils.safestring import mark_safe
@@ -136,7 +135,9 @@ def render_markdown(text):
 def _team_lookup():
     """acmigroup addresses -> users, by stored email or first-initial+last-name (sshewmaker@)."""
     lookup = {}
-    for u in get_user_model().objects.filter(is_active=True):
+    from .permissions import team_users
+
+    for u in team_users():
         if u.email:
             lookup[u.email.lower()] = u
         if u.first_name and u.last_name:

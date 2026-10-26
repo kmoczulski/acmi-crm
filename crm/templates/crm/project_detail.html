@@ -30,6 +30,7 @@
         </div>
       {% empty %}<p class="muted" style="margin:0">None yet.</p>{% endfor %}
     </div>
+    {% include "crm/partials/drive_panel_slot.html" with kind="project" pk=project.pk %}
   </aside>
   <section>
     <section class="panel" id="build">

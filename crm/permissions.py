@@ -13,7 +13,26 @@ from django.shortcuts import redirect
 from django.utils.http import url_has_allowed_host_and_scheme
 
 MANAGERS = "Managers"
+# Capital partners' accounts (crm/dataroom/): they sign in to their data room and nowhere else
+# (crm.middleware.PartnerOnlyMiddleware), and are never part of the team (team_users).
+PARTNERS = "Partners"
 REFUSED = "Only managers can do that. Ask an admin to add you to the Managers group."
+
+
+def is_partner(user):
+    if not (user and user.is_authenticated):
+        return False
+    cached = getattr(user, "_acmi_is_partner", None)
+    if cached is None:
+        cached = user._acmi_is_partner = user.groups.filter(name=PARTNERS).exists()
+    return cached
+
+
+def team_users():
+    """Everyone on the ACMI team: active accounts, never a capital partner's."""
+    from django.contrib.auth import get_user_model
+
+    return get_user_model().objects.filter(is_active=True).exclude(groups__name=PARTNERS)
 
 
 def is_manager(user):

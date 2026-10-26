@@ -65,6 +65,7 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "allauth.account.middleware.AccountMiddleware",
     "crm.middleware.LoginRequiredMiddleware",
+    "crm.middleware.PartnerOnlyMiddleware",
     "crm.middleware.CurrentUserMiddleware",
 ]
 
@@ -124,6 +125,8 @@ AUTHENTICATION_BACKENDS = [
     # Django's and allauth's backends, with passwords refused when ACMI_LOCAL_LOGIN is false (crm/auth.py).
     "crm.auth.PasswordBackend",
     "crm.auth.AllauthBackend",
+    # Capital partners' accounts, for the data room only (crm/dataroom/).
+    "crm.auth.PartnerBackend",
 ]
 
 LANGUAGE_CODE = "en-us"
@@ -164,6 +167,13 @@ SOCIALACCOUNT_LOGIN_ON_GET = True
 SOCIALACCOUNT_EMAIL_AUTHENTICATION = True
 SOCIALACCOUNT_EMAIL_AUTHENTICATION_AUTO_CONNECT = True
 SOCIALACCOUNT_PROVIDERS = {}
+# Reading the "1 ACMI Properties" shared drive for the Drive files panels and the data room (crm/drive.py): a service
+# account's JSON key on the laptop, or Cloud Run's own service account (ACMI_DRIVE_ADC=true). Either one only sees
+# what it was added to as Viewer. ACMI_DRIVE_TENANCY_FOLDER is "3 Tenancy"'s folder ID, for suggesting company folders.
+DRIVE_SA_FILE = env("ACMI_DRIVE_SA_FILE", "")
+DRIVE_ADC = env_bool("ACMI_DRIVE_ADC", False)
+DRIVE_TENANCY_FOLDER = env("ACMI_DRIVE_TENANCY_FOLDER", "")
+
 GOOGLE_SIGNIN_ENABLED = bool(env("GOOGLE_CLIENT_ID"))
 if GOOGLE_SIGNIN_ENABLED:
     SOCIALACCOUNT_PROVIDERS["google"] = {

@@ -23,7 +23,7 @@ class PasswordBackend(ModelBackend):
     def authenticate(self, request, username=None, password=None, **kwargs):
         if not settings.LOCAL_LOGIN_ENABLED:
             return None
-        return super().authenticate(request, username=username, password=password, **kwargs)
+        return _not_partner(super().authenticate(request, username=username, password=password, **kwargs))
 
 
 class AllauthBackend(AuthenticationBackend):
@@ -32,7 +32,30 @@ class AllauthBackend(AuthenticationBackend):
     def authenticate(self, request, **credentials):
         if not settings.LOCAL_LOGIN_ENABLED:
             return None
-        return super().authenticate(request, **credentials)
+        return _not_partner(super().authenticate(request, **credentials))
+
+
+class PartnerBackend(ModelBackend):
+    """Capital partners' passwords (crm/dataroom/). Works whether or not the team's password sign-in is on, and only
+    for a partner account whose membership and room are both switched on."""
+
+    def authenticate(self, request, username=None, password=None, **kwargs):
+        from .permissions import is_partner
+
+        user = super().authenticate(request, username=username, password=password, **kwargs)
+        if user is None or not is_partner(user):
+            return None
+        member = getattr(user, "data_room_member", None)
+        if member is None or not member.active or not member.room.active:
+            return None
+        return user
+
+
+def _not_partner(user):
+    """The team's sign-in never lets a partner in; partners use the data room's own page."""
+    from .permissions import is_partner
+
+    return None if user is not None and is_partner(user) else user
 
 
 class AccountAdapter(DefaultAccountAdapter):

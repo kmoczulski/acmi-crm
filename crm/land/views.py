@@ -3,7 +3,6 @@ import csv
 import json
 
 from django.contrib import messages
-from django.contrib.auth import get_user_model
 from django.db.models import Q
 from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -14,7 +13,7 @@ from shapely.geometry import shape
 
 from ..entitlements import logic as entitlement_logic
 from ..models import Campus, LandCounty, LandSite, Parcel, Project
-from ..permissions import is_manager, manager_required, refuse
+from ..permissions import is_manager, manager_required, refuse, team_users
 from . import diligence, layers, score, zoning_ref
 from .lookup import identify, run_checks
 from .sources import LIMIT_LAYERS, STORED_LAYERS
@@ -1026,7 +1025,7 @@ def site_detail(request, pk):
         "owners": len({d.parcel.owner_name for d in tr["included"]}), "milestones": site.milestone_rows(),
         "events": site.events.exclude(kind="note").select_related("user")[:100], "statuses": LandSite.Status.choices,
         "comments": site.comments.select_related("author", "task", "opportunity")[:100], "comment_target": ("site", site.pk),
-        "users": get_user_model().objects.filter(is_active=True).order_by("first_name", "username"),
+        "users": team_users().order_by("first_name", "username"),
         "team_ids": set(site.team.values_list("pk", flat=True)),
         **_tenant_context(site),
         "campuses": Campus.objects.all(), "projects": Project.objects.filter(active=True).select_related("campus"),

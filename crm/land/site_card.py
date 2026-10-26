@@ -88,11 +88,10 @@ def link_choices(site, linked):
 
 def save_people(site, post, user):
     """Owner and team from a form; logs the change."""
-    from django.contrib.auth import get_user_model
-
+    from ..permissions import team_users
     from .views import _log
 
-    users = get_user_model().objects.filter(is_active=True)
+    users = team_users()
     owner = users.filter(pk=post.get("owner") or 0).first()
     team = list(users.filter(pk__in=[x for x in post.getlist("team") if x.isdigit()]))
     changed = owner != site.owner or {u.pk for u in team} != set(site.team.values_list("pk", flat=True))

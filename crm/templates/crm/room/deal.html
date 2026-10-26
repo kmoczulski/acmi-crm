@@ -1,0 +1,12 @@
+{% extends "crm/room/base.html" %}
+{% block title %}{{ deal.company.name }}{% endblock %}
+{% block body %}
+<p><a href="{% url 'crm:room_home' %}{{ q }}">← Pipeline</a></p>
+<div class="r-card">
+  <h1>{{ deal.company.name }}</h1>
+  <p class="muted">{{ deal.get_stage_display }}{% if deal.site_label %} · {{ deal.site_label }}{% endif %}</p>
+  <dl class="r-facts">{% for label, value in facts %}<dt>{{ label }}</dt><dd>{% if label == 'Website' %}<a href="{{ value }}" target="_blank" rel="noopener nofollow">{{ value }}</a>{% else %}{{ value }}{% endif %}</dd>{% endfor %}</dl>
+</div>
+{% if deal.partner_note %}<div class="r-card"><h2>From ACMI</h2><p class="r-note">{{ deal.partner_note }}</p></div>{% endif %}
+<div class="r-card"><h2>Documents</h2>{% if files %}{% include "crm/room/files.html" %}{% else %}<p class="muted">No documents shared for this deal yet.</p>{% endif %}</div>
+{% endblock %}

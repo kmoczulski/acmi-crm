@@ -1,15 +1,20 @@
-# ACMI CRM: Handoff (as of 2026-10-21, night)
+# ACMI CRM: Handoff (as of 2026-10-25)
 
 Read this first when picking the project up in a new chat, along with
 `attio_spec.md` in this folder. Start with "Pick up here"; the dated sections after it are the history.
 
-## Pick up here (2026-10-21, night)
+## Pick up here (2026-10-25)
 
 **Where things stand**
-- `main` has everything below; the last code commit is `b65042a` (`boards-core`), pushed to `kmoczulski/acmi-crm`. 470
-  tests pass and CI is green on Postgres. No worktrees or branches are open (here or on GitHub); nothing is half-built.
-- The real database (`db.sqlite3`, about 600 MB) is migrated through `0056_boards`. Latest backup:
-  `backups/db-2026-10-21-before-boards.sqlite3`.
+- `main` has everything below; the last code commit is `2f74d08` (Drive folders), pushed to `kmoczulski/acmi-crm`.
+  515 tests pass and CI is green on Postgres. **Merged 2026-10-25** (fast-forward): PR #1 `boards-bound` and PR #2
+  `data-room` (data room and Drive folders). The email client design is in its own session and branch
+  (`email-client-design`, `docs/EMAIL_CLIENT.md`).
+- The real database (`db.sqlite3`, about 600 MB) is migrated through `0059_drive_folders` (2026-10-25). Latest backup:
+  `backups/db-2026-10-25-before-boards-bound-data-room.sqlite3`. `boards_setup --apply` ran: the Tenant pipeline
+  record board (8 stage lists, 110 deal cards) and the MEIH board (7 lists, 3 filled from records; Kellen, Simon,
+  David, Dave). Both pages and the data room page render on the real data. No data room is started yet, no Drive
+  folder is mapped, and the Drive service account isn't set up (`docs/DATA_ROOM.md`).
 - `ANTHROPIC_API_KEY` is set in `.env`, so the Claude features run for real. `ACMI_TRANSCRIPT_DIR` is not set yet.
 - Built since the audit, each with its own section below: roadmap phase 1 (GitHub and CI, the transcript archive, the
   campus summary with Claude's weekly draft, Cloud Run plumbing); contracts and critical dates, modeled on Notessa;
@@ -82,13 +87,42 @@ green, 470 tests) and **migrated on the real database** the same night on the la
 "Built 2026-10-21: boards-core" below. Kellen also took the defaults on the UX second pass's eight questions: its
 "Second pass" section and screenshots are now in `docs/UX_REVIEW.md` and `docs/ux-review-2/`.
 
+**Trello review 2026-10-22** (Kellen asked; read-only, nothing written to the database or Trello): Kellen's JSON
+exports of Maryland / MEIH, Properties-Prospecting and Properties-General (the Trello connector didn't load in the
+session) are converted to the `trello_fetch.py` layout in `data/imports/trello/2026-10-22/` (gitignored; the originals
+are in `raw/`). The per-board mapping and the open decisions are in `docs/TRELLO_MAPPING.md`. **Trello's export keeps
+only the newest 1,000 actions per board:** MEIH's 118 comments are complete, but Prospecting has 186 of 1,660 and
+General 55 of 697, so run `trello_fetch.py` before importing those two. Mirror cards show at least one more board that
+wasn't exported. Recommendation: `boards-bound` before `boards-import`. **Kellen decided the same day:** the CRM wins
+wherever it and Trello disagree, but every Trello comment comes over with its author and date; one MEIH board (The
+Forge and ARA Facility are lists on it; the layout and how attorney / designer work is tracked are in
+`TRELLO_MAPPING.md`, "Decided"). **ARA merged** on the real database: "ARA (Applied Research Associates)" folded into
+"Applied Research Associates" (backup `backups/db-2026-10-22-before-ara-merge.sqlite3`; 1,769 companies). The other
+decisions in `TRELLO_MAPPING.md` are still open.
+
+**Boards, step 2 (`boards-bound`) 2026-10-22, first part** (Kellen: "Yes", start it): bound and feed lists, on branch
+`boards-bound` (not merged, not pushed; the real database is not migrated). Migration `0057_board_record_type`
+(one blank column). Details in "Built 2026-10-22: boards-bound, part 1" at the end of this file. Still to do in this
+step: the Tenant pipeline and Sites tabs drawn by the boards component, Lists → Boards with redirects, and the My
+cards widget.
+
+**Capital partner data room 2026-10-22** (Kellen: Fortress only; partners make an account and sign in; every deal
+on the investor report with an on / off switch; win % off; files only when approved): built on branch `data-room`,
+stacked on `boards-bound` (merge that first). Migration `0058_data_room`. Details in "Built 2026-10-22: data room" at
+the end of this file; decisions in `docs/DATA_ROOM.md`. Partners can only reach it once the hub is on the internet.
+**Drive folders 2026-10-25** (same branch, migration `0059_drive_folders`): a Drive files panel on company and project
+pages (map the tenancy or project folder; current versions, archive skipped), "Share in data room" from there, newer
+versions flagged with a swap, and the room serving Drive files through the hub. **Waiting on Kellen:** the Drive
+service account (steps in `docs/DATA_ROOM.md`, "Setting up Drive access"); until then the panels say "Drive isn't
+connected" and folders can still be mapped.
+
 **Email in the hub, designed 2026-10-25** (Kellen asked; design only, no code): an Outlook-style mail client
 (labels, threads, reading pane, compose / reply / forward, Gmail search, File to a record and Open in Mail back) over
 the Gmail API with per-person sign-in (`gmail.modify`, Internal app so no Google verification), **optional per person**
 (Kellen: "it shouldn't be required"). Design, build order (migrations from 0060, after PRs #1 and #2) and Kellen's
 questions are in `docs/EMAIL_CLIENT.md`. Kellen took all nine recommended answers and added a long-thread reading
-pane (newest first, one attachments panel with versions grouped, outline, find in thread; step 3b). **Step 1
-(`mail-connect`) starts once PR #2 (`data-room`) is merged.**
+pane (newest first, one attachments panel with versions grouped, outline, find in thread; step 3b). PRs #1 and #2 merged 2026-10-25;
+step 1 (`mail-connect`) is under way.
 
 **Next, in order**
 1. **Granola (time-sensitive: Granola only keeps 30 days).**
@@ -1753,3 +1787,82 @@ boards".
 - **Not in this step** (next branches): bound lists (a list per status, the pipeline and Sites boards on this engine),
   feed lists, the Lists → Boards migration, the My cards widget, the Trello import, checklist → task conversion,
   CSV export, a Help page section.
+
+## Built 2026-10-22: boards-bound, part 1 (bound and feed lists)
+
+Branch `boards-bound` (not merged). Migration `0057_board_record_type`: `Board.record_type`. 487 tests pass locally
+on SQLite (17 new in `crm/tests/test_boards_bound.py`); CI on Postgres not run yet.
+
+- **Record boards** (`crm/boards/bound.py`): `create_record_board(type)` makes one list per status
+  (`BoardList.maps_to`) of a deal, site, capital source, entitlement or contract, and a card for every record in the
+  board's campus or project. Dropping a card on another bound list changes the record through the record page's own
+  path (a deal's stage notification, a site's status log). A status changed anywhere else moves the card (a
+  `post_save` hook in `signals.py`; archived cards stay archived; a drop doesn't log the move twice). Cards can't be
+  typed into a bound list, and an unlinked card can't be dropped into one. "+ New board" offers "Record board: …" for
+  each type.
+- **Feed lists** (`BoardList.feed`: `sites`, `critical_dates`, `open_tasks`, `contracts`): read-only, filled from the
+  board's campus or project each time the board opens (sites not Dropped, furthest along first; contract dates not
+  done, by date; open tasks on the campus's sites and deals or linked from the board's cards). A card stored in a feed
+  list for one of its records (what `import_trello` will make, so Trello comments stay reachable) shows in the
+  record's place. Nothing can be dropped or typed into a feed. The Project board template's Land sites, Critical
+  dates and Open tasks are feeds now.
+- **Card facts:** contracts, entitlements and capital sources show "Waiting on … since …".
+- **`manage.py boards_setup [--apply]`** (dry run by default; leaves boards that exist alone): the Tenant pipeline
+  record board (every deal, all campuses) and the MEIH board as decided in `docs/TRELLO_MAPPING.md` (Land sites,
+  Critical dates, The Forge – 4390 / ETC, ARA Facility – deal, ARA Facility – sites and design, Consultants, Open
+  tasks; the seven category labels plus Ongoing, To do, Contact information; Kellen, Simon, David and Dave as
+  members).
+- **Checked in a browser** on a scratch database: the MEIH board's feeds (an overdue and a today date chip, the dropped
+  site hidden, a stored card shown in its site's place) and a keyboard move on the pipeline board that changed the
+  deal's stage and notified its owner; no console errors.
+- **On the real database, after merging:** back up, `migrate`, then `boards_setup` (dry run, then `--apply`).
+- **Not in this part:** the existing Tenant pipeline and Sites Board tabs still use their own boards (moving them onto
+  this component is next), Lists → Boards, the My cards widget.
+
+## Built 2026-10-22: data room (capital partners)
+
+Branch `data-room`, stacked on `boards-bound` (not merged). Migration `0058_data_room`: DataRoom, DataRoomMember,
+DataRoomDeal, DataRoomFile, DataRoomView, and `Opportunity.partner_note` ("Note for capital partners", on the deal's
+Edit form). Code in `crm/dataroom/` (`logic.py`, `views.py`), templates in `crm/templates/crm/room/`, tests in
+`crm/tests/test_data_room.py` (16).
+
+- **Partner accounts:** a Manager invites a person (Settings › Capital partner data room); the hub shows a one-time
+  sign-in link (14 days; only its hash is stored) to send them. They choose a password (12+ characters, not common,
+  not like their name), which makes a user in the **Partners** group with username = their email. "New password
+  link" resets it; "Switch off" ends access at once (sign-in and any open session). They sign in at `/room/login/`
+  through their own backend (`crm.auth.PartnerBackend`), which works with the team's password sign-in off; the
+  team's sign-in refuses partner accounts and the partner sign-in refuses the team. Five wrong passwords lock an
+  account or address for 15 minutes (cache-based: per server instance on Cloud Run).
+- **Confinement:** `crm.middleware.PartnerOnlyMiddleware` sends a partner account back to `/room/` from every other
+  page (records, search, boards, admin, document downloads, the Manager page). Partners never count as the team:
+  `permissions.team_users()` now feeds the assignee and owner lists, @mentions, meeting attendee matching and mail
+  sync's teammates (so Fortress mail isn't mistaken for internal mail).
+- **What a partner sees** (built from an allow-list in `crm/dataroom/logic.py`, never from internal pages): the
+  pipeline as a table or a board by stage: tenant, campus / site, deal and asset type, stage, acres, size, project
+  cost and $ PSF (room setting), target close, est. delivery; win % and weighted only if the room turns them on.
+  Deals on the investor report, minus those switched off, never On hold or Cold / lost. A company card per deal:
+  company, website, sector, those facts, the deal's partner note and its approved documents. Never notes, next steps,
+  lead source, owners, contacts, emails, meetings, comments or Trello history.
+- **Files:** a Manager approves a deal's document or uploads a file (for a deal, or the top of the room). Uploads are
+  served through the room; a Drive link opens only if the partner has Drive access. Files of a switched-off deal
+  stop downloading. Every page view and download is in the room's log ("What they looked at").
+- **Manager page** (`/data-rooms/`): deal switches (with a "no partner note" hint), shared files, people and their
+  state, room settings (partner firm, intro, campuses, show costs, show win %, on / off), the log, and "See what
+  Fortress sees" (a preview that isn't logged).
+- **Checked in a browser** on a scratch database: the Manager page, making a partner account from the link, the
+  pipeline and company card as the partner (no internal fields), internal URLs bouncing to `/room/`, phone width.
+- **On the real database, after merging `boards-bound` then this:** back up, `migrate`, then Settings › Capital
+  partner data room › "Start a data room" (Fortress), write partner notes on the investor-report deals, invite the
+  Fortress people. Partners can only reach it once the hub is hosted (hub.acmigroup.com).
+
+## Built 2026-10-25: Drive folders for companies, projects and the data room
+
+Branch `data-room` (on `boards-bound`; not merged). Migration `0059_drive_folders`: `Company.drive_folder`,
+`Project.drive_folder`, and `DataRoomFile.drive_id / drive_name / drive_folder / drive_mime`. `crm/drive.py` (read-only
+Drive API through a service account; version grouping by dated names; `current_documents`, `newer_version`,
+`suggest_folder`), `crm/dataroom/drive_views.py` (the panel, mapping, share, swap), `partials/drive_panel.html` and
+`drive_panel_slot.html` (fetched after the page loads). The room's file view streams Drive files
+(`dataroom.views._from_drive`); Drive errors show a plain message, never Google's. Google's auth library is imported
+only when Drive is used. 12 tests in `crm/tests/test_drive_files.py` against a fake Drive. Checked in a browser on a
+scratch database without Drive connected (panel, mapping); listing real folders waits on the service account. Design
+and setup: `docs/DATA_ROOM.md`, "Drive folders and files".
