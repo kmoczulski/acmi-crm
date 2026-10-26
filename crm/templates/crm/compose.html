@@ -46,7 +46,7 @@
     {% for a in f.forward_files %}<label class="lc-small"><input type="checkbox" name="forward_part" value="{{ a.part }}"{% if not kept_parts or a.part in kept_parts %} checked{% endif %}> 📎 {{ a.name }} <span class="muted">{{ a.size|filesizeformat }}</span></label>{% endfor %}
   </fieldset>
   {% endif %}
-  <label class="compose-attach lc-small">📎 Attach files <input type="file" name="files" multiple></label>
+  <label class="compose-attach lc-small"><span data-attach-label>📎 Attach files</span> <input type="file" name="files" multiple></label>
   <div class="compose-actions">
     <button class="btn-primary" data-send{% if not sending_on %} disabled{% endif %}>Send</button>
     <span class="compose-countdown" data-countdown hidden>Sending in <strong data-seconds>10</strong>… <button type="button" class="btn btn-small" data-undo-send>Undo</button></span>

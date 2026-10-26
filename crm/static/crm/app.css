@@ -2074,6 +2074,11 @@ a.mail-chip:hover { text-decoration: none; filter: brightness(.95); }
 .compose-sig { margin: 0; }
 .compose-files { border: 1px solid var(--line); border-radius: var(--radius); padding: 6px 10px; display: flex; flex-direction: column; gap: 4px; }
 .compose-attach input { margin-left: 6px; max-width: 100%; }
+.compose-filelist { list-style: none; margin: -4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.compose-filelist li { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.compose-filelist .cf-name { overflow-wrap: anywhere; }
+.compose-filelist .cf-remove { padding: 0 4px; line-height: 1; }
+.compose-filelist[hidden] { display: none; }
 .compose-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .compose-actions .spacer { flex: 1; }
 .compose-countdown { display: inline-flex; gap: 6px; align-items: center; }

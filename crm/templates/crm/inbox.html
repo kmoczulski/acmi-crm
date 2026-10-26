@@ -303,7 +303,7 @@
         <textarea name="body" rows="7" class="compose-body" aria-label="Your reply"></textarea>
         <div class="compose-sig" data-inline-sig-row hidden><span class="muted lc-small">Your signature goes under it · <a href="{% url 'crm:mail_settings' %}#signature">Change</a></span><div class="compose-sig-preview" data-inline-sig></div></div>
         <fieldset class="compose-files" data-inline-files hidden></fieldset>
-        <label class="compose-attach lc-small">📎 Attach files <input type="file" name="files" multiple></label>
+        <label class="compose-attach lc-small"><span data-attach-label>📎 Attach files</span> <input type="file" name="files" multiple></label>
         <p class="mail-error" data-compose-error hidden></p>
         <div class="compose-actions">
           <button class="btn-primary" data-send>Send</button>

@@ -120,6 +120,17 @@ class ComposeTests(TestCase):
         self.assertEqual(stats["activities already logged"], 1)
         self.assertEqual(Activity.objects.filter(kind=Activity.Kind.EMAIL_SENT).count(), 1)
 
+    def test_several_files_go_out_together(self):
+        """The compose page's picker adds up across picks (compose.js); the server sends every file it gets."""
+        self.client.post(reverse("crm:inbox_compose"), {
+            "mode": "new", "to": "will@firehawkaerospace.com", "subject": "Two files", "body": "Both attached.",
+            "files": [SimpleUploadedFile("LOI v1.pdf", b"%PDF-1.4 loi", content_type="application/pdf"),
+                      SimpleUploadedFile("Site plan.png", b"\x89PNG plan", content_type="image/png")],
+        })
+        _, msg = self.sent()
+        self.assertEqual([p.get_filename() for p in msg.iter_attachments()], ["LOI v1.pdf", "Site plan.png"])
+        self.assertEqual([p.get_content_type() for p in msg.iter_attachments()], ["application/pdf", "image/png"])
+
     def test_a_reply_stays_in_the_thread_quotes_the_original_and_comes_back_to_it(self):
         back = "/inbox/?label=INBOX&t=a1"
         r = self.post(mode="reply", reply_to_id="0a01", to="Will <will@firehawkaerospace.com>",

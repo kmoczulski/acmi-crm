@@ -14,8 +14,10 @@ download unless they're PDFs or pictures (an uploaded web page could run on the 
 compose header is a form message, not a 500; Gmail worker threads close their database connections; partner accounts
 never show as "ACMI" teammates in address suggestions; `cloudbuild.yaml` passes `ACMI_TOKEN_KEY`, the VAPID pair and
 the Google client to every job (the send job had no Google client at all); `cryptography` and `google-auth` pinned;
-`.env.example` lists the new variables. **Merge:** CI, then `git merge --ff-only`, back up the real database and
-`manage.py migrate crm`.
+`.env.example` lists the new variables. Also on the branch (Kellen, 2026-10-26: "I can only attach one document in
+email?"): the compose page and the inline reply keep every file picked (`compose.js`): each pick adds to a list under
+the Attach button, with a ✕ per file and a 25 MB total warning; before, picking again replaced the first file.
+**Merge:** CI, then `git merge --ff-only`, back up the real database and `manage.py migrate crm`.
 
 **David walkthrough fixes 2026-10-26** (Kellen: "start on bugs 1-9 from the David review in a worktree"; branch
 `worktree-david-review-fixes`, migration `0067_assignment_company`. **Merged 2026-10-26** fast-forward `4101657`, CI

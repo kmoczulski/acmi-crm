@@ -34,6 +34,69 @@
       saveTimer = setTimeout(save, 3000);
     });
 
+    // Attachments: every pick adds to the list (a bare file input replaces the earlier pick, so a second file would
+    // have dropped the first), each can be taken off again, and the form sends them all. Browsers that can't set a
+    // file input's files (no DataTransfer) keep the native behaviour and only show what's picked.
+    const picker = form.querySelector('input[type=file][name=files]');
+    const attachLabel = form.querySelector('[data-attach-label]');
+    const MAX_MB = 25;
+    const canSet = (() => { try { new DataTransfer(); return true; } catch (e) { return false; } })();
+    const fmtSize = n => n < 1024 * 1024 ? `${Math.max(1, Math.round(n / 1024))} KB` : `${(n / 1024 / 1024).toFixed(1)} MB`;
+    let chosen = [], fileList = null;
+    const showFiles = () => {
+      if (!picker) return;
+      if (canSet) {
+        const dt = new DataTransfer();
+        chosen.forEach(f => dt.items.add(f));
+        picker.files = dt.files;
+      } else {
+        chosen = [...picker.files];
+      }
+      if (!fileList) {
+        fileList = document.createElement('ul');
+        fileList.className = 'compose-filelist lc-small';
+        fileList.setAttribute('aria-label', 'Attached files');
+        picker.closest('.compose-attach').after(fileList);
+      }
+      fileList.textContent = '';
+      chosen.forEach((f, i) => {
+        const li = document.createElement('li');
+        const name = document.createElement('span');
+        name.className = 'cf-name';
+        name.textContent = f.name;
+        const size = document.createElement('span');
+        size.className = 'muted';
+        size.textContent = fmtSize(f.size);
+        li.append('📎 ', name, ' ', size);
+        if (canSet) {
+          const x = document.createElement('button');
+          x.type = 'button';
+          x.className = 'btn-link cf-remove';
+          x.textContent = '✕';
+          x.setAttribute('aria-label', `Remove ${f.name}`);
+          x.addEventListener('click', () => { chosen.splice(i, 1); showFiles(); });
+          li.append(' ', x);
+        }
+        fileList.append(li);
+      });
+      const total = chosen.reduce((n, f) => n + f.size, 0);
+      if (total > MAX_MB * 1024 * 1024) {
+        const li = document.createElement('li');
+        li.className = 'mail-error';
+        li.textContent = `That's ${fmtSize(total)} together; Gmail allows ${MAX_MB} MB. Take some off, or share a Drive link.`;
+        fileList.append(li);
+      }
+      fileList.hidden = !chosen.length;
+      if (attachLabel) attachLabel.textContent = chosen.length && canSet ? '📎 Add another file' : '📎 Attach files';
+    };
+    if (picker) picker.addEventListener('change', () => {
+      for (const f of picker.files) {
+        if (!chosen.some(c => c.name === f.name && c.size === f.size && c.lastModified === f.lastModified)) chosen.push(f);
+      }
+      showFiles();
+    });
+    const resetFiles = () => { chosen = []; if (picker) { picker.value = ''; showFiles(); } };
+
     // Templates (full page): the outreach templates' text, {first_name} filled in when the hub knows the person.
     const pick = form.querySelector('[data-template]');
     if (pick) pick.addEventListener('change', () => {
@@ -101,7 +164,7 @@
     window.addEventListener('beforeunload', e => {
       if (timer) { e.preventDefault(); e.returnValue = ''; }
     });
-    return {save};
+    return {save, resetFiles};
   }
 
   document.querySelectorAll('[data-compose]').forEach(form => setup(form, false));
@@ -109,7 +172,7 @@
   // The reading pane's inline reply box: Reply / Reply all / Forward fill it in place, under the message.
   const box = document.querySelector('[data-inline]');
   if (!box) return;
-  setup(box, true);
+  const inlineBox = setup(box, true);
   const esc = s => String(s).replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
   const titles = {reply: 'Reply', all: 'Reply all', forward: 'Forward'};
   async function open(messageId, mode) {
@@ -122,6 +185,7 @@
     }
     box.querySelector('[data-draft-id]').value = '';
     box.querySelector('[name=bcc]').value = '';
+    inlineBox.resetFiles();  // files picked for the last reply don't carry over to this one
     box.querySelector('[data-inline-title]').textContent = titles[mode] || 'Reply';
     box.querySelector('[data-inline-more]').href = `${box.action}?reply=${encodeURIComponent(messageId)}&mode=${mode}&back=${encodeURIComponent(location.pathname + location.search)}`;
     box.querySelector('.compose-more').open = !!f.cc;
