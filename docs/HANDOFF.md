@@ -6,13 +6,15 @@ Read this first when picking the project up in a new chat, along with
 ## Pick up here (2026-10-25)
 
 **Where things stand**
-- `main` has everything below; the last code commit is `2f74d08` (Drive folders), pushed to `kmoczulski/acmi-crm`.
+- `main` has everything below; the last code commit is `7a36c20` (browser notifications), pushed to `kmoczulski/acmi-crm`.
   515 tests pass and CI is green on Postgres. **Merged 2026-10-25** (fast-forward): PR #1 `boards-bound` and PR #2
   `data-room` (data room and Drive folders). The email client design is in its own session and branch
   (`email-client-design`, `docs/EMAIL_CLIENT.md`).
 
-**Browser notifications 2026-10-25** (Kellen asked; branch `web-push`, not merged yet; migration
-`0060_push_subscriptions`, the email client numbers from 0061):
+**Browser notifications 2026-10-25** (Kellen asked; PR #3 `web-push`, **merged** fast-forward `7a36c20`, CI green;
+migration `0060_push_subscriptions`, the email client numbers from 0061). The real database is migrated (backup
+`backups/db-2026-10-25-before-web-push.sqlite3`), VAPID keys are in the laptop's `.env` (old `.env` in
+`backups/env-2026-10-25-before-vapid.bak`), and the new requirements are installed in `.venv`:
 - Web Push (`crm/push.py`, `crm/push_views.py`, `static/crm/push.js`): the service worker is served at `/sw.js` (public
   path, but partner accounts are redirected away from it); a `PushSubscription` per person and browser; `notify.send`
   pushes after commit to every browser of that person for the kinds they left on. Clicking one opens the record
