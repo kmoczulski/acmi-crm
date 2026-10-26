@@ -7,6 +7,6 @@ class CrmConfig(AppConfig):
     verbose_name = "ACMI CRM"
 
     def ready(self):
-        from . import choices, signals  # noqa: F401
+        from . import choices, signals, tokens  # noqa: F401
 
         choices.install()  # editable dropdown lists

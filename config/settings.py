@@ -181,10 +181,17 @@ if GOOGLE_SIGNIN_ENABLED:
         # Calendar read access lets the CRM put everyone's meetings on the Meetings calendar.
         "SCOPE": ["profile", "email", "https://www.googleapis.com/auth/calendar.readonly"],
         # offline = Google returns a refresh token, so the scheduled sync works while nobody is signed in.
-        "AUTH_PARAMS": {"hd": ALLOWED_EMAIL_DOMAINS[0] if ALLOWED_EMAIL_DOMAINS else "", "access_type": "offline"},
+        # include_granted_scopes keeps permissions given earlier (Gmail, for people who turned Mail on) when someone
+        # signs in or reconnects the calendar, instead of swapping the grant for this request's scopes only.
+        "AUTH_PARAMS": {"hd": ALLOWED_EMAIL_DOMAINS[0] if ALLOWED_EMAIL_DOMAINS else "", "access_type": "offline",
+                        "include_granted_scopes": "true"},
     }
-# Keep each person's Google token (encrypted at rest by the database host in production).
+# Keep each person's Google token, encrypted with ACMI_TOKEN_KEY (crm/tokens.py). Comma-separated keys: the first one
+# encrypts, any of them decrypts. Generate one with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
 SOCIALACCOUNT_STORE_TOKENS = True
+TOKEN_KEYS = [k for k in env("ACMI_TOKEN_KEY", "").split(",") if k.strip()]
+# Mail in the hub (docs/EMAIL_CLIENT.md). Each person turns it on for themselves; false hides it for everyone.
+MAIL_CLIENT_ENABLED = env_bool("ACMI_MAIL_CLIENT", True)
 # Meeting transcripts are also written as .txt files here, one folder per campus (crm/transcripts.py). Point it at a
 # shared-drive folder that only the right people can open (transcripts can hold NDA material).
 TRANSCRIPT_DIR = Path(env("ACMI_TRANSCRIPT_DIR", BASE_DIR / "data" / "transcripts"))

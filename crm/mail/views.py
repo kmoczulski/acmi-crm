@@ -1,15 +1,19 @@
 import hmac
+from functools import wraps
 
+import requests
 from django.conf import settings
 from django.contrib import messages
-from django.http import HttpResponseForbidden, JsonResponse
+from django.http import Http404, HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
-from crm.models import Company, Firm, MailFilter, Mailbox, UnmatchedEmail
+from crm import gcal
+from crm.models import Company, Firm, MailConnection, MailFilter, Mailbox, UnmatchedEmail
+from crm.permissions import is_partner
 
-from . import sync
+from . import connect, sync
 
 
 def mail_home(request):
@@ -180,3 +184,70 @@ def cron_sync(request):
     except Exception as exc:  # noqa: BLE001 - sorting must not fail the mail sync
         out["sorting_error"] = str(exc)
     return JsonResponse(out)
+
+
+# ---------------------------------------------------------------------------
+# Mail in the hub: each person's own switch (crm/mail/connect.py, docs/EMAIL_CLIENT.md step 1)
+# ---------------------------------------------------------------------------
+
+
+def team_only(view):
+    """Mail pages answer "not found" to a capital partner even if a partner ever got past PartnerOnlyMiddleware."""
+    @wraps(view)
+    def wrapped(request, *args, **kwargs):
+        if is_partner(request.user):
+            raise Http404()
+        return view(request, *args, **kwargs)
+
+    return wrapped
+
+
+@team_only
+def mail_settings(request):
+    conn = connect.connection(request.user)
+    return render(request, "crm/mail_settings.html", {
+        "conn": conn,
+        "on": connect.is_on(request.user),
+        "unavailable": connect.unavailable_reason(request.user),
+        "calendar_connected": gcal.connected(request.user),
+    })
+
+
+@team_only
+@require_POST
+def mail_turn_on(request):
+    reason = connect.unavailable_reason(request.user)
+    if reason:
+        messages.error(request, reason)
+        return redirect("crm:mail_settings")
+    request.session[connect.SESSION_KEY] = True
+    return redirect(connect.connect_url(request))
+
+
+@team_only
+def mail_connected(request):
+    """Where Google sends the person back after Turn on Mail."""
+    if not request.session.pop(connect.SESSION_KEY, False):
+        return redirect("crm:mail_settings")
+    try:
+        connect.finish(request.user)
+    except (connect.MailConnectError, requests.RequestException) as exc:
+        text = str(exc) if isinstance(exc, connect.MailConnectError) else "Couldn't reach Google. Try again."
+        MailConnection.objects.update_or_create(user=request.user, defaults={"last_error": text})
+        messages.error(request, text)
+        return redirect("crm:mail_settings")
+    messages.success(request, "Mail is on. Gmail is connected to the hub.")
+    return redirect("crm:mail_settings")
+
+
+@team_only
+@require_POST
+def mail_turn_off(request):
+    removed = connect.turn_off(request.user)
+    if removed:
+        messages.success(request, "Mail is off. The hub's Gmail permission was removed at Google. Google keeps one "
+                                  "permission for the hub, so your calendar was disconnected too: use Connect Google "
+                                  "Calendar below to bring it back.")
+    else:
+        messages.success(request, "Mail is off.")
+    return redirect("crm:mail_settings")

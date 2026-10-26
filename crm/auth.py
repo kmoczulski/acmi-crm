@@ -74,6 +74,17 @@ class SocialAccountAdapter(DefaultSocialAccountAdapter):
             raise ImmediateHttpResponse(
                 HttpResponseForbidden("Sign in with your ACMI Google account.")
             )
+        if (sociallogin.state or {}).get("process") == "connect" and request.user.is_authenticated:
+            from .permissions import is_partner
+
+            # Connecting Google (calendar, Mail) attaches it to the signed-in account: never a partner's, and never
+            # someone else's ACMI address, so a token always belongs to the mailbox owner.
+            if is_partner(request.user):
+                raise ImmediateHttpResponse(HttpResponseForbidden("Not available for this account."))
+            own = (request.user.email or "").lower()
+            if own and email.lower() != own:
+                raise ImmediateHttpResponse(HttpResponseForbidden(
+                    f"That Google account is {email}. Connect your own account, {request.user.email}."))
 
     def is_open_for_signup(self, request, sociallogin):
         # First Google sign-in by an ACMI account creates the user.

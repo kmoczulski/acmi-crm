@@ -275,7 +275,7 @@ in-app bell rule ("a company you own replied") keeps working from the timeline a
 PRs #1 (`boards-bound`) and #2 (`data-room`) add migrations 0057 to 0059, so these number from **0060**. The client
 needs `team_users()` and the Partners group from #2, so step 1 waits for #2 to merge (or branches from it).
 
-1. **`mail-connect`**: the on/off switch per person (in your settings; Mail hidden when off) and the site-wide one;
+1. **`mail-connect`** (built 2026-10-25 on branch `mail-connect`; details in HANDOFF): the on/off switch per person (in your settings; Mail hidden when off) and the site-wide one;
    encrypted tokens (including today's calendar tokens), revoke on switch-off; the Turn on Mail step with incremental
    `gmail.modify` consent; partner refusal at every layer; `Mailbox.backend` and `history_id`. No mail on screen yet.
    Migration 0060.

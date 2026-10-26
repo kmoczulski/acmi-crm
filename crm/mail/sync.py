@@ -417,7 +417,10 @@ def sync_mailbox(mailbox, client=None, max_messages=DEFAULT_MAX_MESSAGES):
 
 def sync_all(max_messages=DEFAULT_MAX_MESSAGES):
     results = {}
-    for mb in Mailbox.objects.filter(enabled=True):
+    from crm.permissions import team_users
+
+    # Only the team's mailboxes: a capital partner's account never has its mail read.
+    for mb in Mailbox.objects.filter(enabled=True, user__in=team_users()):
         try:
             results[str(mb)] = sync_mailbox(mb, max_messages=max_messages)
         except SyncBusy:

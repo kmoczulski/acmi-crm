@@ -121,8 +121,9 @@ connected" and folders can still be mapped.
 the Gmail API with per-person sign-in (`gmail.modify`, Internal app so no Google verification), **optional per person**
 (Kellen: "it shouldn't be required"). Design, build order (migrations from 0060, after PRs #1 and #2) and Kellen's
 questions are in `docs/EMAIL_CLIENT.md`. Kellen took all nine recommended answers and added a long-thread reading
-pane (newest first, one attachments panel with versions grouped, outline, find in thread; step 3b). PRs #1 and #2 merged 2026-10-25;
-step 1 (`mail-connect`) is under way.
+pane (newest first, one attachments panel with versions grouped, outline, find in thread; step 3b). PRs #1 and #2 merged 2026-10-25.
+**Step 1 (`mail-connect`) built** on branch `mail-connect` (migration `0060_mail_connect`, not merged yet): see
+"Built 2026-10-25: mail-connect" at the end of this file.
 
 **Next, in order**
 1. **Granola (time-sensitive: Granola only keeps 30 days).**
@@ -1866,3 +1867,38 @@ Drive API through a service account; version grouping by dated names; `current_d
 only when Drive is used. 12 tests in `crm/tests/test_drive_files.py` against a fake Drive. Checked in a browser on a
 scratch database without Drive connected (panel, mapping); listing real folders waits on the service account. Design
 and setup: `docs/DATA_ROOM.md`, "Drive folders and files".
+
+
+## Built 2026-10-25: mail-connect (email client step 1; Kellen: "go with the recommended answers… start step 1")
+
+Branch `mail-connect`, migration `0060_mail_connect`. Design in `docs/EMAIL_CLIENT.md`. No mail on screen yet: this
+step is the switch, the permission and the safety around them.
+
+- **Each person's switch:** avatar menu › **Mail in the hub** (`/mail-setup/`, `crm/mail/connect.py`, `MailConnection`).
+  Off by default. **Turn on Mail** goes through allauth's Google connect asking for `gmail.modify` on top of the
+  existing grant (`include_granted_scopes=true`, `prompt=consent`); coming back, the hub checks with Google's tokeninfo
+  that Gmail really was granted and that the Google account is the person's own address, then switches it on.
+  **Turn off Mail** revokes the permission at Google and deletes the token. Google keeps one permission per person for
+  the hub, so this disconnects the calendar too; the page says so and shows Connect Google Calendar.
+- **Site-wide:** `ACMI_MAIL_CLIENT=false` hides it for everyone. Mail can't be turned on without `ACMI_TOKEN_KEY`.
+- **Google tokens encrypted at rest** (`crm/tokens.py`): with `ACMI_TOKEN_KEY` set, allauth's `SocialToken` (calendar
+  and Gmail) is stored as `enc1:` + Fernet and decrypted on load, so `crm/gcal.py` and allauth read plain values.
+  Comma-separated keys rotate (first encrypts, any decrypts). Migration 0060 encrypts existing tokens if the key is
+  set when it runs; otherwise `manage.py encrypt_tokens` does it later. A lost or wrong key reads as an empty token:
+  people reconnect, nothing crashes.
+- **Every sign-in keeps earlier permissions:** `include_granted_scopes=true` is now in the Google `AUTH_PARAMS`, so
+  reconnecting the calendar doesn't drop Gmail.
+- **Partners kept out:** `PartnerOnlyMiddleware` (already), the Mail views 404 for a partner themselves, Turn on Mail
+  and `finish` refuse partners, the sign-in adapter refuses a partner connecting Google and anyone connecting a
+  different ACMI address, moving someone into Partners (either side of the group) or deactivating an account turns
+  their Mail off and revokes the token, and the mail and calendar syncs only read `team_users()`.
+- `Mailbox.backend` (`imap` / `gmail_api`) and `Mailbox.history_id` are added for step 2; everything stays on IMAP.
+- **Tests:** `crm/tests/test_mail_connect.py` (29; Google faked, nothing reaches Google). 545 pass in all. Checked in
+  a browser on a scratch database (off and on states, phone width); the Google screen itself wasn't opened.
+- **Before Mail can be turned on for real (Kellen):** in Google Cloud project `sincere-passage-511621-j3`, enable the
+  Gmail API, confirm the OAuth consent screen is **Internal** and add the `gmail.modify` scope; a Workspace super
+  admin confirms acmiproperties.com is in the same Workspace and the hub's client is allowed under Security › API
+  controls. Then put `ACMI_TOKEN_KEY` in `.env` (Claude can generate it without printing it; keep a copy in the
+  password manager).
+- **Merging on the laptop:** back up, merge, set `ACMI_TOKEN_KEY` *before* `migrate` (or run `encrypt_tokens` after),
+  then `manage.py migrate crm`. Without the key nothing changes for anyone: Mail just stays unavailable.

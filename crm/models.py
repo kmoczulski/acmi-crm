@@ -1171,6 +1171,16 @@ class Mailbox(models.Model):
     # Set while a sync runs so a second sync of the same mailbox waits its turn.
     sync_lock_until = models.DateTimeField(null=True, blank=True, editable=False)
 
+    class Backend(models.TextChoices):
+        IMAP = "imap", "IMAP with an app password"
+        GMAIL_API = "gmail_api", "Gmail API (Mail in the hub)"
+
+    # Which reader the timeline sync uses. A mailbox moves to the Gmail API once its owner turns Mail on
+    # (docs/EMAIL_CLIENT.md, section 4); until then it stays on IMAP.
+    backend = models.CharField(max_length=12, choices=Backend.choices, default=Backend.IMAP)
+    # The Gmail API's change marker: the next refresh asks Gmail what changed since this.
+    history_id = models.CharField(max_length=40, blank=True, editable=False)
+
     class Meta:
         verbose_name_plural = "mailboxes"
 
@@ -1185,6 +1195,23 @@ class Mailbox(models.Model):
         import os
 
         return os.environ.get(self.password_env_var, "").replace(" ", "")
+
+
+class MailConnection(models.Model):
+    """One person's Mail in the hub switch (docs/EMAIL_CLIENT.md). Off until they turn it on; crm/mail/connect.py.
+
+    The Gmail permission itself lives in their (encrypted) Google token; this row says whether they want it used.
+    """
+
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="mail_connection")
+    enabled = models.BooleanField(default=False)
+    google_email = models.EmailField(blank=True)
+    turned_on_at = models.DateTimeField(null=True, blank=True)
+    turned_off_at = models.DateTimeField(null=True, blank=True)
+    last_error = models.TextField(blank=True)
+
+    def __str__(self):
+        return f"Mail for {self.user} ({'on' if self.enabled else 'off'})"
 
 
 class MailFilter(models.Model):

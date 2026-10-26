@@ -135,11 +135,9 @@ def sync_user(user, session=requests):
 
 
 def sync_all(stdout=None):
-    from django.contrib.auth import get_user_model
+    from .permissions import team_users
 
-    users = get_user_model().objects.filter(
-        is_active=True, socialaccount__provider="google",
-    ).exclude(calendar_sync__enabled=False).distinct()
+    users = team_users().filter(socialaccount__provider="google").exclude(calendar_sync__enabled=False).distinct()
     results = {}
     for user in users:
         try:
