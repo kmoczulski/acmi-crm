@@ -16,7 +16,7 @@ from . import settings_views
 from .land import brief_views, diligence_views, letter_views
 from .land import card_views as land_card_views
 from .land import views as land_views
-from .mail import inbox_views
+from .mail import compose_views, inbox_views
 from .mail import views as mail_views
 from .news import views as news_views
 from .outreach import views as outreach_views
@@ -140,6 +140,10 @@ urlpatterns = [
     path("inbox/", inbox_views.inbox, name="inbox"),
     path("inbox/files/", inbox_views.files, name="inbox_files"),
     path("inbox/act/", inbox_views.act, name="inbox_act"),
+    path("inbox/compose/", compose_views.compose_page, name="inbox_compose"),
+    path("inbox/draft/", compose_views.save_draft, name="inbox_draft"),
+    path("inbox/draft/discard/", compose_views.discard_draft, name="inbox_draft_discard"),
+    path("mail-setup/signature/", compose_views.save_signature, name="mail_signature"),
     path("inbox/t/<str:gmail_id>/summary/", inbox_views.thread_summary, name="inbox_summary"),
     path("inbox/t/<str:gmail_id>/files.zip", inbox_views.thread_files_zip, name="inbox_zip"),
     path("inbox/m/<str:message_id>/body/", inbox_views.message_body, name="inbox_body"),

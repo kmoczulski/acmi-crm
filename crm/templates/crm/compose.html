@@ -1,0 +1,138 @@
+{% extends "crm/base.html" %}
+{% block title %}{% if f.mode == "forward" %}Forward{% elif f.mode == "new" %}New message{% else %}Reply{% endif %} · Mail · ACMI CRM{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>{% if f.mode == "forward" %}Forward{% elif f.mode == "all" %}Reply all{% elif f.mode == "reply" %}Reply{% else %}New message{% endif %}</h1>
+  <span class="spacer"></span>
+  <span class="muted lc-small" data-draft-state aria-live="polite"></span>
+</div>
+{% if error %}<p class="mail-error">{{ error }}</p>{% endif %}
+{% if not sending_on %}<p class="mail-error">Sending is switched off on this hub (ACMI_MAIL_SEND). You can still save drafts.</p>{% endif %}
+<form class="panel compose" method="post" enctype="multipart/form-data" action="{% url 'crm:inbox_compose' %}" data-compose
+      data-draft-url="{% url 'crm:inbox_draft' %}">
+  {% csrf_token %}
+  <input type="hidden" name="mode" value="{{ f.mode }}">
+  <input type="hidden" name="reply_to_id" value="{{ f.reply_to_id }}">
+  <input type="hidden" name="thread_id" value="{{ f.thread_id }}">
+  <input type="hidden" name="in_reply_to" value="{{ f.in_reply_to }}">
+  <input type="hidden" name="references" value="{{ f.references }}">
+  <input type="hidden" name="draft_id" value="{{ draft_id }}" data-draft-id>
+  <input type="hidden" name="back" value="{{ back }}">
+  <label class="compose-row"><span>To</span><input type="text" name="to" value="{{ f.to }}" autocomplete="off" {% if f.mode != "forward" %}autofocus{% endif %} placeholder="name@company.com, …"></label>
+  <details class="compose-more"{% if f.cc or f.bcc %} open{% endif %}><summary class="lc-small">Cc / Bcc</summary>
+    <label class="compose-row"><span>Cc</span><input type="text" name="cc" value="{{ f.cc }}" autocomplete="off"></label>
+    <label class="compose-row"><span>Bcc</span><input type="text" name="bcc" value="{{ f.bcc|default:'' }}" autocomplete="off"></label>
+  </details>
+  <label class="compose-row"><span>Subject</span><input type="text" name="subject" value="{{ f.subject }}" maxlength="500"></label>
+  {% if templates %}
+  <div class="compose-row"><span>Template</span>
+    <select data-template aria-label="Insert a template">
+      <option value="">Insert a template…</option>
+      {% for t in templates %}<option value="{{ forloop.counter0 }}">{{ t.template_id }} · {{ t.name }}</option>{% endfor %}
+    </select>
+  </div>
+  {{ templates|json_script:"compose-templates" }}
+  {% endif %}
+  <textarea name="body" rows="12" class="compose-body" aria-label="Message" {% if f.mode == "forward" %}autofocus{% endif %} data-first-name="{{ first_name }}">{{ body }}</textarea>
+  {% if signature %}<p class="compose-sig muted lc-small">Your signature goes under it: <span>{{ signature|linebreaksbr }}</span> · <a href="{% url 'crm:mail_settings' %}#signature">Change</a></p>{% endif %}
+  {% if original %}
+  <details class="compose-original"><summary class="lc-small">{% if f.mode == "forward" %}Forwarding{% else %}Replying to{% endif %} {{ original.from_name }}, {{ original.date|date:"M j, g:i a" }}</summary>
+    <p class="muted lc-small">{{ original.snippet }}</p>
+  </details>
+  {% endif %}
+  {% if f.forward_files %}
+  <fieldset class="compose-files"><legend class="lc-small">Attachments from the original</legend>
+    {% for a in f.forward_files %}<label class="lc-small"><input type="checkbox" name="forward_part" value="{{ a.part }}"{% if not kept_parts or a.part in kept_parts %} checked{% endif %}> 📎 {{ a.name }} <span class="muted">{{ a.size|filesizeformat }}</span></label>{% endfor %}
+  </fieldset>
+  {% endif %}
+  <label class="compose-attach lc-small">📎 Attach files <input type="file" name="files" multiple></label>
+  <div class="compose-actions">
+    <button class="btn-primary" data-send{% if not sending_on %} disabled{% endif %}>Send</button>
+    <span class="compose-countdown" data-countdown hidden>Sending in <strong data-seconds>10</strong>… <button type="button" class="btn btn-small" data-undo-send>Undo</button></span>
+    <span class="spacer"></span>
+    <button class="btn btn-small" formaction="{% url 'crm:inbox_draft_discard' %}" formnovalidate data-discard>Discard</button>
+  </div>
+</form>
+<script>
+  (function () {
+    const form = document.querySelector('[data-compose]');
+    if (!form) return;
+    const state = document.querySelector('[data-draft-state]');
+    const draftId = form.querySelector('[data-draft-id]');
+    const sendBtn = form.querySelector('[data-send]');
+    const countdown = form.querySelector('[data-countdown]');
+    const seconds = form.querySelector('[data-seconds]');
+    const body = form.querySelector('textarea[name=body]');
+    let timer = null, saveTimer = null, confirmed = false, dirty = false, saving = false;
+
+    // Drafts: saved to Gmail a few seconds after you stop typing (text only; files go on at Send).
+    const save = async () => {
+      if (saving || confirmed) return;
+      saving = true;
+      const data = new FormData(form);
+      data.delete('files');
+      try {
+        const r = await fetch(form.dataset.draftUrl, {method: 'POST', body: data,
+          headers: {'X-CSRFToken': form.querySelector('[name=csrfmiddlewaretoken]').value}});
+        const d = await r.json();
+        if (d.draft) { draftId.value = d.draft; dirty = false; state.textContent = 'Draft saved ' + new Date().toLocaleTimeString([], {hour: 'numeric', minute: '2-digit'}); }
+        else if (d.error) state.textContent = d.error;
+      } catch (e) { state.textContent = 'Draft not saved (offline?)'; }
+      saving = false;
+    };
+    form.addEventListener('input', e => {
+      if (e.target.type === 'file') return;
+      dirty = true;
+      clearTimeout(saveTimer);
+      saveTimer = setTimeout(save, 3000);
+    });
+
+    // Templates: the outreach templates' text, {first_name} filled in when the hub knows the person.
+    const pick = form.querySelector('[data-template]');
+    if (pick) pick.addEventListener('change', () => {
+      const list = JSON.parse(document.getElementById('compose-templates').textContent);
+      const t = list[+pick.value];
+      if (!t) return;
+      const first = body.dataset.firstName || 'there';
+      const fill = s => (s || '').replaceAll('{first_name}', first).replaceAll('{greeting}', first);
+      const subject = form.querySelector('[name=subject]');
+      if (!subject.value) subject.value = fill(t.subject);
+      body.value = fill(t.body_plain) + (body.value ? '\n\n' + body.value : '');
+      pick.value = '';
+      body.dispatchEvent(new Event('input', {bubbles: true}));
+    });
+
+    // Undo send: Send waits ten seconds, and Undo (or leaving the page) stops it.
+    form.addEventListener('submit', e => {
+      if (e.submitter && e.submitter.hasAttribute('data-discard')) return;
+      if (confirmed) return;
+      e.preventDefault();
+      let left = 10;
+      seconds.textContent = left;
+      countdown.hidden = false;
+      sendBtn.disabled = true;
+      timer = setInterval(() => {
+        left -= 1;
+        seconds.textContent = left;
+        if (left <= 0) {
+          clearInterval(timer);
+          confirmed = true;
+          sendBtn.disabled = false;
+          sendBtn.textContent = 'Sending…';
+          form.requestSubmit(sendBtn);
+          sendBtn.disabled = true;
+        }
+      }, 1000);
+    });
+    form.querySelector('[data-undo-send]').addEventListener('click', () => {
+      clearInterval(timer);
+      countdown.hidden = true;
+      sendBtn.disabled = false;
+      state.textContent = 'Not sent.';
+    });
+    window.addEventListener('beforeunload', e => {
+      if (!confirmed && (dirty || timer) && !countdown.hidden) { e.preventDefault(); e.returnValue = ''; }
+    });
+  })();
+</script>
+{% endblock %}

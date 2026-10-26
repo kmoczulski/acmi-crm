@@ -27,6 +27,8 @@ from .imap import MailboxError, since_date
 from .parse import finish_text, parse_message
 
 API = "https://gmail.googleapis.com/gmail/v1/users/me"
+UPLOAD = "https://gmail.googleapis.com/upload/gmail/v1/users/me"
+UPLOAD_TIMEOUT = 120
 TIMEOUT = 30
 PAGE_SIZE = 500
 PARALLEL_REQUESTS = 8
@@ -71,6 +73,18 @@ def hex_thread_id(decimal_id):
         return ""
 
 
+def _multipart(metadata, raw):
+    """A multipart/related upload: JSON metadata, then the message itself."""
+    import json
+    import uuid
+
+    boundary = f"acmi-{uuid.uuid4().hex}"
+    head = (f"--{boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n{json.dumps(metadata)}\r\n"
+            f"--{boundary}\r\nContent-Type: message/rfc822\r\n\r\n").encode()
+    return {"raw": head + raw + f"\r\n--{boundary}--\r\n".encode(),
+            "content_type": f"multipart/related; boundary={boundary}"}
+
+
 RATE_LIMIT_REASONS = {"rateLimitExceeded", "userRateLimitExceeded", "quotaExceeded"}
 
 
@@ -110,19 +124,29 @@ class GmailClient:
         """A change in Gmail (labels, Trash). Only ever called from a person's own click (crm/mail/actions.py)."""
         return self._request("post", path, body=body or {})
 
-    def _request(self, method, path, params=None, body=None):
+    def _request(self, method, path, params=None, body=None, raw=None, content_type="", resend=True):
+        """One Gmail API call, retried when Gmail asks to slow down. resend=False (sending mail) never retries after a
+        server error, because the email may already have gone out."""
         refresh = False
         for attempt in range(RETRIES + 1):
             headers = {"Authorization": f"Bearer {self._access(force=refresh)}"}
-            if method == "post":
-                r = self.session.post(f"{API}{path}", json=body, headers=headers, timeout=TIMEOUT)
+            if method == "upload":  # a whole message with its attachments (up to Gmail's 35 MB)
+                r = self.session.post(f"{UPLOAD}{path}", data=raw, timeout=UPLOAD_TIMEOUT,
+                                      headers={**headers, "Content-Type": content_type})
+            elif method in ("post", "put"):
+                r = getattr(self.session, method)(f"{API}{path}", json=body, headers=headers, timeout=TIMEOUT)
+            elif method == "delete":
+                r = self.session.delete(f"{API}{path}", headers=headers, timeout=TIMEOUT)
             else:
                 r = self.session.get(f"{API}{path}", params=params, timeout=TIMEOUT, headers=headers)
             refresh = False
             if r.status_code == 401 and attempt == 0:
                 refresh = True  # the access token expired early: refresh it once and try again
                 continue
-            busy = r.status_code in (429, 500, 502, 503, 504) or (r.status_code == 403 and _rate_limited(r))
+            slow_down = r.status_code == 429 or (r.status_code == 403 and _rate_limited(r))
+            busy = slow_down or (resend and r.status_code in (500, 502, 503, 504))
+            if not resend and r.status_code in (500, 502, 503, 504):
+                raise MailboxError("Gmail had a problem sending. Check your Sent folder before you send it again.")
             if busy and attempt < RETRIES:
                 time.sleep(2 * (attempt + 1))  # Gmail's per-second limit, or a hiccup: wait and try again
                 continue
@@ -133,8 +157,29 @@ class GmailClient:
             if r.status_code == 404:
                 raise NotFound(path)
             r.raise_for_status()
-            return r.json()
+            return r.json() if r.status_code != 204 and getattr(r, "content", b"x") else {}
         raise MailboxError("Gmail kept refusing requests. The next sync tries again.")
+
+    # Sending (crm/mail/compose.py). Only ever from a person's own click on Send.
+
+    def send(self, raw, thread_id=""):
+        """Send an RFC 822 message (bytes) as the person; in a thread when thread_id is given. Returns Gmail's
+        {id, threadId, labelIds}."""
+        return self._request("upload", "/messages/send?uploadType=multipart", resend=False,
+                             **_multipart({"threadId": thread_id} if thread_id else {}, raw))
+
+    def save_draft(self, raw, draft_id="", thread_id=""):
+        """Create or update a draft (text only: attachments go on when it's sent)."""
+        message = {"raw": base64.urlsafe_b64encode(raw).decode()}
+        if thread_id:
+            message["threadId"] = thread_id
+        if draft_id:
+            return self._request("put", f"/drafts/{draft_id}", body={"id": draft_id, "message": message})
+        return self._request("post", "/drafts", body={"message": message})
+
+    def delete_draft(self, draft_id):
+        """Drop a draft once its email is sent or the person discards it (only drafts; never a message)."""
+        return self._request("delete", f"/drafts/{draft_id}")
 
     def profile(self):
         return self.get("/profile")

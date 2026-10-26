@@ -146,7 +146,7 @@ def reader_for(request, mailbox, client, gmail_id, threads=()):
         "in_trash": "TRASH" in labels, "snoozed_until": snooze.until if snooze else None,
         "id": gmail_id, "subject": subject, "order": order,
         "messages": msgs if order == "newest" else list(reversed(msgs)),
-        "latest": msgs[0]["id"] if msgs else "",
+        "latest": next((m["id"] for m in msgs if not m["draft"]), msgs[0]["id"] if msgs else ""),
         "first_unread": unread[-1]["id"] if unread else "",
         "chips": index.chips(mailbox, [row]).get(gmail_id, []) if row else [],
         "file_groups": groups, "files_hidden": hidden,

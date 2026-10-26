@@ -2035,3 +2035,28 @@ a.mail-chip:hover { text-decoration: none; filter: brightness(.95); }
   .mail-menu { position: static; }
   .mail-menu-pop { left: 0; right: 0; min-width: 0; }
 }
+
+/* Compose (step 5) */
+.mail-compose-btn { margin: 0 10px 8px; justify-content: center; background: var(--accent); color: #fff !important; border-radius: var(--radius); font-weight: 600; }
+.mail-compose-btn:hover { background: var(--accent) !important; filter: brightness(1.1); }
+.mail-reply-bar { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0; }
+.mail-msg-reply { margin: 4px 0 0; }
+.compose { max-width: 860px; display: flex; flex-direction: column; gap: 8px; }
+.compose-row { display: grid; grid-template-columns: 70px minmax(0, 1fr); gap: 8px; align-items: center; }
+.compose-row > span { color: var(--muted); font-size: 13px; }
+.compose-row input, .compose-row select { width: 100%; min-width: 0; }
+.compose-more > summary { cursor: pointer; margin-left: 78px; color: var(--accent); }
+.compose-more[open] > summary { margin-bottom: 6px; }
+.compose-more .compose-row { margin-bottom: 6px; }
+.compose-body { width: 100%; min-height: 220px; font: inherit; line-height: 1.45; resize: vertical; }
+.compose-sig { margin: 0; }
+.compose-files { border: 1px solid var(--line); border-radius: var(--radius); padding: 6px 10px; display: flex; flex-direction: column; gap: 4px; }
+.compose-attach input { margin-left: 6px; max-width: 100%; }
+.compose-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.compose-actions .spacer { flex: 1; }
+.compose-countdown { display: inline-flex; gap: 6px; align-items: center; }
+.compose-countdown[hidden] { display: none; }
+@media (max-width: 600px) {
+  .compose-row { grid-template-columns: 1fr; gap: 2px; }
+  .compose-more > summary { margin-left: 0; }
+}

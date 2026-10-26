@@ -4,6 +4,7 @@
 {% block content %}
 <div class="mail-app{% if reader %} has-reader{% endif %}">
   <nav class="mail-folders" aria-label="Folders" id="mail-folders">
+    <a href="{% url 'crm:inbox_compose' %}" class="mail-compose-btn" data-key="c" title="New message (c)">✎ New message</a>
     {% for lb in system_labels %}
       <a href="?label={{ lb.gmail_id|urlencode }}" class="{% if lb.gmail_id == label and not query %}on{% endif %}">{{ lb.name }}{% if lb.unread %} <span class="mail-count">{{ lb.unread }}</span>{% endif %}</a>
     {% endfor %}
@@ -89,6 +90,13 @@
       <div class="mail-reader-head">
         <a class="btn btn-small mail-back" href="?label={{ label|urlencode }}{% if query %}&q={{ query|urlencode }}{% endif %}{% if tab != 'all' %}&tab={{ tab }}{% endif %}">← Back</a>
         <h2>{{ reader.subject }}</h2>
+        {% if reader.latest %}
+        <div class="mail-reply-bar">
+          <a class="btn btn-small btn-primary" href="{% url 'crm:inbox_compose' %}?reply={{ reader.latest }}&mode=reply&back={{ here|urlencode }}" data-key="r" title="Reply (r)">↩ Reply</a>
+          <a class="btn btn-small" href="{% url 'crm:inbox_compose' %}?reply={{ reader.latest }}&mode=all&back={{ here|urlencode }}" data-key="a" title="Reply all (a)">↩ Reply all</a>
+          <a class="btn btn-small" href="{% url 'crm:inbox_compose' %}?reply={{ reader.latest }}&mode=forward&back={{ here|urlencode }}" data-key="f" title="Forward (f)">↪ Forward</a>
+        </div>
+        {% endif %}
         <div class="mail-actions">
           <form method="post" action="{% url 'crm:inbox_act' %}" class="mail-actions-main">{% csrf_token %}
             <input type="hidden" name="t" value="{{ reader.id }}"><input type="hidden" name="next" value="{{ here }}">
@@ -227,6 +235,7 @@
         <iframe class="mail-frame" title="Message from {{ m.from_name }}" sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox" loading="lazy"
                 src="{% url 'crm:inbox_body' m.id %}" data-mail-frame data-message="{{ m.id }}"></iframe>
         <p class="mail-images" hidden><button type="button" class="btn btn-small" data-show-images>Show images</button> <span class="muted lc-small">Images from the sender are blocked so they can't tell you opened this.</span></p>
+        <p class="mail-msg-reply lc-small"><a href="{% url 'crm:inbox_compose' %}?reply={{ m.id }}&mode=reply&back={{ here|urlencode }}">Reply</a> · <a href="{% url 'crm:inbox_compose' %}?reply={{ m.id }}&mode=all&back={{ here|urlencode }}">Reply all</a> · <a href="{% url 'crm:inbox_compose' %}?reply={{ m.id }}&mode=forward&back={{ here|urlencode }}">Forward</a></p>
         {% if m.files %}
         <ul class="mail-files">
           {% for a in m.files %}<li><a href="{% url 'crm:inbox_part' m.id a.part %}">📎 {{ a.name }}</a> <span class="muted lc-small">{{ a.size|filesizeformat }}</span></li>{% endfor %}
@@ -442,7 +451,7 @@
   document.addEventListener('keydown', e => {
     if (e.target.closest('input, textarea, select, [contenteditable]') || e.ctrlKey || e.metaKey || e.altKey) return;
     const key = e.key === 'U' && e.shiftKey ? 'U' : e.key;
-    if (!['e', 's', '#', 'U', 'z'].includes(key)) return;
+    if (!['e', 's', '#', 'U', 'z', 'r', 'a', 'f', 'c'].includes(key)) return;
     const btn = document.querySelector(`[data-key="${CSS.escape(key)}"]`);
     if (btn) { e.preventDefault(); btn.click(); }
   });

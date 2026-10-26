@@ -68,6 +68,7 @@ class FakeGmail:
         self.history = []  # message ids added after the profile's marker
         self.history_status, self.status = 200, 200
         self.fail_on, self.calls, self.posts = set(), [], []
+        self.sent, self.drafts, self.send_status = [], {}, 200
         self.label_list = [{"id": "INBOX", "name": "INBOX", "type": "system"},
                            {"id": "SENT", "name": "SENT", "type": "system"},
                            {"id": "UNREAD", "name": "UNREAD", "type": "system"},
@@ -92,10 +93,16 @@ class FakeGmail:
         self.history_id = str(int(self.history_id) + 1)
 
     def post(self, url, data=None, timeout=None, json=None, headers=None):
+        if url.startswith(gmail_api.UPLOAD):  # sending: multipart/related, JSON metadata then the message
+            return self._send(data)
         if not url.startswith(gmail_api.API):  # Google's token endpoint
             return FakeResponse({"access_token": "fresh", "expires_in": 3600})
         path = url.removeprefix(gmail_api.API)
         self.posts.append((path, json))
+        if path == "/drafts":
+            draft_id = f"r-{len(self.drafts) + 1}"
+            self.drafts[draft_id] = json["message"]
+            return FakeResponse({"id": draft_id, "message": {"id": f"dm{len(self.drafts)}"}})
         if path == "/labels":
             label = {"id": f"Label_{len(self.label_list) + 1}", "name": json["name"], "type": "user"}
             self.label_list.append(label)
@@ -112,6 +119,37 @@ class FakeGmail:
         for m in msgs:
             m["labelIds"] = [lb for lb in m["labelIds"] if lb not in remove] + [lb for lb in add if lb not in m["labelIds"]]
         return FakeResponse({"id": tid})
+
+    def _send(self, data):
+        import json as jsonlib
+
+        meta_part, _, rest = data.partition(b"Content-Type: message/rfc822\r\n\r\n")
+        meta = jsonlib.loads(meta_part.split(b"\r\n\r\n", 1)[1].rsplit(b"\r\n--", 1)[0])
+        raw = rest.rsplit(b"\r\n--", 1)[0]
+        self.sent.append((meta, raw))
+        if self.send_status != 200:
+            return FakeResponse({}, self.send_status)
+        gid = f"{0x5e00 + len(self.sent):x}"
+        thread = meta.get("threadId") or f"{0x7e00 + len(self.sent):x}"
+        from email import message_from_bytes, policy
+
+        parsed = message_from_bytes(raw, policy=policy.default)
+        self.messages[gid] = api_message(gid, thread, str(parsed["From"]), str(parsed["To"] or ""),
+                                         str(parsed["Subject"]), labels=("SENT",), msg_id=str(parsed["Message-ID"]))
+        self.order.append(gid)
+        return FakeResponse({"id": gid, "threadId": thread, "labelIds": ["SENT"]})
+
+    def put(self, url, json=None, headers=None, timeout=None):
+        path = url.removeprefix(gmail_api.API)
+        self.posts.append((f"PUT {path}", json))
+        self.drafts[path.removeprefix("/drafts/")] = json["message"]
+        return FakeResponse({"id": path.removeprefix("/drafts/")})
+
+    def delete(self, url, headers=None, timeout=None):
+        path = url.removeprefix(gmail_api.API)
+        self.posts.append((f"DELETE {path}", None))
+        self.drafts.pop(path.removeprefix("/drafts/"), None)
+        return FakeResponse({}, 204)
 
     def get(self, url, params=None, headers=None, timeout=None):
         path = url.removeprefix(gmail_api.API)

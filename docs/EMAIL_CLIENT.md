@@ -349,7 +349,7 @@ needs `team_users()` and the Partners group from #2, so step 1 waits for #2 to m
    to latest, and "Earlier part of this conversation". Tested on an 80-plus-message thread of made-up mail. Also
    **Summarize** (Claude, on click) and the **Files** view across the whole mailbox.
 4. **`mail-actions`** (built 2026-10-26; details in HANDOFF): archive, read / unread, star, labels and move, Trash, snooze.
-5. **`mail-compose`**: new message, reply, reply all, forward with attachments, Gmail drafts, templates, signature,
+5. **`mail-compose`** (built 2026-10-26; details in HANDOFF): new message, reply, reply all, forward with attachments, Gmail drafts, templates, signature,
    undo send, remind me if no reply, immediate timeline logging. **Email** buttons on person and company pages open compose with the address
    filled in.
 6. **`mail-filing`**: File to company / deal / project / directory firm / lender, the manual project link, Mail review

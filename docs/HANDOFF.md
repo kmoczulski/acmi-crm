@@ -160,8 +160,8 @@ see "Built 2026-10-26: mail-inbox" at the end of this file (merged `a6bd5e9`, mi
 `backups/db-2026-10-26-before-mail-inbox.sqlite3`). **Step 3b (`mail-long-threads`) merged 2026-10-26** (PR #7, `aadf190`,
 no migration): "Built 2026-10-26: mail-long-threads". The 10:17 sync finished the inbox fill (303 inbox threads
 indexed, no error) and sent 6 new-mail alerts. **Step 4 (`mail-actions`) merged 2026-10-26** (PR #8, `bf602f0`, migrated, backup
-`backups/db-2026-10-26-before-mail-actions.sqlite3`): "Built 2026-10-26: mail-actions". Next: step 5,
-compose and reply (Kellen, 2026-10-26: "I can't respond to an email?").
+`backups/db-2026-10-26-before-mail-actions.sqlite3`): "Built 2026-10-26: mail-actions". **Step 5
+(`mail-compose`)**: "Built 2026-10-26: mail-compose" (Kellen, 2026-10-26: "I can't respond to an email?").
 
 **Next, in order**
 1. **Granola (time-sensitive: Granola only keeps 30 days).**
@@ -2077,3 +2077,31 @@ Branch `mail-actions`, migration `0064_mail_snooze`. Every change is a label cha
 - **Fix from 3b:** the Latest message button showed even when it shouldn't (`.mail-latest[hidden]`).
 - **Tests:** `crm/tests/test_mail_actions.py` (15); 637 pass. Checked in a browser on a scratch database: the toolbar
   and menus at desktop and phone width, bulk select, `e` to archive and `z` to undo.
+
+
+## Built 2026-10-26: mail-compose (email client step 5; Kellen: "Yes, start step 5 … merge when green")
+
+Branch `mail-compose`, no migration. `crm/mail/compose.py`, `compose_views.py`, `/inbox/compose/`.
+
+- **Where:** ✎ New message at the top of the folder pane (`c`); **Reply / Reply all / Forward** above each thread
+  (`r` / `a` / `f`, on the newest message that isn't a draft) and under every message; **✉ Email** on a person's page
+  and each person's address on the company page's People tab (only for people with Mail on).
+- **Addressing:** Reply goes to Reply-To or From (or, for your own message, the people you wrote to); Reply all adds
+  everyone else on To and Cc except you; Forward starts empty with `Fwd:` and the original's attachments ticked.
+  Replies stay in the Gmail thread (`threadId`, `In-Reply-To`, `References`) and quote the original the way Gmail
+  does (plain `>` lines, HTML `gmail_quote`; pictures left out because the hub's links wouldn't work outside).
+- **The page:** To, Cc / Bcc, Subject, **Insert a template** (the outreach templates' text, `{first_name}` filled
+  when the hub knows the person), the message, your **signature** (set on Mail in the hub; default your name), files
+  (25 MB in all, Gmail's limit) and, on a forward, which original files to keep. Bad addresses, no recipient or too
+  much attached come back with the text kept.
+- **Undo send:** Send counts down 10 seconds with Undo; leaving the page stops it.
+- **Drafts:** saved to Gmail 3 seconds after you stop typing (text only; files go on at Send), updated in place, and
+  dropped once the email is sent or you click Discard.
+- **Sending:** Gmail API multipart upload (`GmailClient.send`), never retried after a Gmail server error (the email
+  may have gone; the message says to check Sent). `ACMI_MAIL_SEND=false` blocks Send; it is always off while the
+  tests run. Logged on the timeline at once through `process_messages` (same key as the sync, so the next sync says
+  "already logged"); not for inbox-only mailboxes, whose mail isn't logged anyway.
+- **Tests:** `crm/tests/test_compose.py` (17, fake Gmail records what would be sent); 654 pass. Checked in a browser
+  on a scratch database through the fake Gmail (nothing really sent): reply from `r`, the countdown and Undo, a draft
+  saved, Send and back to the thread, forward at phone width.
+- **Not yet:** recipient autocomplete, rich-text formatting (bold, links) in the editor, "remind me if no reply".

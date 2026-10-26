@@ -199,6 +199,12 @@ def cron_sync(request):
 # ---------------------------------------------------------------------------
 
 
+def compose_signature(user):
+    from .compose import signature
+
+    return signature(user)
+
+
 def team_only(view):
     """Mail pages answer "not found" to a capital partner even if a partner ever got past PartnerOnlyMiddleware."""
     @wraps(view)
@@ -218,6 +224,7 @@ def mail_settings(request):
         "on": connect.is_on(request.user),
         "unavailable": connect.unavailable_reason(request.user),
         "calendar_connected": gcal.connected(request.user),
+        "signature": compose_signature(request.user),
     })
 
 
