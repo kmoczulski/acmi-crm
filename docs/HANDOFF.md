@@ -157,7 +157,10 @@ encrypted. **Kellen: copy the key into the password manager.** Mail can't be tur
 (backup `backups/db-2026-10-26-before-mail-api-reader.sqlite3`), and **Kellen's mailbox now syncs through the Gmail
 API** (first run 9:17: 10 messages, no error, no duplicates). **Step 3 (`mail-inbox`)**: the inbox on screen,
 see "Built 2026-10-26: mail-inbox" at the end of this file (merged `a6bd5e9`, migrated, backup
-`backups/db-2026-10-26-before-mail-inbox.sqlite3`). **Step 3b (`mail-long-threads`)**: "Built 2026-10-26: mail-long-threads".
+`backups/db-2026-10-26-before-mail-inbox.sqlite3`). **Step 3b (`mail-long-threads`) merged 2026-10-26** (PR #7, `aadf190`,
+no migration): "Built 2026-10-26: mail-long-threads". The 10:17 sync finished the inbox fill (303 inbox threads
+indexed, no error) and sent 6 new-mail alerts. **Next: step 4, `mail-actions`** (archive, read / unread, star, labels,
+Trash, snooze), then step 5, compose and reply.
 
 **Next, in order**
 1. **Granola (time-sensitive: Granola only keeps 30 days).**
@@ -2045,6 +2048,7 @@ Branch `mail-long-threads`, no migration. All in the reading pane of `/inbox/` p
   25 messages a page.
 - **Fix for step 3:** Gmail answers "slow down" with a 403 as well; that was read as a lost permission and stopped the
   first inbox fill on the laptop at 299 of 300 threads (10:02). `GmailClient.get` now reads the reason and waits and
-  retries; the index reads three threads at a time. The fill finishes on the next sync after this merges.
+  retries; the index reads three threads at a time. (The fill had in fact reached 303 threads; the 10:17 sync marked
+  it done with no error.)
 - **Tests:** `crm/tests/test_long_threads.py` (16) plus rate-limit tests in `test_gmail_api.py`; 621 pass. Checked in a
   browser on a scratch database with a made-up 85-message thread (desktop and phone width).
