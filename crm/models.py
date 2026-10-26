@@ -1204,6 +1204,9 @@ class Mailbox(models.Model):
     # Gmail API message ids queued for the timeline sync, oldest first (crm/mail/gmail_api.py); a big back-read is
     # worked through max_messages at a time.
     pending_ids = models.JSONField(default=list, blank=True, editable=False)
+    # When the inbox's first few hundred threads were indexed (crm/mail/index.py warm_inbox), so the split-inbox tabs
+    # have something to show.
+    inbox_indexed_at = models.DateTimeField(null=True, blank=True, editable=False)
 
     class Meta:
         verbose_name_plural = "mailboxes"
@@ -1219,6 +1222,65 @@ class Mailbox(models.Model):
         import os
 
         return os.environ.get(self.password_env_var, "").replace(" ", "")
+
+
+class MailThread(models.Model):
+    """One conversation in a person's private mail index (docs/EMAIL_CLIENT.md, section 3): enough to draw the inbox
+    quickly. Bodies and attachments are never stored; they're read from Gmail when opened. Seen only by the mailbox's
+    owner (crm/mail/inbox_views.py); not in the admin, search or exports."""
+
+    mailbox = models.ForeignKey(Mailbox, on_delete=models.CASCADE, related_name="threads")
+    gmail_id = models.CharField(max_length=40, help_text="Gmail's thread id (hex)")
+    history_id = models.CharField(max_length=40, blank=True)
+    subject = models.CharField(max_length=500, blank=True)
+    snippet = models.TextField(blank=True)
+    senders = models.JSONField(default=list, blank=True)  # [[name, address], ...] in the order they first wrote
+    message_count = models.PositiveIntegerField(default=0)
+    last_message_at = models.DateTimeField(null=True, blank=True)
+    labels = models.JSONField(default=list, blank=True)  # Gmail label ids on any message
+    in_inbox = models.BooleanField(default=False)
+    unread = models.BooleanField(default=False)
+    starred = models.BooleanField(default=False)
+    has_attachments = models.BooleanField(default=False)
+    # Which split-inbox tabs it belongs to (crm/mail/index.py): a thread can be in more than one.
+    is_tenant = models.BooleanField(default=False)
+    is_project = models.BooleanField(default=False)
+    is_firm = models.BooleanField(default=False)
+    fetched_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["mailbox", "gmail_id"], name="mail_thread_unique")]
+        indexes = [models.Index(fields=["mailbox", "in_inbox", "-last_message_at"])]
+
+    def __str__(self):
+        return self.subject or "(no subject)"
+
+    @property
+    def thread_id(self):
+        """The decimal id the timeline stores (Activity.thread_id)."""
+        try:
+            return str(int(self.gmail_id, 16))
+        except ValueError:
+            return ""
+
+
+class MailLabel(models.Model):
+    """A Gmail label in someone's mailbox (their folders), kept to draw the folder pane without asking Gmail."""
+
+    mailbox = models.ForeignKey(Mailbox, on_delete=models.CASCADE, related_name="labels")
+    gmail_id = models.CharField(max_length=100)
+    name = models.CharField(max_length=225)
+    system = models.BooleanField(default=False)
+    text_color = models.CharField(max_length=7, blank=True)
+    bg_color = models.CharField(max_length=7, blank=True)
+    unread = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["mailbox", "gmail_id"], name="mail_label_unique")]
+        ordering = ["name"]
+
+    def __str__(self):
+        return self.name
 
 
 class MailConnection(models.Model):

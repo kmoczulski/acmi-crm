@@ -29,7 +29,7 @@ def app_context(request):
     from . import prefs, search
 
     queue = news_open = unread = due = 0
-    user_prefs, pages, new_items = {}, [], []
+    user_prefs, pages, new_items, mail_on = {}, [], [], False
     if getattr(request, "user", None) and request.user.is_authenticated:
         queue = UnmatchedEmail.objects.values("domain").distinct().count()
         news_open = NewsScan.objects.filter(status=NewsScan.Status.OPEN).count()
@@ -41,6 +41,9 @@ def app_context(request):
         due = Task.objects.filter(assignee=request.user, done=False, due_date__lte=timezone.localdate()).count()
         user_prefs = prefs.get_prefs(request.user)
         pages, new_items = search.page_links(), search.new_links()
+        from .mail import connect
+
+        mail_on = connect.is_on(request.user)
     return {
         "unread_notifications": unread,
         "my_due_count": due,
@@ -55,4 +58,5 @@ def app_context(request):
         "LOCAL_LOGIN_ENABLED": settings.LOCAL_LOGIN_ENABLED,
         # Managers-only buttons are hidden for everyone else (the views refuse them too).
         "IS_MANAGER": is_manager(getattr(request, "user", None)),
+        "MAIL_ON": mail_on,  # Mail in the hub: the top bar's Mail link
     }

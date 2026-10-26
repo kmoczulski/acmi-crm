@@ -18,9 +18,11 @@ QUIET_CATEGORIES = ("CATEGORY_PROMOTIONS", "CATEGORY_SOCIAL", "CATEGORY_UPDATES"
 QUIET_LABELS = ("\\Draft", "\\Spam", "\\Trash", "\\Sent")
 
 
-def gmail_url(mailbox, thread_id):
-    """The thread in Gmail on the web. Becomes the hub's own thread page once the inbox is built (step 3)."""
-    return f"https://mail.google.com/mail/u/{mailbox.email}/#all/{hex_thread_id(thread_id)}"
+def thread_url(thread_id):
+    """The thread in the hub's inbox."""
+    from django.urls import reverse
+
+    return f"{reverse('crm:inbox')}?t={hex_thread_id(thread_id)}"
 
 
 def wants_alert(mailbox, email, now=None):
@@ -41,6 +43,6 @@ def on_new_mail(mailbox, emails):
     for email in emails:
         if wants_alert(mailbox, email):
             notify.new_mail(mailbox.user, email.from_name or email.from_addr, email.subject,
-                            gmail_url(mailbox, email.thread_id), email.message_id)
+                            thread_url(email.thread_id), email.message_id)
             n += 1
     return n

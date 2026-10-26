@@ -18,6 +18,8 @@
       <a href="{% url 'crm:meeting_list' %}" class="tn-link {% if '/meetings/' in p %}active{% endif %}">Calendar</a>
       <a href="{% url 'crm:boards' %}" class="tn-link {% if '/boards/' in p %}active{% endif %}">Boards</a>
 
+      {% if MAIL_ON %}<a href="{% url 'crm:inbox' %}" class="tn-link {% if '/inbox/' in p %}active{% endif %}">Mail</a>{% endif %}
+
       <details class="tn-menu {% if '/opportunities/' in p or '/reports/pipeline' in p or '/companies/' in p and 'duplicates' not in p or '/people/' in p or '/leases/' in p %}active{% endif %}">
         <summary>Tenants</summary>
         <div class="tn-drop">

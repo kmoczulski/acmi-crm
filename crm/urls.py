@@ -16,6 +16,7 @@ from . import settings_views
 from .land import brief_views, diligence_views, letter_views
 from .land import card_views as land_card_views
 from .land import views as land_views
+from .mail import inbox_views
 from .mail import views as mail_views
 from .news import views as news_views
 from .outreach import views as outreach_views
@@ -136,6 +137,9 @@ urlpatterns = [
     path("views/save/", views.saved_view_save, name="saved_view_save"),
     path("views/<int:pk>/delete/", views.saved_view_delete, name="saved_view_delete"),
     path("mail/", mail_views.mail_home, name="mail"),
+    path("inbox/", inbox_views.inbox, name="inbox"),
+    path("inbox/m/<str:message_id>/body/", inbox_views.message_body, name="inbox_body"),
+    path("inbox/m/<str:message_id>/part/<str:part_id>/", inbox_views.message_part, name="inbox_part"),
     path("mail-setup/", mail_views.mail_settings, name="mail_settings"),
     path("mail-setup/on/", mail_views.mail_turn_on, name="mail_turn_on"),
     path("mail-setup/connected/", mail_views.mail_connected, name="mail_connected"),

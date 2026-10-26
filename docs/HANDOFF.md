@@ -155,7 +155,8 @@ encrypted. **Kellen: copy the key into the password manager.** Mail can't be tur
 "Before Mail can be turned on" list in "Built 2026-10-25: mail-connect"). **Kellen turned Mail on the same night**
 (connected, no error). **Step 2 (`mail-api-reader`) merged 2026-10-26** (PR #5, `3b32a33`, CI green), migrated
 (backup `backups/db-2026-10-26-before-mail-api-reader.sqlite3`), and **Kellen's mailbox now syncs through the Gmail
-API** (first run 9:17: 10 messages, no error, no duplicates). Next: step 3, `mail-inbox` (the inbox on screen).
+API** (first run 9:17: 10 messages, no error, no duplicates). **Step 3 (`mail-inbox`)**: the inbox on screen,
+see "Built 2026-10-26: mail-inbox" at the end of this file. Next: step 3b, long threads.
 
 **Next, in order**
 1. **Granola (time-sensitive: Granola only keeps 30 days).**
@@ -1972,3 +1973,41 @@ Branch `mail-api-reader`, migration `0062_mailbox_pending_ids`. Still nothing ne
   it read the 10 messages since Oct 25 (3 newsletters and 5 unknown or ignored senders skipped, 2 with no outside
   address), took Gmail's marker, empty queue, no error, Gmail timeline rows unchanged at 27,413, no alerts (a back-read
   never alerts). To go back: turn Mail off (IMAP resumes from its last UID).
+
+
+## Built 2026-10-26: mail-inbox (email client step 3; Kellen: "Yes, start step 3 … merge when green")
+
+Branch `mail-inbox`, migration `0063_mail_index`. **Mail** in the top bar (only for people with Mail in the hub on)
+opens `/inbox/`: folders, the conversation list, the reading pane. Read only: archive, labels and the rest are step 4,
+compose and reply step 5.
+
+- **Folders:** Gmail's system folders in Gmail's order, All mail, then your own labels with their colours
+  (`MailLabel`, re-read every 10 minutes; Inbox unread from Gmail). On narrower screens a Folders button.
+- **The list** comes from Gmail's own order each time (`threads.list`, 50 a page, Older for more), drawn from the
+  private index (`MailThread`, `crm/mail/index.py`) and re-reading only threads whose `historyId` changed. Unread
+  bold with a bar, paperclip, star, message count, "me" for you.
+- **CRM tags on every thread** (`index.chips`): projects and deals and companies from what the timeline logged for
+  that thread, directory firms from `FirmEmail`, then the senders' domains; **New sender** (red) when the domain
+  waits in Mail review. Chips in the reading pane link to the record.
+- **Split inbox** (Inbox only): All, Tenants, Projects, Capital & directory, Everything else, from flags stored on
+  the index. The sync fills the inbox's newest 300 threads once (`warm_inbox`, `Mailbox.inbox_indexed_at`) and
+  re-reads every thread Gmail's history says changed (new mail, label changes; up to 300 a sync). Rows untouched for
+  90 days are dropped.
+- **Search** is Gmail's own search across all mail (`q=`), so `from:`, `has:attachment` and plain words work.
+- **Reading pane:** newest message first and open (and any unread), older ones folded with a one-line preview; To
+  and Cc; attachments listed under each message; Open in Gmail. Bodies load in a sandboxed frame from
+  `/inbox/m/<id>/body/` (allow-list sanitizer from news review, no scripts, `<base target=_blank>`, its own CSP with
+  `img-src 'self' data:`). **Remote images are held back** (`data-blocked`) until **Show images**, which reloads the
+  frame with `?images=1`. Inline `cid:` pictures come through the hub. Messages are cached 5 minutes in memory only.
+- **Attachments** stream from Gmail through `/inbox/m/<id>/part/<partId>/` (part ids, because Gmail's attachment
+  ids change between reads), always as downloads (`application/octet-stream`, sandbox CSP), except inline png, jpeg,
+  gif and webp that a body shows.
+- **Privacy:** every view goes through the signed-in person's own mailbox and token (a thread that isn't theirs is
+  404 from Gmail); partners are redirected by the middleware and refused by the views; `MailThread` and `MailLabel`
+  are not in the admin. Someone with Mail on and no timeline mailbox gets an inbox-only one (`enabled=False`, so
+  the timeline sync stays off for them).
+- New-mail alerts now open the thread in the hub's inbox.
+- **Tests:** `crm/tests/test_inbox.py` (19). Checked in a browser on a scratch database with made-up mail: three
+  columns on a wide screen, two at tablet width with the Folders button, one at phone width with Back, blocked
+  images and Show images, the tags and tabs, no console errors, no page wider than the phone.
+- **Not yet:** marking read when opened (step 4 adds read / unread), the long-thread tools (step 3b).

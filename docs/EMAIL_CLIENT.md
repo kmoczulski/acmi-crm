@@ -340,7 +340,7 @@ needs `team_users()` and the Partners group from #2, so step 1 waits for #2 to m
 2. **`mail-api-reader`** (built 2026-10-25 on branch `mail-api-reader`; details in HANDOFF): `crm/mail/gmail_api.py` reading changes since the marker into the existing
    `process_messages`, hex-to-decimal thread ids, the switch-over back-read, IMAP kept for anyone not switched. Proof
    on a scratch copy that switching logs nothing twice.
-3. **`mail-inbox`** (read only): labels, the thread list from the private index, the reading pane (cleaned, sandboxed,
+3. **`mail-inbox`** (built 2026-10-26; details in HANDOFF) (read only): labels, the thread list from the private index, the reading pane (cleaned, sandboxed,
    images blocked), Gmail search, attachment download, record chips, the split inbox (Tenants / Projects / Capital &
    directory / Everything else), the "New sender" tag, the phone layout and its width test. A migration (the
    index).

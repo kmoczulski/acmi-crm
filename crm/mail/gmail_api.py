@@ -56,6 +56,14 @@ def decimal_thread_id(hex_id):
         return ""
 
 
+def uid_of(message_id):
+    """A number for ParsedEmail.uid from Gmail's hex message id."""
+    try:
+        return int(message_id, 16)
+    except ValueError:
+        return abs(hash(message_id))
+
+
 def hex_thread_id(decimal_id):
     try:
         return format(int(decimal_id), "x") if decimal_id else ""
@@ -116,9 +124,11 @@ class GmailClient:
             params = {**params, "pageToken": data["nextPageToken"]}
 
     def history(self, start):
-        """(ids of messages added since `start`, in order; the newest marker). HistoryExpired if `start` is too old."""
-        ids, latest = [], start
-        params = {"startHistoryId": start, "historyTypes": "messageAdded", "maxResults": PAGE_SIZE}
+        """(ids of messages added since `start`, in order; the newest marker; ids of every thread that changed: new
+        mail, labels added or removed, deletions). HistoryExpired if `start` is too old."""
+        ids, threads, latest = [], [], start
+        params = {"startHistoryId": start, "maxResults": PAGE_SIZE,
+                  "historyTypes": ["messageAdded", "messageDeleted", "labelAdded", "labelRemoved"]}
         while True:
             try:
                 data = self.get("/history", params)
@@ -126,13 +136,44 @@ class GmailClient:
                 raise HistoryExpired(start) from exc
             for h in data.get("history", []):
                 ids += [a["message"]["id"] for a in h.get("messagesAdded", [])]
+                for key in ("messagesAdded", "messagesDeleted", "labelsAdded", "labelsRemoved"):
+                    threads += [a["message"].get("threadId") for a in h.get(key, []) if a["message"].get("threadId")]
             latest = data.get("historyId", latest)
             if not data.get("nextPageToken"):
-                return list(dict.fromkeys(ids)), str(latest)
+                return list(dict.fromkeys(ids)), str(latest), list(dict.fromkeys(threads))
             params = {**params, "pageToken": data["nextPageToken"]}
 
     def message(self, message_id):
         return self.get(f"/messages/{message_id}", {"format": "full"})
+
+    # The inbox (crm/mail/index.py, inbox_views.py)
+
+    def threads(self, label=None, query="", page_token="", size=50):
+        """One page of threads, newest first: ({id, snippet, historyId} list, next page token, rough total)."""
+        params = {"maxResults": size}
+        if label:
+            params["labelIds"] = label
+        if query:
+            params["q"] = query
+        if page_token:
+            params["pageToken"] = page_token
+        data = self.get("/threads", params)
+        return data.get("threads", []), data.get("nextPageToken", ""), data.get("resultSizeEstimate", 0)
+
+    def thread(self, thread_id, full=False):
+        params = {"format": "full"} if full else {"format": "metadata",
+                                                   "metadataHeaders": ["From", "To", "Cc", "Subject", "Date"]}
+        return self.get(f"/threads/{thread_id}", params)
+
+    def labels(self):
+        return self.get("/labels").get("labels", [])
+
+    def label(self, label_id):
+        return self.get(f"/labels/{label_id}")
+
+    def attachment(self, message_id, attachment_id):
+        """The attachment's bytes (never stored)."""
+        return _decode(self.get(f"/messages/{message_id}/attachments/{attachment_id}").get("data", ""))
 
 
 def _decode(data):
@@ -163,7 +204,7 @@ def parse_api_message(msg):
         return None
     # Headers go through the same parser as IMAP's, so addresses, dates and subjects come out identically.
     raw = "\r\n".join(f"{h['name']}: {h['value']}" for h in headers if "\n" not in h["value"])
-    email = parse_message(raw + "\r\n\r\n", uid=int(msg["id"], 16), thread_id=decimal_thread_id(msg.get("threadId", "")),
+    email = parse_message(raw + "\r\n\r\n", uid=uid_of(msg["id"]), thread_id=decimal_thread_id(msg.get("threadId", "")),
                           labels=[SYSTEM_LABELS.get(lb, lb) for lb in labels])
     if not any(h["name"].lower() == "date" for h in headers) and msg.get("internalDate"):
         email.occurred_at = datetime.fromtimestamp(int(msg["internalDate"]) / 1000, tz=dt_timezone.utc)
@@ -203,11 +244,12 @@ def _since_query(mailbox):
 
 def read_changes(mailbox, client, max_messages):
     """Queue what's new and read up to max_messages of it. Returns (ParsedEmail list, oldest first; the uids of
-    messages that are new since the last run, as opposed to a back-read; the ids still waiting). Updates the
+    messages that are new since the last run, as opposed to a back-read; the ids still waiting; the ids of threads
+    that changed, for the inbox index). Updates the
     mailbox's marker and queue (unsaved). The queue keeps everything until the caller has logged the batch and
     sets mailbox.pending_ids to the ids still waiting, so a failure part-way loses nothing."""
     pending = list(mailbox.pending_ids or [])
-    new = []
+    new, touched = [], []
     if not mailbox.history_id:
         profile = client.profile()
         if profile.get("emailAddress", "").lower() != mailbox.email.lower():
@@ -216,7 +258,7 @@ def read_changes(mailbox, client, max_messages):
         mailbox.history_id = str(profile["historyId"])
     else:
         try:
-            queued, mailbox.history_id = client.history(mailbox.history_id)
+            queued, mailbox.history_id, touched = client.history(mailbox.history_id)
             new = queued
         except HistoryExpired:
             profile = client.profile()
@@ -237,4 +279,4 @@ def read_changes(mailbox, client, max_messages):
         client.prime()  # refresh the access token here, not in the worker threads
     with ThreadPoolExecutor(max_workers=PARALLEL_REQUESTS) as executor:
         emails = [e for e in executor.map(fetch, batch) if e is not None]
-    return emails, {int(i, 16) for i in new}, rest
+    return emails, {uid_of(i) for i in new}, rest, touched

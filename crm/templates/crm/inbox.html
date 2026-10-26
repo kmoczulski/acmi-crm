@@ -1,0 +1,127 @@
+{% extends "crm/base.html" %}
+{% load crm_tags %}
+{% block title %}{% if reader %}{{ reader.subject }} · {% endif %}{{ label_name }} · Mail · ACMI CRM{% endblock %}
+{% block content %}
+<div class="mail-app{% if reader %} has-reader{% endif %}">
+  <nav class="mail-folders" aria-label="Folders" id="mail-folders">
+    {% for lb in system_labels %}
+      <a href="?label={{ lb.gmail_id|urlencode }}" class="{% if lb.gmail_id == label and not query %}on{% endif %}">{{ lb.name }}{% if lb.unread %} <span class="mail-count">{{ lb.unread }}</span>{% endif %}</a>
+    {% endfor %}
+    <a href="?label=ALL" class="{% if label == 'ALL' and not query %}on{% endif %}">All mail</a>
+    {% if user_labels %}<div class="mail-folders-head">Labels</div>{% endif %}
+    {% for lb in user_labels %}
+      <a href="?label={{ lb.gmail_id|urlencode }}" class="{% if lb.gmail_id == label and not query %}on{% endif %}"><span class="mail-dot" style="{% if lb.bg_color %}background:{{ lb.bg_color }}{% endif %}"></span>{{ lb.name }}</a>
+    {% endfor %}
+    <p class="muted lc-small mail-folders-foot"><a href="{% url 'crm:mail_settings' %}">Mail in the hub</a> · filters stay in Gmail</p>
+  </nav>
+
+  <section class="mail-list" aria-label="Conversations">
+    <form class="mail-search" method="get" role="search">
+      <button type="button" class="btn btn-small mail-folders-toggle" data-folders-toggle aria-controls="mail-folders">Folders</button>
+      <input type="search" name="q" value="{{ query }}" placeholder="Search mail (Gmail search: from:, has:attachment…)" aria-label="Search mail">
+    </form>
+    <div class="mail-list-head">
+      <strong>{{ label_name }}</strong>{% if query %} <span class="muted">“{{ query }}”</span> <a class="lc-small" href="?label={{ label|urlencode }}">Clear</a>{% endif %}
+      <span class="spacer"></span>
+      <a class="btn btn-small" href="{{ request.get_full_path }}" title="Check for new mail">Refresh</a>
+    </div>
+    {% if tabs %}
+    <div class="mail-tabs" role="tablist">
+      {% for key, name in tabs %}<a role="tab" href="?label=INBOX&tab={{ key }}" class="{% if tab == key %}on{% endif %}" aria-selected="{% if tab == key %}true{% else %}false{% endif %}">{{ name }}</a>{% endfor %}
+    </div>
+    {% endif %}
+    {% if error %}<p class="mail-error">{{ error }}</p>{% endif %}
+    {% if indexing %}<p class="muted lc-small mail-note">Still sorting your inbox into these tabs; the rest appears after the next sync (within 15 minutes).</p>{% endif %}
+    <ul class="mail-rows" data-mail-rows>
+      {% for t in threads %}
+      <li class="mail-row{% if t.unread %} unread{% endif %}{% if t.gmail_id == open_id %} on{% endif %}">
+        <a href="?label={{ label|urlencode }}{% if query %}&q={{ query|urlencode }}{% endif %}{% if tab != 'all' %}&tab={{ tab }}{% endif %}{% if page_token %}&p={{ page_token|urlencode }}{% endif %}{% if offset %}&o={{ offset }}{% endif %}&t={{ t.gmail_id }}">
+          <span class="mail-from">{% for s in t.senders|slice:":3" %}{% if s.1 == mailbox.email %}me{% else %}{{ s.0|default:s.1 }}{% endif %}{% if not forloop.last %}, {% endif %}{% endfor %}{% if t.message_count > 1 %} <span class="muted">{{ t.message_count }}</span>{% endif %}</span>
+          <span class="mail-date">{% if t.has_attachments %}<span title="Has attachments" aria-label="Has attachments">📎</span> {% endif %}{{ t.last_message_at|date:"M j" }}</span>
+          <span class="mail-subject">{% if t.starred %}<span title="Starred" aria-label="Starred">★</span> {% endif %}{{ t.subject|default:"(no subject)" }}</span>
+          <span class="mail-snippet">{{ t.snippet }}</span>
+          {% if t.chips %}<span class="mail-chips">{% for kind, name, url in t.chips|slice:":4" %}<span class="mail-chip chip-{{ kind }}">{{ name }}</span>{% endfor %}</span>{% endif %}
+        </a>
+      </li>
+      {% empty %}
+      <li class="mail-empty muted">{% if query %}Nothing matches that search.{% elif tab != 'all' %}No conversations in this tab yet.{% else %}Nothing here.{% endif %}</li>
+      {% endfor %}
+    </ul>
+    <div class="mail-more">
+      {% if next_token %}<a class="btn btn-small" href="?label={{ label|urlencode }}{% if query %}&q={{ query|urlencode }}{% endif %}&p={{ next_token|urlencode }}">Older</a>{% endif %}
+      {% if next_offset %}<a class="btn btn-small" href="?label=INBOX&tab={{ tab }}&o={{ next_offset }}">Older</a>{% endif %}
+    </div>
+  </section>
+
+  <section class="mail-reader" aria-label="Reading pane">
+    {% if reader %}
+      <div class="mail-reader-head">
+        <a class="btn btn-small mail-back" href="?label={{ label|urlencode }}{% if query %}&q={{ query|urlencode }}{% endif %}{% if tab != 'all' %}&tab={{ tab }}{% endif %}">← Back</a>
+        <h2>{{ reader.subject }}</h2>
+        {% if reader.chips %}<div class="mail-chips">{% for kind, name, url in reader.chips %}<a class="mail-chip chip-{{ kind }}" href="{{ url }}">{{ name }}</a>{% endfor %}</div>{% endif %}
+        <p class="muted lc-small">{{ reader.messages|length }} message{{ reader.messages|length|pluralize }}, newest first · <a href="https://mail.google.com/mail/u/{{ mailbox.email }}/#all/{{ reader.id }}" target="_blank" rel="noopener noreferrer">Open in Gmail</a></p>
+      </div>
+      {% for m in reader.messages %}
+      <details class="mail-msg"{% if m.open %} open{% endif %}>
+        <summary>
+          <span class="mail-msg-from"><strong>{% if m.from_addr == mailbox.email %}me{% else %}{{ m.from_name }}{% endif %}</strong> <span class="muted lc-small">{{ m.from_addr }}</span>{% if m.draft %} <span class="tag">Draft</span>{% endif %}</span>
+          <span class="mail-msg-date muted lc-small">{{ m.date|date:"M j, Y g:i a" }}</span>
+          <span class="mail-msg-snippet muted">{{ m.snippet }}</span>
+        </summary>
+        <p class="mail-msg-to muted lc-small">To {{ m.to|join:", " }}{% if m.cc %} · Cc {{ m.cc|join:", " }}{% endif %}</p>
+        <iframe class="mail-frame" title="Message from {{ m.from_name }}" sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox" loading="lazy"
+                src="{% url 'crm:inbox_body' m.id %}" data-mail-frame></iframe>
+        <p class="mail-images" hidden><button type="button" class="btn btn-small" data-show-images>Show images</button> <span class="muted lc-small">Images from the sender are blocked so they can't tell you opened this.</span></p>
+        {% if m.attachments %}
+        <ul class="mail-files">
+          {% for a in m.attachments %}<li><a href="{% url 'crm:inbox_part' m.id a.part %}">📎 {{ a.name }}</a> <span class="muted lc-small">{{ a.size|filesizeformat }}</span></li>{% endfor %}
+        </ul>
+        {% endif %}
+      </details>
+      {% endfor %}
+    {% else %}
+      <div class="mail-reader-empty muted">{% if threads %}Pick a conversation to read it here.{% endif %}</div>
+    {% endif %}
+  </section>
+</div>
+<script>
+  // Reading pane frames: size each to its message, and offer Show images when the server held some back.
+  document.querySelectorAll('[data-mail-frame]').forEach(frame => {
+    const fit = () => {
+      try {
+        const doc = frame.contentDocument;
+        if (!doc || !doc.body) return;
+        frame.style.height = '0px';
+        frame.style.height = Math.max(40, doc.body.scrollHeight + 12) + 'px';
+        const blocked = doc.querySelectorAll('img[data-blocked]').length;
+        const offer = frame.parentElement.querySelector('.mail-images');
+        if (offer) offer.hidden = !blocked;
+      } catch (e) { /* not loaded yet */ }
+    };
+    frame.addEventListener('load', () => { fit(); setTimeout(fit, 400); });
+    const details = frame.closest('details');
+    if (details) details.addEventListener('toggle', fit);
+  });
+  document.querySelectorAll('[data-show-images]').forEach(btn => btn.addEventListener('click', () => {
+    const frame = btn.closest('details').querySelector('[data-mail-frame]');
+    frame.src = frame.src.split('?')[0] + '?images=1';
+    btn.closest('.mail-images').hidden = true;
+  }));
+  // Folders on a phone.
+  document.querySelectorAll('[data-folders-toggle]').forEach(btn => btn.addEventListener('click', () => {
+    document.getElementById('mail-folders').classList.toggle('open');
+  }));
+  // Keyboard: j / k move through the list, Enter opens, / searches.
+  (function () {
+    const rows = [...document.querySelectorAll('[data-mail-rows] .mail-row a')];
+    let i = rows.findIndex(a => a.parentElement.classList.contains('on'));
+    document.addEventListener('keydown', e => {
+      if (e.target.closest('input, textarea, select, [contenteditable]') || e.ctrlKey || e.metaKey || e.altKey) return;
+      if (e.key === '/') { e.preventDefault(); document.querySelector('.mail-search input').focus(); return; }
+      if (!rows.length || (e.key !== 'j' && e.key !== 'k')) return;
+      i = e.key === 'j' ? Math.min(rows.length - 1, i + 1) : Math.max(0, i - 1);
+      rows[i].focus();
+    });
+  })();
+</script>
+{% endblock %}

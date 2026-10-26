@@ -361,6 +361,7 @@ def _park(event, matcher, recorder):
 
 
 LOCK_MINUTES = 15
+INDEX_REFRESH_MAX = 300  # threads re-read for the inbox per sync
 
 
 class SyncBusy(Exception):
@@ -420,9 +421,10 @@ def choose_backend(mailbox):
 
 
 def _read_gmail(mailbox, client, max_messages, recorder):
-    from . import client as mail_client, gmail_api
+    from . import client as mail_client, gmail_api, index
 
-    emails, new, rest = gmail_api.read_changes(mailbox, client or gmail_api.GmailClient(mailbox.user), max_messages)
+    api = client or gmail_api.GmailClient(mailbox.user)
+    emails, new, rest, touched = gmail_api.read_changes(mailbox, api, max_messages)
     if emails:
         process_messages(mailbox, emails, recorder)
         mailbox.messages_seen += len(emails)
@@ -433,6 +435,13 @@ def _read_gmail(mailbox, client, max_messages, recorder):
         recorder.stats["new mail alerts"] = mail_client.on_new_mail(mailbox, [e for e in emails if e.uid in new])
     except Exception:  # an alert problem must never fail the sync
         log.exception("New-mail alerts failed for %s", mailbox)
+    try:  # the inbox index: threads Gmail says changed, the inbox's first few hundred once, old rows out
+        touched += [gmail_api.hex_thread_id(e.thread_id) for e in emails if e.uid in new]
+        recorder.stats["inbox threads refreshed"] = len(index.refresh(mailbox, api, touched[:INDEX_REFRESH_MAX]))
+        recorder.stats["inbox threads indexed"] = index.warm_inbox(mailbox, api)
+        index.prune(mailbox)
+    except Exception:  # the inbox index must never fail the timeline sync
+        log.exception("Inbox index refresh failed for %s", mailbox)
 
 
 def _read_imap(mailbox, client, max_messages, recorder):

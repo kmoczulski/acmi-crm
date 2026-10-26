@@ -38,10 +38,12 @@ def api_message(gid, thread_hex, frm, to, subject, body="Hello", when=None, labe
     if html:
         parts = [{"mimeType": "text/html", "body": {"data": b64(html)}}]
     if attachment:
-        parts.append({"mimeType": "application/pdf", "filename": attachment,
+        parts.append({"partId": "1", "mimeType": "application/pdf", "filename": attachment,
                       "body": {"size": 120000, "attachmentId": "att-1"}})
-    return {"id": gid, "threadId": thread_hex, "labelIds": list(labels),
-            "payload": {"mimeType": "multipart/mixed", "headers": headers, "parts": parts}}
+    return {"id": gid, "threadId": thread_hex, "labelIds": list(labels), "snippet": body[:40],
+            "internalDate": str(int(when.timestamp() * 1000)),
+            "payload": {"mimeType": "multipart/mixed" if attachment else "multipart/alternative", "headers": headers,
+                        "parts": parts}}
 
 
 class FakeResponse:
@@ -66,6 +68,22 @@ class FakeGmail:
         self.history = []  # message ids added after the profile's marker
         self.history_status, self.status = 200, 200
         self.fail_on, self.calls = set(), []
+        self.label_list = [{"id": "INBOX", "name": "INBOX", "type": "system"},
+                           {"id": "SENT", "name": "SENT", "type": "system"},
+                           {"id": "UNREAD", "name": "UNREAD", "type": "system"},
+                           {"id": "Label_1", "name": "Deals/MEIH", "type": "user",
+                            "color": {"backgroundColor": "#16a766", "textColor": "#ffffff"}}]
+        self.inbox_unread = 0
+
+    def _threads(self):
+        """Threads newest first, each with its messages oldest first and a history id that moves with them."""
+        by_thread = {}
+        for gid in self.order:
+            m = self.messages[gid]
+            by_thread.setdefault(m["threadId"], []).append(m)
+        out = [{"id": tid, "historyId": str(sum(len(m["labelIds"]) + 1 for m in ms) + len(ms) * 100),
+                "messages": sorted(ms, key=lambda m: int(m["internalDate"]))} for tid, ms in by_thread.items()]
+        return sorted(out, key=lambda t: -int(t["messages"][-1]["internalDate"]))
 
     def add(self, message):
         self.messages[message["id"]] = message
@@ -85,10 +103,30 @@ class FakeGmail:
             return FakeResponse({"emailAddress": self.email, "historyId": self.history_id})
         if path == "/messages":
             return FakeResponse({"messages": [{"id": i} for i in reversed(self.order)]})  # newest first
+        if path == "/labels":
+            return FakeResponse({"labels": self.label_list})
+        if path.startswith("/labels/"):
+            return FakeResponse({"id": path[8:], "threadsUnread": self.inbox_unread})
+        if path == "/threads":
+            threads = self._threads()
+            if params and params.get("labelIds"):
+                threads = [t for t in threads if any(params["labelIds"] in m["labelIds"] for m in t["messages"])]
+            if params and params.get("q"):
+                word = params["q"].lower()
+                threads = [t for t in threads if any(word in str(m).lower() for m in t["messages"])]
+            return FakeResponse({"threads": [{"id": t["id"], "historyId": t["historyId"],
+                                              "snippet": t["messages"][-1]["snippet"]} for t in threads],
+                                 "resultSizeEstimate": len(threads)})
+        if path.startswith("/threads/"):
+            t = next((t for t in self._threads() if t["id"] == path[9:]), None)
+            return FakeResponse(t) if t else FakeResponse({}, 404)
+        if "/attachments/" in path:
+            return FakeResponse({"data": base64.urlsafe_b64encode(b"%PDF-1.4 fake").decode()})
         if path == "/history":
             if self.history_status != 200:
                 return FakeResponse({}, self.history_status)
-            return FakeResponse({"history": [{"messagesAdded": [{"message": {"id": i}}]} for i in self.history],
+            return FakeResponse({"history": [{"messagesAdded": [{"message": {
+                "id": i, "threadId": self.messages[i]["threadId"] if i in self.messages else ""}}]} for i in self.history],
                                  "historyId": self.history_id})
         gid = path.removeprefix("/messages/")
         if gid in self.fail_on:
@@ -220,13 +258,14 @@ class GmailSyncTests(TestCase):
         fake.add(api_message("a4", "4", ME, "Will <will@firehawkaerospace.com>", "Sure", labels=("SENT",)))
         fake.calls.clear()
         stats = self.sync(fake)
-        self.assertEqual([p for p, _ in fake.calls if not p.startswith("/messages/")], ["/history"])
+        self.assertEqual([p for p, _ in fake.calls if p.startswith(("/history", "/messages", "/profile"))
+                          and not p.startswith("/messages/")], ["/history"])
         self.assertEqual(stats["activities created"], 2)  # the newsletter is skipped, as with IMAP
         self.assertEqual(self.mailbox.history_id, "103")
         alerts = Notification.objects.filter(user=self.user, kind=Notification.Kind.MAIL)
         self.assertEqual(alerts.count(), 1)
         self.assertEqual(alerts.get().text, "Will: Tour Thursday?")
-        self.assertTrue(alerts.get().url.startswith(f"https://mail.google.com/mail/u/{ME}/#all/"))
+        self.assertEqual(alerts.get().url, f"{reverse('crm:inbox')}?t=2")
         # The same messages again (a repeated history page) neither log nor alert twice.
         fake.history = ["a2"]
         self.sync(fake)
