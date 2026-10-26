@@ -6,10 +6,36 @@ Read this first when picking the project up in a new chat, along with
 ## Pick up here (2026-10-25)
 
 **Where things stand**
-- `main` has everything below; the last code commit is `2f74d08` (Drive folders), pushed to `kmoczulski/acmi-crm`.
+- `main` has everything below; the last code commit is `7a36c20` (browser notifications), pushed to `kmoczulski/acmi-crm`.
   515 tests pass and CI is green on Postgres. **Merged 2026-10-25** (fast-forward): PR #1 `boards-bound` and PR #2
   `data-room` (data room and Drive folders). The email client design is in its own session and branch
   (`email-client-design`, `docs/EMAIL_CLIENT.md`).
+
+**Browser notifications 2026-10-25** (Kellen asked; PR #3 `web-push`, **merged** fast-forward `7a36c20`, CI green;
+migration `0060_push_subscriptions`, the email client numbers from 0061). The real database is migrated (backup
+`backups/db-2026-10-25-before-web-push.sqlite3`), VAPID keys are in the laptop's `.env` (old `.env` in
+`backups/env-2026-10-25-before-vapid.bak`), and the new requirements are installed in `.venv`:
+- Web Push (`crm/push.py`, `crm/push_views.py`, `static/crm/push.js`): the service worker is served at `/sw.js` (public
+  path, but partner accounts are redirected away from it); a `PushSubscription` per person and browser; `notify.send`
+  pushes after commit to every browser of that person for the kinds they left on. Clicking one opens the record
+  (through `notification_open`, which marks it read). Gone subscriptions (404/410) are deleted. `pywebpush==2.5.0`.
+- **Notification settings** page (`/notifications/settings/`, user menu and the Notifications page): a switch per
+  kind for "In the hub" and "Browser" (`UserPrefs` "notify"; everything on by default), Turn on browser notifications
+  (asks the browser), Send a test notification, Turn off on this device, and the list of browsers with Remove. A kind
+  off in the hub is still saved (`Notification.in_hub=False`, read) so its key stops repeats, but never shows in the
+  bell. New kind `mail` ("New email"): the email client calls `notify.new_mail(user, sender, subject, url, message_id)` from
+  `crm.mail.client.on_new_mail`.
+- `manage.py notify_sweep` runs the due and timed reminders for the whole team (`notify.sweep_everyone`), so they
+  reach browsers with the hub closed. It rides with the 15-minute mail sync (`scripts/sync_mail.cmd`, `sync_all`, the
+  cron endpoint), so a task's "15 minutes ahead" reminder can arrive up to 15 minutes late when nobody has the hub open.
+- **To turn it on:** `manage.py vapid_keys` prints `ACMI_VAPID_PUBLIC_KEY` / `ACMI_VAPID_PRIVATE_KEY` for `.env`
+  (and Secret Manager on Cloud Run); optional `ACMI_VAPID_SUBJECT` (default `https://hub.acmigroup.com`). Changing the
+  keys later means everyone turns notifications on again. Install the new requirements first.
+- **HTTPS only, except localhost:** works on the laptop at http://localhost:8000 now; on phones and other computers
+  only once the hub is hosted on https (hub.acmigroup.com). iPhones need the hub added to the home screen first.
+- Checked on a scratch database: the settings page, Save, the test button, the service worker registering at `/`,
+  and a real encrypted push decrypted back to the alert. The built-in browser blocks notification permission, so the
+  pop-up itself still needs one click-through in Chrome on the laptop.
 - The real database (`db.sqlite3`, about 600 MB) is migrated through `0059_drive_folders` (2026-10-25). Latest backup:
   `backups/db-2026-10-25-before-boards-bound-data-room.sqlite3`. `boards_setup --apply` ran: the Tenant pipeline
   record board (8 stage lists, 110 deal cards) and the MEIH board (7 lists, 3 filled from records; Kellen, Simon,
@@ -119,10 +145,10 @@ connected" and folders can still be mapped.
 **Email in the hub, designed 2026-10-25** (Kellen asked; design only, no code): an Outlook-style mail client
 (labels, threads, reading pane, compose / reply / forward, Gmail search, File to a record and Open in Mail back) over
 the Gmail API with per-person sign-in (`gmail.modify`, Internal app so no Google verification), **optional per person**
-(Kellen: "it shouldn't be required"). Design, build order (migrations from 0060, after PRs #1 and #2) and Kellen's
+(Kellen: "it shouldn't be required"). Design, build order and Kellen's
 questions are in `docs/EMAIL_CLIENT.md`. Kellen took all nine recommended answers and added a long-thread reading
 pane (newest first, one attachments panel with versions grouped, outline, find in thread; step 3b). PRs #1 and #2 merged 2026-10-25.
-**Step 1 (`mail-connect`) built** on branch `mail-connect` (migration `0060_mail_connect`, not merged yet): see
+**Step 1 (`mail-connect`) built** on branch `mail-connect` (migration `0061_mail_connect`, not merged yet): see
 "Built 2026-10-25: mail-connect" at the end of this file.
 
 **Next, in order**
@@ -1871,7 +1897,7 @@ and setup: `docs/DATA_ROOM.md`, "Drive folders and files".
 
 ## Built 2026-10-25: mail-connect (email client step 1; Kellen: "go with the recommended answers… start step 1")
 
-Branch `mail-connect`, migration `0060_mail_connect`. Design in `docs/EMAIL_CLIENT.md`. No mail on screen yet: this
+Branch `mail-connect`, migration `0061_mail_connect` (after web-push's 0060). Design in `docs/EMAIL_CLIENT.md`. No mail on screen yet: this
 step is the switch, the permission and the safety around them.
 
 - **Each person's switch:** avatar menu › **Mail in the hub** (`/mail-setup/`, `crm/mail/connect.py`, `MailConnection`).
@@ -1883,7 +1909,7 @@ step is the switch, the permission and the safety around them.
 - **Site-wide:** `ACMI_MAIL_CLIENT=false` hides it for everyone. Mail can't be turned on without `ACMI_TOKEN_KEY`.
 - **Google tokens encrypted at rest** (`crm/tokens.py`): with `ACMI_TOKEN_KEY` set, allauth's `SocialToken` (calendar
   and Gmail) is stored as `enc1:` + Fernet and decrypted on load, so `crm/gcal.py` and allauth read plain values.
-  Comma-separated keys rotate (first encrypts, any decrypts). Migration 0060 encrypts existing tokens if the key is
+  Comma-separated keys rotate (first encrypts, any decrypts). Migration 0061 encrypts existing tokens if the key is
   set when it runs; otherwise `manage.py encrypt_tokens` does it later. A lost or wrong key reads as an empty token:
   people reconnect, nothing crashes.
 - **Every sign-in keeps earlier permissions:** `include_granted_scopes=true` is now in the Google `AUTH_PARAMS`, so

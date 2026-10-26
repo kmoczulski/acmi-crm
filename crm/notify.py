@@ -3,6 +3,8 @@
 Sent when someone else assigns you a task, @mentions you, comments on something you own,
 moves one of your deals, or a company you own replies; plus a once-a-day sweep for your
 tasks that are due or overdue. Nobody is notified about their own actions.
+
+Each person picks which kinds show in the hub and which reach their browsers as push notifications (crm/push.py).
 """
 import re
 from datetime import timedelta
@@ -10,6 +12,7 @@ from datetime import timedelta
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 
+from . import push
 from .models import Card, Comment, Notification, Task
 
 MENTION = re.compile(r"@([A-Za-z][\w.-]*)")
@@ -20,11 +23,17 @@ def send(user, kind, text, url="", actor=None, key=""):
         return None
     if key and Notification.objects.filter(user=user, key=key[:120]).exists():
         return None
+    in_hub = push.wants(user, kind, "hub")
+    if not in_hub and not push.wants(user, kind, "push"):
+        return None
     try:
         with transaction.atomic():
-            return Notification.objects.create(user=user, kind=kind, text=text[:500], url=url[:500], actor=actor, key=key[:120])
+            note = Notification.objects.create(user=user, kind=kind, text=text[:500], url=url[:500], actor=actor,
+                                               key=key[:120], in_hub=in_hub, read_at=None if in_hub else timezone.now())
     except IntegrityError:  # another request sent this keyed alert a moment ago
         return None
+    push.notification_saved(note)
+    return note
 
 
 def _name(user):
@@ -32,7 +41,7 @@ def _name(user):
 
 
 def unread_count(user):
-    return Notification.objects.filter(user=user, read_at__isnull=True).count()
+    return Notification.objects.filter(user=user, in_hub=True, read_at__isnull=True).count()
 
 
 def task_assigned(task, actor):
@@ -132,6 +141,22 @@ def reply_received(activity):
     for u in people - {None}:
         send(u, Notification.Kind.REPLY, f"{who} ({company.name}) replied: {activity.summary[:120]}",
              company.get_absolute_url() + "?tab=activity", None, key=f"reply:{activity.pk}:{u.pk}")
+
+
+def new_mail(user, sender, subject, url, message_id):
+    """A new email reached someone's inbox. The email client's refresh pass calls this for each new INBOX message
+    (crm.mail.client.on_new_mail, docs/EMAIL_CLIENT.md); keyed by the message, so each one alerts once."""
+    send(user, Notification.Kind.MAIL, f"{sender}: {subject or '(no subject)'}", url, None, key=f"mail:{message_id}")
+
+
+def sweep_everyone():
+    """For a scheduler (manage.py notify_sweep, the cron): run the due and timed sweeps for the whole team, so
+    reminders reach browsers even when nobody has the hub open. Keyed alerts never repeat."""
+    from .permissions import team_users
+
+    for user in team_users():
+        due_sweep(user)
+        timed_sweep(user)
 
 
 def timed_sweep(user, now=None):

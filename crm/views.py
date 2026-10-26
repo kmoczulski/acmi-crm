@@ -928,7 +928,7 @@ def comment_delete(request, pk):
 
 
 def notification_list(request):
-    qs = Notification.objects.filter(user=request.user).select_related("actor")
+    qs = Notification.objects.filter(user=request.user, in_hub=True).select_related("actor")
     show = request.GET.get("show", "unread")
     if show == "unread":
         qs = qs.filter(read_at__isnull=True)
@@ -951,12 +951,12 @@ def notification_poll(request):
     from . import notify
 
     notify.timed_sweep(request.user)  # tasks whose time has come
-    unread = Notification.objects.filter(user=request.user, read_at__isnull=True)
+    unread = Notification.objects.filter(user=request.user, in_hub=True, read_at__isnull=True)
     try:
         after = int(request.GET.get("after") or 0)
     except ValueError:
         after = 0
-    latest = Notification.objects.filter(user=request.user).order_by("-id").values_list("id", flat=True).first() or 0
+    latest = Notification.objects.filter(user=request.user, in_hub=True).order_by("-id").values_list("id", flat=True).first() or 0
     items = [{"id": n.pk, "kind": n.get_kind_display(), "text": n.text,
               "url": reverse("crm:notification_open", args=[n.pk])}
              for n in unread.filter(id__gt=after).order_by("id")[:10]] if after else []

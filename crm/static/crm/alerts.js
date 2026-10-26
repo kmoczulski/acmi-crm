@@ -1,5 +1,6 @@
 // Live alerts: polls for new notifications, updates the bell, plays a chime and shows a browser notification.
 // Preferences are per browser (localStorage): alerts:desktop = "1" | "0", alerts:sound = "1" | "0".
+// alerts:push = "1" when this browser gets Web Push (push.js): the service worker shows those, so no second pop-up here.
 (function () {
   const POLL_MS = 30000;
   const root = document.getElementById('alerts-config');
@@ -41,7 +42,7 @@
   }
 
   function desktop(item) {
-    if (!pref('desktop', true) || !('Notification' in window) || Notification.permission !== 'granted') return false;
+    if (!pref('desktop', true) || pref('push', false) || !('Notification' in window) || Notification.permission !== 'granted') return false;
     try {
       const n = new Notification(item.kind, {body: item.text, tag: 'acmi-' + item.id, icon: root.dataset.icon || undefined});
       n.onclick = () => { window.focus(); location.href = item.url; n.close(); };

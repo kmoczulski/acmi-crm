@@ -12,3 +12,6 @@ echo ---- calendar >> logs\sync_mail.log
 rem Claude sorts new email domains: sure consultants, vendors and lenders go to the Directory.
 echo ---- sorting >> logs\sync_mail.log
 .venv\Scripts\python.exe manage.py sort_domains >> logs\sync_mail.log 2>&1
+rem Due and timed reminders for everyone, so browser notifications arrive with the hub closed.
+echo ---- reminders >> logs\sync_mail.log
+.venv\Scripts\python.exe manage.py notify_sweep >> logs\sync_mail.log 2>&1

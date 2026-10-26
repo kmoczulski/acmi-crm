@@ -183,6 +183,12 @@ def cron_sync(request):
         out["sorting"] = sort.auto_sort()
     except Exception as exc:  # noqa: BLE001 - sorting must not fail the mail sync
         out["sorting_error"] = str(exc)
+    from crm import notify  # due reminders reach browsers with the hub closed, as in scripts/sync_mail.cmd
+
+    try:
+        notify.sweep_everyone()
+    except Exception as exc:  # noqa: BLE001 - reminders must not fail the mail sync
+        out["reminders_error"] = str(exc)
     return JsonResponse(out)
 
 

@@ -278,4 +278,4 @@ class TaskTimeAndLiveAlertTests(TestCase):
     def test_alert_script_is_on_every_page(self):
         r = self.client.get("/notifications/")
         self.assertContains(r, "alerts.js")
-        self.assertContains(r, "Desktop notifications")
+        self.assertContains(r, "Notification settings")  # browser notifications are switched on there (crm/push.py)

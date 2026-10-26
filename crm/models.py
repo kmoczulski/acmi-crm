@@ -957,6 +957,7 @@ class Notification(models.Model):
         DEADLINE = "deadline", "Deadline"
         DIRECTORY = "directory", "Filed in the directory"
         CARD = "card", "Card"
+        MAIL = "mail", "New email"
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="notifications")
     kind = models.CharField(max_length=12, choices=Kind.choices)
@@ -966,6 +967,8 @@ class Notification(models.Model):
     key = models.CharField(max_length=120, blank=True, db_index=True, help_text="Stops the same alert twice")
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     read_at = models.DateTimeField(null=True, blank=True)
+    # False when the person turned this kind off "in the hub" (crm/push.py): kept only so its key stops repeats.
+    in_hub = models.BooleanField(default=True)
 
     class Meta:
         ordering = ["-created_at"]
@@ -1079,6 +1082,24 @@ class SavedView(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class PushSubscription(models.Model):
+    """One browser on one device that turned on browser notifications (Web Push, crm/push.py)."""
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="push_subscriptions")
+    endpoint = models.URLField(max_length=1000, unique=True)
+    p256dh = models.CharField(max_length=200)
+    auth = models.CharField(max_length=100)
+    device = models.CharField(max_length=120, blank=True, help_text="Browser and system, from the user agent")
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_sent_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.user} on {self.device or 'a browser'}"
 
 
 class UserPrefs(models.Model):

@@ -1,4 +1,5 @@
-"""Mail, then Google Calendar for everyone who connected it, then Claude sorting new email domains: what
+"""Mail, then Google Calendar for everyone who connected it, then Claude sorting new email domains, then the team's
+due reminders (so browser notifications arrive with the hub closed): what
 scripts/sync_mail.cmd runs on the laptop, and what the Cloud Run sync job runs every 15 minutes in production (Cloud
 Scheduler). A calendar or sorting problem never fails the mail part."""
 from django.core.management.base import BaseCommand
@@ -23,3 +24,9 @@ class Command(BaseCommand):
             self.stdout.write("sorting: " + ", ".join(f"{k} {v}" for k, v in sort.auto_sort().items()))
         except Exception as exc:  # noqa: BLE001 - never fails the sync
             self.stderr.write(f"domain sorting failed: {exc}")
+        from crm import notify
+
+        try:
+            notify.sweep_everyone()
+        except Exception as exc:  # noqa: BLE001 - never fails the sync
+            self.stderr.write(f"reminders failed: {exc}")

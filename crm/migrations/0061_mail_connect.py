@@ -21,7 +21,7 @@ def encrypt_tokens(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('crm', '0059_drive_folders'),
+        ('crm', '0060_push_subscriptions'),
         ('socialaccount', '0006_alter_socialaccount_extra_data'),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]

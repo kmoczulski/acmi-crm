@@ -224,6 +224,12 @@ if GCS_BUCKET:
                     "file_overwrite": False},
     }
 
+# Browser notifications (Web Push, crm/push.py). `manage.py vapid_keys` makes a pair; without them the Turn on button
+# says push isn't set up. The subject tells push services who to contact about this sender.
+VAPID_PUBLIC_KEY = env("ACMI_VAPID_PUBLIC_KEY", "")
+VAPID_PRIVATE_KEY = env("ACMI_VAPID_PRIVATE_KEY", "")
+VAPID_SUBJECT = env("ACMI_VAPID_SUBJECT", "https://hub.acmigroup.com")
+
 # --- Security headers ------------------------------------------------------
 # Scripts may only come from this site and the pinned unpkg files (which also carry integrity hashes). Inline scripts
 # are still allowed because the templates use them. Images, tiles and map-service requests are left open.
