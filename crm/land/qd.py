@@ -189,18 +189,46 @@ def arc_acres(radius_ft):
     return math.pi * radius_ft ** 2 / SQFT_PER_ACRE
 
 
-def footprint(b, x, y):
-    """Square footprint (metres) of a building's floor area centred on x, y; a point if no area is given."""
+def _num(v):
     try:
-        sqft = float(b.get("sqft") or 0)
+        return float(v or 0)
     except (TypeError, ValueError):
-        sqft = 0
+        return 0.0
+
+
+def dimensions_ft(b):
+    """(length, width) in feet: the building's floor area as a square, or length x (area / length) when a length
+    is given. (0, 0) if no area."""
+    sqft = _num(b.get("sqft"))
     if sqft <= 0:
+        return 0.0, 0.0
+    length = _num(b.get("length"))
+    if length <= 0:
+        return math.sqrt(sqft), math.sqrt(sqft)
+    return length, sqft / length
+
+
+def footprint(b, x, y):
+    """Footprint (metres) of a building's floor area centred on x, y; a point if no area is given.
+
+    Length runs east-west, turned clockwise by "rotation" degrees.
+    """
+    length, width = dimensions_ft(b)
+    if length <= 0:
         return Point(x, y)
-    half = math.sqrt(sqft) / 2 / FT_PER_M
+    from shapely.affinity import rotate
     from shapely.geometry import box
 
-    return box(x - half, y - half, x + half, y + half)
+    hl, hw = length / 2 / FT_PER_M, width / 2 / FT_PER_M
+    rect = box(x - hl, y - hw, x + hl, y + hw)
+    angle = _num(b.get("rotation"))
+    return rotate(rect, -angle, origin=(x, y)) if angle else rect
+
+
+def _reach_m(b):
+    """Centre-to-corner distance of the footprint, metres: the most it can stick out in any direction."""
+    length, width = dimensions_ft(b)
+    return math.hypot(length, width) / 2 / FT_PER_M
 
 
 def arcs_m(b, x, y):
@@ -223,11 +251,54 @@ def building_distances(b):
 # ---------------------------------------------------------------------------
 
 
-def evaluate(parcel_m, buildings, positions_m):
+MAX_NEWQD = 500000  # top of the published HD 1.1 table
+
+
+def max_newqd(b, edge_ft, gaps):
+    """Largest NEWQD (lb) for building b where it stands: its IBD arc stays on the property (edge_ft from the
+    footprint to the property line; None = no parcel) and its own separation fits each neighbour.
+
+    gaps: [(name, edge-to-edge ft)]. Returns (pounds, what limits it). Distances grow with weight, so this scans
+    up a log scale and then narrows the last step down; 0 means even 1 lb doesn't fit.
+    """
+    def limit(w):
+        d = building_distances({**b, "newqd": w})
+        if edge_ft is not None and d["ibd"] > edge_ft:
+            return "IBD to the property line"
+        for name, have in gaps:
+            if d["separation"] > have:
+                return f"spacing to {name}"
+        return None
+
+    if edge_ft is None and not gaps:
+        return None, ""
+    if limit(1):
+        return 0, limit(1)
+    lo, hi, steps = 1.0, None, 120
+    for k in range(1, steps + 1):
+        w = MAX_NEWQD ** (k / steps)
+        if limit(w):
+            hi = w
+            break
+        lo = w
+    if hi is None:
+        return MAX_NEWQD, "table limit"
+    for _ in range(30):
+        mid = (lo + hi) / 2
+        if limit(mid):
+            hi = mid
+        else:
+            lo = mid
+    step = 1 if lo < 100 else 10
+    return int(lo // step * step), limit(hi)
+
+
+def evaluate(parcel_m, buildings, positions_m, with_max=False):
     """Check a layout. parcel_m: shapely polygon (metres) or None. positions_m: [(x, y)] per building centre.
 
     Distances run from each building's footprint edge. Returns per-building results and a summary: IBD arc
     acres off the parcel, spacing conflicts between buildings, and how much of the parcel the arcs encumber.
+    with_max adds each building's largest NEWQD where it stands ("max_newqd", "max_by").
     """
     results, arcs = [], []
     prints = [footprint(b, x, y) for b, (x, y) in zip(buildings, positions_m)]
@@ -251,6 +322,13 @@ def evaluate(parcel_m, buildings, positions_m):
                 note = {"with": j, "need_ft": round(need), "have_ft": round(have)}
                 results[i]["conflicts"].append(note)
                 results[j]["conflicts"].append({**note, "with": i})
+    for i, (b, r) in enumerate(zip(buildings, results) if with_max else ()):
+        if not r["inside"]:
+            r["max_newqd"], r["max_by"] = None, "building is off the parcel"
+            continue
+        gaps = [(buildings[j].get("name") or f"#{j + 1}", prints[i].distance(prints[j]) * FT_PER_M)
+                for j in range(len(buildings)) if j != i]
+        r["max_newqd"], r["max_by"] = max_newqd(b, r["edge_ft"], gaps)
     union = unary_union(arcs) if arcs else None
     to_ac = FT_PER_M ** 2 / SQFT_PER_ACRE
     summary = {"arc_acres": round(union.area * to_ac, 1) if union else 0}
@@ -291,15 +369,14 @@ def fit(parcel_m, buildings, step_m=None):
     placed = {}
     for i in order:
         d = buildings[i]["dist"]
-        half = footprint(buildings[i], 0, 0).bounds[2]  # half-width of the footprint, metres
-        # Centre-to-boundary room needed for the IBD arc, allowing for the footprint's half-diagonal.
-        ibd_m = d["ibd"] / FT_PER_M + half * 1.42 if d["ibd"] else half * 1.42
+        reach = _reach_m(buildings[i])
+        # Centre-to-boundary room needed for the IBD arc, allowing for the footprint's corners.
+        ibd_m = d["ibd"] / FT_PER_M + reach if d["ibd"] else reach
 
         def ok(pt):
             for j, (px, py) in placed.items():
-                other_half = footprint(buildings[j], 0, 0).bounds[2]
                 sep = max(d["separation"], buildings[j]["dist"]["separation"]) / FT_PER_M
-                need = sep + (half + other_half) * 1.42  # edge to edge, worst case for two squares
+                need = sep + reach + _reach_m(buildings[j])  # edge to edge, worst case for two rectangles
                 if math.dist(pt[:2], (px, py)) < need:
                     return False
             return True

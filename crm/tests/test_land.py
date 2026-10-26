@@ -53,6 +53,29 @@ class QDEngineTests(TestCase):
     def test_zero_weight_has_no_arcs(self):
         self.assertEqual(qd.distances("HD 1.1", 0)["ibd"], 0)
 
+    def test_footprint_length_and_rotation(self):
+        fp = qd.footprint({"sqft": 10000, "length": 200}, 0, 0)  # 200 x 50 ft, length east-west
+        minx, miny, maxx, maxy = fp.bounds
+        self.assertAlmostEqual((maxx - minx) * qd.FT_PER_M, 200, delta=0.5)
+        self.assertAlmostEqual((maxy - miny) * qd.FT_PER_M, 50, delta=0.5)
+        turned = qd.footprint({"sqft": 10000, "length": 200, "rotation": 90}, 0, 0).bounds
+        self.assertAlmostEqual((turned[3] - turned[1]) * qd.FT_PER_M, 200, delta=0.5)
+        self.assertAlmostEqual(fp.area * qd.FT_PER_M ** 2, 10000, delta=5)
+        square = qd.footprint({"sqft": 10000}, 0, 0).bounds  # no length: a square
+        self.assertAlmostEqual((square[2] - square[0]) * qd.FT_PER_M, 100, delta=0.5)
+
+    def test_max_newqd_keeps_ibd_on_the_property(self):
+        b = {"kind": "magazine", "hd": "HD 1.1", "pes": "Aboveground structure", "k": 11}
+        pounds, by = qd.max_newqd(b, 1500, [])
+        self.assertEqual(by, "IBD to the property line")
+        self.assertLessEqual(qd.building_distances({**b, "newqd": pounds})["ibd"], 1500)
+        self.assertGreater(qd.building_distances({**b, "newqd": pounds + 100})["ibd"], 1500)
+        self.assertEqual(qd.max_newqd(b, 100, []), (0, "IBD to the property line"))  # under the 200 ft minimum
+        tight, by = qd.max_newqd(b, 5000, [("Mag 2", 150)])
+        self.assertEqual(by, "spacing to Mag 2")
+        self.assertLessEqual(qd.building_distances({**b, "newqd": tight})["separation"], 150)
+        self.assertEqual(qd.max_newqd({"hd": "HD 1.4"}, 5000, [])[1], "table limit")
+
 
 class LandTests(TestCase):
     def setUp(self):
@@ -171,6 +194,20 @@ class LandTests(TestCase):
                              content_type="application/json").json()
         self.assertFalse(r["summary"]["all_clear"])
         self.assertGreater(r["buildings"][0]["result"]["off_site_acres"], 100)
+        self.assertLess(r["buildings"][0]["result"]["max_newqd"], 100000)  # what would fit here instead
+
+    def test_qd_save_with_no_buildings_clears_the_plan(self):
+        p = make_parcel(self.md, "13", -77.0, 38.4, size=0.02)
+        buildings = [{"name": "Ops", "kind": "operating", "sqft": 10000, "length": 200, "rotation": 30,
+                      "hd": "HD 1.1", "newqd": 500, "pes": "Aboveground structure"}]
+        self.client.post("/land/qd/", json.dumps({"parcel": p.pk, "buildings": buildings, "action": "fit"}),
+                         content_type="application/json")
+        p.refresh_from_db()
+        self.assertEqual(p.qd_design["buildings"][0]["length"], 200)  # shape is kept with the plan
+        self.client.post("/land/qd/", json.dumps({"parcel": p.pk, "buildings": [], "action": "save"}),
+                         content_type="application/json")
+        p.refresh_from_db()
+        self.assertEqual(p.qd_design, {})
 
 
 class DriveTimeTests(TestCase):

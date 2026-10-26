@@ -207,7 +207,8 @@ TEXAS_TRIANGLE_BBOX = REGIONS["texas_triangle"]
 
 
 def arcgis_query(url, *, where="1=1", fields=("*",), bbox=None, geometry=None, geometry_type=None,
-                 distance=None, return_geometry=True, simplify=None, page_size=1000, max_records=None, timeout=90):
+                 distance=None, return_geometry=True, simplify=None, page_size=1000, max_records=None, timeout=90,
+                 tries=3):
     """Run an ArcGIS REST query, following pages. Returns a list of GeoJSON-like features (WGS84)."""
     params = {
         "where": where,
@@ -233,7 +234,7 @@ def arcgis_query(url, *, where="1=1", fields=("*",), bbox=None, geometry=None, g
     features, offset = [], 0
     while True:
         page = dict(params, resultOffset=offset, resultRecordCount=page_size)
-        data = _post(f"{url}/query", page, timeout)
+        data = _post(f"{url}/query", page, timeout, tries)
         if "error" in data:
             raise RuntimeError(f"{url}: {data['error'].get('message')}")
         batch = data.get("features") or []

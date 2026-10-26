@@ -24,7 +24,7 @@ from crm.ai import enabled as ai_enabled
 from crm.models import Company, MailFiling, MailSnooze, MailThread, Mailbox, Project, UnmatchedEmail
 
 from . import actions as mail_actions, comments as mail_comments, connect, filing as mail_filing, index, shared
-from . import render as mail_render, summary as mail_summary, threads as mail_threads
+from . import render as mail_render, search as mail_search, summary as mail_summary, threads as mail_threads
 from .gmail_api import NotFound, client_for as gmail_client_for, parse_api_message
 from .imap import MailboxError
 from .views import team_only
@@ -109,6 +109,11 @@ def inbox(request, mailbox, client):
     token = request.GET.get("p", "")
     offset = int(request.GET.get("o", "0")) if request.GET.get("o", "0").isdigit() else 0
     open_id = request.GET.get("t", "")
+    exact = bool(request.GET.get("exact"))
+    within = request.GET.get("in", "")[:100] if query else ""  # "In this folder only" from the search options
+    if within and within != "ALL":
+        label = within
+    gmail_query, widened = (query, []) if exact else mail_search.expand(query)
     error, threads, next_token, total, next_offset = "", [], "", 0, None
     try:
         system, user_labels = index.labels(mailbox, client)
@@ -120,7 +125,8 @@ def inbox(request, mailbox, client):
                 threads, next_offset = threads[:PAGE], offset + PAGE
         else:
             threads, next_token, total = index.page(
-                mailbox, client, label=None if query or label == "ALL" else label, query=query, page_token=token)
+                mailbox, client, label=None if (query and not within) or label == "ALL" else label, query=gmail_query,
+                page_token=token)
         index.retag(mailbox, threads)
         chips = index.chips(mailbox, threads)
         for t in threads:
@@ -138,7 +144,7 @@ def inbox(request, mailbox, client):
     current = {lb.gmail_id: lb.name for lb in [*system, *user_labels]}.get(label, "All mail" if label == "ALL" else label)
     return render(request, "crm/inbox.html", {
         "mailbox": mailbox, "system_labels": system, "user_labels": user_labels, "label": label,
-        "label_name": "Search" if query else current, "query": query, "tabs": TABS if label == "INBOX" and not query else [],
+        "label_name": "Search" if query else current, "query": query, "widened": widened, "exact": exact, "within": within, "tabs": TABS if label == "INBOX" and not query else [],
         "tab": tab, "threads": threads, "next_token": next_token, "next_offset": next_offset, "offset": offset,
         "page_token": token, "total": total, "reader": reader, "open_id": open_id, "error": error,
         "indexing": tab in TAB_FILTERS and not mailbox.inbox_indexed_at,
@@ -149,7 +155,9 @@ def inbox(request, mailbox, client):
         "snoozed": dict(MailSnooze.objects.filter(mailbox=mailbox, gmail_id__in=[t.gmail_id for t in threads])
                         .values_list("gmail_id", "until")),
         "here": request.get_full_path(),
-        "thread_base": "?" + urlencode({k: v for k, v in [("label", label), ("q", query), ("tab", tab if tab != "all" else ""),
+        "thread_base": "?" + urlencode({k: v for k, v in [("label", label), ("q", query), ("exact", "1" if exact else ""),
+                                                          ("in", within),
+                                                          ("tab", tab if tab != "all" else ""),
                                                           ("t", open_id)] if v}),
     })
 
@@ -405,6 +413,16 @@ def message_part(request, mailbox, client, message_id, part_id):
 # ---------------------------------------------------------------------------
 # Step 6: filing a thread to a record, team notes, and opening an email from a timeline
 # ---------------------------------------------------------------------------
+
+
+@team_only
+def suggest(request):
+    """Address book for To / Cc / Bcc and the search box: people (name, email) and the companies, firms and people
+    a search for these words also covers."""
+    words = request.GET.get("q", "")[:100]
+    records = [{"kind": k, "label": label} for k, label, _ in mail_search.matches(words)] \
+        if request.GET.get("records") else []
+    return JsonResponse({"people": mail_search.recipients(request.user, words), "records": records})
 
 
 @mail_required

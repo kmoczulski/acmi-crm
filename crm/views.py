@@ -25,7 +25,7 @@ from .forms import (
     TaskForm, active_users,
 )
 from .models import (
-    DOCUMENT_CATEGORIES, OPEN_STAGES, STAGE_ORDER, AISummary, Activity, Attachment, Board, Campus, Comment, Company, CompanyStatus, DealSuggestionDismissal, Document,
+    DOCUMENT_CATEGORIES, OPEN_STAGES, STAGE_ORDER, AISummary, Activity, Assignment, Attachment, Board, Campus, Comment, Company, CompanyStatus, DealSuggestionDismissal, Document,
     List, ListEntry, Note, ObjectType, Opportunity, OpportunityContact, OpportunityStage, Person, Project, SavedView,
     CalendarSync, LandSite, Meeting, Notification, Task, TenantNeeds,
 )
@@ -550,6 +550,9 @@ def company_detail(request, pk):
         "boards": Board.objects.filter(archived=False), "record_cards": board_logic.record_cards(company),
     }
     ctx["open_deals"] = [o for o in ctx["opportunities"] if o.is_open]
+    # Client land searches for this company; older ones only carry the client's name, so match that too.
+    ctx["land_searches"] = Assignment.objects.filter(
+        Q(company=company) | Q(company__isnull=True, client__iexact=company.name)).prefetch_related("entries__site")
     ctx["other_tasks"] = [t for t in open_tasks if t.pk not in ctx["meeting_task_ids"]]
     ctx["open_action_count"] = len(ctx["open_items"]) + len(ctx["other_tasks"])
     ctx["done_tasks"] = [t for t in ctx["done_tasks"] if t.pk not in ctx["meeting_task_ids"]]

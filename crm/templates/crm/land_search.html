@@ -247,10 +247,11 @@
         <div class="qd-table-wrap">
           <table class="qd-table">
             <thead><tr>
-              <th>Building</th><th>Type</th><th>Bldg SF</th><th>Hazard div.</th><th>NEWQD (lb)</th><th>PES</th><th>Barr.</th><th>MCE (lb)</th><th>IMD K</th>
+              <th>Building</th><th>Type</th><th>Bldg SF</th><th title="Blank = square. Width is the floor area divided by the length.">Length ft</th><th title="Degrees clockwise; 0 = length runs east-west">Turn °</th>
+              <th>Hazard div.</th><th>NEWQD (lb)</th><th title="Most this building can hold where it stands: IBD arc on the property and spacing to the other buildings">Max NEWQD</th><th>PES</th><th>Barr.</th><th>MCE (lb)</th><th>IMD K</th>
               <th class="num">IMD</th><th class="num">ILD</th><th class="num">PTRD</th><th class="num">IBD</th><th class="num">IBD ac</th><th>Status</th><th></th>
             </tr></thead>
-            <tbody id="qd-rows"><tr><td colspan="16" class="muted">Add a magazine or operating building. Drag the pins on the map to move them.</td></tr></tbody>
+            <tbody id="qd-rows"><tr><td colspan="19" class="muted">Add a magazine or operating building. Drag the pins on the map to move them.</td></tr></tbody>
           </table>
         </div>
         <div class="qd-summary" id="qd-summary"></div>
@@ -550,6 +551,7 @@
     if (fly) map.fitBounds(highlight.getBounds(), {maxZoom: 16, ...viewPad()});
     showCard(html);
     history.replaceState(null, '', '?' + filterParams().toString() + '&parcel=' + id);
+    planTargetChanged();
   }
   function drawHighlight(geojson) {
     if (highlight) map.removeLayer(highlight);
@@ -560,6 +562,7 @@
       cardEl.hidden = true; openId = null;
       if (highlight) map.removeLayer(highlight);
       history.replaceState(null, '', '?' + filterParams().toString());
+      planTargetChanged();
       return;
     }
     const owner = e.target.closest('[data-owner-search]');
@@ -611,6 +614,7 @@
     if (card?.dataset.parcel) {
       openId = +card.dataset.parcel;
       fetch(URLS.shape(openId)).then(r => r.json()).then(drawHighlight);
+      planTargetChanged();
     } else if (card?.dataset.liveGeometry) {
       try { drawHighlight(JSON.parse(card.dataset.liveGeometry)); } catch (err) {}
     }
@@ -885,6 +889,22 @@
   const PES = ['Open (no structure)', 'Aboveground structure', 'ECM Front', 'ECM Side', 'ECM Rear'];
   const ARC = {ibd: ['#e31a1c', 'IBD'], ptrd: ['#ff7f00', 'PTRD'], ild: ['#ffd92f', 'ILD'], imd: ['#1f78b4', 'IMD']};
   const ft = v => v ? Math.round(v).toLocaleString() : '–';
+  // What the QD and site plans run on. A parcel opened outside the loaded assemblage wins over it: otherwise a
+  // site opened earlier keeps catching the plan (David review, 2026-10-26: buildings "jumped" to the airport site).
+  function planTarget() {
+    if (openId) QD.target = openId;
+    if (ASM.ids.length && !(openId && !ASM.ids.includes(openId))) {
+      return {body: {parcels: ASM.ids, site: ASM.siteId}, kind: ASM.siteId ? 'saved site' : 'assemblage', saves: !!ASM.siteId};
+    }
+    return {body: {parcel: QD.target, parcels: [], site: null}, kind: QD.target ? 'parcel' : null, saves: !!QD.target};
+  }
+  function planTargetChanged() {
+    qdLabel();
+    if (typeof SP === 'undefined') return;
+    spLabel();
+    if (!QD.el.hidden) qdLoadSaved();
+    if (!SP.el.hidden) spLoad();
+  }
   function qdOpen(open) {
     QD.el.hidden = !open;
     if (open && typeof SP !== 'undefined' && !SP.el.hidden) spOpen(false);
@@ -917,21 +937,28 @@
   document.getElementById('qd-add-mag').addEventListener('click', () => qdAdd('magazine'));
   document.getElementById('qd-add-ops').addEventListener('click', () => qdAdd('operating'));
   document.getElementById('qd-fit').addEventListener('click', () => {
-    if (!openId && !QD.target && !ASM.ids.length) { alert('Open a parcel or build an assemblage first, then auto-fit.'); return; }
+    if (!planTarget().kind) { alert('Open a parcel or build an assemblage first, then auto-fit.'); return; }
     if (!QD.buildings.length) { alert('Add at least one building.'); return; }
     qdCalc('fit');
   });
   document.getElementById('qd-save').addEventListener('click', () => {
-    if (!(openId || QD.target) && !ASM.siteId) { alert('Open a parcel, or save the assemblage as a site, to keep the plan.'); return; }
+    if (!planTarget().saves) { alert('Open a parcel, or save the assemblage as a site, to keep the plan.'); return; }
     qdCalc('save');
   });
-  document.getElementById('qd-clear').addEventListener('click', () => { QD.buildings = []; QD.layer.clearLayers(); qdRender(null); });
+  document.getElementById('qd-clear').addEventListener('click', () => {
+    const t = planTarget();
+    // Clear the saved copy too, or reopening the parcel or site brings the plan back.
+    if (t.saves && QD.buildings.length && !confirm(`Clear the QD plan? This also removes the plan saved on the ${t.kind}.`)) return;
+    QD.seq++;  // drop any check still in flight, so it can't redraw the buildings just cleared
+    QD.buildings = []; QD.boundary = null; QD.layer.clearLayers(); qdRender(null);
+    if (t.saves) qdCalc('save');
+  });
   QD.el.querySelectorAll('[data-arc]').forEach(i => i.addEventListener('change', qdDraw));
 
   async function qdCalc(action) {
     const seq = ++QD.seq;
-    if (openId) QD.target = openId;
-    const body = JSON.stringify({parcel: QD.target, parcels: ASM.ids, site: ASM.siteId, action,
+    const t = planTarget();
+    const body = JSON.stringify({...t.body, action,
       buildings: QD.buildings.map(({dist, result, shapes, ...b}) => b)});
     const resp = await fetch("{% url 'crm:land_qd' %}", {method: 'POST', body, headers: {'X-CSRFToken': csrf(), 'Content-Type': 'application/json'}});
     if (!resp.ok && resp.status >= 500) { QD.summary.innerHTML = '<span class="overdue">The QD check failed on the server.</span>'; return; }
@@ -948,14 +975,14 @@
         : L.latLngBounds(QD.buildings.map(x => [x.lat, x.lon]));
       map.fitBounds(b, viewPad());
     }
-    const savedTo = ASM.ids.length ? (ASM.siteId ? 'the saved site' : null) : (QD.target ? 'the parcel' : null);
-    if (action === 'save' || action === 'fit') QD.summary.insertAdjacentHTML('beforeend', savedTo
-      ? `<div class="muted lc-small">Saved to ${savedTo}.</div>` : '<div class="muted lc-small">Not saved: save the assemblage as a site to keep this plan.</div>');
+    if (action === 'save' || action === 'fit') QD.summary.insertAdjacentHTML('beforeend', !t.saves
+      ? '<div class="muted lc-small">Not saved: save the assemblage as a site to keep this plan.</div>'
+      : `<div class="muted lc-small">${QD.buildings.length ? 'Saved to' : 'Cleared from'} the ${t.kind}.</div>`);
   }
 
   function qdRender(summary) {
     if (!QD.buildings.length) {
-      QD.rows.innerHTML = '<tr><td colspan="16" class="muted">Add a magazine or operating building. Drag the pins on the map to move them.</td></tr>';
+      QD.rows.innerHTML = '<tr><td colspan="19" class="muted">Add a magazine or operating building. Drag the pins on the map to move them.</td></tr>';
       QD.summary.innerHTML = '';
       return;
     }
@@ -970,8 +997,14 @@
         <td><input data-f="name" value="${escapeHtml(b.name || '')}" size="11"></td>
         <td><select data-f="kind"><option value="magazine"${b.kind === 'magazine' ? ' selected' : ''}>Magazine</option><option value="operating"${b.kind === 'operating' ? ' selected' : ''}>Operating</option></select></td>
         <td><input data-f="sqft" type="number" min="0" step="500" value="${b.sqft || 0}" style="width:80px"></td>
+        <td><input data-f="length" type="number" min="0" step="10" value="${b.length || ''}" placeholder="square" style="width:70px"
+          title="${b.length && b.sqft ? Math.round(b.length) + ' × ' + Math.round(b.sqft / b.length) + ' ft' : 'Square footprint'}"></td>
+        <td><input data-f="rotation" type="number" min="-180" max="180" step="15" value="${b.rotation || 0}" style="width:56px"></td>
         <td><select data-f="hd">${opt(HDS, b.hd)}</select></td>
         <td><input data-f="newqd" type="number" min="0" step="100" value="${b.newqd || 0}" style="width:90px"></td>
+        <td class="num nowrap">${r.max_newqd == null ? `<span class="muted" title="${escapeHtml(r.max_by || 'Open a parcel to work this out')}">–</span>`
+          : `<span title="Limited by ${escapeHtml(r.max_by)}">${r.max_newqd.toLocaleString()}${r.max_by === 'table limit' ? '+' : ''}</span>`
+            + (r.max_newqd > 0 && r.max_newqd !== +b.newqd ? ` <button type="button" class="btn-link" data-use-max="${r.max_newqd}" title="Set NEWQD to this">use</button>` : '')}</td>
         <td><select data-f="pes"${b.hd === 'HD 1.1' ? '' : ' disabled'}>${opt(PES, b.pes)}</select></td>
         <td><input data-f="barricaded" type="checkbox"${b.barricaded ? ' checked' : ''}${b.hd === 'HD 1.1' ? '' : ' disabled'}></td>
         <td><input data-f="mce" type="number" min="0" value="${b.mce || 0}" style="width:70px"${['HD 1.2.1', 'HD 1.2.3'].includes(b.hd) ? '' : ' disabled'}></td>
@@ -998,6 +1031,8 @@
     qdCalc('calc');
   });
   QD.rows.addEventListener('click', e => {
+    const use = e.target.closest('[data-use-max]');
+    if (use) { QD.buildings[+use.closest('tr').dataset.i].newqd = +use.dataset.useMax; qdCalc('calc'); return; }
     if (!e.target.closest('[data-del]')) return;
     QD.buildings.splice(+e.target.closest('tr').dataset.i, 1);
     qdCalc('calc');
@@ -1027,12 +1062,15 @@
   function qdLabel() {
     const el = document.getElementById('qd-parcel');
     if (!el) return;
-    el.textContent = ASM.ids.length ? `Checking against the ${ASM.siteId ? 'saved site' : 'assemblage'} (${ASM.ids.length} parcel${ASM.ids.length === 1 ? '' : 's'})`
-      : (openId || QD.target) ? 'Checking against the parcel outlined in yellow' : 'No parcel open: arcs are checked against nothing';
+    const t = planTarget();
+    el.textContent = t.kind === 'parcel' ? 'Checking against the parcel outlined in yellow'
+      : t.kind ? `Checking against the ${t.kind} (${ASM.ids.length} parcel${ASM.ids.length === 1 ? '' : 's'})`
+      : 'No parcel open: arcs are checked against nothing';
+    document.getElementById('qd-save').textContent = t.kind && t.kind !== 'parcel' ? 'Save to site' : 'Save to parcel';
   }
   async function qdLoadSaved() {
     qdLabel();
-    if (!openId || ASM.ids.length || QD.loadedFor === openId) return;
+    if (!openId || planTarget().kind !== 'parcel' || QD.loadedFor === openId) return;
     QD.loadedFor = openId;
     const saved = await fetch("{% url 'crm:land_qd_design' 0 %}".replace('/0/', '/' + openId + '/')).then(r => r.json());
     if (saved.buildings && saved.buildings.length && (!QD.buildings.length || confirm('Load the QD plan saved on this parcel?'))) {
@@ -1186,7 +1224,10 @@
   }
   SP.btn.addEventListener('click', () => spOpen(SP.el.hidden));
   document.getElementById('sp-close').addEventListener('click', () => spOpen(false));
-  document.getElementById('sp-clear').addEventListener('click', () => { SP.layer.clearLayers(); spSummary.innerHTML = '<span class="muted">Cleared.</span>'; });
+  document.getElementById('sp-clear').addEventListener('click', () => {
+    SP.seq++; clearTimeout(SP.timer);  // a layout still in flight would redraw what was just cleared
+    SP.layer.clearLayers(); spSummary.innerHTML = '<span class="muted">Cleared.</span>';
+  });
   (function () {  // drag to resize, like the QD drawer
     const grip = SP.el.querySelector('.qd-grip');
     let startY = 0, startH = 0;
@@ -1197,13 +1238,13 @@
   })();
 
   function spTargetBody() {
-    if (openId) QD.target = openId;
-    return {parcel: QD.target, parcels: ASM.ids, site: ASM.siteId};
+    return planTarget().body;
   }
   function spLabel() {
-    document.getElementById('sp-target').textContent = ASM.ids.length
-      ? `Planning the ${ASM.siteId ? 'saved site' : 'assemblage'} (${ASM.ids.length} parcel${ASM.ids.length === 1 ? '' : 's'})`
-      : (openId || QD.target) ? 'Planning the open parcel' : 'Open a parcel or an assemblage to plan it';
+    const t = planTarget();
+    document.getElementById('sp-target').textContent = t.kind === 'parcel' ? 'Planning the open parcel'
+      : t.kind ? `Planning the ${t.kind} (${ASM.ids.length} parcel${ASM.ids.length === 1 ? '' : 's'})`
+      : 'Open a parcel or an assemblage to plan it';
   }
   function spRenderRows() {
     const t = SP.types || {};
@@ -1224,31 +1265,41 @@
     const r = SP.rows[+tr.dataset.i], f = e.target.dataset.f;
     r[f] = e.target.tagName === 'SELECT' ? e.target.value : (e.target.value === '' ? undefined : +e.target.value);
     if (f === 'type') spRenderRows();
+    spRerun();
   });
-  spRows.addEventListener('click', e => { if (e.target.closest('[data-del]')) { SP.rows.splice(+e.target.closest('tr').dataset.i, 1); spRenderRows(); } });
-  document.getElementById('sp-add').addEventListener('click', () => { SP.rows.push({type: 'manufacturing'}); spRenderRows(); });
-  document.querySelectorAll('[name=sp-parking]').forEach(r => r.addEventListener('change', spRenderRows));
-  document.getElementById('sp-zone').addEventListener('change', () => { SP.overrides = {}; spCalc('calc', {fresh: true}); });
-  document.getElementById('sp-run').addEventListener('click', () => spCalc('calc'));
-  document.getElementById('sp-save').addEventListener('click', () => spCalc('save'));
+  spRows.addEventListener('click', e => { if (e.target.closest('[data-del]')) { SP.rows.splice(+e.target.closest('tr').dataset.i, 1); spRenderRows(); spRerun(); } });
+  document.getElementById('sp-add').addEventListener('click', () => { SP.rows.push({type: 'manufacturing'}); spRenderRows(); spRerun(); });
+  document.querySelectorAll('[name=sp-parking]').forEach(r => r.addEventListener('change', () => { spRenderRows(); spRerun(); }));
+  document.getElementById('sp-zone').addEventListener('change', () => { SP.overrides = {}; clearTimeout(SP.timer); spCalc('calc', {fresh: true}); });
+  document.getElementById('sp-run').addEventListener('click', () => { clearTimeout(SP.timer); spCalc('calc'); });
+  document.getElementById('sp-save').addEventListener('click', () => { clearTimeout(SP.timer); spCalc('save'); });
+  document.getElementById('sp-exclude').addEventListener('change', spRerun);
+  document.getElementById('sp-setback').addEventListener('input', spRerun);
+  // Changing a zoning number or the program lays the site out again (it used to wait for "Lay out site").
+  function spRerun() {
+    if (!planTarget().kind) return;
+    clearTimeout(SP.timer);
+    SP.timer = setTimeout(() => spCalc('calc', {keepView: true}), 600);
+  }
 
   function spOverrides() {
     const o = {};
     document.querySelectorAll('[data-std]').forEach(i => { if (i.dataset.touched) o[i.dataset.std] = i.value; });
     return o;
   }
-  document.querySelectorAll('[data-std]').forEach(i => i.addEventListener('input', () => { i.dataset.touched = '1'; }));
+  document.querySelectorAll('[data-std]').forEach(i => i.addEventListener('input', () => { i.dataset.touched = '1'; spRerun(); }));
 
   async function spLoad() {
     spLabel();
-    const key = ASM.siteId ? 's' + ASM.siteId : ASM.ids.length ? 'a' + ASM.ids.join(',') : 'p' + (openId || QD.target);
+    const t = planTarget();
+    const key = t.kind === 'parcel' ? 'p' + QD.target : ASM.siteId ? 's' + ASM.siteId : 'a' + ASM.ids.join(',');
     if (SP.loadedFor === key) return;
-    if (!openId && !QD.target && !ASM.ids.length) { spSummary.innerHTML = '<span class="muted">Open a parcel or build an assemblage, then lay out the site.</span>'; return; }
+    if (!t.kind) { spSummary.innerHTML = '<span class="muted">Open a parcel or build an assemblage, then lay out the site.</span>'; return; }
     SP.loadedFor = key;
     await spCalc('calc', {useSaved: true});
   }
 
-  async function spCalc(action, {fresh = false, useSaved = false} = {}) {
+  async function spCalc(action, {fresh = false, useSaved = false, keepView = false} = {}) {
     spLabel();
     const seq = ++SP.seq;
     const zoneSel = document.getElementById('sp-zone');
@@ -1257,7 +1308,9 @@
       overrides: fresh ? {} : spOverrides()};
     // An empty picker (nothing loaded yet) or "As zoned now" means: use the parcel's current zoning.
     if (!useSaved && zoneSel.value && zoneSel.value !== '__current') body.zone = zoneSel.value === '__none' ? '' : zoneSel.value;
-    spSummary.innerHTML = '<span class="muted">Laying out…</span>';
+    spSummary.innerHTML = '<span class="muted">Laying out…' + (document.getElementById('sp-exclude').checked && SP.loadedFor !== SP.checkedFor
+      ? ' (checking flood and wetland maps, up to half a minute)' : '') + '</span>';
+    SP.checkedFor = SP.loadedFor;
     let resp = await fetch("{% url 'crm:land_site_plan' %}", {method: 'POST', body: JSON.stringify(body), headers: {'X-CSRFToken': csrf(), 'Content-Type': 'application/json'}});
     let d = await resp.json();
     if (seq !== SP.seq) return;
@@ -1282,7 +1335,13 @@
       + d.zones.map(z => `<option value="${z.code}"${z.code === d.standards.code && z.code !== cur ? ' selected' : ''}>Rezone to ${escapeHtml(z.label)}</option>`).join('')
       + `<option value="__none"${!d.standards.code && cur ? ' selected' : ''}>No zoning / custom</option>`;
     if (d.standards.code === cur || (!cur && !d.standards.code)) zoneSel.value = '__current';
-    document.querySelectorAll('[data-std]').forEach(i => { const v = d.standards[i.dataset.std]; i.value = v ?? ''; delete i.dataset.touched; });
+    // Typed numbers stay overrides until the zone changes; dropping them here made the next run forget them.
+    const savedOverrides = (useSaved && d.saved && d.saved.overrides) || {};
+    document.querySelectorAll('[data-std]').forEach(i => {
+      const v = d.standards[i.dataset.std]; i.value = v ?? '';
+      if (fresh || useSaved) delete i.dataset.touched;
+      if (useSaved && i.dataset.std in savedOverrides) i.dataset.touched = '1';
+    });
     document.getElementById('sp-source').innerHTML = `${escapeHtml(d.standards.source || '')}${d.standards.note ? '<br>' + escapeHtml(d.standards.note) : ''}`;
     document.getElementById('sp-parking-note').textContent = spMode() === 'code' ? d.code_parking.source
       : 'Typical market ratios per building type: edit them per deal.';
@@ -1290,7 +1349,7 @@
     spDraw(d.features);
     spSummaryRender(d.summary, d);
     if (action === 'save') spSummary.insertAdjacentHTML('beforeend', `<div class="muted lc-small">${d.saved_to ? 'Saved to the ' + d.saved_to + '.' : 'Not saved: save the assemblage as a site first.'}</div>`);
-    if (action !== 'save' && !useSaved) {
+    if (action !== 'save' && !useSaved && !keepView) {
       const b = SP.layer.getLayers()[0];
       if (b && b.getBounds) map.fitBounds(b.getBounds(), viewPad());
     }

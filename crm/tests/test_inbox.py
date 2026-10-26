@@ -141,6 +141,34 @@ class InboxTests(TestCase):
         self.assertNotIn("labelIds", listing)
         self.assertEqual(r.context["tabs"], [])
 
+    def test_search_by_company_name_also_finds_its_addresses(self):
+        r = self.get(q="firehawk")
+        q = [p for path, p in self.fake.calls if path == "/threads"][-1]["q"]
+        self.assertTrue(q.startswith("{firehawk ") and "from:firehawkaerospace.com" in q and "to:firehawkaerospace.com" in q, q)
+        self.assertEqual(r.context["widened"], [("company", "Firehawk Aerospace")])
+        self.get(q="firehawk", exact="1")  # "just the words"
+        self.assertEqual([p for path, p in self.fake.calls if path == "/threads"][-1]["q"], "firehawk")
+        self.get(q="from:pat has:attachment")  # Gmail operators are left as typed
+        self.assertEqual([p for path, p in self.fake.calls if path == "/threads"][-1]["q"], "from:pat has:attachment")
+
+    def test_search_in_this_folder_only(self):
+        self.get(q="term sheet", **{"in": "SENT"})
+        listing = [p for path, p in self.fake.calls if path == "/threads"][-1]
+        self.assertIn("SENT", str(listing.get("labelIds")))
+
+    def test_address_suggestions(self):
+        Person.objects.create(full_name="Will Edwards", email="will@firehawkaerospace.com", company=self.company)
+        User.objects.create_user("david", email="ddenardo@acmigroup.com", first_name="David", last_name="DeNardo")
+        self.get()  # indexes the threads, so senders are known
+        url = reverse("crm:inbox_suggest")
+        people = self.client.get(url, {"q": "wil"}).json()["people"]
+        self.assertEqual(people[0], {"name": "Will Edwards", "email": "will@firehawkaerospace.com", "detail": "Firehawk Aerospace"})
+        self.assertEqual(self.client.get(url, {"q": "dav"}).json()["people"][0]["email"], "ddenardo@acmigroup.com")
+        self.assertEqual(self.client.get(url, {"q": "pat@"}).json()["people"][0]["email"], "pat@shoreunitedbank.com")
+        self.assertEqual(self.client.get(url, {"q": "x"}).json()["people"], [])  # one letter: nothing yet
+        records = self.client.get(url, {"q": "shore", "records": "1"}).json()["records"]
+        self.assertEqual(records, [{"kind": "firm", "label": "Shore United Bank"}])
+
     def test_other_folders(self):
         r = self.get(label="SENT")
         self.assertEqual([t.gmail_id for t in r.context["threads"]], ["a1"])

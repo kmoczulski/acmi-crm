@@ -142,6 +142,7 @@ urlpatterns = [
     path("inbox/act/", inbox_views.act, name="inbox_act"),
     path("inbox/file/", inbox_views.file_to, name="inbox_file"),
     path("inbox/file/options/", inbox_views.file_options, name="inbox_file_options"),
+    path("inbox/suggest/", inbox_views.suggest, name="inbox_suggest"),
     path("inbox/file/<int:pk>/remove/", inbox_views.unfile, name="inbox_unfile"),
     path("inbox/note/", inbox_views.comment_add, name="inbox_note"),
     path("inbox/open/", inbox_views.open_message, name="inbox_open"),

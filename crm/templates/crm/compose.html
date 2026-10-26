@@ -55,4 +55,5 @@
   </div>
 </form>
 <script src="{% static 'crm/compose.js' %}?v={{ ASSET_VERSION }}"></script>
+<script src="{% static 'crm/recipients.js' %}?v={{ ASSET_VERSION }}" data-url="{% url 'crm:inbox_suggest' %}"></script>
 {% endblock %}

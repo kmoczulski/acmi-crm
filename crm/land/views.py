@@ -526,7 +526,7 @@ def qd_layout(request):
     else:
         default = fwd(centre.x, centre.y)
         positions = [fwd(b["lon"], b["lat"]) if b.get("lat") is not None else default for b in buildings]
-    results, summary = qd.evaluate(whole, buildings, positions)
+    results, summary = qd.evaluate(whole, buildings, positions, with_max=True)
     from shapely.geometry import mapping as to_geojson
     from shapely.ops import transform as reproject
 
@@ -541,9 +541,10 @@ def qd_layout(request):
         out.append({**b, "lat": round(lat, 7), "lon": round(lon, 7), "result": r, "shapes": shapes})
     target = site or parcel
     if target and data.get("action") in ("fit", "save"):
-        keep = ("name", "kind", "sqft", "hd", "newqd", "pes", "barricaded", "mce", "k", "lat", "lon")
+        keep = ("name", "kind", "sqft", "length", "rotation", "hd", "newqd", "pes", "barricaded", "mce", "k", "lat", "lon")
+        # Saving no buildings is Clear: drop the plan rather than keep an empty one.
         target.qd_design = {"buildings": [{k: b.get(k) for k in keep} for b in out],
-                            "saved_at": timezone.now().isoformat(), "saved_by": request.user.username}
+                            "saved_at": timezone.now().isoformat(), "saved_by": request.user.username} if out else {}
         target.save(update_fields=["qd_design", "updated_at"])
     boundary = to_geojson(geom) if geom is not None else None
     return JsonResponse({"buildings": out, "summary": summary, "boundary": boundary})
@@ -1178,8 +1179,28 @@ def site_plan(request):
     excluded_acres = 0
     exclusion_note = ""
     if data.get("exclude"):
+        import hashlib
+
+        from django.core.cache import cache
+        from shapely import wkb
+
+        # The planner re-runs on every edit: ask FEMA and NWI once per outline per day, and don't wait minutes on
+        # them (the default is 90 s x 3 tries per service).
+        key = "siteplan-cons:" + hashlib.sha1(geom.wkb).hexdigest()
         try:
-            cons = constraint_geometry(geom)
+            hit = cache.get(key)
+            down = cache.get(key + ":down")
+            if hit is None and down:
+                raise RuntimeError(down)  # failed a few minutes ago: don't wait on it again for every edit
+            if hit is None:
+                try:
+                    found = constraint_geometry(geom, timeout=20, tries=1)
+                except Exception as exc:
+                    cache.set(key + ":down", str(exc)[:60], 300)
+                    raise
+                hit = found.wkb if found is not None and not found.is_empty else b""
+                cache.set(key, hit, 24 * 3600)
+            cons = wkb.loads(hit) if hit else None
             if cons is not None and not cons.is_empty:
                 exclude_m = to_m(cons)
                 excluded_acres = round(exclude_m.area * siteplan.SQFT_PER_M2 / siteplan.SQFT_PER_ACRE, 1)

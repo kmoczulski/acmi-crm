@@ -3,7 +3,7 @@ from django.contrib.auth import get_user_model
 from django.test import Client, TestCase
 
 from crm.land import assignments as A
-from crm.models import Assignment, AssignmentSite, LandCounty, LandSite
+from crm.models import Assignment, AssignmentSite, Company, LandCounty, LandSite, Project
 from crm.tests.test_land import make_parcel
 
 
@@ -142,3 +142,44 @@ class AssignmentTests(TestCase):
         other = Assignment.objects.create(name="Other client", share_token=A.new_token(), share_enabled=True)
         e = self.sites["Lawton"]  # belongs to self.a, not `other`
         self.assertEqual(Client().get(f"/g/{other.share_token}/{e.pk}/").status_code, 404)
+
+
+class AssignmentCompanyTests(TestCase):
+    """David review, 2026-10-26: a search belongs to the client's company and shows on its page."""
+
+    def setUp(self):
+        self.client.force_login(get_user_model().objects.create_user("kellen", password="x"))
+        self.elbit = Company.objects.create(name="Elbit Systems of America")
+
+    def test_new_search_from_the_company_page(self):
+        r = self.client.post("/land/assignments/", {"company_id": self.elbit.pk})
+        a = Assignment.objects.get()
+        self.assertRedirects(r, a.get_absolute_url())
+        self.assertEqual((a.company, a.client, a.name), (self.elbit, "Elbit Systems of America",
+                                                         "Elbit Systems of America land search"))
+
+    def test_company_picked_by_name_and_unknown_name_refused(self):
+        a = Assignment.objects.create(name="Search", client="Elbit")
+        url = f"/land/assignments/{a.pk}/"
+        self.client.post(url, {"action": "details", "name": "Search", "company": "elbit systems of america", "client": ""})
+        a.refresh_from_db()
+        self.assertEqual((a.company, a.client), (self.elbit, "Elbit Systems of America"))
+        self.client.post(url, {"action": "details", "name": "Search", "company": "Nobody Inc", "client": "x"})
+        a.refresh_from_db()
+        self.assertEqual(a.company, self.elbit)  # unchanged
+
+    def test_company_tab_lists_linked_and_name_matched_searches(self):
+        Assignment.objects.create(name="Linked search", company=self.elbit)
+        Assignment.objects.create(name="Older search", client="Elbit Systems of America")
+        Assignment.objects.create(name="Someone else", client="Raven")
+        page = self.client.get(f"/companies/{self.elbit.pk}/?tab=sites")
+        self.assertContains(page, "Linked search")
+        self.assertContains(page, "Older search")
+        self.assertNotContains(page, "Someone else")
+
+    def test_add_site_picker_grouped_by_project(self):
+        a = Assignment.objects.create(name="Search")
+        LandSite.objects.create(name="Airport site", project=Project.objects.create(name="MEIH"))
+        LandSite.objects.create(name="Loose site")
+        html = self.client.get(f"/land/assignments/{a.pk}/").content.decode()
+        self.assertLess(html.index('optgroup label="MEIH"'), html.index('optgroup label="No project"'))

@@ -8,22 +8,43 @@ from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
-from ..models import Assignment, AssignmentSite, LandSite
+from ..models import Assignment, AssignmentSite, Company, LandSite
 from ..permissions import is_manager, refuse
 from . import assignments as A
+
+
+def _company(post):
+    """The company picked on the form: by id (from a company page) or by its exact name (the picker)."""
+    pk = post.get("company_id")
+    if pk and str(pk).isdigit():
+        return Company.objects.filter(pk=pk).first()
+    name = (post.get("company") or "").strip()
+    return Company.objects.filter(name__iexact=name).first() if name else None
 
 
 def assignment_list(request):
     if request.method == "POST":
         name = (request.POST.get("name") or "").strip()[:200]
+        company = _company(request.POST)
+        if not name and company:
+            name = f"{company.name} land search"
         if not name:
             messages.error(request, "Give the assignment a name.")
         else:
-            a = Assignment.objects.create(name=name, client=(request.POST.get("client") or "").strip()[:200],
-                                          created_by=request.user)
+            client = (request.POST.get("client") or "").strip()[:200] or (company.name if company else "")
+            a = Assignment.objects.create(name=name, company=company, client=client, created_by=request.user)
             return redirect(a)
-    rows = Assignment.objects.prefetch_related("entries")
+    rows = Assignment.objects.select_related("company").prefetch_related("entries")
     return render(request, "crm/assignment_list.html", {"assignments": rows})
+
+
+def _sites_by_project(sites):
+    """[(project or campus label, [sites])], projects A-Z with the unfiled sites last, for the Add a site picker."""
+    groups = {}
+    for s in sites.select_related("campus", "project"):
+        label = s.project.name if s.project else (f"{s.campus} (no project)" if s.campus else "No project")
+        groups.setdefault(label, []).append(s)
+    return sorted(groups.items(), key=lambda kv: (kv[0].startswith("No project") or "(no project)" in kv[0], kv[0].lower()))
 
 
 def _share_url(request, a):
@@ -38,7 +59,13 @@ def assignment_detail(request, pk):
         action = request.POST.get("action")
         if action == "details":
             a.name = (request.POST.get("name") or a.name).strip()[:200]
-            a.client = (request.POST.get("client") or "").strip()[:200]
+            typed = (request.POST.get("company") or "").strip()
+            company = _company(request.POST)
+            if typed and not company:
+                messages.error(request, f"No company called “{typed}”. Pick one from the list, or leave it blank.")
+                return redirect(a)
+            a.company = company
+            a.client = (request.POST.get("client") or "").strip()[:200] or (company.name if company else "")
             a.program = (request.POST.get("program") or "").strip()[:300]
             a.demand_driver = (request.POST.get("demand_driver") or "").strip()[:200]
             floor = A._num(request.POST.get("acreage_floor"))
@@ -87,7 +114,7 @@ def assignment_detail(request, pk):
     used = a.entries.values_list("site_id", flat=True)
     return render(request, "crm/assignment_detail.html", {
         "a": a, "ranked": ranked, "rule": A.RANKING_RULE, "share_url": _share_url(request, a),
-        "available": LandSite.objects.exclude(pk__in=used).exclude(status="dropped").order_by("name"),
+        "available": _sites_by_project(LandSite.objects.exclude(pk__in=used).exclude(status="dropped").order_by("name")),
         "categories": A.CATEGORIES, "today": date.today(),
     })
 

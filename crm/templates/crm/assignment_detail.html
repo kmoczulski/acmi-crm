@@ -7,7 +7,7 @@
   <div>
     <div class="muted lc-small"><a href="{% url 'crm:assignments' %}">Client searches</a></div>
     <h1>{{ a.name }}</h1>
-    <div class="muted">{{ a.client }}{% if a.program %} · {{ a.program }}{% endif %}{% if a.acreage_floor %} · {{ a.acreage_floor|floatformat:0|intcomma }} net acres needed{% endif %}</div>
+    <div class="muted">{% if a.company %}<a href="{{ a.company.get_absolute_url }}?tab=sites">{{ a.client|default:a.company.name }}</a>{% else %}{{ a.client }}{% endif %}{% if a.program %} · {{ a.program }}{% endif %}{% if a.acreage_floor %} · {{ a.acreage_floor|floatformat:0|intcomma }} net acres needed{% endif %}</div>
   </div>
 </div>
 
@@ -57,7 +57,7 @@
     </table>
   </div>
   <form method="post" class="note-add" style="margin-top:12px">{% csrf_token %}<input type="hidden" name="action" value="add_site">
-    <select name="site" required><option value="">Add a saved site…</option>{% for s in available %}<option value="{{ s.pk }}">{{ s.name }} · {{ s.home_label }}</option>{% endfor %}</select>
+    <select name="site" required><option value="">Add a saved site…</option>{% for label, sites in available %}<optgroup label="{{ label }}">{% for s in sites %}<option value="{{ s.pk }}">{{ s.name }} · {{ s.get_status_display }}</option>{% endfor %}</optgroup>{% endfor %}</select>
     <button class="btn btn-primary">Add site</button>
   </form>
   <details style="margin-top:8px"><summary class="lc-small">How sites are ranked</summary>
@@ -70,7 +70,8 @@
   <form method="post">{% csrf_token %}<input type="hidden" name="action" value="details">
     <div class="deal-dates">
       <label>Name<input name="name" value="{{ a.name }}"></label>
-      <label>Client<input name="client" value="{{ a.client }}"></label>
+      <label>Company<input name="company" list="company-names" value="{{ a.company.name|default:'' }}" autocomplete="off" placeholder="Pick the client's company"></label>
+      <label>Client name shown<input name="client" value="{{ a.client }}" placeholder="the company's name"></label>
       <label>Program / end use<input name="program" value="{{ a.program }}"></label>
       <label>Demand driver<input name="demand_driver" value="{{ a.demand_driver }}"></label>
       <label>Net acres required<input name="acreage_floor" value="{{ a.acreage_floor|default_if_none:'' }}"></label>
@@ -80,4 +81,6 @@
     <button class="btn btn-primary">Save details</button>
   </form>
 </section>
+<datalist id="company-names"></datalist>
+{% include "crm/partials/company_names_js.html" %}
 {% endblock %}

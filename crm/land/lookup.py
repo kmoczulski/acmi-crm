@@ -453,15 +453,16 @@ def _geod_acres(geom):
     return abs(Geod(ellps="WGS84").geometry_area_perimeter(geom)[0]) / SQ_M_PER_ACRE
 
 
-def constraint_geometry(geom):
+def constraint_geometry(geom, timeout=90, tries=3):
     """FEMA 100-year floodplain + mapped wetlands (streams, ponds, freshwater wetlands) over a site, WGS84."""
     pieces = []
     # Bounding-box queries (clipped below): FEMA rejects complex multi-part outlines.
-    for f in arcgis_query(fema_flood_url(), where="SFHA_TF = 'T'", fields=["FLD_ZONE"], bbox=geom.bounds, simplify=0.00005):
+    for f in arcgis_query(fema_flood_url(), where="SFHA_TF = 'T'", fields=["FLD_ZONE"], bbox=geom.bounds, simplify=0.00005,
+                          timeout=timeout, tries=tries):
         if f.get("geometry"):
             pieces.append(shape(f["geometry"]))
     for f in arcgis_query(NWI_WETLANDS, where=WETLANDS_WHERE, fields=["WETLAND_TYPE"], bbox=geom.bounds,
-                          simplify=0.00005, page_size=500):
+                          simplify=0.00005, page_size=500, timeout=timeout, tries=tries):
         if f.get("geometry"):
             pieces.append(shape(f["geometry"]))
     pieces = [g if g.is_valid else make_valid(g) for g in pieces]

@@ -331,7 +331,7 @@ table.dup-table tr.dup-keep .dup-name a { font-weight: 600; }
 .clist [hidden] { display: none !important; }
 
 /* Land search */
-main:has(.land) { padding: 0; }
+main:has(.land) { padding: 0; max-width: none; }
 .land-side { display: flex; flex-direction: column; border-right: 1px solid var(--line); background: var(--panel); min-height: 0; overflow-y: auto; }
 .land-side-head { padding: 8px 14px 2px; }
 .land-side-head h1 { font-size: 18px; margin: 0 0 2px; }
@@ -448,7 +448,8 @@ main:has(.land) { padding: 0; }
 .campus-sites { padding: 10px 14px; border-top: 1px solid var(--line); font-size: 13px; }
 
 /* Land search layout: filters | (toolbar / map + docked card / docked QD drawer) */
-.land { display: grid; grid-template-columns: 300px minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); height: 100vh; }
+.land { display: grid; grid-template-columns: 300px minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr);
+  height: calc(100vh - var(--topbar-h)); }  /* fills the window under the top bar, with no page scroll */
 .land.side-closed { grid-template-columns: 0 minmax(0, 1fr); }
 .land.side-closed .land-side { visibility: hidden; border: 0; }
 .land-side { grid-row: 2; }
@@ -757,7 +758,7 @@ a.cite:hover { background: var(--accent); color: #fff; text-decoration: none; }
 .cr-docs .chip { background: #eef0f3; color: #3c4453; font-weight: 500; padding: 3px 8px; }
 .cr-docs .chip.active { background: var(--accent); color: #fff; }
 .cr-layout { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 16px; align-items: start; }
-.cr-side { position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow: auto; }
+.cr-side { position: sticky; top: calc(var(--topbar-h) + 12px); max-height: calc(100vh - var(--topbar-h) - 24px); overflow: auto; }
 /* Documents read like paper: letter-size sheets on a grey desk, one per page, 1-inch margins. */
 .cr-desk { background: #e4e7ec; border-radius: var(--radius); padding: 24px 16px; min-height: 60vh; }
 .cr-doc { display: grid; gap: 20px; justify-items: center; }
@@ -1096,7 +1097,7 @@ tr.bd-total td { font-weight: 700; border-top: 2px solid var(--line); }
 .sites-timeline > summary::before { content: "\25B8"; color: var(--muted); }
 .sites-timeline[open] > summary::before { content: "\25BE"; }
 .sites-timeline .gantt { margin-top: 10px; }
-.compare-bar { position: sticky; top: 0; z-index: 5; display: flex; gap: 10px; align-items: center; padding: 8px 14px; margin: 0 0 12px;
+.compare-bar { position: sticky; top: var(--topbar-h); z-index: 5; display: flex; gap: 10px; align-items: center; padding: 8px 14px; margin: 0 0 12px;
   background: #1e2a3a; color: #fff; border-radius: var(--radius); box-shadow: 0 4px 14px rgba(0,0,0,.18); }
 .compare-bar[hidden] { display: none; }
 .compare-bar .muted { color: #b6c0cd; }
@@ -1148,7 +1149,7 @@ tr.bd-total td { font-weight: 700; border-top: 2px solid var(--line); }
 .tpl-adv { margin: 4px 0 12px; }
 .tpl-adv summary { cursor: pointer; font-size: 12.5px; color: var(--muted); margin-bottom: 8px; }
 .tpl-preview iframe { width: 100%; height: 520px; border: 1px solid var(--line); border-radius: 6px; background: #fff; }
-.tpl-preview { position: sticky; top: 8px; align-self: start; }
+.tpl-preview { position: sticky; top: calc(var(--topbar-h) + 8px); align-self: start; }
 .tpl-keys { margin-top: 6px; font-size: 12.5px; }
 .tpl-keys summary { cursor: pointer; font-weight: 600; color: var(--muted); }
 .tpl-keys table { border-collapse: collapse; margin-top: 4px; }
@@ -1319,7 +1320,7 @@ tr.bd-total td { font-weight: 700; border-top: 2px solid var(--line); }
 /* ==========================================================================
    Company page (company_detail.html, company_meeting_card.html, action_item.html, company_actions.html)
    ========================================================================== */
-.co-tabs { position: sticky; top: 0; z-index: 5; background: var(--bg); overflow-x: auto; overflow-y: hidden;
+.co-tabs { position: sticky; top: var(--topbar-h); z-index: 5; background: var(--bg); overflow-x: auto; overflow-y: hidden;
   white-space: nowrap; scrollbar-width: none; padding-top: 4px; }
 .co-tabs a { flex: none; }
 .co-tabs .count, .co-kinds .count, .co-fold .count { background: #eef0f3; color: var(--muted); border-radius: 8px;
@@ -1899,6 +1900,27 @@ main:has(.mail-app) { max-width: none; padding: 12px 16px 16px; }
 .mail-list { display: flex; flex-direction: column; border-right: 1px solid var(--line); min-width: 0; min-height: 0; }
 .mail-search { display: flex; gap: 6px; padding: 8px; border-bottom: 1px solid var(--line); }
 .mail-search input { flex: 1; min-width: 0; }
+.mail-search { position: relative; }
+.mail-adv { position: static; }
+.mail-adv > summary { list-style: none; height: 100%; }
+.mail-adv > summary::-webkit-details-marker { display: none; }
+.mail-adv-pop { position: absolute; z-index: 30; top: calc(100% - 2px); left: 8px; right: 8px; background: var(--panel); border: 1px solid var(--line);
+  border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,.15); padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
+.mail-adv-pop label { display: flex; flex-direction: column; gap: 2px; color: var(--muted); }
+.mail-adv-pop label:has(input[type=checkbox]) { flex-direction: row; align-items: center; gap: 4px; color: var(--text); }
+.mail-adv-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.mail-adv-row > label { flex: 1; }
+.mail-adv-row > label:has(input[type=checkbox]) { flex: 0 0 auto; }
+.mail-widened { margin: 0; padding: 4px 10px; border-bottom: 1px solid var(--line); }
+/* Address and search suggestions (recipients.js) */
+.addr-host { position: relative; }
+.addr-suggest { position: absolute; z-index: 40; left: 0; right: 0; top: 100%; margin-top: 2px; background: var(--panel); border: 1px solid var(--line);
+  border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,.15); max-height: 300px; overflow-y: auto; font-size: 13px; }
+.compose-row .addr-suggest { left: 64px; }
+.addr-row { padding: 6px 10px; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.addr-row.on, .addr-row:hover { background: var(--accent-soft); }
+.addr-detail { font-size: 11px; background: #eef0f3; border-radius: 4px; padding: 1px 5px; margin-left: 4px; color: #3c4453; }
+.addr-note { padding: 6px 10px; border-top: 1px solid var(--line); white-space: normal; }
 .mail-folders-toggle { display: none; }
 .mail-list-head { display: flex; align-items: center; gap: 8px; padding: 8px 12px; }
 .mail-list-head .spacer { flex: 1; }

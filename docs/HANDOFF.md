@@ -5,6 +5,37 @@ Read this first when picking the project up in a new chat, along with
 
 ## Pick up here (2026-10-25)
 
+**David walkthrough fixes 2026-10-26** (Kellen: "start on bugs 1-9 from the David review in a worktree"; branch
+`worktree-david-review-fixes`, migration `0067_assignment_company`, **not merged yet**; the real DB needs a backup and
+`migrate crm` when it is). From the walkthrough with David DeNardo on Oct 26:
+- **Map fills the window** (`.land` was 100vh under the 52 px top bar, and the 1680 px page cap applied): no page
+  scroll, nothing cut off at the bottom. Sticky bars that slid under the top bar now sit below it: company tabs,
+  Sites compare bar, contract reader side panel, email template preview.
+- **QD planner:** a parcel opened outside the loaded assemblage/site now wins (`planTarget()` in `land_search.html`;
+  before, a site opened earlier caught the auto-fit, the "jumped to the airport side" bug). Clear also removes the
+  saved plan (asks first) and can't be undone by a check still in flight; saving no buildings stores `{}`. Buildings
+  take a length (width = area / length) and a turn in degrees (`qd.footprint`); auto-fit allows for the corners.
+  New **Max NEWQD** column (`qd.max_newqd`): the most the building can hold where it stands, keeping its IBD arc on the
+  property and its own separation to each neighbour, with a "use" button. Screening only, same as the rest.
+- **Site plan:** re-runs on every edit (zoning numbers, program, parking, setback); typed zoning numbers stay as
+  overrides until the zone changes (they used to be dropped after each run, so the next run lost them). The flood /
+  wetland lookup now waits 20 s with no retries (it was 90 s x 3 tries per service) and is cached per outline for a day.
+- **Client searches:** `Assignment.company` (the client name defaults to it). Pick the company on the list page or the
+  details form; a company page has a **Site searches** tab (linked searches, plus older ones whose client name matches)
+  with New site search. The Add a saved site picker is grouped by project.
+- Checked in the browser on a scratch DB with made-up parcels; tests added in `test_land.py` and `test_assignments.py`.
+- **Mail search** (`crm/mail/search.py`, Kellen: "needs to be much more robust"): plain words that name a company,
+  directory firm or person also find mail from/to/cc their domains or addresses (Gmail `{...}` OR; a note says what was
+  added, with "just the words"). Queries with Gmail operators pass through as typed. A ⚙ search-options panel (from,
+  to, subject, words, doesn't have, dates, attachment, unread, this folder only) builds the operators. The search box
+  suggests people as you type (picking one searches mail with them both ways).
+- **To / Cc / Bcc autocomplete** (`static/crm/recipients.js`, `/inbox/suggest/`) on the compose page and the inline
+  reply: teammates, CRM people, directory firm contacts and people who have written to you, by name or address.
+  Inserts `Name <address>, `. Only addresses the hub knows; Google Contacts isn't read (no People API scope).
+- Kellen's corrections to the review list: Raven Space's owner (David) is right; #15 (each person's own Claude) skipped.
+- Not reproduced: Kellen's "can't see the bottom" on a card. The Sites card scrolls inside its dialog; most likely
+  it was the map page overflow fixed above. Check on the laptop.
+
 **Where things stand**
 - `main` has everything below; the last code commit is `7a36c20` (browser notifications), pushed to `kmoczulski/acmi-crm`.
   515 tests pass and CI is green on Postgres. **Merged 2026-10-25** (fast-forward): PR #1 `boards-bound` and PR #2

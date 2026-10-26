@@ -2080,7 +2080,9 @@ class Assignment(models.Model):
     """
 
     name = models.CharField(max_length=200, help_text="e.g. Elbit 26 Defense land search")
-    client = models.CharField(max_length=200, blank=True)
+    company = models.ForeignKey("Company", null=True, blank=True, on_delete=models.SET_NULL, related_name="land_searches",
+                                help_text="The client's company record: the search shows on its Site searches tab")
+    client = models.CharField(max_length=200, blank=True, help_text="Name shown to the client; defaults to the company's")
     program = models.CharField(max_length=300, blank=True, help_text="End use, e.g. energetics manufacturing campus")
     demand_driver = models.CharField(max_length=200, blank=True, help_text="Installation or gate the program serves")
     acreage_floor = models.DecimalField(max_digits=10, decimal_places=1, null=True, blank=True,

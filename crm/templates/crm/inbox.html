@@ -26,8 +26,26 @@
   <section class="mail-list" aria-label="Conversations">
     <form class="mail-search" method="get" role="search">
       <button type="button" class="btn btn-small mail-folders-toggle" data-folders-toggle aria-controls="mail-folders">Folders</button>
-      <input type="search" name="q" value="{{ query }}" placeholder="Search mail (Gmail search: from:, has:attachment…)" aria-label="Search mail">
+      <input type="search" name="q" value="{{ query }}" placeholder="Search mail: a person, company, project or words" aria-label="Search mail" autocomplete="off">
+      <details class="mail-adv">
+        <summary class="btn btn-small" title="Search by sender, recipient, subject, dates or attachments">⚙</summary>
+        <div class="mail-adv-pop" data-adv>
+          <label>From<input data-op="from" placeholder="name or address"></label>
+          <label>To<input data-op="to" placeholder="name or address"></label>
+          <label>Subject<input data-op="subject"></label>
+          <label>Has the words<input data-op="words"></label>
+          <label>Doesn't have<input data-op="not"></label>
+          <div class="mail-adv-row"><label>After<input type="date" data-op="after"></label><label>Before<input type="date" data-op="before"></label></div>
+          <div class="mail-adv-row"><label><input type="checkbox" data-op="attach"> Has attachment</label>
+            <label><input type="checkbox" data-op="unread"> Unread</label><label><input type="checkbox" data-op="here"> In this folder only</label></div>
+          <div class="mail-adv-row"><span class="spacer"></span><button type="button" class="btn btn-small btn-primary" data-adv-go>Search</button></div>
+        </div>
+      </details>
+      <input type="hidden" name="in" value="{{ within|default:label }}" data-adv-in {% if not within %}disabled{% endif %}>
     </form>
+    {% if widened %}<p class="mail-widened lc-small muted">Also finding mail with {% for kind, name in widened %}<b>{{ name }}</b>{% if not forloop.last %}, {% endif %}{% endfor %} by their addresses ·
+      <a href="?{% if label %}label={{ label|urlencode }}&{% endif %}q={{ query|urlencode }}&exact=1">just the words</a></p>
+    {% elif exact and query %}<p class="mail-widened lc-small muted">Matching the words only · <a href="?{% if label %}label={{ label|urlencode }}&{% endif %}q={{ query|urlencode }}">include people and companies</a></p>{% endif %}
     <div class="mail-list-head">
       <strong>{{ label_name }}</strong>{% if query %} <span class="muted">“{{ query }}”</span> <a class="lc-small" href="?label={{ label|urlencode }}">Clear</a>{% endif %}
       <span class="spacer"></span>
@@ -552,4 +570,31 @@
   })();
 </script>
 <script src="{% static 'crm/compose.js' %}?v={{ ASSET_VERSION }}"></script>
+<script src="{% static 'crm/recipients.js' %}?v={{ ASSET_VERSION }}" data-url="{% url 'crm:inbox_suggest' %}"></script>
+<script>
+  // Search options: the fields become Gmail search operators in the box, then search.
+  (function () {
+    const pop = document.querySelector('[data-adv]');
+    if (!pop) return;
+    const form = pop.closest('form'), box = form.querySelector('input[name=q]'), within = form.querySelector('[data-adv-in]');
+    const val = op => pop.querySelector(`[data-op="${op}"]`);
+    const quote = s => /\s/.test(s) ? `"${s.replace(/"/g, '')}"` : s;
+    const day = s => s.replaceAll('-', '/');
+    function build() {
+      const parts = [];
+      for (const op of ['from', 'to']) { const v = val(op).value.trim(); if (v) parts.push(`${op}:${quote(v)}`); }
+      const subject = val('subject').value.trim(); if (subject) parts.push(`subject:(${subject})`);
+      const words = val('words').value.trim(); if (words) parts.push(words);
+      val('not').value.trim().split(/\s+/).filter(Boolean).forEach(w => parts.push('-' + w));
+      if (val('after').value) parts.push('after:' + day(val('after').value));
+      if (val('before').value) parts.push('before:' + day(val('before').value));
+      if (val('attach').checked) parts.push('has:attachment');
+      if (val('unread').checked) parts.push('is:unread');
+      return parts.join(' ');
+    }
+    const go = () => { const q = build(); if (!q) return; box.value = q; within.disabled = !val('here').checked; form.submit(); };
+    pop.querySelector('[data-adv-go]').addEventListener('click', go);
+    pop.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); go(); } });
+  })();
+</script>
 {% endblock %}

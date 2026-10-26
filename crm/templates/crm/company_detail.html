@@ -19,6 +19,7 @@
   <a href="{% qs_set tab='activity' mpage='' %}" class="{% if tab == 'activity' %}active{% endif %}">Activity</a>
   <a href="{% qs_set tab='people' bg='' tpage='' mpage='' kind='' %}" class="{% if tab == 'people' %}active{% endif %}">People <span class="count">{{ people|length }}</span></a>
   <a href="{% qs_set tab='opportunities' bg='' tpage='' mpage='' kind='' %}" class="{% if tab == 'opportunities' %}active{% endif %}">Deals <span class="count">{{ opportunities|length }}</span></a>
+  <a href="{% qs_set tab='sites' bg='' tpage='' mpage='' kind='' %}" class="{% if tab == 'sites' %}active{% endif %}">Site searches <span class="count">{{ land_searches|length }}</span></a>
 </nav>
 
 <div class="co-record">
@@ -142,6 +143,24 @@
           <td><form method="post" action="{% url 'crm:opportunity_toggle_report' o.pk %}" style="margin:0">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button class="btn btn-small">{% if o.investor_report %}✓ On report · Remove{% else %}Add to report{% endif %}</button></form></td></tr>
         {% empty %}<tr><td colspan="11" class="muted">No opportunities yet.</td></tr>{% endfor %}</tbody>
       </table></div>
+    {% elif tab == 'sites' %}
+      <div class="page-head">
+        <span class="muted lc-small">Land searches we've run for {{ company.name }}: the candidate sites, their reports and the client link.</span>
+        <span class="spacer"></span>
+        <form method="post" action="{% url 'crm:assignments' %}" style="margin:0">{% csrf_token %}
+          <input type="hidden" name="company_id" value="{{ company.pk }}"><button class="btn btn-primary">New site search</button></form>
+      </div>
+      <div class="table-wrap"><table class="data">
+        <thead><tr><th>Search</th><th>Sites</th><th>Client link</th><th>Updated</th></tr></thead>
+        <tbody>{% for a in land_searches %}
+          <tr><td><a href="{{ a.get_absolute_url }}"><b>{{ a.name }}</b></a>{% if a.program %}<div class="muted lc-small">{{ a.program }}</div>{% endif %}</td>
+            <td>{% for e in a.entries.all %}{{ e.site.name }}{% if not forloop.last %} · {% endif %}{% empty %}<span class="muted">None yet</span>{% endfor %}</td>
+            <td>{% if a.share_active %}<span class="pill pill-ok">On</span> <span class="muted lc-small">{{ a.guest_views }} view{{ a.guest_views|pluralize }}</span>{% else %}<span class="muted">Off</span>{% endif %}</td>
+            <td class="lc-small">{{ a.updated_at|date:"M j, Y" }}</td></tr>
+        {% empty %}<tr><td colspan="4" class="muted">No site searches for {{ company.name }} yet.</td></tr>{% endfor %}</tbody>
+      </table></div>
+      {% if open_deals %}<p class="lc-small" style="margin-top:12px">Site fit against our own sites, per deal:
+        {% for o in open_deals %}<a href="{% url 'crm:opportunity_fit' o.pk %}">{{ o.name }}</a>{% if not forloop.last %} · {% endif %}{% endfor %}</p>{% endif %}
     {% endif %}
   </section>
 
