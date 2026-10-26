@@ -17,6 +17,15 @@ the Google client to every job (the send job had no Google client at all); `cryp
 `.env.example` lists the new variables. Also on the branch (Kellen, 2026-10-26: "I can only attach one document in
 email?"): the compose page and the inline reply keep every file picked (`compose.js`): each pick adds to a list under
 the Attach button, with a ✕ per file and a 25 MB total warning; before, picking again replaced the first file.
+**Second pass, same branch** (Kellen: "go through each section of the web app and double check everything", and
+"in the QD arc when I put in 10,000 it shows 10000"): every number field in the hub takes and shows thousands
+separators (`comma_numbers` in `crm/forms.py`, `acmiNum` in `nav.js`, the QD planner and site plan, the hand-written
+inputs); every URL was fetched on a scratch database as a Manager, a plain member and signed out, and the main pages
+opened in Chromium. Fixed from that: five pages that crashed on a missing user (a `|default:` argument on None
+raises), the Tasks page in database order (Meta.ordering is dropped on a GROUP BY), Gmail failures after the inbox
+loaded showing as 500s in the reading frame, repeated per-row queries on the campus, home, company and deal pages,
+map overlays asked for every region on every move (and the Huntsville parcel layer never drew: no CORS on that
+server). Details and a checklist in the report's "Second pass" section. 726 tests green.
 **Merge:** CI, then `git merge --ff-only`, back up the real database and `manage.py migrate crm`.
 
 **David walkthrough fixes 2026-10-26** (Kellen: "start on bugs 1-9 from the David review in a worktree"; branch

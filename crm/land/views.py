@@ -124,7 +124,7 @@ def parcels_json(request):
     except (KeyError, ValueError):
         raise Http404("bbox required")
     qs = qs.filter(max_lon__gte=west, min_lon__lte=east, max_lat__gte=south, min_lat__lte=north)
-    zoom = int(request.GET.get("zoom") or 10)
+    zoom = int(request.GET["zoom"]) if request.GET.get("zoom", "").isdigit() else 10
     as_points = zoom < 12
     fields = ["pk", "county__name", "key", "prop_id", "owner_name", "acres", "score", "status", "killers", "lat", "lon",
               "situs_address", "near", "in_city", "state_land_use", "market_value", "zoning_class", "zoning"]

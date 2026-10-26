@@ -172,6 +172,15 @@ class UsingASharedMailboxTests(TestCase):
         self.assertContains(r, "Sent")
         self.assertContains(r, "Re: RFP for MEIH")
 
+    def test_the_log_and_settings_survive_a_deleted_teammate(self):
+        MailboxAccessLog.objects.create(mailbox=self.deals, user=None, action="send", detail="Re: RFP")
+        SharedMailboxToken.objects.filter(mailbox=self.deals).update(connected_by=None)
+        self.client.force_login(self.kellen)
+        r = self.client.get(reverse("crm:mail_shared_log", args=[self.deals.pk]))
+        self.assertContains(r, "(deleted)")
+        r = self.client.get(reverse("crm:mail_settings"))
+        self.assertContains(r, "someone no longer on the team")
+
     def test_the_switcher_and_going_back_to_your_own(self):
         self.grant(self.simon)
         r = self.client.get(reverse("crm:inbox"), {"mb": self.deals.pk})

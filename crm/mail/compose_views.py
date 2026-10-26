@@ -15,7 +15,7 @@ from . import compose, index, render as mail_render
 from .gmail_api import NotFound
 from .imap import MailboxError
 from . import shared
-from .inbox_views import READ_ONLY, mail_required, may_change
+from .inbox_views import GMAIL_DOWN, READ_ONLY, mail_required, may_change
 from .views import team_only
 
 log = logging.getLogger(__name__)
@@ -28,6 +28,8 @@ def _original(mailbox, client, message_id):
         return mail_render.get_message(mailbox, client, message_id)
     except NotFound:
         raise Http404("That email isn't in your mailbox.")
+    except requests.RequestException:
+        raise MailboxError(GMAIL_DOWN)
 
 
 def _fields_from_post(request):
@@ -59,7 +61,11 @@ def _first_name(addresses):
 def compose_page(request, mailbox, client):
     """GET: the form, filled in for a reply / reply all / forward (?reply=<message id>&mode=…) or for an address
     (?to=…, from a person or company page). POST: send."""
-    original = _original(mailbox, client, request.POST.get("reply_to_id") or request.GET.get("reply", ""))
+    try:
+        original = _original(mailbox, client, request.POST.get("reply_to_id") or request.GET.get("reply", ""))
+    except MailboxError as exc:
+        messages.error(request, str(exc))
+        return redirect("crm:inbox")
     mode = request.POST.get("mode") or request.GET.get("mode", "reply" if original else "new")
     if mode not in ("new", "reply", "all", "forward"):
         mode = "new"
@@ -141,7 +147,10 @@ def _form_again(request, mailbox, client, original, mode, error):
 def reply_fields(request, mailbox, client):
     """For the reading pane's inline reply box: who it goes to, the subject and threading for a reply, reply all or
     forward of one message, the original's files on a forward, and the signature to show."""
-    original = _original(mailbox, client, request.GET.get("reply", ""))
+    try:
+        original = _original(mailbox, client, request.GET.get("reply", ""))
+    except MailboxError as exc:
+        return JsonResponse({"error": str(exc)}, status=503)
     if original is None:
         raise Http404()
     if not shared.can_change(request.user, mailbox):
@@ -170,7 +179,10 @@ def save_draft(request, mailbox, client):
         f = _fields_from_post(request)
     except compose.ComposeError as exc:
         return JsonResponse({"error": str(exc)}, status=400)
-    original = _original(mailbox, client, request.POST.get("reply_to_id", ""))
+    try:
+        original = _original(mailbox, client, request.POST.get("reply_to_id", ""))
+    except MailboxError as exc:
+        return JsonResponse({"error": str(exc)}, status=503)
     mode = request.POST.get("mode", "new")
     if original:
         f["quote"] = compose.quoted(mailbox, original, "forward" if mode == "forward" else "reply")

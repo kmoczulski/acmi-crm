@@ -32,7 +32,7 @@
       <td class="lc-small">{{ r.terms.rent_start|date:"M j, Y"|default:"–" }}</td>
       <td class="lc-small {% if r.expiring %}soon{% endif %}">{{ r.terms.expiration|date:"M j, Y"|default:"–" }}{% if r.years_left %}<div class="muted">{{ r.years_left }} yrs left</div>{% endif %}</td>
       <td class="num">{{ r.rent|dollars }}</td>
-      <td class="num">{% if r.psf %}${{ r.psf }}{% endif %}</td>
+      <td class="num">{% if r.psf %}${{ r.psf|floatformat:2|intcomma }}{% endif %}</td>
       <td class="num">{% if r.terms.escalation_pct is not None %}{{ r.terms.escalation_pct|floatformat:"-2" }}%{% endif %}</td>
       <td class="lc-small">{% if r.terms.renewals %}{{ r.terms.renewals }} × {{ r.terms.renewal_years|floatformat:"-1" }} yrs{% else %}–{% endif %}</td>
       <td class="lc-small {% if r.notice_soon %}overdue{% endif %}">{{ r.notice|date:"M j, Y"|default:"–" }}</td>

@@ -7,7 +7,7 @@
     <li>
       <form method="post" action="{% url 'crm:task_toggle' t.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><input type="checkbox" onchange="this.form.submit()" title="Mark done"></form>
       <div><a href="{{ t.get_absolute_url }}">{{ t.title }}</a>{% if t.repeat %} <span class="muted" title="{{ t.get_repeat_display }}">↻</span>{% endif %}
-        <div class="muted" style="font-size:12px">{% if t.due_date %}<span class="{% if t.is_overdue %}overdue{% endif %}">Due {{ t.due_date|date:"M j" }}{% if t.due_time %} {{ t.due_time|time:"g:i A" }}{% endif %}</span> · {% endif %}{{ t.assignee|username }}{% with n=t.comments.count %}{% if n %} · 💬 {{ n }}{% endif %}{% endwith %}</div></div>
+        <div class="muted" style="font-size:12px">{% if t.due_date %}<span class="{% if t.is_overdue %}overdue{% endif %}">Due {{ t.due_date|date:"M j" }}{% if t.due_time %} {{ t.due_time|time:"g:i A" }}{% endif %}</span> · {% endif %}{{ t.assignee|username }}{% if t.n_comments %} · 💬 {{ t.n_comments }}{% endif %}</div></div>
     </li>
     {% empty %}<li class="muted">No open tasks.</li>{% endfor %}
   </ul>

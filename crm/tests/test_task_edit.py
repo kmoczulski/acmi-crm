@@ -56,3 +56,19 @@ class TaskEditTests(TestCase):
     def test_task_rows_link_to_edit(self):
         r = self.client.get(reverse("crm:task_list"))
         self.assertContains(r, f'href="{self.task.get_absolute_url()}#edit"')
+
+
+class TaskListOrderTests(TestCase):
+    def test_the_list_is_due_first_even_with_the_comment_count(self):
+        """Meta.ordering is dropped on a GROUP BY query, so the comment count left the page in database order."""
+        from crm.models import Comment
+
+        kellen = User.objects.create_user("kellen", password="x")
+        self.client.force_login(kellen)
+        later = Task.objects.create(title="Later", due_date=date(2026, 11, 20), assignee=kellen)
+        soon = Task.objects.create(title="Soon", due_date=date(2026, 11, 1), assignee=kellen)
+        someday = Task.objects.create(title="Someday", assignee=kellen)
+        Comment.objects.create(body="Any news?", author=kellen, task=later)
+        r = self.client.get(reverse("crm:task_list"))
+        self.assertEqual([t.title for t in r.context["page"].object_list], ["Soon", "Later", "Someday"])
+        self.assertEqual([t.n_comments for t in r.context["page"].object_list], [0, 1, 0])

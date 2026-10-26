@@ -68,7 +68,7 @@ def _tasks_for(meeting_list):
 
 def meeting_context(company, request, tab):
     """Everything the overview, Meetings and Action items tabs need about the company's meetings."""
-    all_meetings = list(company.meetings.order_by("-start"))
+    all_meetings = list(company.meetings.select_related("transcript").order_by("-start"))
     tasks = _tasks_for(all_meetings)
     now = timezone.now()
     past = [m for m in all_meetings if m.start <= now]

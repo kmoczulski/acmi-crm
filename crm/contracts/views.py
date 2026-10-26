@@ -629,7 +629,7 @@ def contract_comment(request, pk):
     contract = get_object_or_404(Contract, pk=pk)
     action = request.POST.get("action", "add")
     back = request.POST.get("next") or contract.get_absolute_url()
-    if not back.startswith("/"):
+    if not back.startswith("/") or back.startswith("//"):  # a path on this site, never another host
         back = contract.get_absolute_url()
     back = back.split("#")[0]
     if action in ("add", "reply"):

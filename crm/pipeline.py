@@ -189,11 +189,24 @@ def awaiting_reply(user, days=21):
         if key in seen:
             continue
         seen.add(key)
-        answered = Activity.objects.filter(kind=Activity.Kind.EMAIL_SENT, occurred_at__gt=r.occurred_at)
-        answered = answered.filter(thread_id=r.thread_id) if r.thread_id else answered.filter(company=r.company_id)
-        if not answered.exists():
-            out.append(r)
-    return out[:50]
+        out.append(r)
+    # Everything we sent since, once, instead of one lookup per reply: a reply is answered when something went out
+    # on its thread (or, for a reply with no thread, to its company) after it.
+    sent = (Activity.objects.filter(kind=Activity.Kind.EMAIL_SENT, occurred_at__gt=since)
+            .filter(Q(thread_id__in=[r.thread_id for r in out if r.thread_id])
+                    | Q(company_id__in=[r.company_id for r in out if not r.thread_id]))
+            .values_list("thread_id", "company_id", "occurred_at"))
+    by_thread, by_company = {}, {}
+    for thread_id, company_id, when in sent:
+        if thread_id:
+            by_thread[thread_id] = max(by_thread.get(thread_id, when), when)
+        by_company[company_id] = max(by_company.get(company_id, when), when)
+
+    def answered(r):
+        last = by_thread.get(r.thread_id) if r.thread_id else by_company.get(r.company_id)
+        return last is not None and last > r.occurred_at
+
+    return [r for r in out if not answered(r)][:50]
 
 
 def my_day(user):

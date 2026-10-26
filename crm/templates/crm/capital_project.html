@@ -35,7 +35,7 @@
         <label>Provider <input name="provider_name" list="provider-names" autocomplete="off" required placeholder="Lender, investor or agency"></label>
         <label>Type <select name="kind">{% for v, l in form.fields.kind.choices %}{% if v %}<option value="{{ v }}"{% if v == "construction" %} selected{% endif %}>{{ l }}</option>{% endif %}{% endfor %}</select></label>
         <label>Stage <select name="status">{% for v, l in form.fields.status.choices %}{% if v %}<option value="{{ v }}">{{ l }}</option>{% endif %}{% endfor %}</select></label>
-        <label>Sought ($) <input name="amount_sought" type="number" step="1" min="0"></label>
+        <label>Sought ($) <input name="amount_sought" data-commas inputmode="decimal" autocomplete="off"></label>
         <div class="dd-wide"><button class="btn btn-small btn-primary">Add source</button> <span class="muted lc-small">Providers are their own list, not Companies, so they never reach outreach. Add their email domain on the provider so emails and meetings count.</span></div>
       </form>
     </section>

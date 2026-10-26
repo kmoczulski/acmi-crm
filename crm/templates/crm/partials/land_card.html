@@ -23,7 +23,7 @@
     <select name="project" required><option value="">Add to project…</option>{% for pr in projects %}<option value="{{ pr.pk }}">{{ pr.name }}{% if pr.campus %} ({{ pr.campus.code }}){% endif %}</option>{% endfor %}</select>
     <button class="btn btn-small">Add</button>{% for s in p.sites.all %}{% if s.project %} · in <a href="{{ s.project.get_absolute_url }}">{{ s.project.name }}</a>{% endif %}{% endfor %}
   </form>
-  {% if p.status %}<div class="muted lc-small">{{ p.get_status_display }} · {{ p.status_by.get_full_name|default:p.status_by.username|default:"" }} {{ p.status_at|date:"M j" }}{% if p.company %} · Landowner: <a href="{{ p.company.get_absolute_url }}">{{ p.company.name }}</a>{% endif %}</div>{% endif %}
+  {% if p.status %}<div class="muted lc-small">{{ p.get_status_display }} · {{ p.status_by|username }} {{ p.status_at|date:"M j" }}{% if p.company %} · Landowner: <a href="{{ p.company.get_absolute_url }}">{{ p.company.name }}</a>{% endif %}</div>{% endif %}
 
   <section>
     <h3>Owner</h3>

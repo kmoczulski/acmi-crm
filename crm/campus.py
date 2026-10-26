@@ -8,6 +8,7 @@ the team adds for things that happened off-system. Nothing here is written by AI
 from collections import defaultdict
 from datetime import datetime, time, timedelta
 
+from django.db.models import Max, Min
 from django.utils import timezone
 
 from .choices import Order
@@ -55,26 +56,36 @@ def _waiting_note(update, today):
     return note
 
 
-def _tenant(opp, today):
-    acts = Activity.objects.filter(company=opp.company)
-    last_in = acts.filter(kind__in=INBOUND).order_by("-occurred_at").first()
-    last_out = acts.filter(kind__in=OUTBOUND).order_by("-occurred_at").first()
+def _touches(company_ids):
+    """Per company: when we last heard from them, last wrote to them, last met and meet next. Four queries for the
+    whole campus, where each deal used to ask five of its own."""
     now = timezone.now()
-    meetings = Meeting.objects.filter(companies=opp.company)
-    last_meeting = meetings.filter(start__lte=now).order_by("-start").first()
-    next_meeting = meetings.filter(start__gt=now).order_by("start").first()
+    acts = Activity.objects.filter(company_id__in=company_ids).order_by()
+    meetings = Meeting.objects.filter(companies__in=company_ids).order_by()
+    return {
+        "in": dict(acts.filter(kind__in=INBOUND).values_list("company_id").annotate(last=Max("occurred_at"))),
+        "out": dict(acts.filter(kind__in=OUTBOUND).values_list("company_id").annotate(last=Max("occurred_at"))),
+        "met": dict(meetings.filter(start__lte=now).values_list("companies").annotate(last=Max("start"))),
+        "next": dict(meetings.filter(start__gt=now).values_list("companies").annotate(first=Min("start"))),
+    }
+
+
+def _tenant(opp, today, touch=None):
+    touch = touch or _touches([opp.company_id])
+    last_in, last_out = touch["in"].get(opp.company_id), touch["out"].get(opp.company_id)
+    last_meeting, next_meeting = touch["met"].get(opp.company_id), touch["next"].get(opp.company_id)
     update = opp.campus_updates.first()
     flags, facts = [], []
-    if last_out and (not last_in or last_out.occurred_at > last_in.occurred_at):
-        quiet = (today - _day(last_out.occurred_at)).days
+    if last_out and (not last_in or last_out > last_in):
+        quiet = (today - _day(last_out)).days
         if quiet >= NO_REPLY_DAYS:
-            flags.append(f"no reply in {quiet} days (we wrote {_fmt_day(_day(last_out.occurred_at))})")
+            flags.append(f"no reply in {quiet} days (we wrote {_fmt_day(_day(last_out))})")
     if last_in:
-        facts.append(f"last heard from them {_fmt_day(_day(last_in.occurred_at))}")
+        facts.append(f"last heard from them {_fmt_day(_day(last_in))}")
     if last_meeting:
-        facts.append(f"met {_fmt_day(_day(last_meeting.start))}")
+        facts.append(f"met {_fmt_day(_day(last_meeting))}")
     if next_meeting:
-        facts.append(f"next meeting {_fmt_day(_day(next_meeting.start))}")
+        facts.append(f"next meeting {_fmt_day(_day(next_meeting))}")
     if opp.next_step:
         due = f" (due {_fmt_day(opp.next_step_due)})" if opp.next_step_due else ""
         facts.append(f"next step: {opp.next_step}{due}")
@@ -83,14 +94,13 @@ def _tenant(opp, today):
     # A stage move counts as activity only when it happened after the deal was created: imported deals carry the
     # import time as their stage date, which would make every quiet deal look fresh.
     moved = opp.stage_changed_at if opp.stage_changed_at - opp.created_at > timedelta(minutes=5) else None
-    touches = [d for d in (_day(last_in and last_in.occurred_at), _day(last_out and last_out.occurred_at),
-                           _day(last_meeting and last_meeting.start), update and update.happened_on,
+    touches = [d for d in (_day(last_in), _day(last_out), _day(last_meeting), update and update.happened_on,
                            _day(moved)) if d]
     last_touch = max(touches) if touches else None
     no_reply = any(f.startswith("no reply") for f in flags)  # already says how long it has been quiet
     if not no_reply and (not last_touch or (today - last_touch).days >= QUIET_DAYS):
         flags.append(f"no activity in {(today - last_touch).days} days" if last_touch else "no activity recorded")
-    contract_facts, contract_flags = contract_dates.campus_lines(opp.contracts.prefetch_related("dates"), today)
+    contract_facts, contract_flags = contract_dates.campus_lines(opp.contracts.all(), today)  # prefetched with dates
     facts[:0], flags[:0] = contract_facts, contract_flags  # the agreement and its deadlines lead
     return {"kind": "tenant", "obj": opp, "name": opp.company.name, "url": opp.get_absolute_url(),
             "status": opp.get_stage_display(), "update": update, "facts": facts, "flags": flags,
@@ -148,9 +158,10 @@ def _project(project, today):
 def summary(campus, today=None, feed_days=7):
     """Everything the Summary tab shows for one campus."""
     today = today or timezone.localdate()
-    opps = (campus.opportunities.exclude(stage=OpportunityStage.LOST).select_related("company", "owner")
-            .prefetch_related("campus_updates"))
-    tenants = sorted((_tenant(o, today) for o in opps),
+    opps = list(campus.opportunities.exclude(stage=OpportunityStage.LOST).select_related("company", "owner")
+                .prefetch_related("campus_updates", "contracts__dates"))
+    touch = _touches({o.company_id for o in opps})
+    tenants = sorted((_tenant(o, today, touch) for o in opps),
                      key=lambda i: (STAGE_ORDER.index(i["obj"].stage) if i["obj"].stage in STAGE_ORDER else 99,
                                     i["name"].lower()))
     sites = campus.land_sites.exclude(status=LandSite.Status.DROPPED).prefetch_related("events", "campus_updates")

@@ -1,4 +1,5 @@
 {% extends "crm/base.html" %}
+{% load humanize %}
 {% load crm_tags %}
 {% block title %}Build · {{ project.name }} · ACMI CRM{% endblock %}
 {% block content %}
@@ -85,7 +86,7 @@
             <label>Role <select name="role">{% for v, l in roles|offer:t.role %}<option value="{{ v }}"{% if v == t.role %} selected{% endif %}>{{ l }}</option>{% endfor %}</select></label>
             <label>Firm <input name="firm" value="{{ t.firm }}" list="firm-names" autocomplete="off" required></label>
             <label>Contact <input name="contact" value="{{ t.contact }}"></label>
-            <label>Contract ($) <input name="fee" value="{{ t.fee|default_if_none:'' }}"></label>
+            <label>Contract ($) <input name="fee" value="{{ t.fee|default_if_none:''|floatformat:'-2'|intcomma }}" data-commas inputmode="decimal"></label>
             <label>Invoiced ($) <input name="invoiced" value="{{ t.invoiced|default_if_none:'' }}"></label>
             <label>Status <select name="status">{% for v, l in team_statuses|offer:t.status %}<option value="{{ v }}"{% if v == t.status %} selected{% endif %}>{{ l }}</option>{% endfor %}</select></label>
             <label class="dd-wide">Notes <input name="notes" value="{{ t.notes }}"></label>
@@ -101,7 +102,7 @@
       <label>Role <select name="role">{% for v, l in roles|offer %}<option value="{{ v }}">{{ l }}</option>{% endfor %}</select></label>
       <label>Firm <input name="firm" list="firm-names" autocomplete="off" required placeholder="From the directory, or a new name"></label>
       <label>Contact <input name="contact"></label>
-      <label>Contract ($) <input name="fee"></label>
+      <label>Contract ($) <input name="fee" data-commas inputmode="decimal"></label>
       <label>Invoiced ($) <input name="invoiced"></label>
       <label>Status <select name="status">{% for v, l in team_statuses|offer:"engaged" %}<option value="{{ v }}"{% if v == "engaged" %} selected{% endif %}>{{ l }}</option>{% endfor %}</select></label>
       <div class="dd-wide"><button class="btn btn-small btn-primary">Add</button></div>
@@ -123,9 +124,9 @@
             <label>Number <input name="number" value="{{ d.number }}" required></label>
             <label>Period end <input type="date" name="period_end" value="{{ d.period_end|date:'Y-m-d' }}"></label>
             <label>Status <select name="status">{% for v, l in draw_statuses|offer:d.status %}<option value="{{ v }}"{% if v == d.status %} selected{% endif %}>{{ l }}</option>{% endfor %}</select></label>
-            <label>Requested ($) <input name="requested" value="{{ d.requested }}" required></label>
-            <label>Funded ($) <input name="funded" value="{{ d.funded|default_if_none:'' }}"></label>
-            <label>Retainage ($) <input name="retainage" value="{{ d.retainage|default_if_none:'' }}"></label>
+            <label>Requested ($) <input name="requested" value="{{ d.requested|floatformat:'-2'|intcomma }}" data-commas inputmode="decimal" required></label>
+            <label>Funded ($) <input name="funded" value="{{ d.funded|default_if_none:''|floatformat:'-2'|intcomma }}" data-commas inputmode="decimal"></label>
+            <label>Retainage ($) <input name="retainage" value="{{ d.retainage|default_if_none:''|floatformat:'-2'|intcomma }}" data-commas inputmode="decimal"></label>
             <label>Submitted <input type="date" name="submitted_on" value="{{ d.submitted_on|date:'Y-m-d' }}"></label>
             <label>Funded on <input type="date" name="funded_on" value="{{ d.funded_on|date:'Y-m-d' }}"></label>
             <label>Notes <input name="notes" value="{{ d.notes }}"></label>
@@ -169,7 +170,7 @@
           <label>Firm <input name="firm" value="{{ b.firm }}" required></label>
           <label>Contact <input name="contact" value="{{ b.contact }}"></label>
           <label>Status <select name="status">{% for v, l in bid_statuses|offer:b.status %}<option value="{{ v }}"{% if v == b.status %} selected{% endif %}>{{ l }}</option>{% endfor %}</select></label>
-          <label>Price ($) <input name="amount" value="{{ b.amount|default_if_none:'' }}"></label>
+          <label>Price ($) <input name="amount" value="{{ b.amount|default_if_none:''|floatformat:'-2'|intcomma }}" data-commas inputmode="decimal"></label>
           <label>Fee (%) <input name="fee_pct" value="{{ b.fee_pct|default_if_none:'' }}"></label>
           <label>General conditions ($) <input name="general_conditions" value="{{ b.general_conditions|default_if_none:'' }}"></label>
           <label>Schedule (months) <input name="duration_months" value="{{ b.duration_months|default_if_none:'' }}"></label>
@@ -193,7 +194,7 @@
       <label>Firm <input name="firm" required></label>
       <label>Contact <input name="contact"></label>
       <label>Status <select name="status">{% for v, l in bid_statuses|offer %}<option value="{{ v }}">{{ l }}</option>{% endfor %}</select></label>
-      <label>Price ($) <input name="amount"></label>
+      <label>Price ($) <input name="amount" data-commas inputmode="decimal"></label>
       <label>Interview <input type="date" name="interview_on"></label>
       <label>Proposal (PDF or Word) <input type="file" name="file"></label>
       <div class="dd-wide"><button class="btn btn-small btn-primary">Add</button></div>
@@ -238,10 +239,10 @@
               <label>Group <select name="group">{% for v, lab in groups|offer:l.group %}<option value="{{ v }}"{% if v == l.group %} selected{% endif %}>{{ lab }}</option>{% endfor %}</select></label>
               <label>Code <input name="code" value="{{ l.code }}"></label>
               <label>Line <input name="name" value="{{ l.name }}" required></label>
-              <label>Original ($) <input name="original" value="{{ l.original }}" required></label>
-              <label>Committed ($) <input name="committed" value="{{ l.committed|default_if_none:'' }}"></label>
-              <label>Paid ($) <input name="paid" value="{{ l.paid|default_if_none:'' }}"></label>
-              <label>Forecast ($) <input name="forecast" value="{{ l.forecast|default_if_none:'' }}" placeholder="= current budget"></label>
+              <label>Original ($) <input name="original" value="{{ l.original|floatformat:'-2'|intcomma }}" data-commas inputmode="decimal" required></label>
+              <label>Committed ($) <input name="committed" value="{{ l.committed|default_if_none:''|floatformat:'-2'|intcomma }}" data-commas inputmode="decimal"></label>
+              <label>Paid ($) <input name="paid" value="{{ l.paid|default_if_none:''|floatformat:'-2'|intcomma }}" data-commas inputmode="decimal"></label>
+              <label>Forecast ($) <input name="forecast" value="{{ l.forecast|default_if_none:''|floatformat:'-2'|intcomma }}" data-commas inputmode="decimal" placeholder="= current budget"></label>
               <div class="dd-wide inline-form"><button class="btn btn-small btn-primary">Save</button>
                 {% if can_manage %}<button class="btn-link lc-small" name="action" value="line_delete" formnovalidate onclick="return confirm('Remove this line?')">Remove</button>{% endif %}</div>
             </form></details></td>
@@ -279,7 +280,7 @@
             <label>Number <input name="number" value="{{ c.number }}"></label>
             <label class="dd-wide">Change <input name="title" value="{{ c.title }}" required></label>
             <label>Reason <select name="reason">{% for v, l in co_reasons|offer:c.reason %}<option value="{{ v }}"{% if v == c.reason %} selected{% endif %}>{{ l }}</option>{% endfor %}</select></label>
-            <label>Amount ($) <input name="amount" value="{{ c.amount }}" required></label>
+            <label>Amount ($) <input name="amount" value="{{ c.amount|floatformat:'-2'|intcomma }}" data-commas inputmode="decimal" required></label>
             <label>Days <input name="days" value="{{ c.days }}" required></label>
             <label>Status <select name="status">{% for v, l in co_statuses|offer:c.status %}<option value="{{ v }}"{% if v == c.status %} selected{% endif %}>{{ l }}</option>{% endfor %}</select></label>
             <label>Budget line <select name="line"><option value="">–</option>{% for l in s.budget.lines %}<option value="{{ l.pk }}"{% if l.pk == c.line_id %} selected{% endif %}>{{ l.code }} {{ l.name }}</option>{% endfor %}</select></label>
@@ -302,7 +303,7 @@
       <label>Number <input name="number"></label>
       <label class="dd-wide">Change <input name="title" required></label>
       <label>Reason <select name="reason">{% for v, l in co_reasons|offer %}<option value="{{ v }}">{{ l }}</option>{% endfor %}</select></label>
-      <label>Amount ($) <input name="amount" value="0" required></label>
+      <label>Amount ($) <input name="amount" value="0" data-commas inputmode="decimal" required></label>
       <label>Days <input name="days" value="0" required></label>
       <label>Budget line <select name="line"><option value="">–</option>{% for l in s.budget.lines %}<option value="{{ l.pk }}">{{ l.code }} {{ l.name }}</option>{% endfor %}</select></label>
       <label>Submitted <input type="date" name="submitted_on" value="{{ today|date:'Y-m-d' }}"></label>

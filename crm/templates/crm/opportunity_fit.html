@@ -54,7 +54,7 @@
         <td><select name="hd_{{ forloop.counter0 }}">{% for hd in hds %}<option value="{{ hd }}"{% if hd == c.hd %} selected{% endif %}>{{ hd }}</option>{% endfor %}</select></td>
         <td><input name="newqd_{{ forloop.counter0 }}" value="{{ c.newqd|default_if_none:''|floatformat:'-0' }}" inputmode="decimal"></td>
         <td><select name="kind_{{ forloop.counter0 }}">{% for k, label in kinds.items %}<option value="{{ k }}"{% if k == c.kind %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></td>
-        <td><input name="sqft_{{ forloop.counter0 }}" value="{{ c.sqft|default_if_none:''|floatformat:'-0' }}" inputmode="decimal"></td>
+        <td><input name="sqft_{{ forloop.counter0 }}" value="{{ c.sqft|default_if_none:''|floatformat:'-0'|intcomma }}" inputmode="decimal" data-commas></td>
       </tr>{% endfor %}</tbody>
     </table>
     <div class="inline-form" style="margin-top:8px">

@@ -68,7 +68,7 @@
 <section class="panel">
   <h3>{% if tr.is_assemblage %}Assemblage tracker{% else %}Parcel tracker{% endif %}
     <span class="muted lc-small">{{ tr.parcels }} parcel{{ tr.parcels|pluralize }} · {{ tr.owner_count }} owner{{ tr.owner_count|pluralize }} · {{ tr.total_acres|floatformat:1|intcomma }} ac</span></h3>
-  <div class="acq-bar" title="Acres by parcel stage">{% for b in tr.by_stage %}<span class="acq-seg site-{{ b.stage }}" style="width:{{ b.pct }}%" title="{{ b.label }}: {{ b.acres }} ac, {{ b.parcels }} parcel{{ b.parcels|pluralize }} ({{ b.owners|join:', ' }})"></span>{% endfor %}</div>
+  <div class="acq-bar" title="Acres by parcel stage">{% for b in tr.by_stage %}<span class="acq-seg site-{{ b.stage }}" style="width:{{ b.pct }}%" title="{{ b.label }}: {{ b.acres|floatformat:'-1'|intcomma }} ac, {{ b.parcels }} parcel{{ b.parcels|pluralize }} ({{ b.owners|join:', ' }})"></span>{% endfor %}</div>
   <div class="acq-legend lc-small">{% for b in tr.by_stage %}<span><i class="acq-key site-{{ b.stage }}"></i>{{ b.label }}: <b>{{ b.acres|floatformat:1|intcomma }} ac</b> <span class="muted">({{ b.parcels }}{% if b.pct < 100 %}, {{ b.pct|floatformat:0 }}%{% endif %})</span></span>{% endfor %}</div>
   <div class="acq-stats lc-small">
     <span><b>{{ tr.secured_acres|floatformat:1|intcomma }} ac</b> secured (under contract or acquired) · {{ tr.secured_pct|floatformat:0 }}%</span>
@@ -141,7 +141,7 @@
     <section class="panel">
       <h3>Tenants</h3>
       {% for o in tenants %}<div class="tenant-row"><a href="{{ o.get_absolute_url }}"><b>{{ o.company.name|default:o.name }}</b></a> <span class="tag">{{ o.get_stage_display }}</span>
-        <div class="muted lc-small">{{ o.name }}{% if o.acreage_need %} · {{ o.acreage_need|floatformat:0 }} ac{% endif %}{% if o.sq_ft_need %} · {{ o.sq_ft_need }} sf{% endif %}{% if o.power_need_mw %} · {{ o.power_need_mw|floatformat:0 }} MW{% endif %}</div>
+        <div class="muted lc-small">{{ o.name }}{% if o.acreage_need %} · {{ o.acreage_need|floatformat:0 }} ac{% endif %}{% if o.sq_ft_need %} · {{ o.sq_ft_need|intcomma }} sf{% endif %}{% if o.power_need_mw %} · {{ o.power_need_mw|floatformat:0 }} MW{% endif %}</div>
         <form method="post" class="inline-unlink">{% csrf_token %}<input type="hidden" name="action" value="tenant_unlink"><input type="hidden" name="opportunity" value="{{ o.pk }}"><button class="btn-link lc-small">Unlink</button></form></div>
       {% empty %}<p class="muted lc-small">No tenant deals linked to this site.</p>{% endfor %}
       {% if tenant_choices %}<form method="post" class="inline-form" style="margin-top:8px">{% csrf_token %}<input type="hidden" name="action" value="tenant_link">

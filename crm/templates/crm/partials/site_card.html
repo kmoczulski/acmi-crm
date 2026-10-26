@@ -97,7 +97,7 @@
           <textarea name="text" rows="2" placeholder="Write a comment… @name to notify someone" required></textarea>
           <button class="btn btn-small btn-primary">Save</button>
         </form>
-        {% for c in comments %}<div class="scard-cmt"><b>{{ c.author.first_name|default:c.author.username|default:"Someone" }}</b> <span class="muted lc-small">{{ c.created_at|date:"M j, g:i A" }}</span><div>{{ c.body|linebreaksbr }}</div></div>{% endfor %}
+        {% for c in comments %}<div class="scard-cmt"><b>{% firstof c.author.first_name c.author.username "Someone" %}</b> <span class="muted lc-small">{{ c.created_at|date:"M j, g:i A" }}</span><div>{{ c.body|linebreaksbr }}</div></div>{% endfor %}
       </section>
     </main>
 

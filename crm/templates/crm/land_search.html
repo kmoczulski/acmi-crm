@@ -996,27 +996,28 @@
       return `<tr data-i="${i}">
         <td><input data-f="name" value="${escapeHtml(b.name || '')}" size="11"></td>
         <td><select data-f="kind"><option value="magazine"${b.kind === 'magazine' ? ' selected' : ''}>Magazine</option><option value="operating"${b.kind === 'operating' ? ' selected' : ''}>Operating</option></select></td>
-        <td><input data-f="sqft" type="number" min="0" step="500" value="${b.sqft || 0}" style="width:80px"></td>
-        <td><input data-f="length" type="number" min="0" step="10" value="${b.length || ''}" placeholder="square" style="width:70px"
+        <td><input data-f="sqft" inputmode="decimal" data-commas value="${acmiNum.format(b.sqft || 0)}" style="width:80px"></td>
+        <td><input data-f="length" inputmode="decimal" data-commas value="${b.length ? acmiNum.format(b.length) : ''}" placeholder="square" style="width:70px"
           title="${b.length && b.sqft ? Math.round(b.length) + ' × ' + Math.round(b.sqft / b.length) + ' ft' : 'Square footprint'}"></td>
         <td><input data-f="rotation" type="number" min="-180" max="180" step="15" value="${b.rotation || 0}" style="width:56px"></td>
         <td><select data-f="hd">${opt(HDS, b.hd)}</select></td>
-        <td><input data-f="newqd" type="number" min="0" step="100" value="${b.newqd || 0}" style="width:90px"></td>
+        <td><input data-f="newqd" inputmode="decimal" data-commas value="${acmiNum.format(b.newqd || 0)}" style="width:90px"></td>
         <td class="num nowrap">${r.max_newqd == null ? `<span class="muted" title="${escapeHtml(r.max_by || 'Open a parcel to work this out')}">–</span>`
           : `<span title="Limited by ${escapeHtml(r.max_by)}">${r.max_newqd.toLocaleString()}${r.max_by === 'table limit' ? '+' : ''}</span>`
             + (r.max_newqd > 0 && r.max_newqd !== +b.newqd ? ` <button type="button" class="btn-link" data-use-max="${r.max_newqd}" title="Set NEWQD to this">use</button>` : '')}</td>
         <td><select data-f="pes"${b.hd === 'HD 1.1' ? '' : ' disabled'}>${opt(PES, b.pes)}</select></td>
         <td><input data-f="barricaded" type="checkbox"${b.barricaded ? ' checked' : ''}${b.hd === 'HD 1.1' ? '' : ' disabled'}></td>
-        <td><input data-f="mce" type="number" min="0" value="${b.mce || 0}" style="width:70px"${['HD 1.2.1', 'HD 1.2.3'].includes(b.hd) ? '' : ' disabled'}></td>
+        <td><input data-f="mce" inputmode="decimal" data-commas value="${acmiNum.format(b.mce || 0)}" style="width:70px"${['HD 1.2.1', 'HD 1.2.3'].includes(b.hd) ? '' : ' disabled'}></td>
         <td><input data-f="k" type="number" min="1" max="50" step="0.25" value="${b.k || 11}" style="width:56px"${b.hd === 'HD 1.1' ? '' : ' disabled'}></td>
         <td class="num">${ft(d.imd)}</td><td class="num">${ft(d.ild)}</td><td class="num">${ft(d.ptrd)}</td><td class="num"><b>${ft(d.ibd)}</b></td>
         <td class="num">${d.ibd_acres ?? '–'}</td><td>${status}</td>
         <td><button type="button" class="btn-link" data-del title="Remove">✕</button></td></tr>`;
     }).join('');
     if (!summary) { QD.summary.innerHTML = ''; return; }
-    const rows = [['IBD arcs (combined)', summary.arc_acres + ' ac']];
-    if (summary.parcel_acres != null) rows.push(['Parcel', summary.parcel_acres + ' ac'], ['Encumbered on site', `${summary.encumbered_acres} ac (${summary.encumbered_pct}%)`],
-      ['Free of arcs', summary.unencumbered_acres + ' ac'], ['Arc area off the parcel', summary.off_site_acres + ' ac']);
+    const ac = v => acmiNum.format(v) + ' ac';
+    const rows = [['IBD arcs (combined)', ac(summary.arc_acres)]];
+    if (summary.parcel_acres != null) rows.push(['Parcel', ac(summary.parcel_acres)], ['Encumbered on site', `${ac(summary.encumbered_acres)} (${summary.encumbered_pct}%)`],
+      ['Free of arcs', ac(summary.unencumbered_acres)], ['Arc area off the parcel', ac(summary.off_site_acres)]);
     QD.summary.innerHTML = `<div class="qd-verdict ${summary.all_clear ? 'ok' : 'bad'}">${summary.all_clear ? 'Layout clears: arcs on site, spacing OK' : 'Layout has problems: see Status'}</div>`
       + rows.map(([k, v]) => `<div class="qd-kv"><span>${k}</span><b>${v}</b></div>`).join('')
       + `<div class="muted lc-small">${escapeHtml((QD.buildings[0].dist || {}).governing || '')}</div>`
@@ -1027,7 +1028,8 @@
     const tr = e.target.closest('tr[data-i]'); if (!tr) return;
     const b = QD.buildings[+tr.dataset.i], f = e.target.dataset.f;
     if (!f) return;
-    b[f] = e.target.type === 'checkbox' ? e.target.checked : e.target.type === 'number' ? +e.target.value : e.target.value;
+    b[f] = e.target.type === 'checkbox' ? e.target.checked : e.target.hasAttribute('data-commas') ? (acmiNum.parse(e.target.value) ?? 0)
+      : e.target.type === 'number' ? +e.target.value : e.target.value;
     qdCalc('calc');
   });
   QD.rows.addEventListener('click', e => {
@@ -1253,9 +1255,11 @@
     spRows.innerHTML = SP.rows.map((r, i) => {
       const d = t[r.type] || {};
       const opt = Object.entries(t).map(([k, v]) => `<option value="${k}"${k === r.type ? ' selected' : ''}>${escapeHtml(v.label)}</option>`).join('');
-      const num = (f, ph, step) => `<input data-f="${f}" type="number" min="0" step="${step || 1}" value="${r[f] ?? ''}" placeholder="${ph ?? ''}">`;
+      const num = (f, ph, step, commas) => commas
+        ? `<input data-f="${f}" inputmode="decimal" data-commas value="${r[f] == null ? '' : acmiNum.format(r[f])}" placeholder="${ph == null ? '' : acmiNum.format(ph)}">`
+        : `<input data-f="${f}" type="number" min="0" step="${step || 1}" value="${r[f] ?? ''}" placeholder="${ph ?? ''}">`;
       return `<tr data-i="${i}"><td><i class="ml-swatch" style="background:${d.color || '#999'}"></i><select data-f="type">${opt}</select></td>
-        <td>${num('count', 'fill')}</td><td>${num('sf', 'any', 1000)}</td><td>${num('depth', d.depth)}</td><td>${num('stories', d.stories)}</td>
+        <td>${num('count', 'fill')}</td><td>${num('sf', 'any', 1000, true)}</td><td>${num('depth', d.depth)}</td><td>${num('stories', d.stories)}</td>
         ${code ? `<td>${num('office_pct', d.office_pct)}</td><td>${num('emp_per_ksf', d.emp_per_ksf, 0.1)}</td>` : `<td>${num('ratio', d.market_ratio, 0.1)}</td>`}
         <td><button type="button" class="btn-link" data-del title="Remove">✕</button></td></tr>`;
     }).join('');
@@ -1263,7 +1267,8 @@
   spRows.addEventListener('change', e => {
     const tr = e.target.closest('tr[data-i]'); if (!tr) return;
     const r = SP.rows[+tr.dataset.i], f = e.target.dataset.f;
-    r[f] = e.target.tagName === 'SELECT' ? e.target.value : (e.target.value === '' ? undefined : +e.target.value);
+    r[f] = e.target.tagName === 'SELECT' ? e.target.value : e.target.hasAttribute('data-commas') ? (acmiNum.parse(e.target.value) ?? undefined)
+      : (e.target.value === '' ? undefined : +e.target.value);
     if (f === 'type') spRenderRows();
     spRerun();
   });

@@ -20,6 +20,23 @@
     },
   };
 
+  // Numbers with thousands separators. A type=number field can't show "25,000,000", so amount fields are text
+  // fields marked data-commas (crm/forms.py comma_numbers, and the hand-written forms): they show separators, accept
+  // them typed, and the form posts plain digits. Scripts that read such a field use acmiNum.parse.
+  const numParse = s => { const t = String(s ?? '').replace(/[,\s$]/g, ''); return t === '' || isNaN(+t) ? null : +t; };
+  const numFormat = v => { const n = numParse(v); return n === null ? String(v ?? '') : n.toLocaleString('en-US', {maximumFractionDigits: 10}); };
+  window.acmiNum = {parse: numParse, format: numFormat};
+  const showCommas = el => { const v = numParse(el.value); if (v !== null) el.value = numFormat(v); };
+  document.querySelectorAll('input[data-commas]').forEach(showCommas);
+  document.addEventListener('focusout', e => { if (e.target instanceof HTMLInputElement && e.target.hasAttribute('data-commas')) showCommas(e.target); });
+  document.addEventListener('formdata', e => {
+    e.target.querySelectorAll('input[data-commas]').forEach(el => {
+      if (!el.name || el.disabled) return;
+      const v = numParse(el.value);
+      e.formData.set(el.name, v === null ? el.value.trim() : String(v));
+    });
+  });
+
   // Top menus: one open at a time; on a wide screen with a mouse they open on hover, like CoStar's.
   const menus = [...document.querySelectorAll('.tn-menu, .menu-wrap')];
   menus.forEach(d => d.addEventListener('toggle', () => { if (d.open) menus.forEach(o => { if (o !== d) o.open = false; }); }));

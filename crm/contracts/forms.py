@@ -1,6 +1,6 @@
 from django import forms
 
-from ..forms import StyledForm, UserChoiceField, active_users
+from ..forms import CommaNumbersMixin, StyledForm, UserChoiceField, active_users
 from ..models import (
     Campus, Contract, ContractDate, ContractDocument, ContractTemplate, LandSite, LeaseTerms, Opportunity,
 )
@@ -91,7 +91,7 @@ class DocumentForm(forms.ModelForm):
         return data
 
 
-class DateForm(forms.ModelForm):
+class DateForm(CommaNumbersMixin, forms.ModelForm):
     class Meta:
         model = ContractDate
         fields = ["kind", "label", "date", "amount", "rule", "critical", "key", "anchor", "offset", "unit", "extends",
@@ -116,7 +116,7 @@ class DateForm(forms.ModelForm):
         return data
 
 
-class LeaseTermsForm(forms.ModelForm):
+class LeaseTermsForm(CommaNumbersMixin, forms.ModelForm):
     class Meta:
         model = LeaseTerms
         fields = ["premises_sf", "land_acres", "commencement", "rent_start", "expiration", "base_rent",

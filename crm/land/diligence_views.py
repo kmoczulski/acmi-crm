@@ -14,7 +14,7 @@ from django.utils.safestring import mark_safe
 from ..ai import enabled as ai_enabled
 from ..contracts import ai
 from ..contracts import text as textmod
-from ..forms import UserChoiceField, active_users
+from ..forms import CommaNumbersMixin, UserChoiceField, active_users
 from ..models import Contract, DiligenceItem, LandSite, LandSiteEvent
 from ..permissions import is_manager, refuse
 from . import diligence
@@ -27,7 +27,7 @@ def _date():
     return forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d")
 
 
-class DiligenceForm(forms.ModelForm):
+class DiligenceForm(CommaNumbersMixin, forms.ModelForm):
     owner = UserChoiceField(queryset=active_users(), required=False, label="Chased by")
 
     class Meta:

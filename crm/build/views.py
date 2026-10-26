@@ -10,6 +10,7 @@ from django.utils import timezone
 from django.utils.safestring import mark_safe
 
 from ..ai import enabled as ai_enabled
+from ..forms import CommaNumbersMixin
 from ..contracts import ai as contract_ai
 from ..contracts import text as textmod
 from ..models import Bid, BudgetLine, BuildMilestone, ChangeOrder, Draw, Project, ProjectAnswer, TeamMember
@@ -31,13 +32,13 @@ class MilestoneForm(forms.ModelForm):
         widgets = {"baseline": _date(), "forecast": _date(), "actual": _date()}
 
 
-class TeamForm(forms.ModelForm):
+class TeamForm(CommaNumbersMixin, forms.ModelForm):
     class Meta:
         model = TeamMember
         fields = ["role", "firm", "contact", "fee", "invoiced", "status", "notes"]
 
 
-class BidForm(forms.ModelForm):
+class BidForm(CommaNumbersMixin, forms.ModelForm):
     class Meta:
         model = Bid
         fields = ["firm", "contact", "status", "amount", "fee_pct", "general_conditions", "duration_months",
@@ -52,13 +53,13 @@ class BidForm(forms.ModelForm):
         return f
 
 
-class LineForm(forms.ModelForm):
+class LineForm(CommaNumbersMixin, forms.ModelForm):
     class Meta:
         model = BudgetLine
         fields = ["group", "code", "name", "original", "committed", "paid", "forecast"]
 
 
-class ChangeOrderForm(forms.ModelForm):
+class ChangeOrderForm(CommaNumbersMixin, forms.ModelForm):
     class Meta:
         model = ChangeOrder
         fields = ["number", "title", "reason", "amount", "days", "status", "line", "submitted_on", "decided_on",
@@ -70,7 +71,7 @@ class ChangeOrderForm(forms.ModelForm):
         self.fields["line"].queryset = BudgetLine.objects.filter(project=project) if project else BudgetLine.objects.none()
 
 
-class DrawForm(forms.ModelForm):
+class DrawForm(CommaNumbersMixin, forms.ModelForm):
     class Meta:
         model = Draw
         fields = ["number", "period_end", "requested", "funded", "retainage", "status", "submitted_on", "funded_on",

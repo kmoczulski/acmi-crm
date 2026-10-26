@@ -177,7 +177,7 @@
                 <label>Type <select name="kind">{% for v, l in date_kinds|offer:d.kind %}<option value="{{ v }}"{% if v == d.kind %} selected{% endif %}>{{ l }}</option>{% endfor %}</select></label>
                 <label>Label <input name="label" value="{{ d.label }}"></label>
                 <label>Date <input type="date" name="date" value="{{ d.date|date:'Y-m-d' }}"></label>
-                <label>Amount ($) <input name="amount" value="{{ d.amount|default_if_none:'' }}"></label>
+                <label>Amount ($) <input name="amount" value="{{ d.amount|default_if_none:''|floatformat:'-2'|intcomma }}" data-commas inputmode="decimal"></label>
                 <label>How it's set <input name="rule" value="{{ d.rule }}"></label>
                 <label class="check"><input type="checkbox" name="critical"{% if d.critical %} checked{% endif %}> Critical date (on the dashboard calendar)</label>
                 <details><summary class="muted">Rule for the timeline</summary>

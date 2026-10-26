@@ -1,4 +1,5 @@
 {% extends "crm/base.html" %}
+{% load humanize %}
 {% block title %}Edit report · {{ e.site.name }} · ACMI CRM{% endblock %}
 {% block content %}
 <style>
@@ -32,7 +33,7 @@
   <div class="grid2">{% for k, label, val, pre in overview %}
     <label>{{ label }}</label><textarea name="ov_{{ k }}" rows="{% if k == 'parcel_ids' %}3{% else %}1{% endif %}" placeholder="{{ pre|truncatechars:80 }}">{{ val }}</textarea>{% endfor %}</div>
 
-  <h3>Net usable acreage <span class="muted lc-small">gross {{ c.gross }} ac from the CRM; enter acres to subtract</span></h3>
+  <h3>Net usable acreage <span class="muted lc-small">gross {{ c.gross|floatformat:'-1'|intcomma }} ac from the CRM; enter acres to subtract</span></h3>
   <div class="grid2">
     <label>Less: wetlands</label><input type="text" name="net_wetlands" value="{{ net.wetlands }}">
     <label>Less: floodway</label><input type="text" name="net_floodway" value="{{ net.floodway }}">
@@ -74,7 +75,7 @@
   <h3>ROM to pad-ready <span class="muted lc-small">dollar amounts; incentive-eligible "Yes" lines are netted out for ranking</span></h3>
   <table class="data"><thead><tr><th>Cost category</th><th>Basis of estimate</th><th style="width:140px">Amount ($)</th><th style="width:110px">Incentive eligible</th></tr></thead><tbody>
     {% for i, r in rom %}<tr><td><input type="text" name="rom_{{ i }}_category" value="{{ r.category }}"></td><td><input type="text" name="rom_{{ i }}_basis" value="{{ r.basis }}"></td>
-      <td><input type="text" name="rom_{{ i }}_amount" value="{{ r.amount }}"></td>
+      <td><input type="text" name="rom_{{ i }}_amount" value="{{ r.amount|floatformat:'-2'|intcomma }}" data-commas inputmode="decimal"></td>
       <td><select name="rom_{{ i }}_incentive"><option value=""></option>{% for v in incentive %}<option {% if r.incentive == v %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></td></tr>{% endfor %}
   </tbody></table>
 

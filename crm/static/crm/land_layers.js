@@ -18,6 +18,23 @@
   };
   const voltColor = v => /500|735|345/.test(v || '') ? '#d7191c' : /220|230|287/.test(v || '') ? '#fdae61' : '#ffd92f';
 
+  // A regional layer (one state's parcels, one county's zoning) joins the map only while the view touches its area:
+  // a Texas export over Maryland has nothing to draw and would still cost a request on every move.
+  const TX = [[25.8, -106.7], [36.6, -93.5]], CHARLES_CO = [[38.1, -77.4], [38.8, -76.5]];
+  const HSV_AREA = [[34.1, -87.4], [35.1, -86.1]], ALABAMA = [[30.1, -88.6], [35.1, -84.8]];
+  function regional(layer, corners) {
+    const area = L.latLngBounds(corners);
+    const group = L.layerGroup();
+    const sync = () => {
+      const on = !!group._map && group._map.getBounds().intersects(area);
+      if (on && !group.hasLayer(layer)) group.addLayer(layer);
+      else if (!on && group.hasLayer(layer)) group.removeLayer(layer);
+    };
+    group.on('add', () => { group._map.on('moveend', sync); sync(); });
+    group.on('remove', () => { if (group._map) group._map.off('moveend', sync); });
+    return group;
+  }
+
   function bases() {
     return {
       satellite: L.layerGroup([
@@ -34,10 +51,11 @@
   function overlays({femaLayer = 35, programs = []} = {}) {
     const o = {
       lines: () => L.layerGroup([
-        L.esri.dynamicMapLayer({url: TX_PARCELS, minZoom: 14, opacity: .8}),
-        L.esri.featureLayer({url: CHARLES + 'Tax_Parcels/FeatureServer/0', minZoom: 15, fields: ['FID'], interactive: false,
-          style: () => ({color: '#ffffff', weight: 1, fill: false, opacity: .8})}),
-        L.esri.dynamicMapLayer({url: HSV + 'Boundaries/CombinedParcels/MapServer', layers: [7, 8, 10], minZoom: 14, opacity: .8}),
+        regional(L.esri.dynamicMapLayer({url: TX_PARCELS, minZoom: 14, opacity: .8}), TX),
+        regional(L.esri.featureLayer({url: CHARLES + 'Tax_Parcels/FeatureServer/0', minZoom: 15, fields: ['FID'], interactive: false,
+          style: () => ({color: '#ffffff', weight: 1, fill: false, opacity: .8})}), CHARLES_CO),
+        // The city's server sends no CORS headers: ask for the picture itself (f: image) instead of a JSON reply.
+        regional(L.esri.dynamicMapLayer({url: HSV + 'Boundaries/CombinedParcels/MapServer', layers: [7, 8, 10], minZoom: 14, opacity: .8, f: 'image'}), HSV_AREA),
       ]),
       transmission: () => L.esri.featureLayer({url: 'https://services1.arcgis.com/Hp6G80Pky0om7QvQ/arcgis/rest/services/Electric_Power_Transmission_Lines/FeatureServer/0',
         minZoom: 8, simplifyFactor: .5, precision: 5, style: f => ({color: voltColor(f.properties.VOLT_CLASS), weight: 3})})
@@ -75,13 +93,13 @@
       wetlands: () => L.esri.dynamicMapLayer({url: 'https://fwspublicservices.wim.usgs.gov/wetlandsmapservice/rest/services/Wetlands/MapServer', layers: [0],
         layerDefs: {0: "WETLAND_TYPE NOT IN ('Lake', 'Estuarine and Marine Deepwater', 'Estuarine and Marine Wetland')"}, opacity: .6, minZoom: 12}),
       zoning: () => L.layerGroup([
-        L.esri.featureLayer({url: CHARLES + 'Zoning/FeatureServer/0', minZoom: 10,
+        regional(L.esri.featureLayer({url: CHARLES + 'Zoning/FeatureServer/0', minZoom: 10,
           style: f => { const g = (f.properties.GENZONE || '').toLowerCase();
             const c = g.includes('industr') ? '#8e44ad' : g.includes('commerc') ? '#e74c3c' : g.includes('resid') ? '#f1c40f' : '#27ae60';
-            return {color: c, weight: 1, fillOpacity: .22}; }}).bindPopup(popup([['ZONING', 'Zone'], ['ZONE', 'Name'], ['GENZONE', 'General']])),
-        L.esri.featureLayer({url: HSV + 'Zoning/ZoningDistricts/MapServer/5', minZoom: 10, simplifyFactor: .5, precision: 5,
+            return {color: c, weight: 1, fillOpacity: .22}; }}).bindPopup(popup([['ZONING', 'Zone'], ['ZONE', 'Name'], ['GENZONE', 'General']])), CHARLES_CO),
+        regional(L.esri.featureLayer({url: HSV + 'Zoning/ZoningDistricts/MapServer/5', minZoom: 10, simplifyFactor: .5, precision: 5, useCors: false,
           style: f => ({color: hsvZoneColor(f.properties.Zoning || ''), weight: 1, fillOpacity: .22})})
-          .bindPopup(l => '<b>City of Huntsville zoning</b> ' + escapeHtml(l.feature.properties.Zoning || '')),
+          .bindPopup(l => '<b>City of Huntsville zoning</b> ' + escapeHtml(l.feature.properties.Zoning || '')), HSV_AREA),
       ]),
       critical: () => L.esri.featureLayer({url: CHARLES + 'Charles_County_Chesapeake_Bay_Critical_Area_/FeatureServer/2', minZoom: 9,
         style: f => ({color: '#00838f', weight: 1, fillOpacity: f.properties.Designation === 'RCA' ? .3 : .12})}).bindPopup(popup([['Designation', 'Critical Area']])),
@@ -94,10 +112,10 @@
         L.esri.featureLayer({url: CHARLES + 'Navy_Noise_Contours/FeatureServer/0', style: () => ({color: '#ff7f00', weight: 1, fillOpacity: .1})}).bindPopup(popup([['Descrip', 'Navy noise']])),
       ]),
       cities: () => L.layerGroup([
-        L.esri.dynamicMapLayer({url: 'https://feature.geographic.texas.gov/arcgis/rest/services/City_Boundaries/Texas_City_Boundaries/MapServer', opacity: .5}),
-        L.esri.featureLayer({url: CHARLES + 'Incorporated_Towns/FeatureServer/0', where: "Inc_Muni <> 'Unincorporated'", style: () => ({color: '#ff00ff', weight: 2, fillOpacity: .05})}).bindPopup(popup([['Inc_Muni', 'Town']])),
-        L.esri.featureLayer({url: TIGER_PLACES, where: "STATE = '01'", minZoom: 8, simplifyFactor: .5, precision: 5,
-          style: () => ({color: '#ff00ff', weight: 2, fillOpacity: .05})}).bindPopup(popup([['NAME', 'City / town']])),
+        regional(L.esri.dynamicMapLayer({url: 'https://feature.geographic.texas.gov/arcgis/rest/services/City_Boundaries/Texas_City_Boundaries/MapServer', opacity: .5}), TX),
+        regional(L.esri.featureLayer({url: CHARLES + 'Incorporated_Towns/FeatureServer/0', where: "Inc_Muni <> 'Unincorporated'", style: () => ({color: '#ff00ff', weight: 2, fillOpacity: .05})}).bindPopup(popup([['Inc_Muni', 'Town']])), CHARLES_CO),
+        regional(L.esri.featureLayer({url: TIGER_PLACES, where: "STATE = '01'", minZoom: 8, simplifyFactor: .5, precision: 5,
+          style: () => ({color: '#ff00ff', weight: 2, fillOpacity: .05})}).bindPopup(popup([['NAME', 'City / town']])), ALABAMA),
       ]),
     };
     // Incentive programs, from the server's registry (crm/land/incentives.py).

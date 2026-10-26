@@ -244,6 +244,28 @@ class InboxTests(TestCase):
         self.assertEqual(r.status_code, 200)
         self.assertContains(r, "Gmail is busy right now")
 
+    def test_gmail_failing_after_the_page_loaded_is_still_words_not_an_error_page(self):
+        """The reading frame, an attachment, Download all, Summarize and opening a reply each call Gmail on their
+        own; when it fails they say so (the frame used to show Django's error page inside the inbox)."""
+        self.fake.status = 503
+        with mock.patch("crm.mail.gmail_api.time.sleep"):
+            r = self.client.get(reverse("crm:inbox_body", args=["m1"]))
+            self.assertEqual(r.status_code, 502)
+            self.assertContains(r, "Gmail is busy right now", status_code=502)
+            self.assertIn("default-src 'none'", r["Content-Security-Policy"])
+            r = self.client.get(reverse("crm:inbox_part", args=["m4", "1"]))
+            self.assertEqual((r.status_code, r["Content-Type"]), (502, "text/plain; charset=utf-8"))
+            r = self.client.get(reverse("crm:inbox_zip", args=["a1"]))
+            self.assertRedirects(r, reverse("crm:inbox") + "?t=a1", fetch_redirect_response=False)
+            r = self.client.post(reverse("crm:inbox_summary", args=["a1"]))
+            self.assertEqual(r.status_code, 503)
+            self.assertIn("Gmail is busy", r.json()["error"])
+            r = self.client.get(reverse("crm:inbox_compose"), {"reply": "m1", "mode": "reply"})
+            self.assertRedirects(r, reverse("crm:inbox"), fetch_redirect_response=False)
+            r = self.client.get(reverse("crm:inbox_reply_fields"), {"reply": "m1"})
+            self.assertEqual(r.status_code, 503)
+            self.assertIn("Gmail is busy", r.json()["error"])
+
     def test_a_person_without_a_timeline_mailbox_gets_an_inbox_only_one(self):
         self.mailbox.delete()
         self.assertEqual(self.get().status_code, 200)

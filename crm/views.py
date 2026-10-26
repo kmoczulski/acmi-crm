@@ -4,7 +4,7 @@ from urllib.parse import parse_qs, urlencode
 from django.conf import settings
 from django.contrib import messages
 from django.core.paginator import Paginator
-from django.db.models import Count, Max, Q
+from django.db.models import Count, F, Max, Q
 from django.http import FileResponse, Http404, HttpResponse, HttpResponseBadRequest, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -378,8 +378,18 @@ def recent_activity(qs=None, limit=25, include_sent=False):
         .exclude(kind=Activity.Kind.STAGE_CHANGE, opportunity__isnull=True)  # company stage moves are noise here
         .exclude(summary__regex=CALENDAR_NOISE)
         .exclude(kind__in=[Activity.Kind.BOUNCE, Activity.Kind.AUTO_REPLY])
-        .select_related("company", "person", "actor", "opportunity").prefetch_related("projects")[:limit]
+        .select_related("company", "person", "actor", "opportunity").prefetch_related("projects", "team_members")[:limit]
     )
+
+
+# Task.Meta.ordering spelled out: a GROUP BY (the comment count) drops Meta.ordering, so lists say it again.
+TASK_ORDER = ("done", F("due_date").asc(nulls_last=True), "-created_at")
+
+
+def task_rows(qs):
+    """Tasks for a record page's list, with what each row shows (assignee, record, comment count) in one query."""
+    return (qs.select_related("assignee", "company", "person", "opportunity").annotate(n_comments=Count("comments"))
+            .order_by(*TASK_ORDER))
 
 
 def week_calendar(request):
@@ -424,7 +434,7 @@ def home(request):
         "gallery": [{"id": k, "title": v[0], "description": v[3], "shown": k in shown} for k, v in prefs.WIDGETS.items()],
     }
     if "my_day" in shown:
-        my_tasks = Task.objects.filter(assignee=request.user, done=False).select_related("company", "person")
+        my_tasks = Task.objects.filter(assignee=request.user, done=False).select_related("company", "person", "assignee", "opportunity")
         ctx["overdue"] = [t for t in my_tasks if t.due_date and t.due_date < today]
         ctx["upcoming"] = [t for t in my_tasks if not t.due_date or t.due_date >= today][:15]
         ctx["day"] = day = pipeline.my_day(request.user)
@@ -515,7 +525,7 @@ def company_detail(request, pk):
 
     tab = request.GET.get("tab", "overview")
     activities = Activity.objects.filter(company=company)
-    open_tasks = company.tasks.filter(done=False).select_related("assignee")
+    open_tasks = task_rows(company.tasks.filter(done=False))
     latest_news = activities.filter(kind=Activity.Kind.NEWS_TRIGGER).first()
     ctx = {
         "record": company,
@@ -526,7 +536,7 @@ def company_detail(request, pk):
         "people": company.people.select_related("owner").order_by("-last_interaction_at", "full_name"),
         "opportunities": company.opportunities.select_related("campus", "owner").order_by("stage"),
         "open_tasks": open_tasks,
-        "done_tasks": company.tasks.filter(done=True)[:10],
+        "done_tasks": task_rows(company.tasks.filter(done=True))[:10],
         "notes": company.notes_set.select_related("author")[:20],
         "latest_news": latest_news,
         "recent_activity": recent_activity(activities, limit=8, include_sent=True),
@@ -602,8 +612,8 @@ def person_detail(request, pk):
         "form": form,
         "tab": tab,
         "nav": _neighbours(PersonTable, request, person.pk),
-        "open_tasks": person.tasks.filter(done=False).select_related("assignee"),
-        "done_tasks": person.tasks.filter(done=True)[:10],
+        "open_tasks": task_rows(person.tasks.filter(done=False)),
+        "done_tasks": task_rows(person.tasks.filter(done=True))[:10],
         "notes": person.notes_set.select_related("author")[:20],
         "recent_activity": activities.filter(is_background=False, occurred_at__lte=timezone.now()).select_related("actor").prefetch_related("team_members", "projects")[:8],
         "opportunities": person.opportunities.select_related("campus"),
@@ -731,7 +741,7 @@ def opportunity_detail(request, pk):
         "opp": opp,
         "form": form,
         "timeline": _timeline(activities, request),
-        "open_tasks": opp.tasks.filter(done=False).select_related("assignee"),
+        "open_tasks": task_rows(opp.tasks.filter(done=False)),
         "notes": opp.notes_set.select_related("author")[:20],
         "task_form": TaskForm(initial={"assignee": request.user}),
         "note_form": NoteForm(),
@@ -804,7 +814,7 @@ def opportunity_set_stage(request, pk):
 def task_list(request):
     scope = request.GET.get("scope", "mine")
     state = request.GET.get("state", "open")
-    qs = Task.objects.select_related("assignee", "company", "person", "opportunity").annotate(n_comments=Count("comments"))
+    qs = task_rows(Task.objects.all())
     if scope == "mine":
         qs = qs.filter(assignee=request.user)
     qs = qs.filter(done=(state == "done"))
@@ -1381,7 +1391,8 @@ def meeting_transcript(request, pk):
 @require_POST
 def meeting_make_task(request, pk):
     m = get_object_or_404(Meeting, pk=pk)
-    index = int(request.POST.get("index", -1))
+    raw = request.POST.get("index", "")
+    index = int(raw) if raw.isdigit() else -1
     if not 0 <= index < len(m.action_items):
         raise Http404
     item = m.action_items[index]

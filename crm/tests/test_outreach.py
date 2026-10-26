@@ -232,3 +232,21 @@ class OutreachTests(TestCase):
         self.assertEqual((r["emails"], r["news_emails"], r["left_out"]), (1, 1, 2))  # the news email only
         self.assertEqual(r["positive_replies"], [])  # the punch-list reply isn't outreach
         self.assertEqual(r["summary"][0]["status"], "No Reply")
+
+
+class OutreachHomeTests(TestCase):
+    def test_the_queue_preview_shows_a_person_with_no_company(self):
+        from django.urls import reverse
+
+        from crm.tests.utils import make_manager
+
+        user = make_manager(get_user_model().objects.create(username="kellen", email=ME, first_name="Kellen"))
+        self.client.force_login(user)
+        settings = OutreachSettings.load()
+        settings.current_campaign = "Fall"
+        settings.save()
+        EmailTemplate.objects.create(template_id="T2", name="Fall general", campaign="Fall", priority="",
+                                     sector_match="*", subject="ACMI and you", body_html="<p>Hi {first_name}</p>")
+        Person.objects.create(first_name="Solo", last_name="Founder", email="solo@example.com")
+        r = self.client.get(reverse("crm:outreach_home"))
+        self.assertContains(r, "Solo Founder")

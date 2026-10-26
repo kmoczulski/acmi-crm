@@ -1,3 +1,4 @@
+{% load humanize %}
 {% load crm_tags %}
 <section class="panel" id="{{ kind }}s">
   <h3>{{ title }}</h3>
@@ -11,7 +12,7 @@
       {% if i.facts %}<div class="muted lc-small">{{ i.facts|join:" · " }}</div>{% endif %}
       {% if i.waiting %}<div class="lc-small"><b>{{ i.waiting }}</b></div>{% endif %}
       {% for f in i.flags %}<div class="overdue lc-small">{{ f }}</div>{% endfor %}
-      {% if i.owners %}<ul class="campus-owners">{% for o in i.owners %}<li>{{ o.owner }}: <b>{{ o.status }}</b> · {{ o.acres }} ac{% if o.last %} · last milestone {{ o.last }}{% endif %}</li>{% endfor %}</ul>{% endif %}
+      {% if i.owners %}<ul class="campus-owners">{% for o in i.owners %}<li>{{ o.owner }}: <b>{{ o.status }}</b> · {{ o.acres|floatformat:'-1'|intcomma }} ac{% if o.last %} · last milestone {{ o.last }}{% endif %}</li>{% endfor %}</ul>{% endif %}
       <details class="campus-add"><summary class="lc-small muted">Add update</summary>
         {% with pk=i.obj.pk|stringformat:"s" %}{% include "crm/partials/campus_update_form.html" with target=kind|add:":"|add:pk anchor=kind|add:"-"|add:pk %}{% endwith %}
         {% with older=i.obj.campus_updates.all|slice:"1:6" %}{% if older %}<div class="lc-small muted" style="margin-top:6px">Earlier:</div>{% for u in older %}{% include "crm/partials/campus_update_row.html" %}{% endfor %}{% endif %}{% endwith %}

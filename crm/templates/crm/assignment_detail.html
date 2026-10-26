@@ -74,7 +74,7 @@
       <label>Client name shown<input name="client" value="{{ a.client }}" placeholder="the company's name"></label>
       <label>Program / end use<input name="program" value="{{ a.program }}"></label>
       <label>Demand driver<input name="demand_driver" value="{{ a.demand_driver }}"></label>
-      <label>Net acres required<input name="acreage_floor" value="{{ a.acreage_floor|default_if_none:'' }}"></label>
+      <label>Net acres required<input name="acreage_floor" value="{{ a.acreage_floor|default_if_none:''|floatformat:'-1'|intcomma }}" data-commas inputmode="decimal"></label>
     </div>
     <label class="lc-small">Cover note shown to the client<textarea name="guest_intro" rows="3" style="width:100%">{{ a.guest_intro }}</textarea></label>
     <label class="lc-small">Internal notes (never shown to the client)<textarea name="notes" rows="3" style="width:100%">{{ a.notes }}</textarea></label>

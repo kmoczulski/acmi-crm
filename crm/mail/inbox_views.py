@@ -14,6 +14,7 @@ from django.contrib import messages
 from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
+from django.utils.html import escape
 from django.utils.http import content_disposition_header, url_has_allowed_host_and_scheme, urlencode
 from django.views.decorators.clickjacking import xframe_options_sameorigin
 from django.views.decorators.http import require_POST
@@ -90,6 +91,12 @@ def mail_required(view):
 
 
 READ_ONLY = "You can read this shared mailbox, but not send from it or change it. A Manager can give you more."
+GMAIL_DOWN = "Couldn't reach Gmail. Try again in a moment."
+
+
+def gmail_error(exc):
+    """What to tell the person when a Gmail call failed: the mailbox error's own words, or a line for a network fault."""
+    return str(exc) if isinstance(exc, MailboxError) else GMAIL_DOWN
 
 
 def may_change(request, mailbox):
@@ -275,6 +282,8 @@ def thread_summary(request, mailbox, client, gmail_id):
         raise Http404()
     except mail_summary.Unavailable as exc:
         return JsonResponse({"error": str(exc)}, status=503)
+    except (MailboxError, requests.RequestException) as exc:
+        return JsonResponse({"error": gmail_error(exc)}, status=503)
     ids = data["message_ids"]
 
     def link(n):
@@ -295,26 +304,29 @@ def thread_files_zip(request, mailbox, client, gmail_id):
     """Download all: the newest version of each document in the thread, in one zip, built in memory and never kept."""
     try:
         msgs = mail_threads.summaries_for(mailbox, client, gmail_id)
+        groups, _ = mail_threads.group(mail_threads.files_of(msgs))
+        buf, total, names = io.BytesIO(), 0, set()
+        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+            for g in groups:
+                f = g["latest"]
+                total += f["size"]
+                if total > ZIP_LIMIT:
+                    break
+                part = mail_render.find_part(mail_render.get_message(mailbox, client, f["message"]), f["part"])
+                if not part:
+                    continue
+                name, n = f["name"], 2
+                while name.lower() in names:
+                    stem, dot, ext = f["name"].rpartition(".")
+                    name, n = (f"{stem} ({n}).{ext}" if dot else f"{f['name']} ({n})"), n + 1
+                names.add(name.lower())
+                zf.writestr(name, client.attachment(f["message"], part["body"]["attachmentId"]))
+        subject = mail_threads.core_subject(mail_render.thread_view(mailbox, client, gmail_id)[0])[:80] or "Attachments"
     except NotFound:
         raise Http404()
-    groups, _ = mail_threads.group(mail_threads.files_of(msgs))
-    buf, total, names = io.BytesIO(), 0, set()
-    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
-        for g in groups:
-            f = g["latest"]
-            total += f["size"]
-            if total > ZIP_LIMIT:
-                break
-            part = mail_render.find_part(mail_render.get_message(mailbox, client, f["message"]), f["part"])
-            if not part:
-                continue
-            name, n = f["name"], 2
-            while name.lower() in names:
-                stem, dot, ext = f["name"].rpartition(".")
-                name, n = (f"{stem} ({n}).{ext}" if dot else f"{f['name']} ({n})"), n + 1
-            names.add(name.lower())
-            zf.writestr(name, client.attachment(f["message"], part["body"]["attachmentId"]))
-    subject = mail_threads.core_subject(mail_render.thread_view(mailbox, client, gmail_id)[0])[:80] or "Attachments"
+    except (MailboxError, requests.RequestException) as exc:
+        messages.error(request, gmail_error(exc))
+        return redirect(reverse("crm:inbox") + "?" + urlencode({"t": gmail_id}))
     response = HttpResponse(buf.getvalue(), content_type="application/zip")
     response["Content-Disposition"] = content_disposition_header(True, f"{subject} - files.zip")
     response["Cache-Control"] = "private, no-store"
@@ -377,6 +389,11 @@ def message_body(request, mailbox, client, message_id):
         msg = mail_render.get_message(mailbox, client, message_id)
     except NotFound:
         raise Http404()
+    except (MailboxError, requests.RequestException) as exc:  # the frame shows the words, not an error page
+        response = HttpResponse(mail_render.frame_document(f"<p>{escape(gmail_error(exc))}</p>"), status=502)
+        response["Content-Security-Policy"] = mail_render.frame_policy(False)
+        response["Cache-Control"] = "private, no-store"
+        return response
     body, blocked = mail_render.body_html(mailbox, msg, show_images=show)
     response = HttpResponse(mail_render.frame_document(body))
     response["Content-Security-Policy"] = mail_render.frame_policy(show)
@@ -397,6 +414,8 @@ def message_part(request, mailbox, client, message_id, part_id):
         data = client.attachment(message_id, part["body"]["attachmentId"])
     except NotFound:
         raise Http404()
+    except (MailboxError, requests.RequestException) as exc:
+        return HttpResponse(gmail_error(exc), status=502, content_type="text/plain; charset=utf-8")
     mime = part.get("mimeType", "")
     inline = request.GET.get("inline") == "1" and mime in mail_render.INLINE_IMAGE_TYPES
     if not inline:

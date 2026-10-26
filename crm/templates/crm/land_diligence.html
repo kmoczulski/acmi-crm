@@ -92,8 +92,8 @@
             <label>Status <select name="status">{% for v, l in statuses|offer:i.status %}<option value="{{ v }}"{% if v == i.status %} selected{% endif %}>{{ l }}</option>{% endfor %}</select></label>
             <label>Consultant <input name="consultant" value="{{ i.consultant }}"></label>
             <label>Chased by <select name="owner"><option value="">–</option>{% for u in users %}<option value="{{ u.pk }}"{% if u.pk == i.owner_id %} selected{% endif %}>{{ u|username }}</option>{% endfor %}</select></label>
-            <label>Budget ($) <input name="budget" value="{{ i.budget|default_if_none:'' }}"></label>
-            <label>Invoiced ($) <input name="cost" value="{{ i.cost|default_if_none:'' }}"></label>
+            <label>Budget ($) <input name="budget" value="{{ i.budget|default_if_none:''|floatformat:'-2'|intcomma }}" data-commas inputmode="decimal"></label>
+            <label>Invoiced ($) <input name="cost" value="{{ i.cost|default_if_none:''|floatformat:'-2'|intcomma }}" data-commas inputmode="decimal"></label>
             <label>Ordered <input type="date" name="ordered_on" value="{{ i.ordered_on|date:'Y-m-d' }}"></label>
             <label>Due <input type="date" name="due_on" value="{{ i.due_on|date:'Y-m-d' }}"></label>
             <label>Received <input type="date" name="received_on" value="{{ i.received_on|date:'Y-m-d' }}"></label>
@@ -123,7 +123,7 @@
     <label>Consultant <input name="consultant"></label>
     <label>Status <select name="status">{% for v, l in statuses|offer %}<option value="{{ v }}">{{ l }}</option>{% endfor %}</select></label>
     <label>Due <input type="date" name="due_on"></label>
-    <label>Budget ($) <input name="budget"></label>
+    <label>Budget ($) <input name="budget" data-commas inputmode="decimal"></label>
     <div class="dd-wide"><button class="btn btn-small btn-primary">Add</button></div>
   </form>
   <form method="post" class="inline-form" style="margin-top:8px">{% csrf_token %}<input type="hidden" name="action" value="start">

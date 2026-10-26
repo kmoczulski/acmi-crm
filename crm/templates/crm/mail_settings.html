@@ -1,5 +1,5 @@
 {% extends "crm/base.html" %}
-{% load socialaccount %}
+{% load socialaccount crm_tags %}
 {% block title %}Mail in the hub · ACMI CRM{% endblock %}
 {% block content %}
 <div class="page-head">
@@ -65,7 +65,7 @@
   <div class="shared-box">
     <form method="post" action="{% url 'crm:mail_shared_update' m.pk %}" class="shared-head">{% csrf_token %}
       <input type="text" name="name" value="{{ m.name }}" aria-label="Name in the hub" maxlength="120">
-      <span class="muted lc-small">{{ m.email }}{% if row.connected %} · connected by {{ m.shared_token.connected_by.get_full_name|default:m.shared_token.connected_by.username }}{% else %} · <b>not connected</b>{% endif %}</span>
+      <span class="muted lc-small">{{ m.email }}{% if row.connected %} · connected by {{ m.shared_token.connected_by|username|default:"someone no longer on the team" }}{% else %} · <b>not connected</b>{% endif %}</span>
       <label class="lc-small"><input type="checkbox" name="timeline" value="1"{% if m.enabled %} checked{% endif %}> Log its mail on CRM timelines</label>
       <button class="btn btn-small">Save</button>
       <a class="lc-small" href="{% url 'crm:mail_shared_log' m.pk %}">Access log</a>

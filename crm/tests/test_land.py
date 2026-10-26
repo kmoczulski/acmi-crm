@@ -459,6 +459,19 @@ class SiteManagementTests(TestCase):
         self.assertLess(html.index(">ETC<"), html.index(">Livingston Rd<"))  # contract before outreach
         self.assertIn(f'data-card-url="/land/sites/{etc.pk}/card/"', html)
 
+    def test_cards_survive_a_status_or_comment_whose_user_is_gone(self):
+        """A parcel's status set by an import (no status_by) and a comment whose author was deleted used to crash
+        the card: a nullable user inside a |default: argument raises instead of falling back."""
+        from crm.models import Comment
+
+        parcel = make_parcel(self.county, "77", -77.1, 38.4, status="pursue")
+        r = self.client.get(f"/land/parcel/{parcel.pk}/")
+        self.assertContains(r, "Pursue")
+        Comment.objects.create(body="Called the seller", author=None, site=self.site)
+        r = self.client.get(f"/land/sites/{self.site.pk}/card/")
+        self.assertContains(r, "Someone")
+        self.assertContains(r, "Called the seller")
+
     def test_site_card_shows_the_deal_and_takes_comments_tasks_and_stage(self):
         from datetime import date, time
 

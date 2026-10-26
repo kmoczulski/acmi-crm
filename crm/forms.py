@@ -29,6 +29,46 @@ def active_users():
     return team_users().order_by("first_name", "username")
 
 
+NUMBER_FIELDS = (forms.DecimalField, forms.IntegerField, forms.FloatField)
+
+
+def plain_number(value):
+    """"25,000,000" or "$1,250,000.50" as someone typed it -> "25000000" / "1250000.50"."""
+    if not isinstance(value, str):
+        return value
+    return value.replace(",", "").replace("$", "").strip()
+
+
+def comma_numbers(form):
+    """Number fields accept thousands separators ("25,000,000") and render as text fields marked data-commas, which
+    nav.js shows with separators as people type (a type=number field can't show "10,000"). Call once the form's
+    fields exist; StyledForm and CommaNumbersMixin do."""
+    names = [name for name, f in form.fields.items() if isinstance(f, NUMBER_FIELDS)]
+    for name in names:
+        widget = form.fields[name].widget
+        if isinstance(widget, forms.NumberInput):
+            attrs = {k: v for k, v in widget.attrs.items() if k not in ("min", "max", "step")}
+            attrs.setdefault("inputmode", "decimal")
+            attrs.setdefault("autocomplete", "off")
+            attrs["data-commas"] = "1"
+            form.fields[name].widget = forms.TextInput(attrs=attrs)
+    if form.is_bound and names:
+        data = form.data.copy()
+        for name in names:
+            key = form.add_prefix(name)
+            if key in data:
+                data[key] = plain_number(data[key])
+        form.data = data
+
+
+class CommaNumbersMixin:
+    """For a ModelForm that isn't a StyledForm: its number fields take and show thousands separators."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        comma_numbers(self)
+
+
 class StyledForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -37,6 +77,7 @@ class StyledForm(forms.ModelForm):
                 field.widget.attrs.setdefault("rows", 3)
             if "owner" in name or name == "assignee":
                 field.queryset = active_users()
+        comma_numbers(self)
 
 
 class CompanyForm(StyledForm):
