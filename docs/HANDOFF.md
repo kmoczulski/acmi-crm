@@ -1,15 +1,20 @@
-# ACMI CRM: Handoff (as of 2026-10-21, night)
+# ACMI CRM: Handoff (as of 2026-10-25)
 
 Read this first when picking the project up in a new chat, along with
 `attio_spec.md` in this folder. Start with "Pick up here"; the dated sections after it are the history.
 
-## Pick up here (2026-10-21, night)
+## Pick up here (2026-10-25)
 
 **Where things stand**
-- `main` has everything below; the last code commit is `b65042a` (`boards-core`), pushed to `kmoczulski/acmi-crm`. 470
-  tests pass and CI is green on Postgres. No worktrees or branches are open (here or on GitHub); nothing is half-built.
-- The real database (`db.sqlite3`, about 600 MB) is migrated through `0056_boards`. Latest backup:
-  `backups/db-2026-10-21-before-boards.sqlite3`.
+- `main` has everything below; the last code commit is `2f74d08` (Drive folders), pushed to `kmoczulski/acmi-crm`.
+  515 tests pass and CI is green on Postgres. **Merged 2026-10-25** (fast-forward): PR #1 `boards-bound` and PR #2
+  `data-room` (data room and Drive folders). The email client design is in its own session and branch
+  (`email-client-design`, `docs/EMAIL_CLIENT.md`).
+- The real database (`db.sqlite3`, about 600 MB) is migrated through `0059_drive_folders` (2026-10-25). Latest backup:
+  `backups/db-2026-10-25-before-boards-bound-data-room.sqlite3`. `boards_setup --apply` ran: the Tenant pipeline
+  record board (8 stage lists, 110 deal cards) and the MEIH board (7 lists, 3 filled from records; Kellen, Simon,
+  David, Dave). Both pages and the data room page render on the real data. No data room is started yet, no Drive
+  folder is mapped, and the Drive service account isn't set up (`docs/DATA_ROOM.md`).
 - `ANTHROPIC_API_KEY` is set in `.env`, so the Claude features run for real. `ACMI_TRANSCRIPT_DIR` is not set yet.
 - Built since the audit, each with its own section below: roadmap phase 1 (GitHub and CI, the transcript archive, the
   campus summary with Claude's weekly draft, Cloud Run plumbing); contracts and critical dates, modeled on Notessa;
