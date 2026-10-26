@@ -82,8 +82,23 @@ class DashboardTests(NavTestCase):
         self.assertEqual(len(self.client.get(reverse("crm:home")).context["layout"]), len(DEFAULT_DASHBOARD))
 
     def test_clean_dashboard_bounds_sizes(self):
-        self.assertEqual(clean_dashboard([{"id": "kpis", "w": 5, "h": 99999}]), [{"id": "kpis", "w": 12, "h": 2000}])
+        self.assertEqual(clean_dashboard([{"id": "kpis", "w": 5, "h": 99999}]), [{"id": "kpis", "w": 5, "h": 2000}])
+        self.assertEqual(clean_dashboard([{"id": "kpis", "w": 1}, {"id": "week", "w": 99}]),
+                         [{"id": "kpis", "w": 2, "h": 0}, {"id": "week", "w": 12, "h": 0}])
+        self.assertEqual(clean_dashboard([{"id": "kpis", "w": "x"}]), [{"id": "kpis", "w": 12, "h": 0}])
         self.assertEqual(clean_dashboard("nope"), [])
+
+    def test_widgets_keep_their_place_side_by_side(self):
+        """A column and a row per widget, so two short ones can sit beside a tall one (dashboard.js packs them)."""
+        layout = [{"id": "week", "x": 0, "y": 0, "w": 6, "h": 600}, {"id": "my_day", "x": 6, "y": 0, "w": 6, "h": 0},
+                  {"id": "deadlines", "x": 6, "y": 40, "w": 6, "h": 0}, {"id": "funnel", "x": 11, "y": -5, "w": 4}]
+        self.client.post(reverse("crm:prefs_save"), {"key": "dashboard", "value": json.dumps(layout)})
+        saved = UserPrefs.objects.get(user=self.user).data["dashboard"]
+        self.assertEqual(saved[:3], [{**i} for i in layout[:3]])
+        self.assertEqual(saved[3], {"id": "funnel", "x": 8, "y": 0, "w": 4, "h": 0})  # kept on the grid
+        r = self.client.get(reverse("crm:home"))
+        self.assertContains(r, 'data-widget="deadlines" data-w="6" data-h="0" data-x="6" data-y="40"')
+        self.assertContains(r, 'aria-label="Move Deadlines')
 
     def test_unknown_pref_key_is_refused(self):
         r = self.client.post(reverse("crm:prefs_save"), {"key": "is_staff", "value": "true"})

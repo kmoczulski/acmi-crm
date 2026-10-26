@@ -1633,6 +1633,30 @@ main { padding: 20px 28px 40px; max-width: 1680px; margin: 0 auto; }
 .widget.dragging { opacity: .45; }
 .widget.resizing { outline-color: var(--accent); }
 @media (max-width: 1000px) { .widget { grid-column: 1 / -1; } }
+/* Placed by dashboard.js: an 8px row grid, each widget at its own column and row (x, y), its own height. */
+.widgets.placed { grid-auto-rows: 8px; row-gap: 0; column-gap: 16px; grid-auto-flow: row; }
+.widgets.placed > .widget { align-self: start; }
+.widget-grip { position: absolute; top: 6px; right: 8px; z-index: 2; border: 0; background: #eef1f5; color: var(--muted); border-radius: 6px;
+  width: 26px; height: 24px; font-size: 15px; line-height: 1; cursor: grab; touch-action: none; opacity: 0; transition: opacity .12s; }
+.widget:hover > .widget-grip, .widget-grip:focus-visible, .customizing .widget-grip { opacity: 1; }
+.widget-grip:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+@media (hover: none) { .widget-grip { opacity: .8; } }
+.widget:hover > .widget-resize { display: block; opacity: .55; }
+.widgets:not(.customizing) .widget-head { cursor: grab; }
+.widgets:not(.customizing) .widget-head h3 { user-select: none; }
+.customizing .widget-head { padding-right: 44px; }
+.widget-link { right: 44px; }
+.widget-order { display: none; gap: 2px; }
+.widget-order button { border: 1px solid var(--line); background: #fff; border-radius: 4px; padding: 0 6px; font-size: 12px; color: var(--muted); }
+.customizing .widget-order { display: inline-flex; }
+.widget-ghost { border: 2px dashed var(--accent); border-radius: 10px; background: rgba(37, 99, 235, .06); align-self: stretch; }
+.widget.dragging { opacity: .85; box-shadow: 0 12px 28px rgba(15, 23, 42, .22); cursor: grabbing; pointer-events: none; }
+@media (max-width: 1000px) {
+  .widgets.placed { grid-auto-rows: auto; row-gap: 16px; }
+  .widgets.placed > .widget { grid-column: 1 / -1 !important; grid-row: auto !important; }
+  .widget-resize, .widget:hover > .widget-resize { display: none; }
+  .widget-grip { display: none; }
+}
 /* End dashboard */
 .customize-bar[hidden], .hero-results[hidden] { display: none; }
 

@@ -51,7 +51,7 @@ DEFAULT_DASHBOARD = [
     for i in ("kpis", "week", "my_day", "attention", "stages", "deadlines", "critical", "replies", "suggestions",
               "changes", "activity", "funnel")
 ]
-WIDTHS = (3, 4, 6, 8, 12)
+WIDTHS = (3, 4, 6, 8, 12)  # the quick width buttons; dragging the corner gives any width from 2 to 12 columns
 # Widgets that draw their own title row (with week or month arrows); their frame title shows only while customizing.
 HEADLESS = {"week", "critical"}
 
@@ -72,19 +72,27 @@ def set_pref(user, key, value):
     row.save(update_fields=["data", "updated_at"])
 
 
+def _int(value, low, high, default):
+    try:
+        return max(low, min(int(value), high))
+    except (TypeError, ValueError):
+        return default
+
+
 def clean_dashboard(value):
-    """Keep known widgets once each, with a width from WIDTHS and a sane height."""
+    """Keep known widgets once each: width 2-12 columns, x so it fits, y in grid rows (dashboard.js packs them),
+    height in px (0 = fit the content). Old layouts without x / y are placed in order by dashboard.js."""
     out, seen = [], set()
     for item in value if isinstance(value, list) else []:
         if not isinstance(item, dict) or item.get("id") not in WIDGETS or item["id"] in seen:
             continue
         seen.add(item["id"])
-        w = item.get("w") if item.get("w") in WIDTHS else WIDGETS[item["id"]][1]
-        try:
-            h = max(0, min(int(item.get("h") or 0), 2000))
-        except (TypeError, ValueError):
-            h = 0
-        out.append({"id": item["id"], "w": w, "h": h})
+        w = _int(item.get("w"), 2, 12, WIDGETS[item["id"]][1])
+        clean = {"id": item["id"], "w": w, "h": _int(item.get("h") or 0, 0, 2000, 0)}
+        if item.get("x") is not None and item.get("y") is not None:
+            clean["x"] = _int(item.get("x"), 0, 12 - w, 0)
+            clean["y"] = _int(item.get("y"), 0, 5000, 0)
+        out.append(clean)
     return out
 
 

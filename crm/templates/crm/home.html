@@ -41,7 +41,7 @@
 
 <div class="customize-bar" {% if not customize %}hidden{% endif %}>
   <strong>Customizing your dashboard.</strong>
-  <span class="muted">Drag a widget by its title to move it, drag its bottom-right corner to resize, or hide it with ×.</span>
+  <span class="muted">Drag a widget by its title or ⠿ to put it anywhere, side by side or stacked; drag its bottom-right corner to resize; × hides it. With the keyboard: focus ⠿, then arrows move it and Shift + arrows resize it.</span>
   <span class="spacer"></span>
   <details class="menu-wrap add-widget">
     <summary class="btn btn-small">+ Add widget</summary>
@@ -56,10 +56,12 @@
 
 <div class="widgets {% if customize %}customizing{% endif %}" id="widgets">
   {% for w in layout %}
-  <section class="widget{% if w.id in headless %} headless{% endif %}" data-widget="{{ w.id }}" data-w="{{ w.w }}" data-h="{{ w.h }}" style="--w:{{ w.w }}{% if w.h %};--h:{{ w.h }}px{% endif %}">
-    <header class="widget-head" draggable="true">
+  <section class="widget{% if w.id in headless %} headless{% endif %}" data-widget="{{ w.id }}" data-w="{{ w.w }}" data-h="{{ w.h }}"{% if w.x is not None %} data-x="{{ w.x }}" data-y="{{ w.y }}"{% endif %} style="--w:{{ w.w }}{% if w.h %};--h:{{ w.h }}px{% endif %}" aria-label="{{ w.title }}">
+    <button type="button" class="widget-grip" data-grip aria-label="Move {{ w.title }}: arrow keys move, Shift + arrows resize" title="Drag to move (or focus and use the arrow keys)">⠿</button>
+    <header class="widget-head">
       <h3>{{ w.title }}</h3>
       <span class="widget-tools">
+        <span class="widget-order"><button type="button" data-order="-1" aria-label="Move {{ w.title }} up">↑</button><button type="button" data-order="1" aria-label="Move {{ w.title }} down">↓</button></span>
         <span class="widget-size" title="Width">{% for n in widths %}<button type="button" data-width="{{ n }}" class="{% if n == w.w %}on{% endif %}">{% if n == 3 %}¼{% elif n == 4 %}⅓{% elif n == 6 %}½{% elif n == 8 %}⅔{% else %}Full{% endif %}</button>{% endfor %}</span>
         <button type="button" class="widget-x" data-hide title="Hide this widget">×</button>
       </span>
@@ -71,6 +73,7 @@
   <p class="muted">Your dashboard is empty. Use <strong>Customize dashboard</strong> above to add widgets.</p>
   {% endfor %}
 </div>
+<div id="widgets-live" class="sr-only" aria-live="polite" aria-atomic="true"></div>
 {% include "crm/partials/meeting_dialog.html" %}
 {% endblock %}
 {% block scripts %}<script>
