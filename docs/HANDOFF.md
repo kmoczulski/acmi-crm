@@ -164,8 +164,9 @@ indexed, no error) and sent 6 new-mail alerts. **Step 4 (`mail-actions`) merged 
 (`mail-compose`) merged 2026-10-26** (PR #9, `ca4bb4f`, no migration): "Built 2026-10-26: mail-compose" (Kellen, 2026-10-26: "I can't respond to an email?"). **Inline reply and the
 Gmail signature** merged (PR #10). **Step 6 (`mail-filing`) merged 2026-10-26** (PR #11, `b5cd494`, migrated,
 backup `backups/db-2026-10-26-before-mail-filing.sqlite3`): "Built 2026-10-26: mail-filing". The 11:47 sync put CRM
-labels on 24 of Kellen's threads (12 labels, e.g. ACMI/Projects/MEIH, ACMI/Tenants/RTX; no error). Left in
-`docs/EMAIL_CLIENT.md`: step 7 shared mailboxes, step 8 outreach on the Gmail API, step 9 hosting.
+labels on 24 of Kellen's threads (12 labels, e.g. ACMI/Projects/MEIH, ACMI/Tenants/RTX; no error). **Step 7
+(`mail-shared`)**: "Built 2026-10-26: mail-shared". Left in `docs/EMAIL_CLIENT.md`: step 8 outreach on the Gmail
+API, step 9 hosting.
 
 **Next, in order**
 1. **Granola (time-sensitive: Granola only keeps 30 days).**
@@ -2157,3 +2158,36 @@ Branch `mail-filing`, migration `0065_mail_filing`.
   same conversation has a different Gmail id in each mailbox.
 - **Tests:** `crm/tests/test_mail_filing.py` (17); 676 pass. Checked in a browser on a scratch database: File to…
   finds the deal and the company, filing a gmail.com sender's thread puts the deal and company tags on it.
+
+
+## Built 2026-10-26: mail-shared (email client step 7; Kellen: "Start step 7 (shared mailboxes), merge when green")
+
+Branch `mail-shared`, migration `0066_shared_mailboxes`. `crm/mail/shared.py`.
+
+- **A shared mailbox is a Mailbox with no user** (`Mailbox.shared`, `name`; `user` is now nullable) and its own
+  Google permission (`SharedMailboxToken`, encrypted like every token). Its index, labels, snoozes, filings and CRM
+  labels work as for a person's mailbox; `gmail_api.client_for(mailbox)` picks the right permission.
+- **Connecting one (Managers):** Mail in the hub › Shared mailboxes › Connect a shared mailbox: the hub sends the
+  Manager to Google **signed in as that address** (`login_hint`, `gmail.modify`, offline), checks on the way back that
+  it really is that address and Gmail was granted, and keeps the permission. Refused: non-ACMI addresses, a teammate's
+  own address (they turn Mail on themselves), no `ACMI_TOKEN_KEY`. Not domain-wide delegation.
+- **Access:** Managers give teammates (only `team_users()`) **read** or **read and send** (`MailboxAccess`); read and
+  send also allows archive, labels, Trash and snooze, and is the only way to send. With read only, the toolbar,
+  reply box and tick boxes don't show, the views refuse changes, and opening a thread doesn't mark it read for
+  everyone. Partners are refused at the grant and again at every check (`shared.role`).
+- **In Mail:** a switcher at the top of the folder pane (Your mail / 👥 Deals; `?mb=<id>`, `?mb=own`, kept in the
+  session). Someone with only a shared mailbox (no Mail of their own) still gets the Mail link and lands in it.
+- **Sending as it:** From is "Deals <deals@…>", with the shared account's own Gmail signature; the timeline entry's
+  actor is the teammate who sent it.
+- **The sync** reads connected shared mailboxes with their own permission (only the last 30 days on the first read);
+  their mail reaches timelines unless "Log its mail on CRM timelines" is unticked; no one person's connection is
+  recorded on those entries. New-mail alerts go to everyone given the mailbox ("[Deals] …").
+- **Access log** (`MailboxAccessLog`, Mail in the hub › Access log): every open, send, change, filing and download
+  in a shared mailbox, with who did it. **Disconnect** revokes at Google and drops the hub's index, labels, snoozes and
+  grants (timeline entries stay).
+- **Tests:** `crm/tests/test_shared_mailboxes.py` (16); 692 pass. Checked in a browser on a scratch database: the
+  Managers' panel and the switcher.
+- **Before the first one (Kellen):** in Google Cloud › APIs & Services › Credentials › the hub's OAuth client, add
+  `http://localhost:8000/mail-setup/shared/connected/` to **Authorized redirect URIs** (and the hub.acmigroup.com one
+  when hosted). The shared address must be a real Workspace account (a Google Group isn't a mailbox), and whoever
+  connects it needs its password.

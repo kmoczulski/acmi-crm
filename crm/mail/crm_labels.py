@@ -33,6 +33,11 @@ def enabled(user):
     return prefs.get_prefs(user).get("mail_crm_labels", True) and connect.is_on(user)
 
 
+def enabled_for(mailbox):
+    """A person's mailbox follows their switch; a shared mailbox always carries the CRM labels."""
+    return mailbox.shared or enabled(mailbox.user)
+
+
 def _clean(name):
     return " ".join((name or "").replace("/", "-").split())[:180] or "Untitled"
 
@@ -127,7 +132,7 @@ def wanted(mailbox, threads):
 def sync_threads(mailbox, client, threads):
     """Bring these index rows' CRM labels up to date, both ways. Returns how many threads got a label."""
     threads = [t for t in threads if t is not None]
-    if not threads or not enabled(mailbox.user):
+    if not threads or not enabled_for(mailbox):
         return 0
     from . import filing
 
@@ -173,7 +178,7 @@ def sync_threads(mailbox, client, threads):
 
 def backfill(mailbox, client):
     """Once: label the indexed threads of the last 90 days."""
-    if mailbox.crm_labels_done_at or not enabled(mailbox.user):
+    if mailbox.crm_labels_done_at or not enabled_for(mailbox):
         return 0
     rows = list(MailThread.objects.filter(mailbox=mailbox,
                                           last_message_at__gte=timezone.now() - timedelta(days=BACKFILL_DAYS)))

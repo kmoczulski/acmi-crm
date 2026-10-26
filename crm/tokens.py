@@ -65,12 +65,14 @@ def _social_token():
 
 
 @receiver(post_init, sender="socialaccount.SocialToken")
+@receiver(post_init, sender="crm.SharedMailboxToken")
 def _decrypt_on_load(sender, instance, **kwargs):
     for name in FIELDS:
         setattr(instance, name, decrypt(getattr(instance, name, "")))
 
 
 @receiver(pre_save, sender="socialaccount.SocialToken")
+@receiver(pre_save, sender="crm.SharedMailboxToken")
 def _encrypt_on_save(sender, instance, **kwargs):
     instance._plain_tokens = {name: getattr(instance, name) for name in FIELDS}
     for name in FIELDS:
@@ -78,6 +80,7 @@ def _encrypt_on_save(sender, instance, **kwargs):
 
 
 @receiver(post_save, sender="socialaccount.SocialToken")
+@receiver(post_save, sender="crm.SharedMailboxToken")
 def _plain_after_save(sender, instance, **kwargs):
     # The row is encrypted; the object in memory goes back to plain values for whoever saved it.
     for name, value in getattr(instance, "_plain_tokens", {}).items():

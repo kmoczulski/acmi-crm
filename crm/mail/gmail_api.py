@@ -98,13 +98,15 @@ def _rate_limited(response):
 
 
 class GmailClient:
-    """The Gmail API as the mailbox owner. `session` stands in for `requests` in tests."""
+    """The Gmail API as the mailbox owner (a person's Google sign-in), or as a shared address with its own token.
+    `session` stands in for `requests` in tests."""
 
-    def __init__(self, user, session=None):
+    def __init__(self, user=None, session=None, token=None):
         self.session = session or requests
-        self.token = gcal.token_for(user)
+        self.token = token or (gcal.token_for(user) if user is not None else None)
         if self.token is None:
             raise MailboxError(f"Gmail isn't connected. {RECONNECT}")
+
 
     def _access(self, force=False):
         if force:
@@ -375,3 +377,14 @@ def read_changes(mailbox, client, max_messages):
     with ThreadPoolExecutor(max_workers=PARALLEL_REQUESTS) as executor:
         emails = [e for e in executor.map(fetch, batch) if e is not None]
     return emails, {uid_of(i) for i in new}, rest, touched
+
+
+def client_for(mailbox, session=None):
+    """The Gmail client for a mailbox: its owner's permission, or a shared mailbox's own."""
+    if mailbox.shared:
+        token = getattr(mailbox, "shared_token", None)
+        if token is None:
+            raise MailboxError(f"The shared mailbox {mailbox.email} isn't connected. A Manager connects it on Mail "
+                               "in the hub.")
+        return GmailClient(session=session, token=token)
+    return GmailClient(mailbox.user, session=session)

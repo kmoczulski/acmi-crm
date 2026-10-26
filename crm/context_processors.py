@@ -43,7 +43,9 @@ def app_context(request):
         pages, new_items = search.page_links(), search.new_links()
         from .mail import connect
 
-        mail_on = connect.is_on(request.user)
+        from .mail import shared
+
+        mail_on = connect.is_on(request.user) or bool(shared.shared_for(request.user))
     return {
         "unread_notifications": unread,
         "my_due_count": due,

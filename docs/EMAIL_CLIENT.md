@@ -355,7 +355,7 @@ needs `team_users()` and the Partners group from #2, so step 1 waits for #2 to m
 6. **`mail-filing`** (built 2026-10-26; details in HANDOFF): File to company / deal / project / directory firm / lender, the manual project link, Mail review
    hand-off for unknown domains, **Open in Mail** from timelines, **CRM labels in Gmail** (`ACMI/…`, both ways, with
    its own switch), and team comments on a thread. A migration.
-7. **`mail-shared`**: shared mailboxes, grants, access log. A migration.
+7. **`mail-shared`** (built 2026-10-26; details in HANDOFF): shared mailboxes, grants, access log. A migration.
 8. **`mail-outreach-api`**: outreach batches, test sends, the weekly report, the campus email and the news-review
    drafts move to the Gmail API. Then the app password can be revoked.
 9. **When hosted** (billing on, hub.acmigroup.com): instant new mail through Gmail push (Cloud Pub/Sub), the Cloud Run

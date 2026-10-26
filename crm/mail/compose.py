@@ -86,6 +86,9 @@ def signature_parts(user, mailbox=None, client=None):
     """(plain, html) of the signature that goes under an email."""
     from crm.news.drafts import html_to_text
 
+    if mailbox is not None and mailbox.shared:  # a shared mailbox signs with its own Gmail signature
+        rich = gmail_signature(mailbox, client) if client is not None else ""
+        return (html_to_text(rich), rich) if rich else (mailbox.label, html.escape(mailbox.label))
     mode = signature_mode(user)
     if mode == "none":
         return "", ""
@@ -174,7 +177,7 @@ def build(mailbox, user, to, cc=(), bcc=(), subject="", body="", quote=("", ""),
         raise ComposeError("Attachments add up to more than 25 MB, Gmail's limit. Share a Drive link instead.")
     sig_plain, sig_html = sig if sig is not None else signature_parts(user)
     msg = EmailMessage()
-    msg["From"] = formataddr((user.get_full_name() or "", mailbox.email))
+    msg["From"] = formataddr(((mailbox.name if mailbox.shared else user.get_full_name()) or "", mailbox.email))
     if to:
         msg["To"] = ", ".join(to)
     if cc:
@@ -210,7 +213,7 @@ def forwarded_files(mailbox, client, original, parts):
     return out
 
 
-def send(mailbox, client, raw, thread_id="", draft_id=""):
+def send(mailbox, client, raw, thread_id="", draft_id="", user=None):
     """Send it, drop the draft, and log it on the timeline the way the sync would. Returns Gmail's answer."""
     if not settings.MAIL_SEND_ENABLED:
         raise ComposeError("Sending is switched off on this hub (ACMI_MAIL_SEND).")
@@ -222,14 +225,14 @@ def send(mailbox, client, raw, thread_id="", draft_id=""):
             log.warning("Couldn't drop draft %s for %s", draft_id, mailbox, exc_info=True)
     if mailbox.enabled:  # the person's mail is logged on timelines (as the sync would)
         try:
-            log_sent(mailbox, raw, result)
+            log_sent(mailbox, raw, result, user)
         except Exception:  # the sync logs it on its next run anyway
             log.exception("Couldn't log the sent email for %s", mailbox)
     render.forget(mailbox, result.get("threadId", ""))
     return result
 
 
-def log_sent(mailbox, raw, result):
+def log_sent(mailbox, raw, result, user=None):
     from .parse import parse_message
     from .sync import process_messages
 
@@ -237,6 +240,11 @@ def log_sent(mailbox, raw, result):
                           labels=["\\Sent"])
     recorder = process_messages(mailbox, [email])
     recorder.finish()
+    if user is not None:  # from a shared mailbox, the timeline still says who wrote it
+        from crm.models import Activity
+
+        Activity.objects.filter(message_id=email.message_id, kind=Activity.Kind.EMAIL_SENT, actor__isnull=True) \
+            .update(actor=user)
     return recorder.stats
 
 

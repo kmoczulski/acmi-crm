@@ -2090,3 +2090,14 @@ a.mail-chip:hover { text-decoration: none; filter: brightness(.95); }
 .mail-filed-item { display: inline-flex; align-items: center; }
 .mail-notes > summary { cursor: pointer; color: var(--warn); font-weight: 600; }
 details.mail-notes:not([open]) { background: transparent; padding: 2px 0; }
+
+/* Shared mailboxes (step 7) */
+.mail-boxes { display: flex; flex-direction: column; margin: 0 0 8px; border-bottom: 1px solid var(--line); padding-bottom: 6px; }
+.mail-shared-note { margin: 0 14px 8px; color: var(--muted); overflow-wrap: anywhere; }
+.shared-box { border: 1px solid var(--line); border-radius: var(--radius); padding: 8px 10px; margin: 8px 0; }
+.shared-head { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; }
+.shared-head input[type=text] { width: 140px; }
+.shared-grants { margin: 6px 0; }
+.shared-grant { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 6px; }
+.plain-list { list-style: none; padding: 0; margin: 0; }
+.plain-list .inline-form { display: inline; }

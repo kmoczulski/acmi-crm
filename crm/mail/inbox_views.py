@@ -23,9 +23,9 @@ from crm import prefs
 from crm.ai import enabled as ai_enabled
 from crm.models import Company, MailFiling, MailSnooze, MailThread, Mailbox, Project, UnmatchedEmail
 
-from . import actions as mail_actions, comments as mail_comments, connect, filing as mail_filing, index
+from . import actions as mail_actions, comments as mail_comments, connect, filing as mail_filing, index, shared
 from . import render as mail_render, summary as mail_summary, threads as mail_threads
-from .gmail_api import GmailClient, NotFound, parse_api_message
+from .gmail_api import NotFound, client_for as gmail_client_for, parse_api_message
 from .imap import MailboxError
 from .views import team_only
 
@@ -48,23 +48,57 @@ def own_mailbox(user):
     return mailbox
 
 
+MAILBOX_SESSION = "mail_mb"
+
+
+def current_mailbox(request):
+    """The mailbox the person is looking at: their own, or a shared one they were given (?mb=<id> switches, ?mb=own
+    goes back; kept in the session). None when they have neither."""
+    given = shared.shared_for(request.user)
+    pick = request.GET.get("mb", "")
+    if pick == "own":
+        request.session.pop(MAILBOX_SESSION, None)
+    elif pick.isdigit() and any(m.pk == int(pick) for m in given):
+        request.session[MAILBOX_SESSION] = int(pick)
+    chosen = next((m for m in given if m.pk == request.session.get(MAILBOX_SESSION)), None)
+    if chosen is not None:
+        return chosen
+    request.session.pop(MAILBOX_SESSION, None)
+    if connect.is_on(request.user):
+        return own_mailbox(request.user)
+    return given[0] if given else None
+
+
 def mail_required(view):
-    """Team only, Mail on, and the person's own mailbox and Gmail client handed to the view."""
+    """Team only, and a mailbox the person may read (their own with Mail on, or a shared one they were given), handed
+    to the view with its Gmail client."""
     @team_only
     def wrapped(request, *args, **kwargs):
-        if not connect.is_on(request.user):
+        mailbox = current_mailbox(request)
+        if mailbox is None:
             messages.info(request, "Turn on Mail to read your email in the hub.")
             return redirect("crm:mail_settings")
-        mailbox = own_mailbox(request.user)
         try:
-            client = GmailClient(request.user)
+            client = gmail_client_for(mailbox)
         except MailboxError as exc:
             messages.error(request, str(exc))
             return redirect("crm:mail_settings")
+        request.mail_role = shared.role(request.user, mailbox)
         return view(request, mailbox, client, *args, **kwargs)
 
     wrapped.__name__ = view.__name__
     return wrapped
+
+
+READ_ONLY = "You can read this shared mailbox, but not send from it or change it. A Manager can give you more."
+
+
+def may_change(request, mailbox):
+    """True if the person may send from and change this mailbox; otherwise says why."""
+    if shared.can_change(request.user, mailbox):
+        return True
+    messages.error(request, READ_ONLY)
+    return False
 
 
 @mail_required
@@ -109,6 +143,8 @@ def inbox(request, mailbox, client):
         "page_token": token, "total": total, "reader": reader, "open_id": open_id, "error": error,
         "indexing": tab in TAB_FILTERS and not mailbox.inbox_indexed_at,
         "undo": request.session.pop("mail_undo", None),
+        "mailboxes": ([own_mailbox(request.user)] if connect.is_on(request.user) else []) + shared.shared_for(request.user),
+        "can_change": shared.can_change(request.user, mailbox),
         "snooze_choices": mail_actions.snooze_choices(),
         "snoozed": dict(MailSnooze.objects.filter(mailbox=mailbox, gmail_id__in=[t.gmail_id for t in threads])
                         .values_list("gmail_id", "until")),
@@ -139,8 +175,9 @@ def reader_for(request, mailbox, client, gmail_id, threads=()):
         email = parse_api_message(raw)
         texts[raw["id"]] = f"{email.from_name} {email.body}".lower() if email else ""
         labels |= set(raw.get("labelIds") or [])
-    if unread:
+    if unread and shared.can_change(request.user, mailbox):
         mark_read(mailbox, client, gmail_id, row)
+    shared.log(mailbox, request.user, "open", gmail_id, subject)
     snooze = MailSnooze.objects.filter(mailbox=mailbox, gmail_id=gmail_id).first()
     own = mailbox.email.lower()
     sender_domains = {m["from_addr"].rsplit("@", 1)[-1] for m in msgs if m["from_addr"] and m["from_addr"] != own}
@@ -193,6 +230,8 @@ def act(request, mailbox, client):
     action = request.POST.get("action", "")
     ids = request.POST.getlist("t")
     nxt = _safe_next(request, reverse("crm:inbox"))
+    if not may_change(request, mailbox):
+        return redirect(nxt)
     until = mail_actions.snooze_until(request.POST.get("when", ""), request.POST.get("custom", "")) \
         if action == "snooze" else None
     undoing = request.POST.get("undo") == "1"
@@ -204,6 +243,7 @@ def act(request, mailbox, client):
     except (MailboxError, requests.RequestException) as exc:
         messages.error(request, str(exc) if isinstance(exc, MailboxError) else "Couldn't reach Gmail. Try again.")
         return redirect(nxt)
+    shared.log(mailbox, request.user, "change", ids[0] if len(ids) == 1 else "", f"{action} ({len(ids)})")
     request.session.pop("mail_undo", None)
     if undoing:
         messages.success(request, "Undone.")
@@ -353,6 +393,8 @@ def message_part(request, mailbox, client, message_id, part_id):
         raise Http404()
     mime = part.get("mimeType", "")
     inline = request.GET.get("inline") == "1" and mime in mail_render.INLINE_IMAGE_TYPES
+    if not inline:
+        shared.log(mailbox, request.user, "download", msg.get("threadId", ""), part.get("filename", ""))
     response = HttpResponse(data, content_type=mime if inline else "application/octet-stream")
     name = part.get("filename") or "attachment"
     response["Content-Disposition"] = content_disposition_header(not inline, name)
@@ -388,6 +430,7 @@ def file_to(request, mailbox, client):
     except (MailboxError, requests.RequestException) as exc:
         messages.error(request, str(exc) if isinstance(exc, MailboxError) else "Couldn't reach Gmail. Try again.")
     else:
+        shared.log(mailbox, request.user, "file", gmail_id, str(target))
         messages.success(request, f"Filed to {target}. It's on its timeline now.")
     return redirect(nxt)
 

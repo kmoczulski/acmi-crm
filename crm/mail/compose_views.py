@@ -14,7 +14,8 @@ from crm.models import EmailTemplate, Person
 from . import compose, index, render as mail_render
 from .gmail_api import NotFound
 from .imap import MailboxError
-from .inbox_views import mail_required
+from . import shared
+from .inbox_views import READ_ONLY, mail_required, may_change
 from .views import team_only
 
 log = logging.getLogger(__name__)
@@ -63,7 +64,11 @@ def compose_page(request, mailbox, client):
     if mode not in ("new", "reply", "all", "forward"):
         mode = "new"
     if request.method == "POST":
+        if not shared.can_change(request.user, mailbox):
+            return _form_again(request, mailbox, client, original, mode, READ_ONLY)
         return _send(request, mailbox, client, original, mode)
+    if not may_change(request, mailbox):
+        return redirect("crm:inbox")
     fields = {"to": request.GET.get("to", ""), "cc": "", "subject": request.GET.get("subject", ""), "thread_id": "",
               "in_reply_to": "", "references": "", "reply_to_id": "", "mode": mode, "forward_files": []}
     if original:
@@ -92,7 +97,8 @@ def _send(request, mailbox, client, original, mode):
                                in_reply_to=f["in_reply_to"], references=f["references"], files=files,
                                sig=compose.signature_parts(request.user, mailbox, client))
         result = compose.send(mailbox, client, raw, thread_id=f["thread_id"] if mode in ("reply", "all") else "",
-                              draft_id=request.POST.get("draft_id", ""))
+                              draft_id=request.POST.get("draft_id", ""), user=request.user)
+        shared.log(mailbox, request.user, "send", result.get("threadId", ""), f["subject"])
     except compose.ComposeError as exc:
         return _form_again(request, mailbox, client, original, mode, str(exc))
     except (MailboxError, requests.RequestException) as exc:
@@ -138,6 +144,8 @@ def reply_fields(request, mailbox, client):
     original = _original(mailbox, client, request.GET.get("reply", ""))
     if original is None:
         raise Http404()
+    if not shared.can_change(request.user, mailbox):
+        return JsonResponse({"error": READ_ONLY}, status=403)
     mode = request.GET.get("mode", "reply")
     if mode not in ("reply", "all", "forward"):
         mode = "reply"
@@ -156,6 +164,8 @@ def reply_fields(request, mailbox, client):
 @require_POST
 def save_draft(request, mailbox, client):
     """Autosave: what's typed so far, as a Gmail draft. Returns {draft: id}."""
+    if not shared.can_change(request.user, mailbox):
+        return JsonResponse({"error": READ_ONLY}, status=403)
     try:
         f = _fields_from_post(request)
     except compose.ComposeError as exc:
@@ -176,6 +186,8 @@ def save_draft(request, mailbox, client):
 @mail_required
 @require_POST
 def discard_draft(request, mailbox, client):
+    if not may_change(request, mailbox):
+        return redirect("crm:inbox")
     draft_id = request.POST.get("draft_id", "")
     if draft_id:
         try:

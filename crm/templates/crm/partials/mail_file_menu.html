@@ -1,0 +1,11 @@
+          <details class="mail-menu" data-file-menu><summary class="btn btn-small">File to…</summary>
+            <div class="mail-menu-pop mail-file-pop">
+              <input type="search" placeholder="Company, deal, project or firm" aria-label="File to" data-file-search data-url="{% url 'crm:inbox_file_options' %}">
+              <form method="post" action="{% url 'crm:inbox_file' %}" data-file-form>{% csrf_token %}
+                <input type="hidden" name="t" value="{{ reader.id }}"><input type="hidden" name="next" value="{{ here }}">
+                <input type="hidden" name="kind"><input type="hidden" name="pk">
+                <div data-file-results class="mail-file-results"><p class="muted lc-small">Type two letters or more.</p></div>
+                {% if reader.queued_domains %}<label class="lc-small mail-file-attach"><input type="checkbox" name="attach_domain" value="1" checked> Also attach {{ reader.queued_domains|join:", " }} to the company (files its other waiting emails)</label>{% endif %}
+              </form>
+            </div>
+          </details>

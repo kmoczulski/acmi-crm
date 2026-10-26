@@ -51,6 +51,47 @@
   </form>
 </section>
 {% endif %}
+{% if my_shared %}
+<section class="panel" style="max-width:720px">
+  <h3>Shared mailboxes you can use</h3>
+  <ul class="plain-list">{% for m in my_shared %}<li><a href="{% url 'crm:inbox' %}?mb={{ m.pk }}">👥 {{ m.label }}</a> <span class="muted lc-small">{{ m.email }}</span></li>{% endfor %}</ul>
+</section>
+{% endif %}
+{% if is_manager %}
+<section class="panel" style="max-width:720px" id="shared">
+  <h3>Shared mailboxes <span class="muted lc-small">(Managers)</span></h3>
+  <p class="muted lc-small">A shared address (deals@, info@) is connected once by someone who can sign in as it. Then give teammates access: <b>read</b>, or <b>read and send</b> (which also lets them archive, label and snooze). Every open, send and change is logged.</p>
+  {% for row in shared_mailboxes %}{% with m=row.mailbox %}
+  <div class="shared-box">
+    <form method="post" action="{% url 'crm:mail_shared_update' m.pk %}" class="shared-head">{% csrf_token %}
+      <input type="text" name="name" value="{{ m.name }}" aria-label="Name in the hub" maxlength="120">
+      <span class="muted lc-small">{{ m.email }}{% if row.connected %} · connected by {{ m.shared_token.connected_by.get_full_name|default:m.shared_token.connected_by.username }}{% else %} · <b>not connected</b>{% endif %}</span>
+      <label class="lc-small"><input type="checkbox" name="timeline" value="1"{% if m.enabled %} checked{% endif %}> Log its mail on CRM timelines</label>
+      <button class="btn btn-small">Save</button>
+      <a class="lc-small" href="{% url 'crm:mail_shared_log' m.pk %}">Access log</a>
+      {% if row.connected %}<button class="btn btn-small btn-danger" name="action" value="disconnect" onclick="return confirm('Disconnect {{ m.email|escapejs }}? The hub stops reading it and everyone loses access. Timeline entries stay.')">Disconnect</button>{% endif %}
+    </form>
+    <ul class="plain-list shared-grants">
+      {% for g in row.grants %}<li>{{ g.user.get_full_name|default:g.user.username }} · {% if g.can_send %}read and send{% else %}read{% endif %}
+        <form method="post" action="{% url 'crm:mail_shared_ungrant' m.pk g.user_id %}" class="inline-form">{% csrf_token %}<button class="btn-link lc-small">Remove</button></form></li>
+      {% empty %}<li class="muted lc-small">Nobody has access yet.</li>{% endfor %}
+    </ul>
+    {% if row.connected %}
+    <form method="post" action="{% url 'crm:mail_shared_grant' m.pk %}" class="shared-grant">{% csrf_token %}
+      <select name="user" aria-label="Teammate">{% for u in team %}<option value="{{ u.pk }}">{{ u.get_full_name|default:u.username }}</option>{% endfor %}</select>
+      <select name="can_send" aria-label="Access"><option value="0">Read</option><option value="1">Read and send</option></select>
+      <button class="btn btn-small">Give access</button>
+    </form>
+    {% endif %}
+  </div>
+  {% endwith %}{% endfor %}
+  <form method="post" action="{% url 'crm:mail_shared_connect' %}" class="shared-grant">{% csrf_token %}
+    <input type="email" name="email" placeholder="deals@acmigroup.com" required aria-label="Shared address">
+    <button class="btn btn-small btn-primary">Connect a shared mailbox</button>
+  </form>
+  <p class="muted lc-small">Google asks you to sign in <b>as that address</b> and allow Gmail. Have its password ready.</p>
+</section>
+{% endif %}
 {% if not calendar_connected and not unavailable %}
 <section class="panel" style="max-width:720px">
   <h3>Google Calendar</h3>

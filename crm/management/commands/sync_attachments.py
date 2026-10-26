@@ -25,7 +25,7 @@ class Command(BaseCommand):
         parser.add_argument("--days", type=int, help="How far back (default: the mailbox's history window)")
 
     def handle(self, *args, **opts):
-        for mailbox in Mailbox.objects.filter(enabled=True):
+        for mailbox in Mailbox.objects.filter(enabled=True, shared=False):
             days = opts["days"] or mailbox.backfill_days
             self.stdout.write(f"{mailbox.email}: emails with attachments in the last {days} days...")
             try:

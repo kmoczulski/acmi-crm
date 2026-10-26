@@ -1173,13 +1173,17 @@ class NewsDraft(models.Model):
 
 
 class Mailbox(models.Model):
-    """One teammate's Gmail account and where its sync left off.
+    """One teammate's Gmail account and where its sync left off, or a shared address (shared=True, no user).
 
-    Connects over IMAP with a Gmail app password read from the environment
-    (ACMI_IMAP_PASSWORD_<USERNAME>, e.g. in .env). Never stored in the database.
+    A teammate's connects over IMAP with a Gmail app password read from the environment
+    (ACMI_IMAP_PASSWORD_<USERNAME>, e.g. in .env), never stored in the database, or through the Gmail API once they
+    turn Mail in the hub on. A shared address (deals@) is connected once by a Manager signing in as it, and read
+    through its own token (SharedMailboxToken) by the teammates it's granted to (MailboxAccess).
     """
 
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="mailbox")
+    user = models.OneToOneField(User, null=True, blank=True, on_delete=models.CASCADE, related_name="mailbox")
+    shared = models.BooleanField(default=False)
+    name = models.CharField(max_length=120, blank=True, help_text="A shared mailbox's name in the hub, e.g. Deals")
     email = models.EmailField()
     enabled = models.BooleanField(default=True)
     backfill_days = models.PositiveIntegerField(default=365, help_text="How far back the first sync reads")
@@ -1218,7 +1222,12 @@ class Mailbox(models.Model):
 
     @property
     def password_env_var(self):
-        return f"ACMI_IMAP_PASSWORD_{self.user.username.upper()}"
+        return f"ACMI_IMAP_PASSWORD_{self.user.username.upper()}" if self.user_id else "ACMI_IMAP_PASSWORD_SHARED"
+
+    @property
+    def label(self):
+        """How the hub names it: "Your mail", or a shared mailbox's name."""
+        return (self.name or self.email) if self.shared else "Your mail"
 
     def get_password(self):
         import os
@@ -1280,6 +1289,58 @@ class MailSnooze(models.Model):
 
     def __str__(self):
         return f"{self.gmail_id} until {self.until:%b %d %H:%M}"
+
+
+class SharedMailboxToken(models.Model):
+    """A shared mailbox's own Google permission (gmail.modify), from a Manager signing in as that address once. Stored
+    encrypted like every Google token (crm/tokens.py); the shape gcal.access_token refreshes."""
+
+    mailbox = models.OneToOneField(Mailbox, on_delete=models.CASCADE, related_name="shared_token")
+    token = models.TextField(blank=True)
+    token_secret = models.TextField(blank=True, help_text="The refresh token")
+    expires_at = models.DateTimeField(null=True, blank=True)
+    connected_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    connected_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Google permission for {self.mailbox}"
+
+
+class MailboxAccess(models.Model):
+    """A teammate's access to a shared mailbox, given by a Manager: read, or read and send (and archive, label…)."""
+
+    mailbox = models.ForeignKey(Mailbox, on_delete=models.CASCADE, related_name="grants")
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="mailbox_grants")
+    can_send = models.BooleanField(default=False)
+    granted_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    granted_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["mailbox", "user"], name="mailbox_access_unique")]
+
+    def __str__(self):
+        return f"{self.user} on {self.mailbox} ({'send' if self.can_send else 'read'})"
+
+
+class MailboxAccessLog(models.Model):
+    """Every open, send and change in a shared mailbox, and who did it (Mail in the hub › Shared mailboxes)."""
+
+    class Action(models.TextChoices):
+        OPEN = "open", "Opened"
+        SEND = "send", "Sent"
+        CHANGE = "change", "Changed"
+        FILE = "file", "Filed"
+        DOWNLOAD = "download", "Downloaded a file"
+
+    mailbox = models.ForeignKey(Mailbox, on_delete=models.CASCADE, related_name="access_log")
+    user = models.ForeignKey(User, null=True, on_delete=models.SET_NULL, related_name="+")
+    action = models.CharField(max_length=10, choices=Action.choices)
+    gmail_id = models.CharField(max_length=40, blank=True)
+    detail = models.CharField(max_length=300, blank=True)
+    at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ["-at"]
 
 
 class MailFiling(models.Model):

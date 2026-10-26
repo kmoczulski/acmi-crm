@@ -35,7 +35,7 @@ class Command(BaseCommand):
 
         gmail = defaultdict(Counter)
         if not opts["no_gmail"]:
-            for mailbox in Mailbox.objects.filter(enabled=True):
+            for mailbox in Mailbox.objects.filter(enabled=True, shared=False):
                 self.stdout.write(f"Reading From/To/Cc headers in {mailbox.email}...")
                 try:
                     with ImapClient(mailbox) as client:

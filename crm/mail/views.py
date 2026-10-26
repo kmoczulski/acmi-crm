@@ -10,10 +10,12 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
 from crm import gcal, prefs
-from crm.models import Company, Firm, MailConnection, MailFilter, Mailbox, UnmatchedEmail
-from crm.permissions import is_partner
+from django.urls import reverse
 
-from . import connect, sync
+from crm.models import Company, Firm, MailConnection, MailFilter, Mailbox, MailboxAccess, UnmatchedEmail
+from crm.permissions import is_manager, is_partner, manager_required, team_users
+
+from . import connect, shared, sync
 from .imap import MailboxError
 
 
@@ -247,6 +249,14 @@ def mail_settings(request):
         "calendar_connected": gcal.connected(request.user),
         **signature_settings(request.user),
         "crm_labels_on": prefs.get_prefs(request.user).get("mail_crm_labels", True),
+        "is_manager": is_manager(request.user),
+        "shared_mailboxes": [
+            {"mailbox": m, "grants": list(m.grants.select_related("user").order_by("user__first_name")),
+             "connected": hasattr(m, "shared_token")}
+            for m in Mailbox.objects.filter(shared=True).select_related("shared_token__connected_by").order_by("name")
+        ] if is_manager(request.user) else [],
+        "my_shared": shared.shared_for(request.user),
+        "team": team_users().order_by("first_name", "username"),
     })
 
 
@@ -288,3 +298,88 @@ def mail_turn_off(request):
     else:
         messages.success(request, "Mail is off.")
     return redirect("crm:mail_settings")
+
+
+# ---------------------------------------------------------------------------
+# Shared mailboxes (crm/mail/shared.py, docs/EMAIL_CLIENT.md step 7): Managers connect them and give access
+# ---------------------------------------------------------------------------
+
+
+@team_only
+@manager_required
+@require_POST
+def shared_connect(request):
+    try:
+        return redirect(shared.start(request, request.POST.get("email", "")))
+    except shared.SharedError as exc:
+        messages.error(request, str(exc))
+        return redirect(reverse("crm:mail_settings") + "#shared")
+
+
+@team_only
+@manager_required
+def shared_done(request):
+    """Where Google sends the Manager back after signing in as the shared address."""
+    try:
+        mailbox = shared.finish(request)
+    except (shared.SharedError, requests.RequestException) as exc:
+        messages.error(request, str(exc) if isinstance(exc, shared.SharedError) else "Couldn't reach Google. Try again.")
+    else:
+        messages.success(request, f"{mailbox.email} is connected. Give teammates access below; its mail reaches "
+                                  "timelines from the next sync.")
+    return redirect(reverse("crm:mail_settings") + "#shared")
+
+
+def _shared_mailbox(pk):
+    return get_object_or_404(Mailbox, pk=pk, shared=True)
+
+
+@team_only
+@manager_required
+@require_POST
+def shared_grant(request, pk):
+    from django.contrib.auth import get_user_model
+
+    mailbox = _shared_mailbox(pk)
+    person = get_user_model().objects.filter(pk=request.POST.get("user") or 0).first()
+    if person is None or not team_users().filter(pk=person.pk).exists():
+        messages.error(request, "Pick someone on the team.")
+    else:
+        MailboxAccess.objects.update_or_create(mailbox=mailbox, user=person, defaults={
+            "can_send": request.POST.get("can_send") == "1", "granted_by": request.user})
+        messages.success(request, f"{person.get_full_name() or person.username} can now use {mailbox.label}.")
+    return redirect(reverse("crm:mail_settings") + "#shared")
+
+
+@team_only
+@manager_required
+@require_POST
+def shared_ungrant(request, pk, user_id):
+    MailboxAccess.objects.filter(mailbox=_shared_mailbox(pk), user_id=user_id).delete()
+    messages.success(request, "Access removed.")
+    return redirect(reverse("crm:mail_settings") + "#shared")
+
+
+@team_only
+@manager_required
+@require_POST
+def shared_update(request, pk):
+    """Rename a shared mailbox, switch its timeline logging, or disconnect it."""
+    mailbox = _shared_mailbox(pk)
+    if request.POST.get("action") == "disconnect":
+        shared.disconnect(mailbox)
+        messages.success(request, f"{mailbox.email} is disconnected from the hub. Its timeline entries stay.")
+    else:
+        mailbox.name = request.POST.get("name", mailbox.name).strip()[:120] or mailbox.name
+        mailbox.enabled = request.POST.get("timeline") == "1"
+        mailbox.save(update_fields=["name", "enabled"])
+        messages.success(request, "Saved.")
+    return redirect(reverse("crm:mail_settings") + "#shared")
+
+
+@team_only
+@manager_required
+def shared_log(request, pk):
+    mailbox = _shared_mailbox(pk)
+    return render(request, "crm/mail_shared_log.html", {
+        "mailbox": mailbox, "entries": mailbox.access_log.select_related("user")[:300]})

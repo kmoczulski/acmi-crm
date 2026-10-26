@@ -130,7 +130,8 @@ def file_thread(mailbox, client, gmail_id, target, user=None, source=MailFiling.
             })
             if created:
                 added.append(act.pk)
-                act.team_members.add(mailbox.user)
+                if mailbox.user_id:
+                    act.team_members.add(mailbox.user)
         acts = Activity.objects.filter(source=Activity.Source.GMAIL, thread_id=thread_id)
         if kind == "opportunity":
             acts.filter(company=company, opportunity__isnull=True).update(opportunity=target)

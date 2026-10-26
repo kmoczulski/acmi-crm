@@ -4,7 +4,13 @@
 {% block content %}
 <div class="mail-app{% if reader %} has-reader{% endif %}">
   <nav class="mail-folders" aria-label="Folders" id="mail-folders">
-    <a href="{% url 'crm:inbox_compose' %}" class="mail-compose-btn" data-key="c" title="New message (c)">✎ New message</a>
+    {% if mailboxes|length > 1 %}
+    <div class="mail-boxes" aria-label="Mailboxes">
+      {% for mb in mailboxes %}<a href="?mb={% if mb.shared %}{{ mb.pk }}{% else %}own{% endif %}" class="{% if mb.pk == mailbox.pk %}on{% endif %}">{% if mb.shared %}👥 {% endif %}{{ mb.label }}</a>{% endfor %}
+    </div>
+    {% endif %}
+    {% if mailbox.shared %}<p class="mail-shared-note lc-small">{{ mailbox.email }} · shared{% if not can_change %}, read only{% endif %}</p>{% endif %}
+    {% if can_change %}<a href="{% url 'crm:inbox_compose' %}" class="mail-compose-btn" data-key="c" title="New message (c)">✎ New message</a>{% endif %}
     {% for lb in system_labels %}
       <a href="?label={{ lb.gmail_id|urlencode }}" class="{% if lb.gmail_id == label and not query %}on{% endif %}">{{ lb.name }}{% if lb.unread %} <span class="mail-count">{{ lb.unread }}</span>{% endif %}</a>
     {% endfor %}
@@ -42,6 +48,7 @@
     </form>
     {% endif %}
     {% if error %}<p class="mail-error">{{ error }}</p>{% endif %}
+    {% if can_change %}
     <form class="mail-bulk" id="mail-bulk" method="post" action="{% url 'crm:inbox_act' %}" data-bulk hidden>{% csrf_token %}
       <input type="hidden" name="next" value="{{ here }}">
       <span class="lc-small" data-bulk-count></span>
@@ -62,11 +69,12 @@
         <button class="btn btn-small" name="action" value="move">Move</button>
       </span>{% endif %}
     </form>
+    {% endif %}
     {% if indexing %}<p class="muted lc-small mail-note">Still sorting your inbox into these tabs; the rest appears after the next sync (within 15 minutes).</p>{% endif %}
     <ul class="mail-rows" data-mail-rows>
       {% for t in threads %}
       <li class="mail-row{% if t.unread %} unread{% endif %}{% if t.gmail_id == open_id %} on{% endif %}">
-        <input type="checkbox" class="mail-pick" name="t" value="{{ t.gmail_id }}" form="mail-bulk" aria-label="Select {{ t.subject|default:'(no subject)' }}" data-pick>
+{% if can_change %}        <input type="checkbox" class="mail-pick" name="t" value="{{ t.gmail_id }}" form="mail-bulk" aria-label="Select {{ t.subject|default:'(no subject)' }}" data-pick>{% endif %}
         <a href="?label={{ label|urlencode }}{% if query %}&q={{ query|urlencode }}{% endif %}{% if tab != 'all' %}&tab={{ tab }}{% endif %}{% if page_token %}&p={{ page_token|urlencode }}{% endif %}{% if offset %}&o={{ offset }}{% endif %}&t={{ t.gmail_id }}">
           <span class="mail-from">{% for s in t.senders|slice:":3" %}{% if s.1 == mailbox.email %}me{% else %}{{ s.0|default:s.1 }}{% endif %}{% if not forloop.last %}, {% endif %}{% endfor %}{% if t.message_count > 1 %} <span class="muted">{{ t.message_count }}</span>{% endif %}</span>
           <span class="mail-date">{% if t.has_attachments %}<span title="Has attachments" aria-label="Has attachments">📎</span> {% endif %}{{ t.last_message_at|date:"M j" }}</span>
@@ -90,14 +98,14 @@
       <div class="mail-reader-head">
         <a class="btn btn-small mail-back" href="?label={{ label|urlencode }}{% if query %}&q={{ query|urlencode }}{% endif %}{% if tab != 'all' %}&tab={{ tab }}{% endif %}">← Back</a>
         <h2>{{ reader.subject }}</h2>
-        {% if reader.latest %}
+{% if can_change %}        {% if reader.latest %}
         <div class="mail-reply-bar">
           <a class="btn btn-small btn-primary" href="{% url 'crm:inbox_compose' %}?reply={{ reader.latest }}&mode=reply&back={{ here|urlencode }}" data-reply="{{ reader.latest }}" data-mode="reply" data-key="r" title="Reply (r)">↩ Reply</a>
           <a class="btn btn-small" href="{% url 'crm:inbox_compose' %}?reply={{ reader.latest }}&mode=all&back={{ here|urlencode }}" data-reply="{{ reader.latest }}" data-mode="all" data-key="a" title="Reply all (a)">↩ Reply all</a>
           <a class="btn btn-small" href="{% url 'crm:inbox_compose' %}?reply={{ reader.latest }}&mode=forward&back={{ here|urlencode }}" data-reply="{{ reader.latest }}" data-mode="forward" data-key="f" title="Forward (f)">↪ Forward</a>
         </div>
-        {% endif %}
-        <div class="mail-actions">
+        {% endif %}{% endif %}
+        {% if can_change %}<div class="mail-actions">
           <form method="post" action="{% url 'crm:inbox_act' %}" class="mail-actions-main">{% csrf_token %}
             <input type="hidden" name="t" value="{{ reader.id }}"><input type="hidden" name="next" value="{{ here }}">
             {% if reader.in_trash %}<button class="btn btn-small" name="action" value="untrash" data-key="#">Restore</button>
@@ -126,17 +134,7 @@
                 <button class="btn btn-small" name="action" value="snooze">Snooze</button></form>
             </div>
           </details>
-          <details class="mail-menu" data-file-menu><summary class="btn btn-small">File to…</summary>
-            <div class="mail-menu-pop mail-file-pop">
-              <input type="search" placeholder="Company, deal, project or firm" aria-label="File to" data-file-search data-url="{% url 'crm:inbox_file_options' %}">
-              <form method="post" action="{% url 'crm:inbox_file' %}" data-file-form>{% csrf_token %}
-                <input type="hidden" name="t" value="{{ reader.id }}"><input type="hidden" name="next" value="{{ here }}">
-                <input type="hidden" name="kind"><input type="hidden" name="pk">
-                <div data-file-results class="mail-file-results"><p class="muted lc-small">Type two letters or more.</p></div>
-                {% if reader.queued_domains %}<label class="lc-small mail-file-attach"><input type="checkbox" name="attach_domain" value="1" checked> Also attach {{ reader.queued_domains|join:", " }} to the company (files its other waiting emails)</label>{% endif %}
-              </form>
-            </div>
-          </details>
+          {% include "crm/partials/mail_file_menu.html" %}
           {% if user_labels %}
           <details class="mail-menu"><summary class="btn btn-small">Label</summary>
             <div class="mail-menu-pop">
@@ -161,6 +159,7 @@
           </details>
           {% endif %}
         </div>
+        {% else %}<div class="mail-actions">{% include "crm/partials/mail_file_menu.html" %}</div>{% endif %}
         {% if reader.filings %}<div class="lc-small mail-filed">Filed to
           {% for f in reader.filings %}<span class="mail-filed-item"><span class="mail-chip chip-{% if f.project_id %}project{% elif f.opportunity_id %}deal{% elif f.firm_id %}firm{% else %}company{% endif %}">{{ f.target }}</span><form method="post" action="{% url 'crm:inbox_unfile' f.pk %}" class="inline-form">{% csrf_token %}<input type="hidden" name="next" value="{{ here }}"><button class="btn-link" title="Take it off {{ f.target }}" aria-label="Take it off {{ f.target }}">×</button></form></span>{% endfor %}</div>{% endif %}
         {% if reader.snoozed_until %}<p class="lc-small"><span class="tag">⏰ Snoozed until {{ reader.snoozed_until|date:"D M j, g:i A" }}</span></p>{% endif %}
@@ -257,7 +256,7 @@
         <iframe class="mail-frame" title="Message from {{ m.from_name }}" sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox" loading="lazy"
                 src="{% url 'crm:inbox_body' m.id %}" data-mail-frame data-message="{{ m.id }}"></iframe>
         <p class="mail-images" hidden><button type="button" class="btn btn-small" data-show-images>Show images</button> <span class="muted lc-small">Images from the sender are blocked so they can't tell you opened this.</span></p>
-        <p class="mail-msg-reply lc-small"><a href="{% url 'crm:inbox_compose' %}?reply={{ m.id }}&mode=reply&back={{ here|urlencode }}" data-reply="{{ m.id }}" data-mode="reply">Reply</a> · <a href="{% url 'crm:inbox_compose' %}?reply={{ m.id }}&mode=all&back={{ here|urlencode }}" data-reply="{{ m.id }}" data-mode="all">Reply all</a> · <a href="{% url 'crm:inbox_compose' %}?reply={{ m.id }}&mode=forward&back={{ here|urlencode }}" data-reply="{{ m.id }}" data-mode="forward">Forward</a></p>
+{% if can_change %}        <p class="mail-msg-reply lc-small"><a href="{% url 'crm:inbox_compose' %}?reply={{ m.id }}&mode=reply&back={{ here|urlencode }}" data-reply="{{ m.id }}" data-mode="reply">Reply</a> · <a href="{% url 'crm:inbox_compose' %}?reply={{ m.id }}&mode=all&back={{ here|urlencode }}" data-reply="{{ m.id }}" data-mode="all">Reply all</a> · <a href="{% url 'crm:inbox_compose' %}?reply={{ m.id }}&mode=forward&back={{ here|urlencode }}" data-reply="{{ m.id }}" data-mode="forward">Forward</a></p>{% endif %}
         {% if m.files %}
         <ul class="mail-files">
           {% for a in m.files %}<li><a href="{% url 'crm:inbox_part' m.id a.part %}">📎 {{ a.name }}</a> <span class="muted lc-small">{{ a.size|filesizeformat }}</span></li>{% endfor %}
@@ -265,6 +264,7 @@
         {% endif %}
       </details>
       {% endfor %}
+    {% if can_change %}
       <form class="mail-inline panel compose" method="post" enctype="multipart/form-data" action="{% url 'crm:inbox_compose' %}"
             data-inline hidden data-fields-url="{% url 'crm:inbox_reply_fields' %}" data-draft-url="{% url 'crm:inbox_draft' %}">
         {% csrf_token %}
@@ -292,6 +292,7 @@
           <span class="compose-countdown" data-countdown hidden>Sending in <strong data-seconds>10</strong>… <button type="button" class="btn btn-small" data-undo-send>Undo</button></span>
         </div>
       </form>
+    {% endif %}
       <button type="button" class="btn btn-small mail-latest" data-latest="{{ reader.latest }}" hidden>{% if reader.order == "newest" %}↑{% else %}↓{% endif %} Latest message</button>
       {{ reader.texts|json_script:"mail-texts" }}
     {% else %}

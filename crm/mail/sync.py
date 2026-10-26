@@ -205,7 +205,7 @@ class Recorder:
             self.thread_ids.add(activity.thread_id)
         if event.attachments:
             save_attachments(activity, event.attachments)
-        if event.mailbox is not None:
+        if event.mailbox is not None and event.mailbox.user_id:  # a shared mailbox has no one person
             activity.team_members.add(event.mailbox.user)
             if not created:
                 # Seen again in a teammate's mailbox: their connection counts too.
@@ -412,6 +412,9 @@ def choose_backend(mailbox):
     overlap from being logged twice."""
     from . import connect
 
+    if mailbox.shared:  # a shared mailbox is only ever read through its own Gmail permission
+        mailbox.backend = Mailbox.Backend.GMAIL_API
+        return
     conn = connect.connection(mailbox.user)
     own = mailbox.email.lower() in {(mailbox.user.email or "").lower(), (conn.google_email if conn else "").lower()}
     want = Mailbox.Backend.GMAIL_API if own and connect.is_on(mailbox.user) else Mailbox.Backend.IMAP
@@ -423,7 +426,7 @@ def choose_backend(mailbox):
 def _read_gmail(mailbox, client, max_messages, recorder):
     from . import client as mail_client, gmail_api, index
 
-    api = client or gmail_api.GmailClient(mailbox.user)
+    api = client or gmail_api.client_for(mailbox)
     emails, new, rest, touched = gmail_api.read_changes(mailbox, api, max_messages)
     if emails:
         process_messages(mailbox, emails, recorder)
@@ -474,8 +477,9 @@ def sync_all(max_messages=DEFAULT_MAX_MESSAGES):
     results = {}
     from crm.permissions import team_users
 
-    # Only the team's mailboxes: a capital partner's account never has its mail read.
-    for mb in Mailbox.objects.filter(enabled=True, user__in=team_users()):
+    # Only the team's mailboxes and the connected shared ones: a capital partner's account never has its mail read.
+    for mb in Mailbox.objects.filter(enabled=True).filter(
+            Q(user__in=team_users()) | Q(shared=True, shared_token__isnull=False)).distinct():
         try:
             results[str(mb)] = sync_mailbox(mb, max_messages=max_messages)
         except SyncBusy:
@@ -487,7 +491,7 @@ def sync_all(max_messages=DEFAULT_MAX_MESSAGES):
                                      snoozes__isnull=False).distinct():
         if connect.is_on(mb.user):
             try:
-                results[str(mb)] = {"snoozed threads back": actions.wake_due(mb, gmail_api.GmailClient(mb.user))}
+                results[str(mb)] = {"snoozed threads back": actions.wake_due(mb, gmail_api.client_for(mb))}
             except Exception as exc:  # noqa: BLE001 - one person's Gmail must not stop the others
                 log.warning("Snooze wake-up failed for %s: %s", mb, exc)
     return results

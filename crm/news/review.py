@@ -101,7 +101,7 @@ def import_scan(path, user=None):
 
 
 def mailbox_for(user):
-    return Mailbox.objects.filter(user=user).first() or Mailbox.objects.filter(enabled=True).first()
+    return Mailbox.objects.filter(user=user).first() or Mailbox.objects.filter(enabled=True, shared=False).first()
 
 
 def check_drafts(scan, user):

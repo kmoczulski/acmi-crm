@@ -18,11 +18,12 @@ QUIET_CATEGORIES = ("CATEGORY_PROMOTIONS", "CATEGORY_SOCIAL", "CATEGORY_UPDATES"
 QUIET_LABELS = ("\\Draft", "\\Spam", "\\Trash", "\\Sent")
 
 
-def thread_url(thread_id):
-    """The thread in the hub's inbox."""
+def thread_url(thread_id, mailbox=None):
+    """The thread in the hub's inbox (switching to the shared mailbox it's in)."""
     from django.urls import reverse
 
-    return f"{reverse('crm:inbox')}?t={hex_thread_id(thread_id)}"
+    mb = f"mb={mailbox.pk}&" if mailbox is not None and mailbox.shared else ""
+    return f"{reverse('crm:inbox')}?{mb}t={hex_thread_id(thread_id)}"
 
 
 def wants_alert(mailbox, email, now=None):
@@ -34,15 +35,22 @@ def wants_alert(mailbox, email, now=None):
 
 def on_new_mail(mailbox, emails):
     """New messages from a refresh pass: one alert per new Primary inbox message, for the mailbox's owner while their
-    Mail is on. Returns how many were sent on to crm.notify."""
+    Mail is on, or for everyone given a shared mailbox. Returns how many were sent on to crm.notify."""
     from crm import notify
 
-    if not connect.is_on(mailbox.user):
-        return 0
+    from . import shared
+
+    if mailbox.shared:
+        people = shared.recipients(mailbox)
+    else:
+        people = [mailbox.user] if connect.is_on(mailbox.user) else []
     n = 0
     for email in emails:
-        if wants_alert(mailbox, email):
-            notify.new_mail(mailbox.user, email.from_name or email.from_addr, email.subject,
-                            thread_url(email.thread_id), email.message_id)
+        if not wants_alert(mailbox, email):
+            continue
+        sender = email.from_name or email.from_addr
+        subject = f"[{mailbox.label}] {email.subject}" if mailbox.shared else email.subject
+        for person in people:
+            notify.new_mail(person, sender, subject, thread_url(email.thread_id, mailbox), email.message_id)
             n += 1
     return n
