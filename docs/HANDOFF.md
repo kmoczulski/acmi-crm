@@ -168,7 +168,7 @@ labels on 24 of Kellen's threads (12 labels, e.g. ACMI/Projects/MEIH, ACMI/Tenan
 (`mail-shared`) merged 2026-10-26** (PR #12, `90f077f`, migrated, backup
 `backups/db-2026-10-26-before-mail-shared.sqlite3`): "Built 2026-10-26: mail-shared". No shared mailbox connected yet:
 the redirect URI has to be added in Google Cloud first. **Step 8
-(`mail-outreach-api`)**: "Built 2026-10-26: mail-outreach-api". Left: step 9, hosting (billing).
+(`mail-outreach-api`) merged 2026-10-26** (PR #13, `8e222bd`, no migration): "Built 2026-10-26: mail-outreach-api". Left: step 9, hosting (billing).
 
 **Next, in order**
 1. **Granola (time-sensitive: Granola only keeps 30 days).**
