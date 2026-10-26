@@ -100,6 +100,7 @@
         <div class="menu-head">{{ user.get_full_name|default:user.username }}<span class="muted">{{ user.email }}</span></div>
         <a href="{% url 'crm:home' %}?customize=1">Customize my dashboard</a>
         <a href="{% url 'crm:notification_list' %}">Notifications</a>
+        <a href="{% url 'crm:notification_settings' %}">Notification settings</a>
         <form method="post" action="{% url 'account_logout' %}">{% csrf_token %}<button class="menu-btn">Sign out</button></form>
       </div>
     </details>

@@ -10,6 +10,30 @@ Read this first when picking the project up in a new chat, along with
   515 tests pass and CI is green on Postgres. **Merged 2026-10-25** (fast-forward): PR #1 `boards-bound` and PR #2
   `data-room` (data room and Drive folders). The email client design is in its own session and branch
   (`email-client-design`, `docs/EMAIL_CLIENT.md`).
+
+**Browser notifications 2026-10-25** (Kellen asked; branch `web-push`, not merged yet; migration
+`0060_push_subscriptions`, the email client numbers from 0061):
+- Web Push (`crm/push.py`, `crm/push_views.py`, `static/crm/push.js`): the service worker is served at `/sw.js` (public
+  path, but partner accounts are redirected away from it); a `PushSubscription` per person and browser; `notify.send`
+  pushes after commit to every browser of that person for the kinds they left on. Clicking one opens the record
+  (through `notification_open`, which marks it read). Gone subscriptions (404/410) are deleted. `pywebpush==2.5.0`.
+- **Notification settings** page (`/notifications/settings/`, user menu and the Notifications page): a switch per
+  kind for "In the hub" and "Browser" (`UserPrefs` "notify"; everything on by default), Turn on browser notifications
+  (asks the browser), Send a test notification, Turn off on this device, and the list of browsers with Remove. A kind
+  off in the hub is still saved (`Notification.in_hub=False`, read) so its key stops repeats, but never shows in the
+  bell. New kind `mail` ("New email"): the email client calls `notify.new_mail(user, sender, subject, url, message_id)` from
+  `crm.mail.client.on_new_mail`.
+- `manage.py notify_sweep` runs the due and timed reminders for the whole team (`notify.sweep_everyone`), so they
+  reach browsers with the hub closed. It rides with the 15-minute mail sync (`scripts/sync_mail.cmd`, `sync_all`, the
+  cron endpoint), so a task's "15 minutes ahead" reminder can arrive up to 15 minutes late when nobody has the hub open.
+- **To turn it on:** `manage.py vapid_keys` prints `ACMI_VAPID_PUBLIC_KEY` / `ACMI_VAPID_PRIVATE_KEY` for `.env`
+  (and Secret Manager on Cloud Run); optional `ACMI_VAPID_SUBJECT` (default `https://hub.acmigroup.com`). Changing the
+  keys later means everyone turns notifications on again. Install the new requirements first.
+- **HTTPS only, except localhost:** works on the laptop at http://localhost:8000 now; on phones and other computers
+  only once the hub is hosted on https (hub.acmigroup.com). iPhones need the hub added to the home screen first.
+- Checked on a scratch database: the settings page, Save, the test button, the service worker registering at `/`,
+  and a real encrypted push decrypted back to the alert. The built-in browser blocks notification permission, so the
+  pop-up itself still needs one click-through in Chrome on the laptop.
 - The real database (`db.sqlite3`, about 600 MB) is migrated through `0059_drive_folders` (2026-10-25). Latest backup:
   `backups/db-2026-10-25-before-boards-bound-data-room.sqlite3`. `boards_setup --apply` ran: the Tenant pipeline
   record board (8 stage lists, 110 deal cards) and the MEIH board (7 lists, 3 filled from records; Kellen, Simon,

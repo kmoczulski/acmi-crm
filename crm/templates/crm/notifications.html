@@ -7,32 +7,9 @@
   <a class="btn {% if show == 'unread' %}btn-primary{% endif %}" href="?show=unread">Unread</a>
   <a class="btn {% if show == 'all' %}btn-primary{% endif %}" href="?show=all">All</a>
   <span class="spacer"></span>
+  <a class="btn" href="{% url 'crm:notification_settings' %}">Settings</a>
   <form method="post" action="{% url 'crm:notification_read_all' %}">{% csrf_token %}<button class="btn">Mark all read</button></form>
 </div>
-<div class="panel alert-prefs" id="alert-prefs">
-  <b>Alerts in this browser</b>
-  <label><input type="checkbox" id="pref-desktop"> Desktop notifications</label>
-  <label><input type="checkbox" id="pref-sound"> Sound</label>
-  <button type="button" class="btn btn-small" id="pref-test">Send a test alert</button>
-  <span class="muted lc-small" id="pref-note"></span>
-</div>
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-  const A = window.acmiAlerts; if (!A) return;
-  const desk = document.getElementById('pref-desktop'), snd = document.getElementById('pref-sound'), note = document.getElementById('pref-note');
-  const say = () => {
-    const p = 'Notification' in window ? Notification.permission : 'unsupported';
-    note.textContent = p === 'denied' ? 'Desktop notifications are blocked for this site: allow them in the browser\'s site settings (the icon left of the address).'
-      : p === 'unsupported' ? 'This browser does not support desktop notifications.' : 'New alerts are checked every 30 seconds while the CRM is open in a tab.';
-  };
-  desk.checked = A.pref('desktop', true) && 'Notification' in window && Notification.permission === 'granted';
-  snd.checked = A.pref('sound', true);
-  desk.addEventListener('change', async () => { if (desk.checked) { desk.checked = (await A.enableDesktop()) === 'granted'; } else A.setPref('desktop', false); say(); });
-  snd.addEventListener('change', () => { A.setPref('sound', snd.checked); if (snd.checked) A.chime(); });
-  document.getElementById('pref-test').addEventListener('click', () => A.test());
-  say();
-});
-</script>
 <div class="panel">
   {% for n in page %}
     <a class="notif {% if not n.read_at %}unread{% endif %}" href="{% url 'crm:notification_open' n.pk %}">
@@ -48,5 +25,6 @@ document.addEventListener('DOMContentLoaded', function () {
   </div>{% endif %}
 </div>
 <p class="muted" style="font-size:12px">You get a notification when someone gives you a task, @mentions you, comments on a task, deal or company you own,
-  moves one of your deals, or a company you own replies by email; once a day for your tasks that are due or overdue; and 15 minutes before and at the time set on a task.</p>
+  moves one of your deals, or a company you own replies by email; once a day for your tasks that are due or overdue; and 15 minutes before and at the time set on a task.
+  <a href="{% url 'crm:notification_settings' %}">Notification settings</a> picks which kinds reach you, here and as browser notifications.</p>
 {% endblock %}

@@ -1,7 +1,7 @@
 from django.urls import path
 from django.views.generic import RedirectView
 
-from . import campus_views, prefs, search, views
+from . import campus_views, prefs, push_views, search, views
 from .boards import views as board_views
 from .build import views as build_views
 from .capital import views as capital_views
@@ -116,6 +116,12 @@ urlpatterns = [
     path("notifications/<int:pk>/", views.notification_open, name="notification_open"),
     path("notifications/poll/", views.notification_poll, name="notification_poll"),
     path("notifications/read-all/", views.notification_read_all, name="notification_read_all"),
+    path("notifications/settings/", push_views.notification_settings, name="notification_settings"),
+    path("notifications/push/subscribe/", push_views.push_subscribe, name="push_subscribe"),
+    path("notifications/push/unsubscribe/", push_views.push_unsubscribe, name="push_unsubscribe"),
+    path("notifications/push/test/", push_views.push_test, name="push_test"),
+    path("notifications/push/<int:pk>/remove/", push_views.push_device_remove, name="push_device_remove"),
+    path("sw.js", push_views.service_worker, name="service_worker"),
     path("meetings/", views.meeting_list, name="meeting_list"),
     path("meetings/sync/", views.calendar_sync_now, name="calendar_sync_now"),
     path("meetings/<int:pk>/panel/", views.meeting_panel, name="meeting_panel"),
