@@ -156,7 +156,8 @@ encrypted. **Kellen: copy the key into the password manager.** Mail can't be tur
 (connected, no error). **Step 2 (`mail-api-reader`) merged 2026-10-26** (PR #5, `3b32a33`, CI green), migrated
 (backup `backups/db-2026-10-26-before-mail-api-reader.sqlite3`), and **Kellen's mailbox now syncs through the Gmail
 API** (first run 9:17: 10 messages, no error, no duplicates). **Step 3 (`mail-inbox`)**: the inbox on screen,
-see "Built 2026-10-26: mail-inbox" at the end of this file. Next: step 3b, long threads.
+see "Built 2026-10-26: mail-inbox" at the end of this file (merged `a6bd5e9`, migrated, backup
+`backups/db-2026-10-26-before-mail-inbox.sqlite3`). **Step 3b (`mail-long-threads`)**: "Built 2026-10-26: mail-long-threads".
 
 **Next, in order**
 1. **Granola (time-sensitive: Granola only keeps 30 days).**
@@ -2011,3 +2012,39 @@ compose and reply step 5.
   columns on a wide screen, two at tablet width with the Folders button, one at phone width with Back, blocked
   images and Show images, the tags and tabs, no console errors, no page wider than the phone.
 - **Not yet:** marking read when opened (step 4 adds read / unread), the long-thread tools (step 3b).
+
+
+## Built 2026-10-26: mail-long-threads (email client step 3b; Kellen: "threads that have over 80 messages… hard to find attachments or the most recent message")
+
+Branch `mail-long-threads`, no migration. All in the reading pane of `/inbox/` plus a Files page.
+
+- **Newest first** (as before), with **Oldest first** next to it, remembered per person (`UserPrefs` "mail_order").
+  In oldest-first order a "New since you last read" line sits above the first unread message and the pane opens
+  there; newest first, unread messages are already on top (open, tagged New).
+- **Attachments panel** at the top of every thread with files (`crm/mail/threads.py`): newest first, a filter box and
+  type buttons (PDF, Word, Excel, Images...), **Go to message**, **Download all** (a zip of the newest version of each
+  document, built in memory, up to 100 MB). **Versions grouped** by `doc_key`: dates, v2 / rev 3, "redline", "clean",
+  "final", "(1)" and the like don't make a new document; a PDF stays separate from the Word file. **Hidden**: logos and
+  signature pictures (small images, `image001.png`), `.ics` files, and the same file re-attached unchanged; each
+  message's own file list leaves logos out too.
+- **Outline** ("All 85 messages", for threads over three): one line per message, oldest first and numbered (drafts
+  unnumbered), filter by person or "only with attachments", click to jump.
+- **Only the new words:** each body's quoted history (Gmail, Outlook, Apple Mail, "Original Message", "On … wrote:")
+  is folded behind **Show quoted text**, inside the sandboxed frame (`render.fold_quotes`); a bare forward stays open.
+- **Find in this thread:** matches counted from each message's text (sent once with the page), Enter / arrows step
+  through the messages, matches highlighted inside the frames (quoted text opens when it has one).
+- **Latest message** button whenever the newest message is off screen.
+- **Other parts of this conversation:** for threads of 50+ messages, Gmail search on the subject finds the other
+  threads with the same subject and some of the same people (Gmail starts a new thread at about 100).
+- **Summarize** (only with `ANTHROPIC_API_KEY`, only on click; `crm/mail/summary.py`): the thread's new words,
+  numbered, go to Claude (`claude-opus-5-5`, effort medium, structured output, refusal fallback); back come where it
+  stands, what's open and who owes it, the latest documents and the next step, each linking to its message. Cached in
+  memory an hour per thread version, never stored.
+- **Files page** (`/inbox/files/`, "Files" in the folder pane): every attachment in the mailbox through Gmail search
+  (`has:attachment`), by type, words, project (its name and keywords) or company (its domains), versions grouped,
+  25 messages a page.
+- **Fix for step 3:** Gmail answers "slow down" with a 403 as well; that was read as a lost permission and stopped the
+  first inbox fill on the laptop at 299 of 300 threads (10:02). `GmailClient.get` now reads the reason and waits and
+  retries; the index reads three threads at a time. The fill finishes on the next sync after this merges.
+- **Tests:** `crm/tests/test_long_threads.py` (16) plus rate-limit tests in `test_gmail_api.py`; 621 pass. Checked in a
+  browser on a scratch database with a made-up 85-message thread (desktop and phone width).

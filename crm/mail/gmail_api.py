@@ -71,6 +71,18 @@ def hex_thread_id(decimal_id):
         return ""
 
 
+RATE_LIMIT_REASONS = {"rateLimitExceeded", "userRateLimitExceeded", "quotaExceeded"}
+
+
+def _rate_limited(response):
+    """Gmail answers 403 both for "no permission" and for "slow down"; only the reason tells them apart."""
+    try:
+        errors = (response.json().get("error") or {}).get("errors") or []
+    except (ValueError, AttributeError):
+        return False
+    return any(e.get("reason") in RATE_LIMIT_REASONS for e in errors)
+
+
 class GmailClient:
     """The Gmail API as the mailbox owner. `session` stands in for `requests` in tests."""
 
@@ -92,20 +104,24 @@ class GmailClient:
         self._access()
 
     def get(self, path, params=None):
-        refreshed = False
+        refresh = False
         for attempt in range(RETRIES + 1):
             r = self.session.get(f"{API}{path}", params=params, timeout=TIMEOUT,
-                                 headers={"Authorization": f"Bearer {self._access(force=refreshed)}"})
-            if r.status_code == 401 and not refreshed:
-                refreshed = True
+                                 headers={"Authorization": f"Bearer {self._access(force=refresh)}"})
+            refresh = False
+            if r.status_code == 401 and attempt == 0:
+                refresh = True  # the access token expired early: refresh it once and try again
                 continue
+            busy = r.status_code in (429, 500, 502, 503, 504) or (r.status_code == 403 and _rate_limited(r))
+            if busy and attempt < RETRIES:
+                time.sleep(2 * (attempt + 1))  # Gmail's per-second limit, or a hiccup: wait and try again
+                continue
+            if busy:
+                raise MailboxError("Gmail is busy right now. The next sync tries again.")
             if r.status_code in (401, 403):
                 raise MailboxError(f"Google refused the hub's Gmail access. {RECONNECT}")
             if r.status_code == 404:
                 raise NotFound(path)
-            if r.status_code in (429, 500, 502, 503, 504) and attempt < RETRIES:
-                time.sleep(2 * (attempt + 1))
-                continue
             r.raise_for_status()
             return r.json()
         raise MailboxError("Gmail kept refusing requests. The next sync tries again.")
@@ -142,6 +158,14 @@ class GmailClient:
             if not data.get("nextPageToken"):
                 return list(dict.fromkeys(ids)), str(latest), list(dict.fromkeys(threads))
             params = {**params, "pageToken": data["nextPageToken"]}
+
+    def message_page(self, query, page_token="", size=25):
+        """One page of message ids for a Gmail search, newest first, and the next page's token."""
+        params = {"q": query, "maxResults": size}
+        if page_token:
+            params["pageToken"] = page_token
+        data = self.get("/messages", params)
+        return [m["id"] for m in data.get("messages", [])], data.get("nextPageToken", "")
 
     def message(self, message_id):
         return self.get(f"/messages/{message_id}", {"format": "full"})

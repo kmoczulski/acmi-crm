@@ -112,7 +112,7 @@ class FakeGmail:
             if params and params.get("labelIds"):
                 threads = [t for t in threads if any(params["labelIds"] in m["labelIds"] for m in t["messages"])]
             if params and params.get("q"):
-                word = params["q"].lower()
+                word = params["q"].lower().removeprefix("subject:").strip('"')
                 threads = [t for t in threads if any(word in str(m).lower() for m in t["messages"])]
             return FakeResponse({"threads": [{"id": t["id"], "historyId": t["historyId"],
                                               "snippet": t["messages"][-1]["snippet"]} for t in threads],
@@ -372,3 +372,42 @@ class NewMailAlertTests(TestCase):
         for n in (other, sneaky):
             r = self.client.get(reverse("crm:notification_open", args=[n.pk]))
             self.assertEqual(r["Location"], reverse("crm:notification_list"))
+
+
+class RateLimitTests(TestCase):
+    """Gmail says "slow down" with a 403 too; that's a wait-and-retry, not a lost permission."""
+
+    def setUp(self):
+        self.user = get_user_model().objects.create(username="kellen", email=ME)
+        account = SocialAccount.objects.create(user=self.user, provider="google", uid="1")
+        SocialToken.objects.create(account=account, token="a", token_secret="r",
+                                   expires_at=timezone.now() + timedelta(hours=1))
+
+    def session(self, *responses):
+        answers = list(responses)
+        return type("S", (), {"get": lambda self, *a, **k: answers.pop(0), "post": lambda self, *a, **k: None})()
+
+    def limited(self):
+        return FakeResponse({"error": {"code": 403, "errors": [{"reason": "userRateLimitExceeded"}]}}, 403)
+
+    def test_rate_limit_is_retried(self):
+        from unittest import mock
+
+        client = gmail_api.GmailClient(self.user, self.session(self.limited(), FakeResponse({"ok": 1})))
+        with mock.patch.object(gmail_api.time, "sleep") as sleep:
+            self.assertEqual(client.get("/profile"), {"ok": 1})
+        sleep.assert_called_once()
+
+    def test_a_real_refusal_says_turn_on_mail_again(self):
+        refused = FakeResponse({"error": {"code": 403, "errors": [{"reason": "insufficientPermissions"}]}}, 403)
+        client = gmail_api.GmailClient(self.user, self.session(refused))
+        with self.assertRaisesMessage(gmail_api.MailboxError, "Turn on Mail again"):
+            client.get("/profile")
+
+    def test_still_busy_after_retries_waits_for_the_next_sync(self):
+        from unittest import mock
+
+        client = gmail_api.GmailClient(self.user, self.session(*[self.limited() for _ in range(gmail_api.RETRIES + 1)]))
+        with mock.patch.object(gmail_api.time, "sleep"):
+            with self.assertRaisesMessage(gmail_api.MailboxError, "Gmail is busy"):
+                client.get("/profile")

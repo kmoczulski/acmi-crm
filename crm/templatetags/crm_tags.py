@@ -346,3 +346,11 @@ def greeting():
     dashboard then redoes it in the browser from the viewer's own clock (home.html), so Eastern sees Eastern."""
     hour = timezone.localtime().hour
     return "Good morning" if hour < 12 else "Good afternoon" if hour < 17 else "Good evening"
+
+
+@register.filter
+def file_type_name(kind):
+    """"word" -> "Word", for the reading pane's attachment filters (crm/mail/threads.py)."""
+    from crm.mail.threads import TYPE_NAMES
+
+    return TYPE_NAMES.get(kind, kind)

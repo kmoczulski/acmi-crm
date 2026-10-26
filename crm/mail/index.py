@@ -16,10 +16,12 @@ from django.utils import timezone
 
 from crm.models import Activity, Company, Firm, FirmEmail, MailLabel, MailThread, UnmatchedEmail
 
-from .gmail_api import NotFound, PARALLEL_REQUESTS
+from .gmail_api import NotFound
 
 log = logging.getLogger(__name__)
 
+# threads.get costs 10 of Gmail's 250 quota units a second per person; three at a time stays well under it.
+PARALLEL_REQUESTS = 3
 KEEP_DAYS = 90  # rows not touched for this long are dropped (Gmail still has the mail)
 WARM_THREADS = 300  # the inbox's newest threads, indexed in the background so the tabs have something to show
 WARM_PAGE = 100

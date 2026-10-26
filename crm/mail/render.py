@@ -16,6 +16,8 @@ from django.urls import reverse
 
 from crm.news.drafts import sanitize_html
 
+from .parse import new_text
+
 CACHE_SECONDS = 300
 INLINE_IMAGE_TYPES = {"image/png", "image/jpeg", "image/gif", "image/webp"}
 _IMG_SRC = re.compile(r'(<img\b[^>]*?\ssrc=")([^"]*)(")', re.I)
@@ -133,9 +135,13 @@ def body_html(mailbox, msg, show_images=False):
         elif mime == "text/plain" and plain is None:
             plain = _decode(body["data"], part)
     if rich is None:
-        text = html.escape(plain or msg.get("snippet", ""))
-        return f'<div class="plain">{text}</div>', 0
-    clean = sanitize_html(rich)
+        text = plain or msg.get("snippet", "")
+        cut = len(new_text(text).rstrip())
+        if cut < len(text.rstrip()) and len(text[:cut].strip()) >= MIN_NEW_TEXT:
+            return (f'<div class="plain">{html.escape(text[:cut].rstrip())}</div>'
+                    f'{QUOTE_OPEN}<div class="plain">{html.escape(text[cut:].strip())}</div></details>'), 0
+        return f'<div class="plain">{html.escape(text)}</div>', 0
+    clean = fold_quotes(sanitize_html(rich))
     blocked = 0
 
     def fix(m):
@@ -155,10 +161,34 @@ def body_html(mailbox, msg, show_images=False):
     return _IMG_SRC.sub(fix, clean), blocked
 
 
+# Where the quoted history starts in a reply: Gmail, Apple Mail, Outlook, Thunderbird.
+_QUOTE_START = re.compile(
+    r'<div[^>]*\sclass="[^"]*\b(?:gmail_quote|OutlookMessageHeader|moz-cite-prefix)|<blockquote[^>]*\stype="cite"'
+    r'|<hr[^>]*>\s*(?:<div[^>]*>\s*)*(?:<p[^>]*>\s*)?(?:<font[^>]*>\s*)?(?:<span[^>]*>\s*)?<b>\s*From:'
+    r'|<b>\s*From:\s*</b>|(?:<(?:p|div|span)[^>]*>\s*)*-{3,}\s*Original Message\s*-{3,}'
+    r'|<div[^>]*>\s*On [^<]{4,200} wrote:', re.I)
+QUOTE_OPEN = '<details class="quoted"><summary>Show quoted text</summary>'
+MIN_NEW_TEXT = 2  # characters: a reply that is only the quote (a bare forward) stays open
+
+
+def fold_quotes(clean):
+    """Only the new words: everything from where the quoted history starts goes behind Show quoted text."""
+    m = _QUOTE_START.search(clean)
+    if not m:
+        return clean
+    head = re.sub(r"<[^>]+>|&nbsp;|\s", "", clean[:m.start()])
+    if len(head) < MIN_NEW_TEXT:
+        return clean
+    return clean[:m.start()] + QUOTE_OPEN + clean[m.start():] + "</details>"
+
+
 FRAME_CSS = """body{margin:0;padding:4px 2px;font:14px/1.45 -apple-system,Segoe UI,Roboto,Arial,sans-serif;color:#1d2330;
 word-wrap:break-word;overflow-wrap:anywhere}img{max-width:100%;height:auto}img[data-blocked]{display:inline-block;
 min-width:24px;min-height:16px;background:#eef0f3}table{max-width:100%}.plain{white-space:pre-wrap}
-blockquote{margin:0 0 0 8px;padding-left:8px;border-left:2px solid #e3e6eb;color:#555}a{color:#1f3a5f}"""
+blockquote{margin:0 0 0 8px;padding-left:8px;border-left:2px solid #e3e6eb;color:#555}a{color:#1f3a5f}
+details.quoted{margin-top:8px}details.quoted>summary{cursor:pointer;color:#6b7280;font-size:12px;list-style:none;
+display:inline-block;padding:1px 8px;border:1px solid #e3e6eb;border-radius:9px}details.quoted[open]>summary{margin-bottom:6px}
+mark{background:#fde68a;color:inherit}mark.current{background:#f59e0b}"""
 
 
 def frame_document(body):

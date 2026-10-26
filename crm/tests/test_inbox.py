@@ -208,7 +208,7 @@ class InboxTests(TestCase):
         with mock.patch("crm.mail.gmail_api.time.sleep"):
             r = self.get()
         self.assertEqual(r.status_code, 200)
-        self.assertContains(r, "Couldn&#x27;t reach Gmail")
+        self.assertContains(r, "Gmail is busy right now")
 
     def test_a_person_without_a_timeline_mailbox_gets_an_inbox_only_one(self):
         self.mailbox.delete()

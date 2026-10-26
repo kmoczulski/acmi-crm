@@ -4,19 +4,25 @@ Read only for now: archive, labels and the rest come in step 4, compose and repl
 through the signed-in person's own mailbox and Google permission, so nobody (Managers and admins included) can open
 anyone else's mail; a thread or message id that isn't theirs is simply not found at Gmail.
 """
+import io
 import logging
+import zipfile
+from concurrent.futures import ThreadPoolExecutor
 
 import requests
 from django.contrib import messages
-from django.http import Http404, HttpResponse
+from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
-from django.utils.http import content_disposition_header
+from django.utils.http import content_disposition_header, urlencode
 from django.views.decorators.clickjacking import xframe_options_sameorigin
+from django.views.decorators.http import require_POST
 
-from crm.models import MailThread, Mailbox
+from crm import prefs
+from crm.ai import enabled as ai_enabled
+from crm.models import Company, MailThread, Mailbox, Project
 
-from . import connect, index, render as mail_render
-from .gmail_api import GmailClient, NotFound
+from . import connect, index, render as mail_render, summary as mail_summary, threads as mail_threads
+from .gmail_api import GmailClient, NotFound, parse_api_message
 from .imap import MailboxError
 from .views import team_only
 
@@ -84,11 +90,7 @@ def inbox(request, mailbox, client):
             t.chips = chips.get(t.gmail_id, [])
         reader = None
         if open_id:
-            subject, msgs = mail_render.thread_view(mailbox, client, open_id)
-            row = next((t for t in threads if t.gmail_id == open_id), None) \
-                or MailThread.objects.filter(mailbox=mailbox, gmail_id=open_id).first()
-            reader = {"id": open_id, "subject": subject, "messages": msgs,
-                      "chips": index.chips(mailbox, [row]).get(open_id, []) if row else []}
+            reader = reader_for(request, mailbox, client, open_id, threads)
     except NotFound:
         raise Http404("That conversation isn't in your mailbox.")
     except (MailboxError, requests.RequestException) as exc:
@@ -103,6 +105,145 @@ def inbox(request, mailbox, client):
         "tab": tab, "threads": threads, "next_token": next_token, "next_offset": next_offset, "offset": offset,
         "page_token": token, "total": total, "reader": reader, "open_id": open_id, "error": error,
         "indexing": tab in TAB_FILTERS and not mailbox.inbox_indexed_at,
+        "thread_base": "?" + urlencode({k: v for k, v in [("label", label), ("q", query), ("tab", tab if tab != "all" else ""),
+                                                          ("t", open_id)] if v}),
+    })
+
+
+def reader_for(request, mailbox, client, gmail_id, threads=()):
+    """The reading pane: the messages in the person's order (newest first unless they chose oldest), the attachments
+    panel, the outline, the people for its filter, and the other parts of a conversation Gmail split."""
+    order = request.GET.get("order")
+    if order in ("newest", "oldest"):
+        prefs.set_pref(request.user, "mail_order", order)
+    else:
+        order = prefs.get_prefs(request.user).get("mail_order", "newest")
+    subject, msgs = mail_render.thread_view(mailbox, client, gmail_id)  # newest first
+    for m in msgs:
+        m["thread"] = gmail_id
+        m["files"] = [a for a in m["attachments"] if not mail_threads.is_noise(a)]  # logos left out here too
+    row = next((t for t in threads if t.gmail_id == gmail_id), None) \
+        or MailThread.objects.filter(mailbox=mailbox, gmail_id=gmail_id).first()
+    groups, hidden = mail_threads.group(mail_threads.files_of(msgs))
+    unread = [m for m in msgs if m["unread"]]
+    texts = {}  # for Find in this thread
+    for raw in mail_render.get_thread(mailbox, client, gmail_id).get("messages", []):
+        email = parse_api_message(raw)
+        texts[raw["id"]] = f"{email.from_name} {email.body}".lower() if email else ""
+    return {
+        "id": gmail_id, "subject": subject, "order": order,
+        "messages": msgs if order == "newest" else list(reversed(msgs)),
+        "latest": msgs[0]["id"] if msgs else "",
+        "first_unread": unread[-1]["id"] if unread else "",
+        "chips": index.chips(mailbox, [row]).get(gmail_id, []) if row else [],
+        "file_groups": groups, "files_hidden": hidden,
+        "file_types": sorted({g["type"] for g in groups}, key=list(mail_threads.TYPE_NAMES).index),
+        "outline": mail_threads.outline(msgs), "people": mail_threads.people(msgs),
+        "other_parts": mail_threads.other_parts(mailbox, client, gmail_id, subject, msgs),
+        "summarize": ai_enabled(), "texts": texts,
+    }
+
+
+@mail_required
+@require_POST
+def thread_summary(request, mailbox, client, gmail_id):
+    """Summarize, on click only: Claude reads this thread's new words and says where it stands."""
+    try:
+        data = mail_summary.summarize(mailbox, mail_render.get_thread(mailbox, client, gmail_id))
+    except NotFound:
+        raise Http404()
+    except mail_summary.Unavailable as exc:
+        return JsonResponse({"error": str(exc)}, status=503)
+    ids = data["message_ids"]
+
+    def link(n):
+        return ids[n - 1] if isinstance(n, int) and 0 < n <= len(ids) else ""
+
+    return JsonResponse({
+        "where_it_stands": data["where_it_stands"], "next_step": data["next_step"],
+        "open_items": [{**o, "id": link(o["message"])} for o in data["open_items"]],
+        "documents": [{**d, "id": link(d["message"])} for d in data["documents"]],
+    })
+
+
+ZIP_LIMIT = 100 * 1024 * 1024
+
+
+@mail_required
+def thread_files_zip(request, mailbox, client, gmail_id):
+    """Download all: the newest version of each document in the thread, in one zip, built in memory and never kept."""
+    try:
+        msgs = mail_threads.summaries_for(mailbox, client, gmail_id)
+    except NotFound:
+        raise Http404()
+    groups, _ = mail_threads.group(mail_threads.files_of(msgs))
+    buf, total, names = io.BytesIO(), 0, set()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for g in groups:
+            f = g["latest"]
+            total += f["size"]
+            if total > ZIP_LIMIT:
+                break
+            part = mail_render.find_part(mail_render.get_message(mailbox, client, f["message"]), f["part"])
+            if not part:
+                continue
+            name, n = f["name"], 2
+            while name.lower() in names:
+                stem, dot, ext = f["name"].rpartition(".")
+                name, n = (f"{stem} ({n}).{ext}" if dot else f"{f['name']} ({n})"), n + 1
+            names.add(name.lower())
+            zf.writestr(name, client.attachment(f["message"], part["body"]["attachmentId"]))
+    subject = mail_threads.core_subject(mail_render.thread_view(mailbox, client, gmail_id)[0])[:80] or "Attachments"
+    response = HttpResponse(buf.getvalue(), content_type="application/zip")
+    response["Content-Disposition"] = content_disposition_header(True, f"{subject} - files.zip")
+    response["Cache-Control"] = "private, no-store"
+    return response
+
+
+FILE_QUERIES = {"pdf": "filename:pdf", "word": "filename:(doc OR docx)",
+                "excel": "filename:(xls OR xlsx OR xlsm OR csv)", "image": "filename:(png OR jpg OR jpeg OR heic)",
+                "slides": "filename:(ppt OR pptx)", "drawing": "filename:(dwg OR dxf)"}
+FILES_PAGE = 25
+
+
+@mail_required
+def files(request, mailbox, client):
+    """Every attachment in the mailbox, newest first, searchable and narrowed to a company or project, versions of
+    the same document grouped (Outlook's Files view)."""
+    words = request.GET.get("q", "").strip()[:200]
+    kind = request.GET.get("type", "")
+    company = Company.objects.filter(pk=request.GET.get("company") or 0).first()
+    project = Project.objects.filter(pk=request.GET.get("project") or 0).first()
+    terms = ["has:attachment", FILE_QUERIES.get(kind, ""), words]
+    if company and company.domains:
+        ds = " OR ".join(company.domains[:10])
+        terms.append(f"(from:({ds}) OR to:({ds}))")
+    if project:
+        keys = [k for k in [project.name, *(project.keywords or [])] if k][:10]
+        terms.append("(" + " OR ".join('"' + k.replace('"', "") + '"' for k in keys) + ")")
+    query = " ".join(t for t in terms if t)
+    error, groups, hidden, next_token = "", [], 0, ""
+    try:
+        ids, next_token = client.message_page(query, request.GET.get("p", ""), FILES_PAGE)
+        if ids:
+            client.prime()
+        with ThreadPoolExecutor(max_workers=8) as executor:
+            raws = list(executor.map(lambda i: mail_render.get_message(mailbox, client, i), ids))
+        msgs = []
+        for raw in raws:
+            m = mail_render.summary(raw)
+            m["thread"] = raw.get("threadId", "")
+            msgs.append(m)
+        groups, hidden = mail_threads.group(mail_threads.files_of(msgs))
+        if kind:
+            groups = [g for g in groups if g["type"] == kind]
+    except (MailboxError, requests.RequestException) as exc:
+        error = str(exc) if isinstance(exc, MailboxError) else "Couldn't reach Gmail. Try again in a moment."
+    return render(request, "crm/inbox_files.html", {
+        "mailbox": mailbox, "groups": groups, "hidden": hidden, "next_token": next_token, "error": error,
+        "q": words, "type": kind, "types": [(k, v) for k, v in mail_threads.TYPE_NAMES.items() if k != "other"],
+        "company": company, "project": project,
+        "projects": Project.objects.filter(active=True).order_by("name"),
     })
 
 

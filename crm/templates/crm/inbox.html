@@ -8,6 +8,7 @@
       <a href="?label={{ lb.gmail_id|urlencode }}" class="{% if lb.gmail_id == label and not query %}on{% endif %}">{{ lb.name }}{% if lb.unread %} <span class="mail-count">{{ lb.unread }}</span>{% endif %}</a>
     {% endfor %}
     <a href="?label=ALL" class="{% if label == 'ALL' and not query %}on{% endif %}">All mail</a>
+    <a href="{% url 'crm:inbox_files' %}">Files</a>
     {% if user_labels %}<div class="mail-folders-head">Labels</div>{% endif %}
     {% for lb in user_labels %}
       <a href="?label={{ lb.gmail_id|urlencode }}" class="{% if lb.gmail_id == label and not query %}on{% endif %}"><span class="mail-dot" style="{% if lb.bg_color %}background:{{ lb.bg_color }}{% endif %}"></span>{{ lb.name }}</a>
@@ -53,60 +54,294 @@
     </div>
   </section>
 
-  <section class="mail-reader" aria-label="Reading pane">
+  <section class="mail-reader" aria-label="Reading pane" data-reader>
     {% if reader %}
       <div class="mail-reader-head">
         <a class="btn btn-small mail-back" href="?label={{ label|urlencode }}{% if query %}&q={{ query|urlencode }}{% endif %}{% if tab != 'all' %}&tab={{ tab }}{% endif %}">← Back</a>
         <h2>{{ reader.subject }}</h2>
         {% if reader.chips %}<div class="mail-chips">{% for kind, name, url in reader.chips %}<a class="mail-chip chip-{{ kind }}" href="{{ url }}">{{ name }}</a>{% endfor %}</div>{% endif %}
-        <p class="muted lc-small">{{ reader.messages|length }} message{{ reader.messages|length|pluralize }}, newest first · <a href="https://mail.google.com/mail/u/{{ mailbox.email }}/#all/{{ reader.id }}" target="_blank" rel="noopener noreferrer">Open in Gmail</a></p>
+        <p class="muted lc-small">{{ reader.messages|length }} message{{ reader.messages|length|pluralize }} ·
+          {% if reader.order == "newest" %}<strong>Newest first</strong> · <a href="{{ thread_base }}&order=oldest">Oldest first</a>{% else %}<a href="{{ thread_base }}&order=newest">Newest first</a> · <strong>Oldest first</strong>{% endif %}
+          · <a href="https://mail.google.com/mail/u/{{ mailbox.email }}/#all/{{ reader.id }}" target="_blank" rel="noopener noreferrer">Open in Gmail</a></p>
+        <div class="mail-tools">
+          <form class="mail-find" data-find role="search">
+            <input type="search" placeholder="Find in this thread" aria-label="Find in this thread" data-find-input>
+            <button type="button" class="btn btn-small" data-find-prev aria-label="Previous match">↑</button>
+            <button type="button" class="btn btn-small" data-find-next aria-label="Next match">↓</button>
+            <span class="muted lc-small" data-find-count aria-live="polite"></span>
+          </form>
+          {% if reader.summarize %}<button type="button" class="btn btn-small" data-summarize="{% url 'crm:inbox_summary' reader.id %}">Summarize</button>{% endif %}
+        </div>
+        {% if reader.other_parts %}
+        <p class="lc-small mail-parts">Other parts of this conversation:
+          {% for t in reader.other_parts %}<a href="?label={{ label|urlencode }}&t={{ t.gmail_id }}">{{ t.message_count }} messages, to {{ t.last_message_at|date:"M j" }}</a>{% if not forloop.last %} · {% endif %}{% endfor %}</p>
+        {% endif %}
       </div>
+
+      <div class="mail-summary panel" data-summary hidden></div>
+
+      {% if reader.file_groups %}
+      <details class="mail-filepanel"{% if reader.messages|length > 3 or reader.file_groups|length > 2 %} open{% endif %}>
+        <summary><strong>Attachments</strong> <span class="muted lc-small">{{ reader.file_groups|length }} document{{ reader.file_groups|length|pluralize }}, newest first{% if reader.files_hidden %} · {{ reader.files_hidden }} hidden (logos, calendar files, unchanged re-attachments){% endif %}</span></summary>
+        <div class="mail-filebar">
+          <input type="search" placeholder="Filter files" aria-label="Filter files" data-file-filter>
+          <span class="mail-filetypes">
+            <button type="button" class="btn btn-small on" data-file-type="">All</button>
+            {% for t in reader.file_types %}<button type="button" class="btn btn-small" data-file-type="{{ t }}">{{ t|file_type_name }}</button>{% endfor %}
+          </span>
+          <a class="btn btn-small" href="{% url 'crm:inbox_zip' reader.id %}">Download all</a>
+        </div>
+        <ul class="mail-filelist">
+          {% for g in reader.file_groups %}
+          <li data-type="{{ g.type }}" data-name="{{ g.latest.name|lower }}">
+            <a href="{% url 'crm:inbox_part' g.latest.message g.latest.part %}" class="mail-filename">📎 {{ g.latest.name }}</a>
+            <span class="muted lc-small">{{ g.latest.size|filesizeformat }} · {{ g.latest.from_name }} · {{ g.latest.date|date:"M j, g:i a" }}</span>
+            <a href="#m-{{ g.latest.message }}" class="lc-small" data-goto="{{ g.latest.message }}">Go to message</a>
+            {% if g.older %}
+            <details class="mail-versions"><summary class="lc-small">{{ g.older|length }} earlier version{{ g.older|length|pluralize }}</summary>
+              <ul>{% for f in g.older %}<li><a href="{% url 'crm:inbox_part' f.message f.part %}">{{ f.name }}</a> <span class="muted lc-small">{{ f.from_name }} · {{ f.date|date:"M j" }}</span> <a href="#m-{{ f.message }}" class="lc-small" data-goto="{{ f.message }}">Go to message</a></li>{% endfor %}</ul>
+            </details>
+            {% endif %}
+          </li>
+          {% endfor %}
+        </ul>
+      </details>
+      {% endif %}
+
+      {% if reader.outline|length > 3 %}
+      <details class="mail-outline">
+        <summary><strong>All {{ reader.outline|length }} messages</strong> <span class="muted lc-small">one line each, oldest first</span></summary>
+        <div class="mail-filebar">
+          <select data-outline-person aria-label="Only messages from">
+            <option value="">Everyone</option>
+            {% for addr, name in reader.people %}<option value="{{ addr }}">{{ name }}</option>{% endfor %}
+          </select>
+          <label class="lc-small"><input type="checkbox" data-outline-files> Only with attachments</label>
+        </div>
+        <ol class="mail-outline-list">
+          {% for o in reader.outline %}
+          <li data-from="{{ o.from_addr }}" data-files="{{ o.files }}"><a href="#m-{{ o.id }}" data-goto="{{ o.id }}"{% if o.unread %} class="unread"{% endif %}>
+            <span class="mail-outline-n">{% if o.n %}{{ o.n }}{% else %}Draft{% endif %}</span>
+            <span class="mail-outline-from">{% if o.from_addr == mailbox.email %}me{% else %}{{ o.from_name }}{% endif %}</span>
+            <span class="mail-outline-words muted">{{ o.words }}</span>
+            <span class="mail-outline-date muted lc-small">{% if o.files %}📎 {% endif %}{{ o.date|date:"M j" }}</span>
+          </a></li>
+          {% endfor %}
+        </ol>
+      </details>
+      {% endif %}
+
       {% for m in reader.messages %}
-      <details class="mail-msg"{% if m.open %} open{% endif %}>
+      {% if reader.order == "oldest" and m.id == reader.first_unread and reader.messages|length > 1 %}<div class="mail-new-line" id="new-since">New since you last read</div>{% endif %}
+      <details class="mail-msg" id="m-{{ m.id }}"{% if m.open %} open{% endif %}>
         <summary>
-          <span class="mail-msg-from"><strong>{% if m.from_addr == mailbox.email %}me{% else %}{{ m.from_name }}{% endif %}</strong> <span class="muted lc-small">{{ m.from_addr }}</span>{% if m.draft %} <span class="tag">Draft</span>{% endif %}</span>
+          <span class="mail-msg-from"><strong>{% if m.from_addr == mailbox.email %}me{% else %}{{ m.from_name }}{% endif %}</strong>{% if m.draft %} <span class="tag">Draft</span>{% endif %}{% if m.unread %} <span class="tag">New</span>{% endif %}{% if m.files %} <span class="muted" title="{{ m.files|length }} attachment{{ m.files|length|pluralize }}">📎</span>{% endif %} <span class="muted lc-small">{{ m.from_addr }}</span></span>
           <span class="mail-msg-date muted lc-small">{{ m.date|date:"M j, Y g:i a" }}</span>
           <span class="mail-msg-snippet muted">{{ m.snippet }}</span>
         </summary>
         <p class="mail-msg-to muted lc-small">To {{ m.to|join:", " }}{% if m.cc %} · Cc {{ m.cc|join:", " }}{% endif %}</p>
         <iframe class="mail-frame" title="Message from {{ m.from_name }}" sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox" loading="lazy"
-                src="{% url 'crm:inbox_body' m.id %}" data-mail-frame></iframe>
+                src="{% url 'crm:inbox_body' m.id %}" data-mail-frame data-message="{{ m.id }}"></iframe>
         <p class="mail-images" hidden><button type="button" class="btn btn-small" data-show-images>Show images</button> <span class="muted lc-small">Images from the sender are blocked so they can't tell you opened this.</span></p>
-        {% if m.attachments %}
+        {% if m.files %}
         <ul class="mail-files">
-          {% for a in m.attachments %}<li><a href="{% url 'crm:inbox_part' m.id a.part %}">📎 {{ a.name }}</a> <span class="muted lc-small">{{ a.size|filesizeformat }}</span></li>{% endfor %}
+          {% for a in m.files %}<li><a href="{% url 'crm:inbox_part' m.id a.part %}">📎 {{ a.name }}</a> <span class="muted lc-small">{{ a.size|filesizeformat }}</span></li>{% endfor %}
         </ul>
         {% endif %}
       </details>
       {% endfor %}
+      <button type="button" class="btn btn-small mail-latest" data-latest="{{ reader.latest }}" hidden>{% if reader.order == "newest" %}↑{% else %}↓{% endif %} Latest message</button>
+      {{ reader.texts|json_script:"mail-texts" }}
     {% else %}
       <div class="mail-reader-empty muted">{% if threads %}Pick a conversation to read it here.{% endif %}</div>
     {% endif %}
   </section>
 </div>
 <script>
-  // Reading pane frames: size each to its message, and offer Show images when the server held some back.
-  document.querySelectorAll('[data-mail-frame]').forEach(frame => {
-    const fit = () => {
-      try {
-        const doc = frame.contentDocument;
-        if (!doc || !doc.body) return;
-        frame.style.height = '0px';
-        frame.style.height = Math.max(40, doc.body.scrollHeight + 12) + 'px';
-        const blocked = doc.querySelectorAll('img[data-blocked]').length;
-        const offer = frame.parentElement.querySelector('.mail-images');
-        if (offer) offer.hidden = !blocked;
-      } catch (e) { /* not loaded yet */ }
-    };
-    frame.addEventListener('load', () => { fit(); setTimeout(fit, 400); });
+  // Reading pane frames: size each to its message (again when quoted text is shown), offer Show images when the
+  // server held some back, and mark Find-in-thread matches once a frame has loaded.
+  const frames = [...document.querySelectorAll('[data-mail-frame]')];
+  function fit(frame) {
+    try {
+      const doc = frame.contentDocument;
+      if (!doc || !doc.body) return;
+      frame.style.height = '0px';
+      frame.style.height = Math.max(40, doc.body.scrollHeight + 12) + 'px';
+      const offer = frame.parentElement.querySelector('.mail-images');
+      if (offer) offer.hidden = !doc.querySelectorAll('img[data-blocked]').length;
+    } catch (e) { /* not loaded yet */ }
+  }
+  frames.forEach(frame => {
+    frame.addEventListener('load', () => {
+      fit(frame); setTimeout(() => fit(frame), 400);
+      try { frame.contentDocument.addEventListener('toggle', () => fit(frame), true); } catch (e) {}
+      if (find.term) find.mark(frame);
+    });
     const details = frame.closest('details');
-    if (details) details.addEventListener('toggle', fit);
+    if (details) details.addEventListener('toggle', () => fit(frame));
   });
   document.querySelectorAll('[data-show-images]').forEach(btn => btn.addEventListener('click', () => {
     const frame = btn.closest('details').querySelector('[data-mail-frame]');
     frame.src = frame.src.split('?')[0] + '?images=1';
     btn.closest('.mail-images').hidden = true;
   }));
+
+  // Jump to a message: open it, scroll to it, flash it.
+  function goTo(id) {
+    const msg = document.getElementById('m-' + id);
+    if (!msg) return;
+    msg.open = true;
+    msg.scrollIntoView({behavior: 'smooth', block: 'start'});
+    msg.classList.add('flash');
+    setTimeout(() => msg.classList.remove('flash'), 1600);
+  }
+  document.addEventListener('click', e => {
+    const a = e.target.closest('[data-goto]');
+    if (a) { e.preventDefault(); goTo(a.dataset.goto); }
+  });
+
+  // Jump to latest, shown once you've scrolled away from it.
+  const reader = document.querySelector('[data-reader]');
+  const latest = document.querySelector('[data-latest]');
+  if (reader && latest) {
+    const atLatest = () => {
+      const msg = document.getElementById('m-' + latest.dataset.latest);
+      if (!msg) return true;
+      const r = msg.getBoundingClientRect(), box = reader.getBoundingClientRect();
+      return r.bottom > box.top && r.top < box.bottom;
+    };
+    reader.addEventListener('scroll', () => { latest.hidden = atLatest(); }, {passive: true});
+    latest.addEventListener('click', () => goTo(latest.dataset.latest));
+  }
+  const newLine = document.getElementById('new-since');
+  if (newLine && !location.hash) newLine.scrollIntoView({block: 'start'});
+
+  // Attachments panel: filter by name and type.
+  (function () {
+    const input = document.querySelector('[data-file-filter]');
+    const buttons = [...document.querySelectorAll('[data-file-type]')];
+    if (!input) return;
+    let type = '';
+    const apply = () => {
+      const q = input.value.trim().toLowerCase();
+      document.querySelectorAll('.mail-filelist > li').forEach(li => {
+        li.hidden = (type && li.dataset.type !== type) || (q && !li.dataset.name.includes(q));
+      });
+    };
+    input.addEventListener('input', apply);
+    buttons.forEach(b => b.addEventListener('click', () => {
+      type = b.dataset.fileType;
+      buttons.forEach(x => x.classList.toggle('on', x === b));
+      apply();
+    }));
+  })();
+
+  // Outline: only one person's messages, or only the ones with attachments.
+  (function () {
+    const person = document.querySelector('[data-outline-person]');
+    const filesOnly = document.querySelector('[data-outline-files]');
+    if (!person) return;
+    const apply = () => document.querySelectorAll('.mail-outline-list > li').forEach(li => {
+      li.hidden = (person.value && li.dataset.from !== person.value) || (filesOnly.checked && li.dataset.files === '0');
+    });
+    person.addEventListener('change', apply);
+    filesOnly.addEventListener('change', apply);
+  })();
+
+  // Find in this thread: matches counted from each message's text, highlighted inside its frame.
+  const find = {
+    term: '', hits: [], i: -1,
+    texts: JSON.parse((document.getElementById('mail-texts') || {}).textContent || '{}'),
+    mark(frame) {
+      let doc;
+      try { doc = frame.contentDocument; } catch (e) { return; }
+      if (!doc || !doc.body) return;
+      doc.querySelectorAll('mark').forEach(m => m.replaceWith(document.createTextNode(m.textContent)));
+      doc.body.normalize();
+      if (!this.term) return;
+      const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT);
+      const nodes = [];
+      while (walker.nextNode()) nodes.push(walker.currentNode);
+      const t = this.term;
+      nodes.forEach(node => {
+        const text = node.nodeValue, lower = text.toLowerCase();
+        if (!lower.includes(t)) return;
+        const frag = doc.createDocumentFragment();
+        let at = 0, k;
+        while ((k = lower.indexOf(t, at)) >= 0) {
+          frag.append(text.slice(at, k));
+          const m = doc.createElement('mark');
+          m.textContent = text.slice(k, k + t.length);
+          frag.append(m);
+          at = k + t.length;
+        }
+        frag.append(text.slice(at));
+        node.replaceWith(frag);
+      });
+      doc.querySelectorAll('mark').forEach(m => { const q = m.closest('details'); if (q) q.open = true; });
+      fit(frame);
+    },
+    run(term) {
+      this.term = term.trim().toLowerCase();
+      this.hits = this.term ? frames.map(f => f.dataset.message).filter(id => (this.texts[id] || '').includes(this.term)) : [];
+      this.i = -1;
+      frames.forEach(f => this.mark(f));
+      document.querySelector('[data-find-count]').textContent = this.term
+        ? (this.hits.length ? `in ${this.hits.length} message${this.hits.length === 1 ? '' : 's'}` : 'no matches') : '';
+      if (this.hits.length) this.step(1);
+    },
+    step(dir) {
+      if (!this.hits.length) return;
+      this.i = (this.i + dir + this.hits.length) % this.hits.length;
+      goTo(this.hits[this.i]);
+      document.querySelector('[data-find-count]').textContent = `${this.i + 1} of ${this.hits.length} messages`;
+    },
+  };
+  (function () {
+    const form = document.querySelector('[data-find]');
+    if (!form) return;
+    const input = form.querySelector('[data-find-input]');
+    let last = '';
+    form.addEventListener('submit', e => {
+      e.preventDefault();
+      if (input.value.trim().toLowerCase() === last && find.hits.length) find.step(1);
+      else { last = input.value.trim().toLowerCase(); find.run(input.value); }
+    });
+    input.addEventListener('search', () => { if (!input.value) { last = ''; find.run(''); } });
+    form.querySelector('[data-find-next]').addEventListener('click', () => find.step(1));
+    form.querySelector('[data-find-prev]').addEventListener('click', () => find.step(-1));
+  })();
+
+  // Summarize: only on click; Claude's answer with links to the messages it cites.
+  (function () {
+    const btn = document.querySelector('[data-summarize]');
+    const box = document.querySelector('[data-summary]');
+    if (!btn) return;
+    const esc = s => String(s).replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
+    const ref = (n, id) => id ? ` <a href="#m-${esc(id)}" data-goto="${esc(id)}" class="lc-small">message ${esc(n)}</a>` : '';
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      btn.textContent = 'Summarizing…';
+      box.hidden = false;
+      box.innerHTML = '<p class="muted">Claude is reading the thread…</p>';
+      try {
+        const r = await csrfPost(btn.dataset.summarize, {});
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error || 'Something went wrong.');
+        box.innerHTML = `<h3>Where it stands</h3><p>${esc(d.where_it_stands)}</p>`
+          + (d.open_items.length ? '<h3>Still open</h3><ul>' + d.open_items.map(o => `<li><strong>${esc(o.who)}</strong>: ${esc(o.what)}${ref(o.message, o.id)}</li>`).join('') + '</ul>' : '')
+          + (d.documents.length ? '<h3>Latest documents</h3><ul>' + d.documents.map(x => `<li>${esc(x.name)}${x.note ? ' · ' + esc(x.note) : ''}${ref(x.message, x.id)}</li>`).join('') + '</ul>' : '')
+          + (d.next_step ? `<h3>Next step</h3><p>${esc(d.next_step)}</p>` : '')
+          + '<p class="muted lc-small">Written by Claude from this thread. Check the messages before acting on it.</p>';
+      } catch (err) {
+        box.innerHTML = `<p class="mail-error">${esc(err.message)}</p>`;
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Summarize';
+      }
+    });
+  })();
+
   // Folders on a phone.
   document.querySelectorAll('[data-folders-toggle]').forEach(btn => btn.addEventListener('click', () => {
     document.getElementById('mail-folders').classList.toggle('open');
