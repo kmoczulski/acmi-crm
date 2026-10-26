@@ -153,8 +153,9 @@ pane (newest first, one attachments panel with versions grouped, outline, find i
 `.env` backed up first to `backups/env-2026-10-25-before-token-key.bak`), so the stored Google token is now
 encrypted. **Kellen: copy the key into the password manager.** Mail can't be turned on until Google is set up (the
 "Before Mail can be turned on" list in "Built 2026-10-25: mail-connect"). **Kellen turned Mail on the same night**
-(connected, no error). **Step 2 (`mail-api-reader`) built** on branch `mail-api-reader` (migration
-`0062_mailbox_pending_ids`, not merged): see "Built 2026-10-25: mail-api-reader" at the end of this file.
+(connected, no error). **Step 2 (`mail-api-reader`) merged 2026-10-26** (PR #5, `3b32a33`, CI green), migrated
+(backup `backups/db-2026-10-26-before-mail-api-reader.sqlite3`), and **Kellen's mailbox now syncs through the Gmail
+API** (first run 9:17: 10 messages, no error, no duplicates). Next: step 3, `mail-inbox` (the inbox on screen).
 
 **Next, in order**
 1. **Granola (time-sensitive: Granola only keeps 30 days).**
@@ -1967,6 +1968,7 @@ Branch `mail-api-reader`, migration `0062_mailbox_pending_ids`. Still nothing ne
   `https://mail.google.com/` and still refuses every other outside address.
 - **Tests:** `crm/tests/test_gmail_api.py` (17, Gmail faked), including the same two emails read by IMAP and then
   the API giving the same two timeline rows and thread id.
-- **Merging on the laptop:** back up, fast-forward, `migrate crm`. The next 15-minute sync switches Kellen's mailbox
-  and reads back from a day before its last IMAP sync; check `logs/sync_mail.log` shows `activities already logged`
-  for the overlap and no error. To go back: turn Mail off (IMAP resumes from its last UID).
+- **Merged and migrated 2026-10-26** (PR #5, `3b32a33`). The 9:17 sync switched Kellen's mailbox to `gmail_api`:
+  it read the 10 messages since Oct 25 (3 newsletters and 5 unknown or ignored senders skipped, the rest already
+  known), took Gmail's marker, empty queue, no error, Gmail timeline rows unchanged at 27,413, no alerts (a back-read
+  never alerts). To go back: turn Mail off (IMAP resumes from its last UID).
