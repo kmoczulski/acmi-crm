@@ -6,8 +6,9 @@ Read this first when picking the project up in a new chat, along with
 ## Pick up here (2026-10-25)
 
 **David walkthrough fixes 2026-10-26** (Kellen: "start on bugs 1-9 from the David review in a worktree"; branch
-`worktree-david-review-fixes`, migration `0067_assignment_company`, **not merged yet**; the real DB needs a backup and
-`migrate crm` when it is). From the walkthrough with David DeNardo on Oct 26:
+`worktree-david-review-fixes`, migration `0067_assignment_company`. **Merged 2026-10-26** fast-forward `4101657`, CI
+green, 710 tests; real DB migrated through 0067, backup `backups/db-2026-10-26-before-david-review-fixes.sqlite3`;
+branch and worktree removed). From the walkthrough with David DeNardo on Oct 26:
 - **Map fills the window** (`.land` was 100vh under the 52 px top bar, and the 1680 px page cap applied): no page
   scroll, nothing cut off at the bottom. Sticky bars that slid under the top bar now sit below it: company tabs,
   Sites compare bar, contract reader side panel, email template preview.
