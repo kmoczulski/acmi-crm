@@ -133,7 +133,7 @@ class GmailClient:
             if method == "upload":  # a whole message with its attachments (up to Gmail's 35 MB)
                 r = self.session.post(f"{UPLOAD}{path}", data=raw, timeout=UPLOAD_TIMEOUT,
                                       headers={**headers, "Content-Type": content_type})
-            elif method in ("post", "put"):
+            elif method in ("post", "put", "patch"):
                 r = getattr(self.session, method)(f"{API}{path}", json=body, headers=headers, timeout=TIMEOUT)
             elif method == "delete":
                 r = self.session.delete(f"{API}{path}", headers=headers, timeout=TIMEOUT)
@@ -250,6 +250,9 @@ class GmailClient:
     def create_label(self, name):
         return self.post("/labels", {"name": name, "labelListVisibility": "labelShow",
                                      "messageListVisibility": "show"})
+
+    def update_label(self, label_id, name):
+        return self._request("patch", f"/labels/{label_id}", body={"name": name})
 
     def modify_thread(self, thread_id, add=(), remove=()):
         return self.post(f"/threads/{thread_id}/modify", {"addLabelIds": list(add), "removeLabelIds": list(remove)})

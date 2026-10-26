@@ -21,9 +21,10 @@ from django.views.decorators.http import require_POST
 
 from crm import prefs
 from crm.ai import enabled as ai_enabled
-from crm.models import Company, MailSnooze, MailThread, Mailbox, Project
+from crm.models import Company, MailFiling, MailSnooze, MailThread, Mailbox, Project, UnmatchedEmail
 
-from . import actions as mail_actions, connect, index, render as mail_render, summary as mail_summary, threads as mail_threads
+from . import actions as mail_actions, comments as mail_comments, connect, filing as mail_filing, index
+from . import render as mail_render, summary as mail_summary, threads as mail_threads
 from .gmail_api import GmailClient, NotFound, parse_api_message
 from .imap import MailboxError
 from .views import team_only
@@ -141,7 +142,13 @@ def reader_for(request, mailbox, client, gmail_id, threads=()):
     if unread:
         mark_read(mailbox, client, gmail_id, row)
     snooze = MailSnooze.objects.filter(mailbox=mailbox, gmail_id=gmail_id).first()
+    own = mailbox.email.lower()
+    sender_domains = {m["from_addr"].rsplit("@", 1)[-1] for m in msgs if m["from_addr"] and m["from_addr"] != own}
     return {
+        "filings": mail_filing.filings_for(mailbox, gmail_id),
+        "queued_domains": sorted(set(UnmatchedEmail.objects.filter(domain__in=sender_domains)
+                                     .values_list("domain", flat=True))),
+        "comments": mail_comments.for_thread(request.user, mail_render.get_thread(mailbox, client, gmail_id)),
         "labels": labels, "in_inbox": "INBOX" in labels, "starred": "STARRED" in labels,
         "in_trash": "TRASH" in labels, "snoozed_until": snooze.until if snooze else None,
         "id": gmail_id, "subject": subject, "order": order,
@@ -352,3 +359,77 @@ def message_part(request, mailbox, client, message_id, part_id):
     response["Cache-Control"] = "private, no-store"
     response["Content-Security-Policy"] = "default-src 'none'; sandbox"
     return response
+
+# ---------------------------------------------------------------------------
+# Step 6: filing a thread to a record, team notes, and opening an email from a timeline
+# ---------------------------------------------------------------------------
+
+
+@mail_required
+def file_options(request, mailbox, client):
+    """What File to… offers for the typed words."""
+    return JsonResponse({"options": [{"kind": k, "pk": pk, "name": name, "detail": detail}
+                                     for k, pk, name, detail in mail_filing.options(request.GET.get("q", ""))]})
+
+
+@mail_required
+@require_POST
+def file_to(request, mailbox, client):
+    nxt = _safe_next(request, reverse("crm:inbox"))
+    gmail_id = request.POST.get("t", "")
+    try:
+        target = mail_filing.target_for(request.POST.get("kind", ""), request.POST.get("pk", ""))
+        mail_filing.file_thread(mailbox, client, gmail_id, target, user=request.user,
+                                attach_domain=request.POST.get("attach_domain") == "1")
+    except mail_filing.FilingError as exc:
+        messages.error(request, str(exc))
+    except NotFound:
+        raise Http404()
+    except (MailboxError, requests.RequestException) as exc:
+        messages.error(request, str(exc) if isinstance(exc, MailboxError) else "Couldn't reach Gmail. Try again.")
+    else:
+        messages.success(request, f"Filed to {target}. It's on its timeline now.")
+    return redirect(nxt)
+
+
+@mail_required
+@require_POST
+def unfile(request, mailbox, client, pk):
+    from django.shortcuts import get_object_or_404
+
+    filing = get_object_or_404(MailFiling, pk=pk, mailbox=mailbox)
+    target = filing.target
+    mail_filing.unfile(filing, client)
+    messages.success(request, f"Taken off {target}.")
+    return redirect(_safe_next(request, reverse("crm:inbox")))
+
+
+@mail_required
+@require_POST
+def comment_add(request, mailbox, client):
+    gmail_id = request.POST.get("t", "")
+    try:
+        thread = mail_render.get_thread(mailbox, client, gmail_id)
+    except NotFound:
+        raise Http404()
+    subject = mail_render.thread_view(mailbox, client, gmail_id)[0]
+    if mail_comments.add(request.user, thread, subject, request.POST.get("body", "")):
+        messages.success(request, "Note added.")
+    return redirect(_safe_next(request, reverse("crm:inbox")))
+
+
+@mail_required
+def open_message(request, mailbox, client):
+    """From a timeline: find that email (by its Message-ID) in your own mailbox and open its thread."""
+    message_id = request.GET.get("m", "").strip()[:500]
+    found = []
+    if message_id:
+        try:
+            found, _ = client.message_page(f"rfc822msgid:{message_id.strip('<>')}", size=1)
+        except (MailboxError, requests.RequestException):
+            found = []
+    if not found:
+        messages.info(request, "That email isn't in your mailbox.")
+        return redirect("crm:inbox")
+    thread = mail_render.get_message(mailbox, client, found[0]).get("threadId", "")
+    return redirect(f"{reverse('crm:inbox')}?label=ALL&t={thread}")

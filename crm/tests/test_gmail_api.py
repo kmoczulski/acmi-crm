@@ -146,6 +146,13 @@ class FakeGmail:
         self.drafts[path.removeprefix("/drafts/")] = json["message"]
         return FakeResponse({"id": path.removeprefix("/drafts/")})
 
+    def patch(self, url, json=None, headers=None, timeout=None):
+        path = url.removeprefix(gmail_api.API)
+        self.posts.append((f"PATCH {path}", json))
+        label = next(lb for lb in self.label_list if lb["id"] == path.removeprefix("/labels/"))
+        label["name"] = json["name"]
+        return FakeResponse(label)
+
     def delete(self, url, headers=None, timeout=None):
         path = url.removeprefix(gmail_api.API)
         self.posts.append((f"DELETE {path}", None))
@@ -160,7 +167,13 @@ class FakeGmail:
         if path == "/profile":
             return FakeResponse({"emailAddress": self.email, "historyId": self.history_id})
         if path == "/messages":
-            return FakeResponse({"messages": [{"id": i} for i in reversed(self.order)]})  # newest first
+            ids = list(reversed(self.order))  # newest first
+            q = (params or {}).get("q", "")
+            if q.startswith("rfc822msgid:"):
+                want = q.removeprefix("rfc822msgid:").strip("<>")
+                ids = [i for i in ids if any(h["name"] == "Message-ID" and h["value"].strip("<>") == want
+                                             for h in self.messages[i]["payload"]["headers"])]
+            return FakeResponse({"messages": [{"id": i} for i in ids]})
         if path == "/settings/sendAs":
             return FakeResponse({"sendAs": self.send_as})
         if path == "/labels":

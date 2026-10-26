@@ -161,8 +161,9 @@ see "Built 2026-10-26: mail-inbox" at the end of this file (merged `a6bd5e9`, mi
 no migration): "Built 2026-10-26: mail-long-threads". The 10:17 sync finished the inbox fill (303 inbox threads
 indexed, no error) and sent 6 new-mail alerts. **Step 4 (`mail-actions`) merged 2026-10-26** (PR #8, `bf602f0`, migrated, backup
 `backups/db-2026-10-26-before-mail-actions.sqlite3`): "Built 2026-10-26: mail-actions". **Step 5
-(`mail-compose`) merged 2026-10-26** (PR #9, `ca4bb4f`, no migration): "Built 2026-10-26: mail-compose" (Kellen, 2026-10-26: "I can't respond to an email?"). Next in
-`docs/EMAIL_CLIENT.md`: step 6 `mail-filing` (File to a record, Open in Mail, CRM labels in Gmail, team comments).
+(`mail-compose`) merged 2026-10-26** (PR #9, `ca4bb4f`, no migration): "Built 2026-10-26: mail-compose" (Kellen, 2026-10-26: "I can't respond to an email?"). **Inline reply and the
+Gmail signature** merged (PR #10). **Step 6 (`mail-filing`)**: "Built 2026-10-26: mail-filing". Left in
+`docs/EMAIL_CLIENT.md`: step 7 shared mailboxes, step 8 outreach on the Gmail API, step 9 hosting.
 
 **Next, in order**
 1. **Granola (time-sensitive: Granola only keeps 30 days).**
@@ -2125,3 +2126,32 @@ Branch `mail-inline-reply`, no migration.
 - **Tests:** 5 more in `crm/tests/test_compose.py`; 659 pass. Checked in a browser through the fake Gmail: `r` opens
   the box under the newest message, Send counts down and returns to the thread with the reply, Reply all at phone
   width with the Gmail signature showing.
+- **Merged 2026-10-26** (PR #10, `29adfa6`).
+
+
+## Built 2026-10-26: mail-filing (email client step 6; Kellen: "Yes, start step 6 … merge when green")
+
+Branch `mail-filing`, migration `0065_mail_filing`.
+
+- **File to…** in the reading pane's toolbar: type two letters, pick a company, deal, project or directory firm
+  (`crm/mail/filing.py`, `MailFiling`). The thread's emails go on that record's timeline with the sync's own keys
+  (`gmail:<Message-ID>|c<company>`, or `|j<project>` for a project-only email), so nothing is logged twice; a deal
+  also gets `Activity.opportunity`, a project `Activity.projects` and context Project; a firm gets `FirmEmail` rows,
+  never a Company. A sender whose domain waits in Mail review can come along ("Also attach newco.io…", Mail
+  review's own `approve_domain`). **Filed to** chips with × undo exactly what the filing added.
+- **The projects tagger keeps hand-filed projects** (`projects.Tagger.filed`), whatever the keywords say.
+- **Open in Mail** on every Gmail entry of a timeline (for people with Mail on): `/inbox/open/?m=<Message-ID>` finds
+  that email in your own mailbox (`rfc822msgid:`) and opens its thread; "That email isn't in your mailbox" if not.
+- **CRM labels in Gmail** (`crm/mail/crm_labels.py`, `MailCrmLabel`, `MailCrmLabelOnThread`): `ACMI/Projects/<project>`
+  for every project a thread is tagged with, `ACMI/Tenants/<company>` for companies with an open deal or filed,
+  `ACMI/Capital/<firm>` for lenders and investors, `ACMI/Directory/<firm>` when filed; parents made as needed. Each
+  sync labels the threads that changed (and once, the last 90 days of the index, `Mailbox.crm_labels_done_at`) and
+  renames labels when a record is renamed. A label taken off in Gmail stays off; one added in Gmail files the thread
+  (`MailFiling.Source.GMAIL`). Switch on Mail in the hub ("CRM labels in Gmail", `UserPrefs` "mail_crm_labels",
+  default on).
+- **Team notes** on a thread (`crm/mail/comments.py`, `MailComment`, `MailCommentKey`): "Add a note for the team",
+  @mentions by the hub's usual rules, a bell / browser alert that opens the email in the mentioned person's own
+  mailbox. Only the author and the people mentioned see a note; it's matched by the thread's Message-IDs, because the
+  same conversation has a different Gmail id in each mailbox.
+- **Tests:** `crm/tests/test_mail_filing.py` (17); 676 pass. Checked in a browser on a scratch database: File to…
+  finds the deal and the company, filing a gmail.com sender's thread puts the deal and company tags on it.

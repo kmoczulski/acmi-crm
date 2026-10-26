@@ -228,6 +228,16 @@ def team_only(view):
 
 
 @team_only
+@require_POST
+def crm_labels_switch(request):
+    """Mail in the hub › CRM labels in Gmail: on (the default) or off for this person."""
+    on = request.POST.get("on") == "1"
+    prefs.set_pref(request.user, "mail_crm_labels", on)
+    messages.success(request, "CRM labels in Gmail are on." if on else "CRM labels in Gmail are off. The tags in the hub stay.")
+    return redirect("crm:mail_settings")
+
+
+@team_only
 def mail_settings(request):
     conn = connect.connection(request.user)
     return render(request, "crm/mail_settings.html", {
@@ -236,6 +246,7 @@ def mail_settings(request):
         "unavailable": connect.unavailable_reason(request.user),
         "calendar_connected": gcal.connected(request.user),
         **signature_settings(request.user),
+        "crm_labels_on": prefs.get_prefs(request.user).get("mail_crm_labels", True),
     })
 
 

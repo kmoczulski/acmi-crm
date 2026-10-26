@@ -49,6 +49,12 @@ class Tagger:
         subjects |= set(NewsDraft.objects.values_list("subject", flat=True))
         self.outreach_subjects = {_norm_subject(s) for s in subjects if s and len(s) > 8}
         self.blasts = self._blast_subjects()
+        # Threads someone filed to a project by hand (crm/mail/filing.py): the tag stays whatever the keywords say.
+        from .models import MailFiling
+
+        self.filed = defaultdict(set)
+        for thread_id, project_id in MailFiling.objects.filter(project__isnull=False).values_list("thread_id", "project"):
+            self.filed[thread_id].add(project_id)
 
     @staticmethod
     def _blast_subjects():
@@ -90,6 +96,17 @@ class Tagger:
 
     def tag_group(self, activities):
         """Decide one context for a thread (or a single non-thread activity) and save it."""
+        filed = self.filed.get(activities[0].thread_id) if activities[0].thread_id else None
+        if filed:
+            by_pk = {p.pk: p for p in Project.objects.filter(pk__in=filed)}
+            projects = {by_pk[pk] for pk in filed if pk in by_pk}
+            for a in activities:
+                projects |= self.projects_in(own_words(a))
+            for a in activities:
+                if a.context != Activity.Context.PROJECT:
+                    Activity.objects.filter(pk=a.pk).update(context=Activity.Context.PROJECT)
+                a.projects.set(projects)
+            return Activity.Context.PROJECT
         if any(self.is_outreach(a) for a in activities):
             context, projects = Activity.Context.PROSPECTING, set()
         else:

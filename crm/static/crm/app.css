@@ -2072,3 +2072,21 @@ a.mail-chip:hover { text-decoration: none; filter: brightness(.95); }
 .mail-inline[hidden] { display: none; }
 .compose-files[hidden] { display: none; }
 @media (max-width: 760px) { .mail-reader-head { position: static; } }
+
+/* Filing, notes (step 6) */
+.mail-filed { margin: 4px 0; display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.mail-filed .inline-form { display: inline; margin: 0; }
+.mail-filed .btn-link { padding: 0 0 0 4px; color: inherit; }
+.mail-file-pop { min-width: 280px; padding: 8px; }
+.mail-file-pop input[type=search] { width: 100%; }
+.mail-file-results { margin-top: 6px; max-height: 240px; overflow-y: auto; }
+.mail-file-results .btn-link { display: block; width: 100%; text-align: left; padding: 5px 6px; color: var(--text); }
+.mail-file-results .btn-link:hover { background: var(--bg); text-decoration: none; }
+.mail-file-attach { display: block; margin-top: 6px; }
+.mail-notes { margin: 10px 0; padding: 8px 10px; background: var(--warn-bg); border-radius: var(--radius); }
+.mail-note-item { padding: 4px 0; border-bottom: 1px solid rgba(0,0,0,.06); }
+.mail-note-form textarea { width: 100%; margin-top: 6px; font: inherit; }
+.mail-note-actions { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.mail-filed-item { display: inline-flex; align-items: center; }
+.mail-notes > summary { cursor: pointer; color: var(--warn); font-weight: 600; }
+details.mail-notes:not([open]) { background: transparent; padding: 2px 0; }

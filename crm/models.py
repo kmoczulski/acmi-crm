@@ -1207,6 +1207,8 @@ class Mailbox(models.Model):
     # When the inbox's first few hundred threads were indexed (crm/mail/index.py warm_inbox), so the split-inbox tabs
     # have something to show.
     inbox_indexed_at = models.DateTimeField(null=True, blank=True, editable=False)
+    # When the hub finished putting CRM labels on the indexed threads once (crm/mail/crm_labels.py backfill).
+    crm_labels_done_at = models.DateTimeField(null=True, blank=True, editable=False)
 
     class Meta:
         verbose_name_plural = "mailboxes"
@@ -1278,6 +1280,91 @@ class MailSnooze(models.Model):
 
     def __str__(self):
         return f"{self.gmail_id} until {self.until:%b %d %H:%M}"
+
+
+class MailFiling(models.Model):
+    """A thread filed to a record by hand (crm/mail/filing.py), from the hub's File to… or by putting a CRM label on it
+    in Gmail. Keeps what the filing added to timelines, so taking it off removes exactly that."""
+
+    class Source(models.TextChoices):
+        HUB = "hub", "File to… in the hub"
+        GMAIL = "gmail", "A CRM label added in Gmail"
+
+    mailbox = models.ForeignKey(Mailbox, on_delete=models.CASCADE, related_name="filings")
+    gmail_id = models.CharField(max_length=40)
+    thread_id = models.CharField(max_length=100, db_index=True, help_text="Decimal, as Activity.thread_id")
+    subject = models.CharField(max_length=500, blank=True)
+    company = models.ForeignKey(Company, null=True, blank=True, on_delete=models.CASCADE, related_name="mail_filings")
+    opportunity = models.ForeignKey(Opportunity, null=True, blank=True, on_delete=models.CASCADE,
+                                    related_name="mail_filings")
+    project = models.ForeignKey(Project, null=True, blank=True, on_delete=models.CASCADE, related_name="mail_filings")
+    firm = models.ForeignKey("Firm", null=True, blank=True, on_delete=models.CASCADE, related_name="mail_filings")
+    source = models.CharField(max_length=8, choices=Source.choices, default=Source.HUB)
+    filed_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    created_at = models.DateTimeField(auto_now_add=True)
+    added_activities = models.JSONField(default=list, blank=True)  # Activity ids this filing created
+    added_firm_emails = models.JSONField(default=list, blank=True)
+
+    class Meta:
+        indexes = [models.Index(fields=["mailbox", "gmail_id"])]
+
+    @property
+    def target(self):
+        return self.opportunity or self.company or self.project or self.firm
+
+    def __str__(self):
+        return f"{self.subject or self.gmail_id} → {self.target}"
+
+
+class MailCrmLabel(models.Model):
+    """A Gmail label the hub keeps for a record ("ACMI/Projects/MEIH"), in one person's mailbox (crm/mail/crm_labels.py)."""
+
+    mailbox = models.ForeignKey(Mailbox, on_delete=models.CASCADE, related_name="crm_labels")
+    gmail_label_id = models.CharField(max_length=100)
+    name = models.CharField(max_length=225)
+    company = models.ForeignKey(Company, null=True, blank=True, on_delete=models.CASCADE, related_name="+")
+    project = models.ForeignKey(Project, null=True, blank=True, on_delete=models.CASCADE, related_name="+")
+    firm = models.ForeignKey("Firm", null=True, blank=True, on_delete=models.CASCADE, related_name="+")
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["mailbox", "gmail_label_id"], name="mail_crm_label_unique")]
+
+    def __str__(self):
+        return self.name
+
+
+class MailCrmLabelOnThread(models.Model):
+    """The hub put this CRM label on this thread. removed=True: the person took it off in Gmail, so it stays off."""
+
+    label = models.ForeignKey(MailCrmLabel, on_delete=models.CASCADE, related_name="threads")
+    gmail_id = models.CharField(max_length=40, db_index=True)
+    removed = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["label", "gmail_id"], name="mail_crm_label_thread_unique")]
+
+
+class MailComment(models.Model):
+    """A team note on an email thread (crm/mail/comments.py). Seen only by its author and the people it @mentions,
+    in whichever mailbox they have the thread: it's matched by the emails' Message-IDs, not one mailbox's ids."""
+
+    author = models.ForeignKey(User, null=True, on_delete=models.SET_NULL, related_name="mail_comments")
+    body = models.TextField()
+    subject = models.CharField(max_length=500, blank=True)
+    mentions = models.ManyToManyField(User, blank=True, related_name="mail_comment_mentions")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at"]
+
+    def __str__(self):
+        return f"{self.author}: {self.body[:40]}"
+
+
+class MailCommentKey(models.Model):
+    comment = models.ForeignKey(MailComment, on_delete=models.CASCADE, related_name="keys")
+    message_id = models.CharField(max_length=500, db_index=True)
 
 
 class MailLabel(models.Model):

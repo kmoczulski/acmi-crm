@@ -352,7 +352,7 @@ needs `team_users()` and the Partners group from #2, so step 1 waits for #2 to m
 5. **`mail-compose`** (built 2026-10-26; details in HANDOFF): new message, reply, reply all, forward with attachments, Gmail drafts, templates, signature,
    undo send, remind me if no reply, immediate timeline logging. **Email** buttons on person and company pages open compose with the address
    filled in.
-6. **`mail-filing`**: File to company / deal / project / directory firm / lender, the manual project link, Mail review
+6. **`mail-filing`** (built 2026-10-26; details in HANDOFF): File to company / deal / project / directory firm / lender, the manual project link, Mail review
    hand-off for unknown domains, **Open in Mail** from timelines, **CRM labels in Gmail** (`ACMI/…`, both ways, with
    its own switch), and team comments on a thread. A migration.
 7. **`mail-shared`**: shared mailboxes, grants, access log. A migration.

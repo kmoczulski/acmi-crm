@@ -24,8 +24,8 @@ from django.utils import timezone
 from crm.choices import Group
 from crm import interactions
 from crm.models import (
-    Activity, Attachment, Company, CompanyStatus, EmailTemplate, MailFilter, Mailbox, NewsDraft, Person, UnmatchedEmail,
-    normalize_key, suppress_history,
+    Activity, Attachment, Company, CompanyStatus, EmailTemplate, MailFilter, MailThread, Mailbox, NewsDraft, Person,
+    UnmatchedEmail, normalize_key, suppress_history,
 )
 
 from .attachments import categorize
@@ -442,6 +442,11 @@ def _read_gmail(mailbox, client, max_messages, recorder):
         from . import actions
 
         recorder.stats["snoozed threads back"] = actions.wake_due(mailbox, api)
+        from . import crm_labels
+
+        crm_labels.rename_all(mailbox, api)
+        refreshed = list(MailThread.objects.filter(mailbox=mailbox, gmail_id__in=touched[:INDEX_REFRESH_MAX]))
+        recorder.stats["CRM labels added"] = crm_labels.sync_threads(mailbox, api, refreshed)             + crm_labels.backfill(mailbox, api)
         index.prune(mailbox)
     except Exception:  # the inbox index must never fail the timeline sync
         log.exception("Inbox index refresh failed for %s", mailbox)

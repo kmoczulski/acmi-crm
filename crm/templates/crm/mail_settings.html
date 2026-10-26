@@ -41,6 +41,16 @@
   </form>
 </section>
 {% endif %}
+{% if on %}
+<section class="panel" style="max-width:720px" id="crm-labels">
+  <h3>CRM labels in Gmail</h3>
+  <p class="muted lc-small">The hub puts labels like <b>ACMI/Projects/MEIH</b> and <b>ACMI/Tenants/Firehawk Aerospace</b> on your conversations, so you can see and search them in Gmail on your phone. Take one off in Gmail and it stays off; add one and the conversation is filed there.</p>
+  <form method="post" action="{% url 'crm:mail_crm_labels' %}">{% csrf_token %}
+    {% if crm_labels_on %}<input type="hidden" name="on" value="0"><button class="btn btn-small">Turn off CRM labels in Gmail</button> <span class="tag">On</span>
+    {% else %}<input type="hidden" name="on" value="1"><button class="btn btn-small btn-primary">Turn on CRM labels in Gmail</button> <span class="tag">Off</span>{% endif %}
+  </form>
+</section>
+{% endif %}
 {% if not calendar_connected and not unavailable %}
 <section class="panel" style="max-width:720px">
   <h3>Google Calendar</h3>
