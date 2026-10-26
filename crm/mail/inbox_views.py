@@ -8,7 +8,6 @@ import io
 import logging
 import zipfile
 from urllib.parse import parse_qsl, urlsplit, urlunsplit
-from concurrent.futures import ThreadPoolExecutor
 
 import requests
 from django.contrib import messages
@@ -25,7 +24,7 @@ from crm.models import Company, MailFiling, MailSnooze, MailThread, Mailbox, Pro
 
 from . import actions as mail_actions, comments as mail_comments, connect, filing as mail_filing, index, shared
 from . import render as mail_render, search as mail_search, summary as mail_summary, threads as mail_threads
-from .gmail_api import NotFound, client_for as gmail_client_for, parse_api_message
+from .gmail_api import NotFound, client_for as gmail_client_for, parallel_map, parse_api_message
 from .imap import MailboxError
 from .views import team_only
 
@@ -349,8 +348,7 @@ def files(request, mailbox, client):
         ids, next_token = client.message_page(query, request.GET.get("p", ""), FILES_PAGE)
         if ids:
             client.prime()
-        with ThreadPoolExecutor(max_workers=8) as executor:
-            raws = list(executor.map(lambda i: mail_render.get_message(mailbox, client, i), ids))
+        raws = parallel_map(lambda i: mail_render.get_message(mailbox, client, i), ids, 8)
         msgs = []
         for raw in raws:
             m = mail_render.summary(raw)

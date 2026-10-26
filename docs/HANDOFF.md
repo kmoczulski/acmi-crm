@@ -5,6 +5,18 @@ Read this first when picking the project up in a new chat, along with
 
 ## Pick up here (2026-10-25)
 
+**Code review and audit of the week's changes 2026-10-26** (Kellen: "review the changes made since 10/21, audit and
+optimize everything"; branch `claude/beautiful-albattani-6xp3qi`, not merged; findings and a checklist of what to try
+on the laptop in `docs/REVIEW_2026-10-26.md`). Fixed there, each with a test, 715 tests green: the data room lockout
+now lives in the database and follows the real client behind Cloud Run's proxy (migration
+`0068_data_room_login_attempts`; before, a per-process cache keyed on the proxy's address); board card attachments
+download unless they're PDFs or pictures (an uploaded web page could run on the hub's origin); a line break in a
+compose header is a form message, not a 500; Gmail worker threads close their database connections; partner accounts
+never show as "ACMI" teammates in address suggestions; `cloudbuild.yaml` passes `ACMI_TOKEN_KEY`, the VAPID pair and
+the Google client to every job (the send job had no Google client at all); `cryptography` and `google-auth` pinned;
+`.env.example` lists the new variables. **Merge:** CI, then `git merge --ff-only`, back up the real database and
+`manage.py migrate crm`.
+
 **David walkthrough fixes 2026-10-26** (Kellen: "start on bugs 1-9 from the David review in a worktree"; branch
 `worktree-david-review-fixes`, migration `0067_assignment_company`. **Merged 2026-10-26** fast-forward `4101657`, CI
 green, 710 tests; real DB migrated through 0067, backup `backups/db-2026-10-26-before-david-review-fixes.sqlite3`;

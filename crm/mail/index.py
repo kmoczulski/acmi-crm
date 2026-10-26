@@ -7,7 +7,6 @@ changed (its historyId in a list, or the sync's history pass). Bodies and attach
 """
 import html
 import logging
-from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone as dt_timezone
 from email.utils import parseaddr
 
@@ -16,7 +15,7 @@ from django.utils import timezone
 
 from crm.models import Activity, Company, Firm, FirmEmail, MailLabel, MailThread, UnmatchedEmail
 
-from .gmail_api import NotFound
+from .gmail_api import NotFound, parallel_map
 
 log = logging.getLogger(__name__)
 
@@ -94,8 +93,7 @@ def refresh(mailbox, client, thread_ids):
         except NotFound:
             return tid, None
 
-    with ThreadPoolExecutor(max_workers=PARALLEL_REQUESTS) as executor:
-        results = list(executor.map(fetch, thread_ids))
+    results = parallel_map(fetch, thread_ids, PARALLEL_REQUESTS)
     gone = [tid for tid, data in results if data is None or not data.get("messages")]
     MailThread.objects.filter(mailbox=mailbox, gmail_id__in=gone).delete()
     return store(mailbox, {tid: data for tid, data in results if tid not in gone})

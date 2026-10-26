@@ -3797,3 +3797,15 @@ class DataRoomView(models.Model):
 
     class Meta:
         ordering = ["-when", "-id"]
+
+
+class DataRoomLoginAttempt(models.Model):
+    """A wrong password on the data room's sign-in page (crm/dataroom/logic.py). Kept in the database rather than a
+    per-process cache, so the lockout holds across every server process and instance."""
+
+    username = models.CharField(max_length=254, blank=True, db_index=True)
+    ip = models.CharField(max_length=45, blank=True, db_index=True)
+    at = models.DateTimeField(default=timezone.now, db_index=True)
+
+    def __str__(self):
+        return f"{self.username or '?'} from {self.ip or '?'} at {self.at:%Y-%m-%d %H:%M}"

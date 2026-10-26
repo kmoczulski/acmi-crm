@@ -19,6 +19,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone as dt_timezone
 
 import requests
+from django.db import connections
 from django.utils import timezone
 
 from crm import gcal
@@ -401,9 +402,26 @@ def read_changes(mailbox, client, max_messages):
 
     if batch:
         client.prime()  # refresh the access token here, not in the worker threads
-    with ThreadPoolExecutor(max_workers=PARALLEL_REQUESTS) as executor:
-        emails = [e for e in executor.map(fetch, batch) if e is not None]
+    emails = [e for e in parallel_map(fetch, batch, PARALLEL_REQUESTS) if e is not None]
     return emails, {uid_of(i) for i in new}, rest, touched
+
+
+def parallel_map(fn, items, workers):
+    """fn over items in worker threads, results in order. Django opens a database connection per thread the first
+    time one is used (a worker that has to refresh the access token saves it), and never closes a worker thread's
+    on its own; closing it here keeps a long-running server from collecting idle connections."""
+    items = list(items)
+    if not items:
+        return []
+
+    def run(item):
+        try:
+            return fn(item)
+        finally:
+            connections.close_all()
+
+    with ThreadPoolExecutor(max_workers=min(workers, len(items))) as executor:
+        return list(executor.map(run, items))
 
 
 def client_for(mailbox, session=None):

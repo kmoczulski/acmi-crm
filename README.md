@@ -49,8 +49,15 @@ addresses, newsletters and protected addresses is never logged.
 | `crm/interactions.py` | Computed interaction fields (last touch, touches, last response) derived from `Activity` |
 | `crm/tables.py` | Filters, sorting and columns for the Companies and People tables (state lives in the query string) |
 | `crm/management/commands/import_workbook.py` | Workbook importer |
-| `crm/auth.py` | Google sign-in restricted to acmigroup.com |
-| `crm/mail/` | Gmail sync: IMAP reader, parsing/classification, matching + review queue, Mail page |
+| `crm/auth.py` | Google sign-in restricted to acmigroup.com; the data room's partner sign-in |
+| `crm/tokens.py` | Google tokens encrypted at rest with `ACMI_TOKEN_KEY` |
+| `crm/mail/` | Gmail sync (IMAP or the Gmail API), review queue, and Mail in the hub: inbox, reading pane, compose, filing to records, CRM labels, shared mailboxes (`docs/EMAIL_CLIENT.md`) |
+| `crm/boards/` | Trello-style boards on the CRM's records; record boards bound to a status; feed lists |
+| `crm/directory/` | The directory: lenders, consultants, vendors (never Companies); Claude sorting new email domains |
+| `crm/capital/` | Capital stack per project, term sheets read by Claude, portfolio page |
+| `crm/contracts/` | Contracts modeled on Notessa: documents, redlines, dates and the closing timeline |
+| `crm/dataroom/` | Capital partners' data room: partner accounts, deal switches, approved files, view log (`docs/DATA_ROOM.md`) |
+| `crm/push.py` | Browser notifications (Web Push) and each person's notification choices |
 | `crm/news/` | Weekly news review (scan parser, Gmail draft matching/editing, apply) |
 | `crm/outreach/` | Send queue, templates, background sending (`send_batch`), weekly report |
 | `crm/projects.py` | Tags correspondence as project (MEIH, NSIH, sites) or prospecting |

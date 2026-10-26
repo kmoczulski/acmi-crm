@@ -7,11 +7,11 @@ Gmail operators (from:, has:, ...) are left as typed.
 """
 import re
 
-from django.contrib.auth import get_user_model
 from django.db.models import Q, TextField
 from django.db.models.functions import Cast
 
 from ..models import Company, Firm, MailThread, Person
+from ..permissions import team_users
 
 OPERATOR = re.compile(r"\b[a-z_]+:", re.I)
 MAX_TERMS = 12  # addresses ORed in; Gmail rejects very long queries
@@ -85,7 +85,7 @@ def recipients(user, words, limit=8):
         starts = name.lower().startswith(w) or email.startswith(w) or f" {w}" in f" {name.lower()}"
         out.append({"name": name, "email": email, "detail": detail, "_rank": 0 if starts else 1})
 
-    for u in get_user_model().objects.filter(is_active=True).filter(
+    for u in team_users().filter(  # the team only: a capital partner's account is never an "ACMI" address
             Q(first_name__icontains=w) | Q(last_name__icontains=w) | Q(email__icontains=w)).exclude(email="")[:10]:
         add(u.get_full_name(), u.email, "ACMI")
     people = Person.objects.filter(Q(full_name__icontains=w) | Q(email__icontains=w)) \

@@ -5,6 +5,7 @@ A partner reaches only these pages (crm.middleware.PartnerOnlyMiddleware). Manag
 with ?room=<id> to see exactly what the partner sees; their visits aren't logged.
 """
 from django import forms
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.password_validation import validate_password
@@ -30,7 +31,14 @@ PARTNER_PASSWORD_VALIDATORS = [
 
 
 def _ip(request):
-    return request.META.get("REMOTE_ADDR", "")
+    """The address a sign-in attempt came from, for the lockout. Behind Cloud Run's front end (production, where
+    SECURE_PROXY_SSL_HEADER is set) REMOTE_ADDR is the proxy, the same for everyone, so the client is the last entry
+    of X-Forwarded-For: the one the proxy itself appended."""
+    if getattr(settings, "SECURE_PROXY_SSL_HEADER", None):
+        forwarded = request.META.get("HTTP_X_FORWARDED_FOR", "")
+        if forwarded:
+            return forwarded.rsplit(",", 1)[-1].strip()[:45]
+    return request.META.get("REMOTE_ADDR", "")[:45]
 
 
 def _room(request):

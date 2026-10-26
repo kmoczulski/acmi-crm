@@ -177,19 +177,22 @@ def build(mailbox, user, to, cc=(), bcc=(), subject="", body="", quote=("", ""),
         raise ComposeError("Attachments add up to more than 25 MB, Gmail's limit. Share a Drive link instead.")
     sig_plain, sig_html = sig if sig is not None else signature_parts(user)
     msg = EmailMessage()
-    msg["From"] = formataddr(((mailbox.name if mailbox.shared else user.get_full_name()) or "", mailbox.email))
-    if to:
-        msg["To"] = ", ".join(to)
-    if cc:
-        msg["Cc"] = ", ".join(cc)
-    if bcc:
-        msg["Bcc"] = ", ".join(bcc)
-    msg["Subject"] = " ".join((subject or "").split())[:500] or "(no subject)"
-    msg["Date"] = formatdate(localtime=True)
-    msg["Message-ID"] = make_msgid(domain=mailbox.email.rsplit("@", 1)[-1])
-    if in_reply_to:
-        msg["In-Reply-To"] = in_reply_to
-        msg["References"] = references or in_reply_to
+    try:
+        msg["From"] = formataddr(((mailbox.name if mailbox.shared else user.get_full_name()) or "", mailbox.email))
+        if to:
+            msg["To"] = ", ".join(to)
+        if cc:
+            msg["Cc"] = ", ".join(cc)
+        if bcc:
+            msg["Bcc"] = ", ".join(bcc)
+        msg["Subject"] = " ".join((subject or "").split())[:500] or "(no subject)"
+        msg["Date"] = formatdate(localtime=True)
+        msg["Message-ID"] = make_msgid(domain=mailbox.email.rsplit("@", 1)[-1])
+        if in_reply_to:
+            msg["In-Reply-To"] = in_reply_to
+            msg["References"] = references or in_reply_to
+    except ValueError as exc:  # a line break in a name, an address or a threading header (headers can't hold one)
+        raise ComposeError("A recipient's name or a header has a line break in it. Take it out and try again.") from exc
     plain_quote, html_quote = quote
     plain = (body or "").rstrip() + (f"\n\n{sig_plain}" if sig_plain else "") + plain_quote
     rich = text_to_html(body or "") + (f'<br><div class="gmail_signature">{sig_html}</div>' if sig_html else "") \

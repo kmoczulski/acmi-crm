@@ -153,6 +153,17 @@ class ComposeTests(TestCase):
         self.assertContains(r, "Add at least one recipient.", status_code=400)
         self.assertEqual(self.fake.sent, [])
 
+    def test_a_line_break_in_a_header_is_refused_not_a_crash(self):
+        with self.assertRaisesMessage(compose.ComposeError, "line break"):
+            compose.build(self.mailbox, self.user, ["will@firehawkaerospace.com"], subject="Hi", body="x",
+                          in_reply_to="<pda-1@fh>\nBcc: spy@example.com")
+        with self.assertRaisesMessage(compose.ComposeError, "line break"):
+            compose.build(self.mailbox, self.user, ['"Will\nEdwards" <will@firehawkaerospace.com>'], subject="Hi", body="x")
+        r = self.post(mode="new", to="will@firehawkaerospace.com", subject="Hi", body="x",
+                      in_reply_to="<a@b>\r\nX-Evil: 1")
+        self.assertContains(r, "line break", status_code=400)
+        self.assertEqual(self.fake.sent, [])
+
     def test_too_big_to_send(self):
         with mock.patch.object(compose, "MAX_BYTES", 10):
             r = self.client.post(reverse("crm:inbox_compose"), {

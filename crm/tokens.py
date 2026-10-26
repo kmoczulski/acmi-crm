@@ -22,15 +22,23 @@ FIELDS = ("token", "token_secret")
 log = logging.getLogger(__name__)
 
 
+_cached = (None, None)  # (the keys it was built from, the MultiFernet): built once, not on every token load
+
+
 def _fernet():
-    keys = [k.strip() for k in settings.TOKEN_KEYS if k.strip()]
+    global _cached
+    keys = tuple(k.strip() for k in settings.TOKEN_KEYS if k.strip())
     if not keys:
         return None
+    if _cached[0] == keys:
+        return _cached[1]
     try:
-        return MultiFernet([Fernet(k.encode()) for k in keys])
+        fernet = MultiFernet([Fernet(k.encode()) for k in keys])
     except ValueError:
         log.error("ACMI_TOKEN_KEY is not a valid key; Google tokens are not being encrypted.")
         return None
+    _cached = (keys, fernet)
+    return fernet
 
 
 def configured():

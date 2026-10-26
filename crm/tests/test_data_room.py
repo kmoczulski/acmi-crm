@@ -13,7 +13,8 @@ from crm import notify
 from crm.dataroom import logic
 from crm.forms import active_users
 from crm.models import (
-    Campus, Company, DataRoom, DataRoomFile, DataRoomMember, DataRoomView, Document, Firm, Opportunity,
+    Campus, Company, DataRoom, DataRoomFile, DataRoomLoginAttempt, DataRoomMember, DataRoomView, Document, Firm,
+    Opportunity,
 )
 from crm.permissions import team_users
 
@@ -104,6 +105,37 @@ class PartnerAccountTests(DataRoomTestCase):
             self.client.post(reverse("crm:room_login"), {"email": "pat@fortress.com", "password": "nope"})
         r = self.client.post(reverse("crm:room_login"), {"email": "pat@fortress.com", "password": PASSWORD})
         self.assertContains(r, "Too many attempts")
+
+    def test_the_lockout_is_kept_in_the_database_not_a_process_cache(self):
+        """Cloud Run runs several worker processes and instances; a strike counted in one must count in all."""
+        self.client.logout()
+        url = reverse("crm:room_login")
+        for _ in range(logic.MAX_FAILURES):
+            self.client.post(url, {"email": "pat@fortress.com", "password": "nope"})
+        self.assertEqual(DataRoomLoginAttempt.objects.filter(username="pat@fortress.com").count(), logic.MAX_FAILURES)
+        cache.clear()  # another process, or a restart: its cache knows nothing
+        self.assertTrue(logic.locked("pat@fortress.com", "10.9.9.9"))  # the account is locked from anywhere
+        self.assertContains(self.client.post(url, {"email": "pat@fortress.com", "password": PASSWORD}), "Too many attempts")
+        # A right password once the window has passed clears the strikes.
+        DataRoomLoginAttempt.objects.update(at=timezone.now() - timedelta(seconds=logic.FAILURE_WINDOW + 1))
+        r = self.client.post(url, {"email": "pat@fortress.com", "password": PASSWORD})
+        self.assertRedirects(r, reverse("crm:room_home"))
+        self.assertEqual(DataRoomLoginAttempt.objects.count(), 0)
+
+    @override_settings(SECURE_PROXY_SSL_HEADER=("HTTP_X_FORWARDED_PROTO", "https"))
+    def test_behind_the_proxy_the_address_lock_follows_the_client_not_the_proxy(self):
+        """In production every request reaches the app from Cloud Run's front end, so REMOTE_ADDR is the same for
+        everyone; counting strikes on it would let five wrong passwords from anyone lock every partner out."""
+        self.client.logout()
+        url = reverse("crm:room_login")
+        for n in range(logic.MAX_FAILURES):  # one address guessing at many accounts
+            self.client.post(url, {"email": f"guess{n}@fortress.com", "password": "nope"}, HTTP_X_FORWARDED_FOR="198.51.100.7")
+        self.assertTrue(logic.locked("", "198.51.100.7"))
+        self.assertFalse(logic.locked("", "127.0.0.1"))  # the proxy's own address isn't what was counted
+        r = self.client.post(url, {"email": "pat@fortress.com", "password": PASSWORD}, HTTP_X_FORWARDED_FOR="198.51.100.7")
+        self.assertContains(r, "Too many attempts")
+        r = self.client.post(url, {"email": "pat@fortress.com", "password": PASSWORD}, HTTP_X_FORWARDED_FOR="198.51.100.8")
+        self.assertRedirects(r, reverse("crm:room_home"))  # everyone else still gets in
 
     def test_switching_a_member_off_ends_their_access_at_once(self):
         logic.switch_member(self.member, False)

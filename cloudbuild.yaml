@@ -6,7 +6,12 @@
 #
 # Secrets come from Secret Manager; create them once before the first deploy:
 #   acmi-django-secret-key (50+ random characters), acmi-postgres-password, acmi-cron-secret,
-#   acmi-google-client-secret, acmi-anthropic-api-key, acmi-imap-password-kellen (one per synced mailbox).
+#   acmi-google-client-secret, acmi-anthropic-api-key, acmi-token-key (the ACMI_TOKEN_KEY from the laptop's .env, so
+#   the stored Google tokens stay readable), acmi-vapid-public-key and acmi-vapid-private-key (the laptop's VAPID
+#   pair, so browsers already subscribed keep working), and acmi-imap-password-kellen (only for a mailbox still read
+#   over IMAP with an app password; a mailbox whose Mail in the hub is on needs none).
+# Every job and the service get ACMI_TOKEN_KEY and the Google client: the sync reads Gmail and calendars with the
+# stored tokens, and the send job sends through the Gmail API for anyone whose Mail in the hub is on.
 # The Cloud Build service account needs Cloud Run Admin and Service Account User. The runtime service account needs
 # Secret Manager Secret Accessor, Cloud SQL Client, Storage Object Admin on the bucket, and Cloud Run Developer on the
 # ${_SERVICE}-send job (the web app starts it with the batch id when someone presses Send).
@@ -39,7 +44,7 @@ steps:
            "--image=${_REGION}-docker.pkg.dev/$PROJECT_ID/acmi/${_SERVICE}:$SHORT_SHA", "--region=${_REGION}",
            "--set-cloudsql-instances=${_SQL_INSTANCE}",
            "--set-env-vars=^@^DJANGO_DEBUG=false@DJANGO_ALLOWED_HOSTS=${_HOSTS}@DJANGO_CSRF_TRUSTED_ORIGINS=${_ORIGINS}@ACMI_LOCAL_LOGIN=false@POSTGRES_DB=${_DB_NAME}@POSTGRES_USER=${_DB_USER}@POSTGRES_HOST=/cloudsql/${_SQL_INSTANCE}@GOOGLE_CLIENT_ID=${_GOOGLE_CLIENT_ID}",
-           "--set-secrets=DJANGO_SECRET_KEY=acmi-django-secret-key:latest,POSTGRES_PASSWORD=acmi-postgres-password:latest",
+           "--set-secrets=DJANGO_SECRET_KEY=acmi-django-secret-key:latest,POSTGRES_PASSWORD=acmi-postgres-password:latest,ACMI_TOKEN_KEY=acmi-token-key:latest",
            "--command=python", "--args=manage.py,migrate,--noinput", "--max-retries=0", "--execute-now", "--wait"]
   # Outreach batches: the web app runs this job with "manage.py send_batch <id>" (crm/cloudrun.py).
   - id: send-job
@@ -48,8 +53,8 @@ steps:
     args: ["run", "jobs", "deploy", "${_SERVICE}-send",
            "--image=${_REGION}-docker.pkg.dev/$PROJECT_ID/acmi/${_SERVICE}:$SHORT_SHA", "--region=${_REGION}",
            "--set-cloudsql-instances=${_SQL_INSTANCE}", "--task-timeout=3600", "--max-retries=0",
-           "--set-env-vars=^@^DJANGO_DEBUG=false@DJANGO_ALLOWED_HOSTS=${_HOSTS}@POSTGRES_DB=${_DB_NAME}@POSTGRES_USER=${_DB_USER}@POSTGRES_HOST=/cloudsql/${_SQL_INSTANCE}@ACMI_GCS_BUCKET=${_BUCKET}",
-           "--set-secrets=DJANGO_SECRET_KEY=acmi-django-secret-key:latest,POSTGRES_PASSWORD=acmi-postgres-password:latest,ACMI_IMAP_PASSWORD_KELLEN=acmi-imap-password-kellen:latest",
+           "--set-env-vars=^@^DJANGO_DEBUG=false@DJANGO_ALLOWED_HOSTS=${_HOSTS}@POSTGRES_DB=${_DB_NAME}@POSTGRES_USER=${_DB_USER}@POSTGRES_HOST=/cloudsql/${_SQL_INSTANCE}@ACMI_GCS_BUCKET=${_BUCKET}@GOOGLE_CLIENT_ID=${_GOOGLE_CLIENT_ID}",
+           "--set-secrets=DJANGO_SECRET_KEY=acmi-django-secret-key:latest,POSTGRES_PASSWORD=acmi-postgres-password:latest,GOOGLE_CLIENT_SECRET=acmi-google-client-secret:latest,ACMI_TOKEN_KEY=acmi-token-key:latest,ACMI_IMAP_PASSWORD_KELLEN=acmi-imap-password-kellen:latest",
            "--command=python", "--args=manage.py,send_batch,0"]
   # Mail + calendar sync, run every 15 minutes by Cloud Scheduler (see the header).
   - id: sync-job
@@ -59,7 +64,7 @@ steps:
            "--image=${_REGION}-docker.pkg.dev/$PROJECT_ID/acmi/${_SERVICE}:$SHORT_SHA", "--region=${_REGION}",
            "--set-cloudsql-instances=${_SQL_INSTANCE}", "--task-timeout=1800", "--max-retries=0",
            "--set-env-vars=^@^DJANGO_DEBUG=false@DJANGO_ALLOWED_HOSTS=${_HOSTS}@POSTGRES_DB=${_DB_NAME}@POSTGRES_USER=${_DB_USER}@POSTGRES_HOST=/cloudsql/${_SQL_INSTANCE}@GOOGLE_CLIENT_ID=${_GOOGLE_CLIENT_ID}",
-           "--set-secrets=DJANGO_SECRET_KEY=acmi-django-secret-key:latest,POSTGRES_PASSWORD=acmi-postgres-password:latest,GOOGLE_CLIENT_SECRET=acmi-google-client-secret:latest,ACMI_IMAP_PASSWORD_KELLEN=acmi-imap-password-kellen:latest",
+           "--set-secrets=DJANGO_SECRET_KEY=acmi-django-secret-key:latest,POSTGRES_PASSWORD=acmi-postgres-password:latest,GOOGLE_CLIENT_SECRET=acmi-google-client-secret:latest,ACMI_TOKEN_KEY=acmi-token-key:latest,ANTHROPIC_API_KEY=acmi-anthropic-api-key:latest,ACMI_VAPID_PUBLIC_KEY=acmi-vapid-public-key:latest,ACMI_VAPID_PRIVATE_KEY=acmi-vapid-private-key:latest,ACMI_IMAP_PASSWORD_KELLEN=acmi-imap-password-kellen:latest",
            "--command=python", "--args=manage.py,sync_all"]
   - id: deploy
     name: gcr.io/google.com/cloudsdktool/cloud-sdk
@@ -68,6 +73,6 @@ steps:
            "--image=${_REGION}-docker.pkg.dev/$PROJECT_ID/acmi/${_SERVICE}:$SHORT_SHA", "--region=${_REGION}",
            "--add-cloudsql-instances=${_SQL_INSTANCE}", "--timeout=900",
            "--set-env-vars=^@^DJANGO_DEBUG=false@DJANGO_ALLOWED_HOSTS=${_HOSTS}@DJANGO_CSRF_TRUSTED_ORIGINS=${_ORIGINS}@ACMI_LOCAL_LOGIN=false@POSTGRES_DB=${_DB_NAME}@POSTGRES_USER=${_DB_USER}@POSTGRES_HOST=/cloudsql/${_SQL_INSTANCE}@GOOGLE_CLIENT_ID=${_GOOGLE_CLIENT_ID}@ACMI_SEND_JOB=${_SERVICE}-send@ACMI_GCP_REGION=${_REGION}@ACMI_GCS_BUCKET=${_BUCKET}",
-           "--set-secrets=DJANGO_SECRET_KEY=acmi-django-secret-key:latest,POSTGRES_PASSWORD=acmi-postgres-password:latest,ACMI_CRON_SECRET=acmi-cron-secret:latest,GOOGLE_CLIENT_SECRET=acmi-google-client-secret:latest,ANTHROPIC_API_KEY=acmi-anthropic-api-key:latest,ACMI_IMAP_PASSWORD_KELLEN=acmi-imap-password-kellen:latest"]
+           "--set-secrets=DJANGO_SECRET_KEY=acmi-django-secret-key:latest,POSTGRES_PASSWORD=acmi-postgres-password:latest,ACMI_CRON_SECRET=acmi-cron-secret:latest,GOOGLE_CLIENT_SECRET=acmi-google-client-secret:latest,ANTHROPIC_API_KEY=acmi-anthropic-api-key:latest,ACMI_TOKEN_KEY=acmi-token-key:latest,ACMI_VAPID_PUBLIC_KEY=acmi-vapid-public-key:latest,ACMI_VAPID_PRIVATE_KEY=acmi-vapid-private-key:latest,ACMI_IMAP_PASSWORD_KELLEN=acmi-imap-password-kellen:latest"]
 images:
   - "${_REGION}-docker.pkg.dev/$PROJECT_ID/acmi/${_SERVICE}:$SHORT_SHA"

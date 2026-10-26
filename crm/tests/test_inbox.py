@@ -169,6 +169,12 @@ class InboxTests(TestCase):
         records = self.client.get(url, {"q": "shore", "records": "1"}).json()["records"]
         self.assertEqual(records, [{"kind": "firm", "label": "Shore United Bank"}])
 
+    def test_partner_accounts_are_never_suggested_as_teammates(self):
+        partner = User.objects.create_user("pat@fortress.com", email="pat@fortress.com", first_name="Pat", last_name="Partner")
+        partner.groups.add(Group.objects.get_or_create(name=PARTNERS)[0])
+        people = self.client.get(reverse("crm:inbox_suggest"), {"q": "partner"}).json()["people"]
+        self.assertEqual(people, [])
+
     def test_other_folders(self):
         r = self.get(label="SENT")
         self.assertEqual([t.gmail_id for t in r.context["threads"]], ["a1"])

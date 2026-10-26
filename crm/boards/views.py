@@ -505,11 +505,24 @@ def attachment_edit(request, pk):
     return redirect(_back(request, _card_url(card)))
 
 
+INLINE_TYPES = (".pdf", ".png", ".jpg", ".jpeg", ".gif", ".webp")
+
+
 def attachment_file(request, pk):
+    """An uploaded card attachment. PDFs and pictures open in the browser; anything else downloads, and the type
+    always follows the stored file's extension, never the name someone typed, so an uploaded web page can't run as
+    part of the hub."""
     att = get_object_or_404(CardAttachment, pk=pk)
     if not att.file:
         raise Http404
-    return FileResponse(att.file.open("rb"), as_attachment=False, filename=att.name)
+    try:
+        fh = att.file.open("rb")
+    except (FileNotFoundError, OSError):
+        raise Http404("That file is no longer on the server.")
+    stored = att.file.name.rsplit("/", 1)[-1]
+    ext = ("." + stored.rsplit(".", 1)[-1].lower()) if "." in stored else ""
+    name = att.name if ext and att.name.lower().endswith(ext) else f"{att.name}{ext}"
+    return FileResponse(fh, as_attachment=ext not in INLINE_TYPES, filename=name)
 
 
 @require_POST

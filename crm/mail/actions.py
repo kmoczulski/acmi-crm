@@ -7,7 +7,6 @@ hub's own, since Gmail's isn't open to apps: the thread leaves the inbox under t
 brings it back, unread, when the time comes.
 """
 import logging
-from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, time, timedelta
 
 from django.utils import timezone
@@ -15,6 +14,7 @@ from django.utils import timezone
 from crm.models import MailLabel, MailSnooze
 
 from . import index, render
+from .gmail_api import parallel_map
 
 log = logging.getLogger(__name__)
 
@@ -126,8 +126,7 @@ def apply(mailbox, client, action, thread_ids, label="", until=None):
         return tid
 
     client.prime()
-    with ThreadPoolExecutor(max_workers=PARALLEL) as executor:
-        done = list(executor.map(run, thread_ids))
+    done = parallel_map(run, thread_ids, PARALLEL)
     if action == "snooze":
         for tid in done:
             MailSnooze.objects.update_or_create(mailbox=mailbox, gmail_id=tid, defaults={"until": until})

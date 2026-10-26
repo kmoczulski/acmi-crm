@@ -3,6 +3,7 @@ import json
 from datetime import timedelta
 
 from django.contrib.auth import get_user_model
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import connection
 from django.test import TestCase
 from django.test.utils import CaptureQueriesContext
@@ -216,6 +217,27 @@ class BoardPageTests(TestCase):
         r = self.client.get(self.board.get_absolute_url())
         self.assertContains(r, "☑ 1/1")
         self.assertContains(r, "📎 1")
+
+    def test_uploaded_attachments_open_in_the_page_only_when_they_are_pdfs_or_pictures(self):
+        """The type follows the stored file, never the typed name, so a web page named like a document downloads
+        instead of running on the hub's origin."""
+        url = reverse("crm:card_attach", args=[self.card.pk])
+        self.client.post(url, {"action": "add", "name": "Notes.pdf",
+                               "file": SimpleUploadedFile("page.html", b"<script>alert(1)</script>", content_type="text/html")})
+        att = self.card.attachments.get(name="Notes.pdf")
+        r = self.client.get(reverse("crm:card_attachment_file", args=[att.pk]))
+        b"".join(r.streaming_content)
+        self.assertTrue(r["Content-Disposition"].startswith("attachment"), r["Content-Disposition"])
+        self.assertIn("Notes.pdf.html", r["Content-Disposition"])
+        self.assertNotEqual(r["Content-Type"], "application/pdf")
+        self.client.post(url, {"action": "add", "name": "Plan",
+                               "file": SimpleUploadedFile("plan.pdf", b"%PDF-1.4 x", content_type="application/pdf")})
+        att = self.card.attachments.get(name="Plan")
+        r = self.client.get(reverse("crm:card_attachment_file", args=[att.pk]))
+        b"".join(r.streaming_content)
+        self.assertEqual(r["Content-Type"], "application/pdf")
+        self.assertTrue(r["Content-Disposition"].startswith("inline"))
+        self.assertIn("Plan.pdf", r["Content-Disposition"])
 
     def test_comments_on_cards_notify_members(self):
         self.card.members.add(self.other)

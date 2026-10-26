@@ -10,13 +10,12 @@ from datetime import timedelta
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
-from django.core.cache import cache
 from django.db import transaction
 from django.db.models import Q
 from django.urls import reverse
 from django.utils import timezone
 
-from ..models import DataRoomDeal, DataRoomView, Opportunity, OpportunityStage
+from ..models import DataRoomDeal, DataRoomLoginAttempt, DataRoomView, Opportunity, OpportunityStage
 from ..permissions import PARTNERS
 from ..reports import BY_KEY, cell_value
 
@@ -199,25 +198,41 @@ def switch_member(member, active):
 # ---------------------------------------------------------------------------
 
 
-def _keys(username, ip):
-    return [f"room-login:u:{(username or '').lower()}", f"room-login:ip:{ip}"]
+def _recent():
+    return DataRoomLoginAttempt.objects.filter(at__gte=timezone.now() - timedelta(seconds=FAILURE_WINDOW))
+
+
+def _who(username, ip):
+    """The (account, address) pair an attempt is counted under; blanks count under nothing."""
+    return (username or "").strip().lower()[:254], (ip or "").strip()[:45]
 
 
 def locked(username, ip):
-    return any((cache.get(k) or 0) >= MAX_FAILURES for k in _keys(username, ip))
+    """MAX_FAILURES wrong passwords within the window, for this account or from this address. Counted in the database
+    (DataRoomLoginAttempt), so every server process and instance sees the same count."""
+    username, ip = _who(username, ip)
+    recent = _recent()
+    return ((bool(username) and recent.filter(username=username).count() >= MAX_FAILURES)
+            or (bool(ip) and recent.filter(ip=ip).count() >= MAX_FAILURES))
 
 
 def failed(username, ip):
-    for k in _keys(username, ip):
-        cache.add(k, 0, FAILURE_WINDOW)
-        try:
-            cache.incr(k)
-        except ValueError:
-            cache.set(k, 1, FAILURE_WINDOW)
+    username, ip = _who(username, ip)
+    DataRoomLoginAttempt.objects.create(username=username, ip=ip)
+    # Old rows are only clutter once they're outside the window; drop them as we go.
+    DataRoomLoginAttempt.objects.filter(at__lt=timezone.now() - timedelta(seconds=FAILURE_WINDOW)).delete()
 
 
 def cleared(username, ip):
-    cache.delete_many(_keys(username, ip))
+    """A right password clears the account's and the address's strikes."""
+    username, ip = _who(username, ip)
+    q = Q()
+    if username:
+        q |= Q(username=username)
+    if ip:
+        q |= Q(ip=ip)
+    if q:
+        DataRoomLoginAttempt.objects.filter(q).delete()
 
 
 def log(room, member, page, opportunity=None, file=None):
