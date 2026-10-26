@@ -1969,6 +1969,6 @@ Branch `mail-api-reader`, migration `0062_mailbox_pending_ids`. Still nothing ne
 - **Tests:** `crm/tests/test_gmail_api.py` (17, Gmail faked), including the same two emails read by IMAP and then
   the API giving the same two timeline rows and thread id.
 - **Merged and migrated 2026-10-26** (PR #5, `3b32a33`). The 9:17 sync switched Kellen's mailbox to `gmail_api`:
-  it read the 10 messages since Oct 25 (3 newsletters and 5 unknown or ignored senders skipped, the rest already
-  known), took Gmail's marker, empty queue, no error, Gmail timeline rows unchanged at 27,413, no alerts (a back-read
+  it read the 10 messages since Oct 25 (3 newsletters and 5 unknown or ignored senders skipped, 2 with no outside
+  address), took Gmail's marker, empty queue, no error, Gmail timeline rows unchanged at 27,413, no alerts (a back-read
   never alerts). To go back: turn Mail off (IMAP resumes from its last UID).
