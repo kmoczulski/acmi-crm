@@ -148,8 +148,11 @@ the Gmail API with per-person sign-in (`gmail.modify`, Internal app so no Google
 (Kellen: "it shouldn't be required"). Design, build order and Kellen's
 questions are in `docs/EMAIL_CLIENT.md`. Kellen took all nine recommended answers and added a long-thread reading
 pane (newest first, one attachments panel with versions grouped, outline, find in thread; step 3b). PRs #1 and #2 merged 2026-10-25.
-**Step 1 (`mail-connect`) built** on branch `mail-connect` (migration `0061_mail_connect`, not merged yet): see
-"Built 2026-10-25: mail-connect" at the end of this file.
+**Step 1 (`mail-connect`) merged 2026-10-25** (PR #4, `eb7ca51`, CI green) and **migrated on the real database**
+(backup `backups/db-2026-10-25-before-mail-connect.sqlite3`). `ACMI_TOKEN_KEY` is in `.env` (generated, never printed;
+`.env` backed up first to `backups/env-2026-10-25-before-token-key.bak`), so the stored Google token is now
+encrypted. **Kellen: copy the key into the password manager.** Mail can't be turned on until Google is set up (the
+"Before Mail can be turned on" list in "Built 2026-10-25: mail-connect"). Next: step 2, `mail-api-reader`.
 
 **Next, in order**
 1. **Granola (time-sensitive: Granola only keeps 30 days).**
@@ -206,7 +209,8 @@ pane (newest first, one attachments panel with versions grouped, outline, find i
 - Pick a restricted shared-drive folder for `ACMI_TRANSCRIPT_DIR`. Transcripts can hold NDA material, and Maryland
   needs all-party consent to record.
 - Set a retention rule for `backups/`: 32 full copies, about 15 GB (2026-10-21).
-- Change the Gmail app password, turn on device encryption on the laptop, and encrypt the Google tokens at rest.
+- Change the Gmail app password and turn on device encryption on the laptop. (Google tokens are encrypted at rest
+  since 2026-10-25; copy `ACMI_TOKEN_KEY` from `.env` into the password manager.)
 - Turn billing on in Google Cloud so the app can be deployed.
 - Read the built-in landowner letters (`BUILTINS` in `crm/land/letters.py`) before the first mailing. They describe
   ACMI as developing "industrial campuses for advanced manufacturing companies" and don't name defense or
@@ -1926,5 +1930,8 @@ step is the switch, the permission and the safety around them.
   admin confirms acmiproperties.com is in the same Workspace and the hub's client is allowed under Security › API
   controls. Then put `ACMI_TOKEN_KEY` in `.env` (Claude can generate it without printing it; keep a copy in the
   password manager).
-- **Merging on the laptop:** back up, merge, set `ACMI_TOKEN_KEY` *before* `migrate` (or run `encrypt_tokens` after),
-  then `manage.py migrate crm`. Without the key nothing changes for anyone: Mail just stays unavailable.
+- **Merged and migrated 2026-10-25** (PR #4, `eb7ca51`): key set in `.env` first, then backup
+  `backups/db-2026-10-25-before-mail-connect.sqlite3`, fast-forward, `migrate crm`. The one stored Google token
+  (Kellen's calendar) is encrypted (`enc1:`) and decrypts; mailboxes stay on IMAP; no one has Mail on yet.
+  **If the key is ever lost,** tokens read as empty and people reconnect Google; nothing else breaks.
+  The 22:47 scheduled sync ran clean on the encrypted token (mail caught up, calendar 366 meetings).
