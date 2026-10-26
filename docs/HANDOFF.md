@@ -159,7 +159,8 @@ API** (first run 9:17: 10 messages, no error, no duplicates). **Step 3 (`mail-in
 see "Built 2026-10-26: mail-inbox" at the end of this file (merged `a6bd5e9`, migrated, backup
 `backups/db-2026-10-26-before-mail-inbox.sqlite3`). **Step 3b (`mail-long-threads`) merged 2026-10-26** (PR #7, `aadf190`,
 no migration): "Built 2026-10-26: mail-long-threads". The 10:17 sync finished the inbox fill (303 inbox threads
-indexed, no error) and sent 6 new-mail alerts. **Step 4 (`mail-actions`)**: "Built 2026-10-26: mail-actions". Next: step 5,
+indexed, no error) and sent 6 new-mail alerts. **Step 4 (`mail-actions`) merged 2026-10-26** (PR #8, `bf602f0`, migrated, backup
+`backups/db-2026-10-26-before-mail-actions.sqlite3`): "Built 2026-10-26: mail-actions". Next: step 5,
 compose and reply (Kellen, 2026-10-26: "I can't respond to an email?").
 
 **Next, in order**
