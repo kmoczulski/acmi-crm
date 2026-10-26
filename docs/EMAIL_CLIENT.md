@@ -87,6 +87,64 @@ reading pane works differently:
 - Gmail itself starts a new thread after 100 messages, often with the same subject. The hub notices a thread with
   the same subject and the same people and links it with "Earlier part of this conversation".
 
+### Your Gmail labels and filters (Kellen: "if I have tags and filters set up on my gmail will that carry over?")
+
+Yes. The hub isn't a copy of your mailbox: it's another window onto it.
+- **Labels carry over, both ways.** Every label you have in Gmail shows in the hub's folder pane, nested the same
+  way and with the same colours. A label you add or remove in the hub shows in Gmail on your phone a moment later,
+  and the other way round. The same goes for Gmail's own tabs (Primary, Promotions, Updates), stars and Important.
+- **Filters keep working, because Gmail runs them.** A filter acts the moment mail arrives, before the hub sees it.
+  Mail your filters label, archive or star turns up in the hub already labelled, archived or starred.
+- **What the hub doesn't do is edit filters.** Creating or changing a filter needs a separate Gmail settings
+  permission, which isn't worth asking for. Filters stay in Gmail's settings, where they are today. An **Open in
+  Gmail** link takes you to the thread in Gmail, where More › Filter messages like these sets one up.
+
+### CRM labels on your mail (Kellen: "the emails should be tagged with company or project labels as it makes sense")
+
+Every thread gets **record chips** in the hub: the company, deal, project or campus, lender or directory firm it's
+about. They come from the same matching the timeline sync already does (sender's domain, the people on the thread,
+project keywords like "MBI B101", and anything you filed by hand).
+
+The same tags also become **real Gmail labels**, so they show in Gmail on your phone and work in Gmail search
+(`label:acmi-meih`). They're nested under one parent so they don't mix with your own labels:
+
+```
+ACMI/
+  Projects/MEIH            ACMI/Projects/The Forge          (every campus and project)
+  Tenants/Firehawk Aerospace                                (companies with an open deal, or a thread you filed)
+  Capital/Shore United Bank                                 (lenders and investors)
+  Directory/Cozen O'Connor                                  (consultants, lawyers, vendors you filed)
+```
+
+- **Only where it makes sense.** Campuses and projects always get a label (a few dozen). Companies get one only when
+  they have an open tenant deal, or once you file a thread to them. Labelling all 1,769 companies would bury your
+  own labels.
+- **Hands-off for Gmail's own rules.** The hub adds these labels to threads as the sync matches them, for the last
+  90 days and going forward. If you take a CRM label off a thread in Gmail, the hub reads that as "not about this"
+  and doesn't put it back.
+- **Renames follow.** Renaming a company or project in the hub renames its label in Gmail.
+- **Your switch.** In Mail in the hub, **Add CRM labels in Gmail** is on by default and can be switched off on its
+  own. The chips in the hub stay either way.
+- The same labels, read the other way: putting a thread under `ACMI/Projects/MEIH` in Gmail on your phone files it
+  to MEIH in the hub, just like **File to…**.
+
+### Ideas taken from other email clients (Kellen: "anything from other top email clients that should inspire us?")
+
+| Idea | From | What it is in the hub | Step |
+|---|---|---|---|
+| **Split inbox** | Superhuman | Tabs above the list: **Tenants**, **Projects**, **Capital & directory**, **Everything else**, built from the CRM chips. The deal mail no longer sits between newsletters. | 3 |
+| **Thread summary** | Shortwave, Gemini in Gmail | A **Summarize** button at the top of a long thread: where it stands, open asks and who owes what, and the latest version of each document, with Claude citing the messages. Only when you click (it sends that thread's text to Anthropic, like the hub's other Claude features). | 3b |
+| **Files view** | Outlook | Every attachment in your mailbox in one searchable list, filterable by company or project ("every PSA redline for The Forge"), using the same version grouping as a thread. | 3b |
+| **Snooze** | Gmail, Superhuman | "Back at 8am Monday": the thread leaves the inbox and comes back on time. It uses a Gmail label, so it's snoozed on the phone too. | 4 |
+| **Remind me if no reply** | Superhuman, Gmail nudges | When sending: "remind me in 3 days if they don't answer". If nobody replies, it shows in My day and sets the deal's ball in their court. | 5 |
+| **Comments and assign** | Front, Missive | A private team note on a thread ("Simon, can you take the survey questions?") with @mentions, using the hub's existing comments and bell. Only teammates you mention, or who can already see the thread, see it. | 6 |
+| **Screener** | HEY | Already there: Mail review is a screener for unknown senders. The inbox shows a "New sender" tag that links to it. | 3 |
+| **Send later** | Spark, Gmail | Wait for hosting. Gmail's API has no scheduled send, so the hub would have to stay awake to send it, and a sleeping laptop would miss it. | 9 |
+
+Not taken: read receipts and open tracking (the hub blocks other people's tracking pixels, so it won't add its own),
+an AI that writes or sends replies on its own, and Outlook's "Focused" sorting (Gmail's tabs and the split inbox
+already do that job).
+
 ---
 
 ## 2. How it connects to Gmail
@@ -283,17 +341,20 @@ needs `team_users()` and the Partners group from #2, so step 1 waits for #2 to m
    `process_messages`, hex-to-decimal thread ids, the switch-over back-read, IMAP kept for anyone not switched. Proof
    on a scratch copy that switching logs nothing twice.
 3. **`mail-inbox`** (read only): labels, the thread list from the private index, the reading pane (cleaned, sandboxed,
-   images blocked), Gmail search, attachment download, record chips, the phone layout and its width test. Migration
-   0061 (the index).
+   images blocked), Gmail search, attachment download, record chips, the split inbox (Tenants / Projects / Capital &
+   directory / Everything else), the "New sender" tag, the phone layout and its width test. Migration 0061 (the
+   index).
    **3b. `mail-long-threads`**: the long-thread reading pane from section 1: newest message first, the attachments
    panel with versions grouped and noise hidden, the outline with person and attachment filters, find in thread, jump
-   to latest, and "Earlier part of this conversation". Tested on an 80-plus-message thread of made-up mail.
-4. **`mail-actions`**: archive, read / unread, star, labels and move, Trash.
+   to latest, and "Earlier part of this conversation". Tested on an 80-plus-message thread of made-up mail. Also
+   **Summarize** (Claude, on click) and the **Files** view across the whole mailbox.
+4. **`mail-actions`**: archive, read / unread, star, labels and move, Trash, snooze.
 5. **`mail-compose`**: new message, reply, reply all, forward with attachments, Gmail drafts, templates, signature,
-   undo send, immediate timeline logging. **Email** buttons on person and company pages open compose with the address
+   undo send, remind me if no reply, immediate timeline logging. **Email** buttons on person and company pages open compose with the address
    filled in.
 6. **`mail-filing`**: File to company / deal / project / directory firm / lender, the manual project link, Mail review
-   hand-off for unknown domains, and **Open in Mail** from timelines. Migration 0062.
+   hand-off for unknown domains, **Open in Mail** from timelines, **CRM labels in Gmail** (`ACMI/…`, both ways, with
+   its own switch), and team comments on a thread. Migration 0062.
 7. **`mail-shared`**: shared mailboxes, grants, access log. Migration 0063.
 8. **`mail-outreach-api`**: outreach batches, test sends, the weekly report, the campus email and the news-review
    drafts move to the Gmail API. Then the app password can be revoked.
@@ -321,6 +382,13 @@ Steps 1 to 3 give a working read-only inbox. Each later step stands on its own.
 7. **Block images in email until you click Show images?** Recommended: yes.
 8. **No permanent delete from the hub, Trash only?** Recommended: yes.
 9. **Once you're on the API, move outreach sending to it too and retire the app password (step 8)?** Recommended: yes.
+
+### Added 2026-10-25, after the first answers (recommended answer first)
+
+10. **Put the CRM tags on your mail as real Gmail labels under `ACMI/`, on by default with its own off switch?**
+    Recommended: yes. Campuses and projects always; companies only with an open deal or once filed.
+11. **Build the ideas in the table in section 1 (split inbox, Summarize, Files view, snooze, remind if no reply,
+    team comments), each in the step shown?** Recommended: yes. Send later waits for hosting.
 
 ### Access needed
 
