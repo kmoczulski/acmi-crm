@@ -225,7 +225,8 @@ the redirect URI has to be added in Google Cloud first. **Step 8
 - Pick a restricted shared-drive folder for `ACMI_TRANSCRIPT_DIR`. Transcripts can hold NDA material, and Maryland
   needs all-party consent to record.
 - Set a retention rule for `backups/`: 32 full copies, about 15 GB (2026-10-21).
-- Change the Gmail app password and turn on device encryption on the laptop. (Google tokens are encrypted at rest
+- Delete the old Gmail app password in Google Account › Security › App passwords (it's out of the hub's `.env` since
+  2026-10-26), and turn on device encryption on the laptop. (Google tokens are encrypted at rest
   since 2026-10-25; copy `ACMI_TOKEN_KEY` from `.env` into the password manager.)
 - Turn billing on in Google Cloud so the app can be deployed.
 - Read the built-in landowner letters (`BUILTINS` in `crm/land/letters.py`) before the first mailing. They describe
@@ -2212,7 +2213,12 @@ Branch `mail-outreach-api`, no migration. `crm/mail/outbound.py`.
   through the Gmail API for the person's own mailbox with Mail on; IMAP otherwise (including the old fallback to
   another person's mailbox, which never goes through anyone else's Google permission).
 - **Tests:** `crm/tests/test_outreach_api.py` (8, SMTP patched to fail if it's touched); 700 pass.
-- **Retiring the app password (Kellen, once you're happy):** everyone who sends outreach or reports turns Mail on
+- **App password retired 2026-10-26** (Kellen: "remove the ACMI_IMAP_PASSWORD line"): the
+  `ACMI_IMAP_PASSWORD_KELLEN` line is out of `.env` (backup `backups/env-2026-10-26-before-app-password-removal.bak`,
+  which still holds it: delete that backup once the password is revoked in Google). The 14:47 sync ran clean through
+  the Gmail API. Kellen deletes the app password itself in his Google account. The old scripts in
+  `Desktop/Prospecting` (retired) carried it in plain text too and stop working once it's revoked.
+- **Retiring the app password, as it was planned:** everyone who sends outreach or reports turns Mail on
   first (today that's Kellen, already on). Then: Google Account › Security › App passwords › remove the hub's; and
   delete the `ACMI_IMAP_PASSWORD_KELLEN` line from `.env` (Claude can do that part). Anyone without Mail on would
   then fall back to IMAP and fail, with a message saying so.
