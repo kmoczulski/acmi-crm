@@ -82,7 +82,26 @@ class CompanyPageTests(TestCase):
         self.assertContains(r, 'data-add-widget="feed" disabled')
         self.assertEqual(self.client.get(reverse("crm:home")).context["layout"][0]["id"], "kpis")  # untouched
         self.client.post(reverse("crm:prefs_save"), {"key": "company", "value": "null"})
-        self.assertEqual(len(self.client.get(self.url).context["grid"]["layout"]), 11)
+        self.assertEqual(len(self.client.get(self.url).context["grid"]["layout"]), 12)
+
+    def test_the_overview_widget_leads_the_page_and_formats_the_description(self):
+        """Kellen, 2026-10-26: "the company overview section should be more apparent and have proper formatting"."""
+        self.co.description = "Employee-owned since 1979.\n\n# What they do\n- Energetics research\n- **Blast** modelling"
+        self.co.website, self.co.hq_location, self.co.categories = "https://www.acme.test", "Huntsville, AL", ["R&D"]
+        self.co.save()
+        r = self.client.get(self.url)
+        self.assertEqual([w["id"] for w in r.context["grid"]["layout"]][:2], ["facts", "overview"])
+        html = r.content.decode().split('data-widget="overview"', 1)[1].split('data-widget="feed"', 1)[0]
+        self.assertIn("<p>Employee-owned since 1979.</p>", html)
+        self.assertIn("<h4>What they do</h4>", html)
+        self.assertIn("<li><strong>Blast</strong> modelling</li>", html)
+        for text in ("acme.test", "Huntsville, AL", "R&amp;D"):
+            self.assertIn(text, html)
+        self.assertEqual(r.content.decode().count('id="edit-dialog"'), 1)  # one dialog, opened from any widget
+        self.co.description = ""
+        self.co.save()
+        self.assertContains(self.client.get(self.url), "No description yet")
+        self.assertContains(self.client.get(self.url, {"tab": "people"}), "<dt>Description</dt>", count=0)
 
     def test_the_other_tabs_keep_the_details_column(self):
         r = self.client.get(self.url, {"tab": "people"})

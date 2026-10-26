@@ -1,6 +1,6 @@
 {% load crm_tags %}
 <div class="panel ai-summary">
-  <h3>AI summary
+  <h3{% if no_title %} class="widget-link"{% endif %}>{% if not no_title %}AI summary{% endif %}
     {% if ai_enabled %}
     <form method="post" action="{% url 'crm:summary_refresh' record_field record.pk %}" style="float:right;margin:0" onsubmit="this.querySelector('button').textContent='Writing…';this.querySelector('button').disabled=true">{% csrf_token %}
       <input type="hidden" name="next" value="{{ request.get_full_path }}">

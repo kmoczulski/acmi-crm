@@ -60,6 +60,8 @@ HEADLESS = {"week", "critical"}
 # like the dashboard"). One layout per person, for every company.
 COMPANY_WIDGETS = {
     "facts": ("At a glance", 12, 0, "Stage, owner, last touch, next meeting, fit and campus interest."),
+    "overview": ("Overview", 8, 0, "What the company is, in its own words: the description, with sector, HQ, website "
+                                   "and LinkedIn, and its categories and flags."),
     "feed": ("Activity", 8, 0, "Comments, notes, meeting notes and email in one list, newest first."),
     "details": ("Details", 4, 0, "The record itself: sector, website, domains, flags. Edit it here."),
     "meetings": ("Meetings", 8, 0, "The next meeting and the last three, with their notes and action items."),

@@ -22,6 +22,7 @@
   <a href="{% qs_set tab='sites' bg='' tpage='' mpage='' kind='' %}" class="{% if tab == 'sites' %}active{% endif %}">Site searches <span class="count">{{ land_searches|length }}</span></a>
   {% if tab == 'overview' %}<span class="spacer"></span><button type="button" class="btn btn-small co-customize" data-customize data-label="Customize page">{% if grid.customize %}Done customizing{% else %}Customize page{% endif %}</button>{% endif %}
 </nav>
+{% include "crm/partials/edit_dialog.html" with title="company" %}{# opened by Edit in the Overview and Details widgets, or the side column #}
 
 {% if tab == 'overview' %}
 {% include "crm/partials/widget_grid.html" %}

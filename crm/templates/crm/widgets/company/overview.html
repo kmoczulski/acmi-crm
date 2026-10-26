@@ -1,0 +1,22 @@
+{% load crm_tags %}
+{% comment %}What the company is, in its own words: the description with light formatting (paragraphs, # headings,
+- bullets, **bold**), the essentials under it, and its categories and flags.{% endcomment %}
+<a href="#" class="widget-link" onclick="document.getElementById('edit-dialog').showModal(); return false">Edit</a>
+<div class="co-overview">
+  {% if company.sector or company.hq_location or company.website or company.linkedin %}
+  <div class="co-overview-facts">
+    {% if company.sector %}<span><span class="label">Sector</span>{{ company.sector }}</span>{% endif %}
+    {% if company.hq_location %}<span><span class="label">HQ</span>{{ company.hq_location }}</span>{% endif %}
+    {% if company.website %}<span><span class="label">Web</span><a href="{{ company.website }}" target="_blank" rel="noopener">{{ company.website|cut:"https://"|cut:"http://"|cut:"www." }}</a></span>{% endif %}
+    {% if company.linkedin %}<span><a href="{{ company.linkedin }}" target="_blank" rel="noopener">LinkedIn ↗</a></span>{% endif %}
+  </div>
+  {% endif %}
+  {% if company.description %}
+    <div class="co-overview-text">{{ company.description|prose }}</div>
+  {% else %}
+    <p class="muted" style="margin:0">No description yet. <a href="#" onclick="document.getElementById('edit-dialog').showModal(); return false">Write one</a>: what they do, where they are, and why they would come to a campus.</p>
+  {% endif %}
+  {% if company.categories or company.flags %}
+  <div class="co-overview-tags">{% for c in company.categories %}<span class="tag">{{ c }}</span>{% endfor %}{% for f in company.flags %}<span class="tag tag-flag">{{ f }}</span>{% endfor %}</div>
+  {% endif %}
+</div>

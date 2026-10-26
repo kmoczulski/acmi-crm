@@ -1,7 +1,6 @@
 {% load crm_tags %}
 <button type="button" class="btn btn-small widget-link" style="top:8px" onclick="document.getElementById('edit-dialog').showModal()">Edit</button>
 {% include "crm/partials/company_details.html" %}
-{% include "crm/partials/edit_dialog.html" with title="company" %}
 {% if IS_MANAGER %}
 <details style="margin-top:10px"><summary class="muted" style="font-size:12px;cursor:pointer">Merge another company into this one</summary>
   <form method="post" action="{% url 'crm:company_merge_into' company.pk %}" class="inline-form" style="margin-top:6px"

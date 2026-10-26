@@ -12,15 +12,19 @@ now a grid of widgets laid out per person, the dashboard's own machinery: `dashb
 `data-layout` key, `crm/prefs.py` keeps a registry per page (`LAYOUTS`: "dashboard", "company"), and the frame
 markup is one partial (`crm/partials/widget_grid.html`) with each widget's body in `crm/widgets/company/<id>.html`.
 Customize page (top right of the tabs) drags, resizes, hides, adds back and resets, saved under the "company" key
-for every company. The widgets: At a glance, Activity, Details, Meetings, Action items and tasks, Who we know, Open
-deals, Claude's summary, Files, Team connections, Boards and lists. **Activity** is the Trello-style feed
+for every company. The widgets: At a glance, Overview, Activity, Details, Meetings, Action items and tasks, Who we know,
+Open deals, Claude's summary, Files, Team connections, Boards and lists. **Overview** (Kellen: "the company overview
+section should be more apparent and have proper formatting") leads the page under At a glance: the description as
+prose (`prose` filter in `crm_tags.py`, the meeting-notes renderer: paragraphs, `#` headings, `-` bullets,
+`**bold**`), the sector, HQ, website and LinkedIn in a row above it, categories and flags under it, and an Edit link;
+the edit dialog lives once at page level so any widget can open it. **Activity** is the Trello-style feed
 (`company_page.feed`): comments, notes, meetings (with their Granola notes and action items, Make task included)
 and the conversation (email, replies, calls, stage moves) in one list, newest first, a comment box at the top, a
 fold for a note, and chips for comments and notes / meetings / email. Meetings and notes come from their own rows;
 their echoes on the activity timeline (`FEED_ECHOES`) are left out so nothing shows twice. The other tabs keep the
 two-column layout with the side panels (`team_panel.html`, `lists_panel.html` are shared). Also fixed on the way:
 "+ Add widget" on the dashboard did nothing while the URL already carried `?customize=1` (a `#widgets`-only
-change is a fragment jump, not a reload). 729 tests green. Person and deal pages still have the old
+change is a fragment jump, not a reload). 730 tests green. Person and deal pages still have the old
 notes and comments panels; the same feed would fit them next.
 
 **Code review and audit of the week's changes 2026-10-26** (Kellen: "review the changes made since 10/21, audit and

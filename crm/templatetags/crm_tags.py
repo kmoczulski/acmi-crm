@@ -223,6 +223,15 @@ def mentions(text):
 
 
 @register.filter
+def prose(text):
+    """Plain text with light markdown (blank-line paragraphs, # headings, - bullets, **bold**) as safe HTML: the
+    company description and other written fields."""
+    from crm.meetings import render_markdown
+
+    return render_markdown(text or "")
+
+
+@register.filter
 def clean_html(html):
     """Mail HTML made safe to show: rebuilt with formatting tags and safe links only (drafts saved before the
     parser-based cleaner existed are cleaned again here)."""
