@@ -162,7 +162,9 @@ no migration): "Built 2026-10-26: mail-long-threads". The 10:17 sync finished th
 indexed, no error) and sent 6 new-mail alerts. **Step 4 (`mail-actions`) merged 2026-10-26** (PR #8, `bf602f0`, migrated, backup
 `backups/db-2026-10-26-before-mail-actions.sqlite3`): "Built 2026-10-26: mail-actions". **Step 5
 (`mail-compose`) merged 2026-10-26** (PR #9, `ca4bb4f`, no migration): "Built 2026-10-26: mail-compose" (Kellen, 2026-10-26: "I can't respond to an email?"). **Inline reply and the
-Gmail signature** merged (PR #10). **Step 6 (`mail-filing`)**: "Built 2026-10-26: mail-filing". Left in
+Gmail signature** merged (PR #10). **Step 6 (`mail-filing`) merged 2026-10-26** (PR #11, `b5cd494`, migrated,
+backup `backups/db-2026-10-26-before-mail-filing.sqlite3`): "Built 2026-10-26: mail-filing". The 11:47 sync put CRM
+labels on 24 of Kellen's threads (12 labels, e.g. ACMI/Projects/MEIH, ACMI/Tenants/RTX; no error). Left in
 `docs/EMAIL_CLIENT.md`: step 7 shared mailboxes, step 8 outreach on the Gmail API, step 9 hosting.
 
 **Next, in order**
