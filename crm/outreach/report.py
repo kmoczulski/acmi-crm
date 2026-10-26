@@ -173,7 +173,10 @@ def send(report, user, recipients):
     """Email the report from the user's Gmail."""
     from crm.models import Mailbox, OutreachSettings
 
-    from .sender import Smtp, SendError, build_message
+    from crm.mail.imap import MailboxError
+    from crm.mail.outbound import outbound
+
+    from .sender import SendError, build_message
 
     mailbox = Mailbox.objects.filter(user=user).first()
     if mailbox is None:
@@ -184,5 +187,8 @@ def send(report, user, recipients):
     plain = (f"Weekly outreach report {report['start']:%b %d}–{report['end']:%b %d}: {report['emails']} emails "
              f"to {report['companies']} companies; response rate {report['response_rate']}%.")
     msg = build_message(mailbox, ", ".join(recipients), subject, html_body, plain, [], settings)
-    with Smtp(mailbox) as smtp:
-        smtp.send(msg)
+    try:
+        with outbound(mailbox) as smtp:
+            smtp.send(msg)
+    except MailboxError as exc:
+        raise SendError(str(exc)) from exc

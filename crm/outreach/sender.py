@@ -1,4 +1,5 @@
-"""Compose and send outreach email over Gmail SMTP with the sender's app password.
+"""Compose and send outreach email from the sender's Gmail: through the Gmail API when their Mail in the hub is on
+(crm/mail/outbound.py), otherwise over SMTP with their app password.
 
 Each email gets a Message-ID and is written to the timeline straight away, keyed
 the same way the Gmail sync keys it, so the sync later recognises the email (and
@@ -12,11 +13,15 @@ from datetime import timedelta
 from email.message import EmailMessage
 from email.utils import formataddr, make_msgid
 
+import requests
 from django.conf import settings as django_settings
 from django.db.models import Max
 from django.utils import timezone
 
 from crm import interactions
+from crm.mail.gmail_api import UnconfirmedSend
+from crm.mail.imap import MailboxError
+from crm.mail.outbound import outbound
 from crm.models import Activity, Mailbox, OutreachSettings, SendBatch, SendItem, suppress_history
 
 SMTP_HOST = "smtp.gmail.com"
@@ -116,8 +121,11 @@ class Smtp:
             pass
 
 
-def log_sent(item, msg, subject, user):
-    """Timeline entry for a sent email, keyed exactly as the Gmail sync would key it."""
+def log_sent(item, msg, subject, user, thread_id=""):
+    """Timeline entry for a sent email, keyed exactly as the Gmail sync would key it. thread_id: Gmail's (hex), when
+    it went through the Gmail API."""
+    from crm.mail.gmail_api import decimal_thread_id
+
     person = item.person
     company = person.company if person else None
     key = f"gmail:{msg['Message-ID']}|c{company.pk}" if company else f"gmail:{msg['Message-ID']}|p{person.pk}"
@@ -126,7 +134,7 @@ def log_sent(item, msg, subject, user):
         defaults={
             "occurred_at": timezone.now(), "kind": Activity.Kind.EMAIL_SENT, "actor": user, "company": company,
             "person": person, "summary": f"Email to {person.full_name or person.email}: {subject}"[:500],
-            "campaign": item.batch.campaign, "message_id": msg["Message-ID"],
+            "campaign": item.batch.campaign, "message_id": msg["Message-ID"], "thread_id": decimal_thread_id(thread_id),
             "context": Activity.Context.PROSPECTING, "outcome": "No Reply",
         },
     )
@@ -145,8 +153,13 @@ def send_test(user, template, person, to_addr):
     subject, body_html, plain = compose(template, person, greeting_for(person), settings)
     msg = build_message(mailbox, to_addr, f"[TEST] {subject}", body_html, plain,
                         template_files(template), settings)
-    with Smtp(mailbox) as smtp:
-        smtp.send(msg)
+    from crm.mail.imap import MailboxError
+
+    try:
+        with outbound(mailbox) as smtp:
+            smtp.send(msg)
+    except MailboxError as exc:
+        raise SendError(str(exc)) from exc
 
 
 def run_batch(batch_id, sleep=time.sleep, resume=False):
@@ -175,7 +188,7 @@ def run_batch(batch_id, sleep=time.sleep, resume=False):
         own_files = {}  # each template's PDF, read before anything is sent so a missing one fails the batch up front
         for tpl in {i.template for i in batch.items.filter(status=SendItem.Status.PENDING).select_related("template") if i.template}:
             own_files[tpl.pk] = template_files(tpl)
-        with Smtp(mailbox) as smtp:
+        with outbound(mailbox) as smtp:
             for item in batch.items.filter(status=SendItem.Status.PENDING).select_related("person__company", "template"):
                 batch.refresh_from_db(fields=["stop_requested"])
                 if batch.stop_requested:
@@ -192,8 +205,18 @@ def run_batch(batch_id, sleep=time.sleep, resume=False):
                 msg = build_message(mailbox, item.email, subject, body_html, plain,
                                      own_files.get(item.template_id, []), settings)
                 try:
-                    smtp.send(msg)
-                except (smtplib.SMTPException, OSError) as exc:
+                    result = smtp.send(msg)
+                except UnconfirmedSend as exc:
+                    # Gmail failed on its side: it may have gone. Leave it 'sending (unconfirmed)' and stop the batch,
+                    # so nobody gets it twice.
+                    item.error = str(exc)[:1000]
+                    item.save(update_fields=["error"])
+                    raise SendError(f"Stopped at {item.email}: {exc}") from exc
+                except MailboxError as exc:  # the Gmail permission is gone: nothing else will send either
+                    item.status, item.error = SendItem.Status.FAILED, str(exc)[:1000]
+                    item.save(update_fields=["status", "error"])
+                    raise SendError(str(exc)) from exc
+                except (smtplib.SMTPException, OSError, requests.RequestException) as exc:
                     item.status, item.error = SendItem.Status.FAILED, str(exc)[:1000]
                     item.save(update_fields=["status", "error"])
                     continue
@@ -201,7 +224,7 @@ def run_batch(batch_id, sleep=time.sleep, resume=False):
                 item.save(update_fields=["status", "message_id", "sent_at"])
                 token = suppress_history.set(True)
                 try:
-                    log_sent(item, msg, subject, user)
+                    log_sent(item, msg, subject, user, thread_id=(result or {}).get("threadId", ""))
                 finally:
                     suppress_history.reset(token)
                 person_ids.append(item.person_id)

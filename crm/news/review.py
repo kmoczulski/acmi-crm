@@ -112,7 +112,7 @@ def check_drafts(scan, user):
         scan.save(update_fields=["drafts_error"])
         return
     try:
-        with gmail_drafts.Drafts(mailbox) as box:
+        with gmail_drafts.open_drafts(mailbox, user) as box:
             found = box.list()
     except (gmail_drafts.DraftError, OSError) as exc:
         scan.drafts_error = str(exc)
@@ -254,7 +254,7 @@ def apply(scan, user):
     mailbox = mailbox_for(user)
     if mailbox and (plan["draft_saves"] or plan["trash"]):
         try:
-            with gmail_drafts.Drafts(mailbox) as box:
+            with gmail_drafts.open_drafts(mailbox, user) as box:
                 for item in plan["draft_saves"]:
                     try:
                         new_uid = box.update(item.draft_uid, item.edit_to, item.edit_subject, item.edit_html,

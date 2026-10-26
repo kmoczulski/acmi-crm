@@ -167,8 +167,8 @@ backup `backups/db-2026-10-26-before-mail-filing.sqlite3`): "Built 2026-10-26: m
 labels on 24 of Kellen's threads (12 labels, e.g. ACMI/Projects/MEIH, ACMI/Tenants/RTX; no error). **Step 7
 (`mail-shared`) merged 2026-10-26** (PR #12, `90f077f`, migrated, backup
 `backups/db-2026-10-26-before-mail-shared.sqlite3`): "Built 2026-10-26: mail-shared". No shared mailbox connected yet:
-the redirect URI has to be added in Google Cloud first. Left in `docs/EMAIL_CLIENT.md`: step 8 outreach on the Gmail
-API, step 9 hosting.
+the redirect URI has to be added in Google Cloud first. **Step 8
+(`mail-outreach-api`)**: "Built 2026-10-26: mail-outreach-api". Left: step 9, hosting (billing).
 
 **Next, in order**
 1. **Granola (time-sensitive: Granola only keeps 30 days).**
@@ -2193,3 +2193,26 @@ Branch `mail-shared`, migration `0066_shared_mailboxes`. `crm/mail/shared.py`.
   `http://localhost:8000/mail-setup/shared/connected/` to **Authorized redirect URIs** (and the hub.acmigroup.com one
   when hosted). The shared address must be a real Workspace account (a Google Group isn't a mailbox), and whoever
   connects it needs its password.
+
+
+## Built 2026-10-26: mail-outreach-api (email client step 8; Kellen: "Yes, start step 8 … merge when green")
+
+Branch `mail-outreach-api`, no migration. `crm/mail/outbound.py`.
+
+- **One way out:** `outbound(mailbox)` is the Gmail API (`GmailOutbound`) when the sender's Mail in the hub is on for
+  their own address (or it's a shared mailbox), and the old `Smtp` with the app password otherwise. Outreach batches
+  (`run_batch`), test sends, the weekly outreach report and campus updates all use it.
+- **Gmail's own Message-ID:** after each API send the hub reads back the Message-ID Gmail really sent with
+  (`GmailClient.sent_message_id`) and logs that, so the timeline key matches what the sync reads later (also for
+  compose). Outreach entries now carry the Gmail thread id too.
+- **Never twice:** a Gmail server error while sending isn't retried (`UnconfirmedSend`); in a batch that email stays
+  "sending (unconfirmed)" and the batch stops, so nobody gets it twice. A lost permission fails the batch with "Turn
+  on Mail again".
+- **News review drafts** (`crm/news/drafts.py ApiDrafts`, `open_drafts`): list, edit in place and move to Trash
+  through the Gmail API for the person's own mailbox with Mail on; IMAP otherwise (including the old fallback to
+  another person's mailbox, which never goes through anyone else's Google permission).
+- **Tests:** `crm/tests/test_outreach_api.py` (8, SMTP patched to fail if it's touched); 700 pass.
+- **Retiring the app password (Kellen, once you're happy):** everyone who sends outreach or reports turns Mail on
+  first (today that's Kellen, already on). Then: Google Account › Security › App passwords › remove the hub's; and
+  delete the `ACMI_IMAP_PASSWORD_KELLEN` line from `.env` (Claude can do that part). Anyone without Mail on would
+  then fall back to IMAP and fail, with a message saying so.

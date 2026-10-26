@@ -46,6 +46,10 @@ class NotFound(Exception):
     pass
 
 
+class UnconfirmedSend(MailboxError):
+    """Gmail failed on its side while sending: the email may or may not have gone. Never retried."""
+
+
 class HistoryExpired(Exception):
     """Gmail keeps its change history for about a week; older markers have to be re-read by date."""
 
@@ -148,7 +152,7 @@ class GmailClient:
             slow_down = r.status_code == 429 or (r.status_code == 403 and _rate_limited(r))
             busy = slow_down or (resend and r.status_code in (500, 502, 503, 504))
             if not resend and r.status_code in (500, 502, 503, 504):
-                raise MailboxError("Gmail had a problem sending. Check your Sent folder before you send it again.")
+                raise UnconfirmedSend("Gmail had a problem sending. Check your Sent folder before you send it again.")
             if busy and attempt < RETRIES:
                 time.sleep(2 * (attempt + 1))  # Gmail's per-second limit, or a hiccup: wait and try again
                 continue
@@ -169,6 +173,29 @@ class GmailClient:
         {id, threadId, labelIds}."""
         return self._request("upload", "/messages/send?uploadType=multipart", resend=False,
                              **_multipart({"threadId": thread_id} if thread_id else {}, raw))
+
+    def sent_message_id(self, result, fallback=""):
+        """The Message-ID Gmail actually sent with (it can replace the one we wrote), so the timeline's key matches
+        what the sync will read later."""
+        try:
+            data = self.get(f"/messages/{result['id']}", {"format": "metadata", "metadataHeaders": ["Message-ID"]})
+        except Exception:  # the email went; our own id is the best guess
+            return fallback
+        for h in (data.get("payload") or {}).get("headers", []):
+            if h["name"].lower() == "message-id":
+                return h["value"].strip()
+        return fallback
+
+    # Drafts, as the news review uses them (crm/news/drafts.py ApiDrafts)
+
+    def drafts(self, limit=100):
+        return self.get("/drafts", {"maxResults": limit}).get("drafts", [])
+
+    def draft(self, draft_id):
+        return self.get(f"/drafts/{draft_id}", {"format": "full"})
+
+    def trash_message(self, message_id):
+        return self.post(f"/messages/{message_id}/trash")
 
     def save_draft(self, raw, draft_id="", thread_id=""):
         """Create or update a draft (text only: attachments go on when it's sent)."""

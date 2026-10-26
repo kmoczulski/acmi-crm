@@ -1,7 +1,8 @@
 """Gmail drafts for the news review: list, match to scan entries, edit, trash.
 
 Ported from Desktop/Prospecting/news_review/gmail_client.py. Uses the CRM
-mailbox's app password. Drafts are moved to Trash, never permanently deleted.
+mailbox's app password, or through the Gmail API when the person's Mail in the hub is on (ApiDrafts). Drafts are
+moved to Trash, never permanently deleted.
 """
 import email
 import imaplib
@@ -377,3 +378,108 @@ class Drafts:
             results[uid] = "trashed"
         self.conn.expunge()
         return results
+
+# ------------------------------------------------------------------ Gmail API (Mail in the hub on)
+
+class ApiDrafts:
+    """The same as Drafts, through the Gmail API with the person's own Google permission (no app password). A
+    draft's "uid" is Gmail's draft id; an edit keeps it; trashing moves the draft's message to Trash."""
+
+    def __init__(self, mailbox, session=None):
+        self.mailbox, self.session, self.client = mailbox, session, None
+
+    def __enter__(self):
+        from crm.mail.gmail_api import client_for
+        from crm.mail.imap import MailboxError
+
+        try:
+            self.client = client_for(self.mailbox, session=self.session)
+        except MailboxError as exc:
+            raise DraftError(str(exc)) from exc
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+    def list(self, limit=DRAFT_LIMIT):
+        from crm.mail.imap import MailboxError
+
+        try:
+            return self._list(limit)
+        except MailboxError as exc:
+            raise DraftError(str(exc)) from exc
+
+    def _list(self, limit):
+        import base64
+
+        drafts = []
+        for row in self.client.drafts(limit=limit):
+            data = self.client.draft(row["id"])
+            msg_json = data.get("message") or {}
+            too_large = int(msg_json.get("sizeEstimate") or 0) > MAX_INLINE_BYTES
+            headers = {h["name"].lower(): h["value"] for h in (msg_json.get("payload") or {}).get("headers", [])}
+            text_body = html_body = ""
+            if not too_large:
+                for part in _api_parts(msg_json.get("payload") or {}):
+                    mime, body = part.get("mimeType", ""), (part.get("body") or {}).get("data", "")
+                    if part.get("filename") or not body or mime not in ("text/plain", "text/html"):
+                        continue
+                    text = base64.urlsafe_b64decode(body + "=" * (-len(body) % 4)).decode("utf-8", "replace")
+                    if mime == "text/plain" and not text_body:
+                        text_body = text
+                    elif mime == "text/html" and not html_body:
+                        html_body = text
+            editable = sanitize_html(html_body) or text_to_html(text_body)
+            snippet = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", html_body or text_body)).strip()[:400]
+            drafts.append({
+                "uid": row["id"], "subject": headers.get("subject", ""), "to": headers.get("to", ""),
+                "cc": headers.get("cc", ""), "html": editable, "snippet": snippet, "too_large": too_large,
+            })
+        return drafts
+
+    def update(self, uid, to, subject, html_body, cc=""):
+        """Save an edited draft in place (Gmail keeps its id). Returns the id."""
+        data = self.client.draft(uid)
+        msg_json = data.get("message") or {}
+        headers = {h["name"].lower(): h["value"] for h in (msg_json.get("payload") or {}).get("headers", [])}
+        message = EmailMessage()
+        message["From"] = self.mailbox.email
+        if to:
+            message["To"] = to
+        if cc:
+            message["Cc"] = cc
+        message["Subject"] = subject or ""
+        for header in ("In-Reply-To", "References"):
+            if headers.get(header.lower()):
+                message[header] = headers[header.lower()]
+        message.set_content(html_to_text(html_body))
+        message.add_alternative(html_body, subtype="html")
+        answer = self.client.save_draft(message.as_bytes(), draft_id=uid, thread_id=msg_json.get("threadId", ""))
+        return answer.get("id", uid)
+
+    def trash(self, uids):
+        results = {}
+        for uid in uids:
+            try:
+                message_id = (self.client.draft(uid).get("message") or {}).get("id")
+                self.client.trash_message(message_id)
+                results[uid] = "trashed"
+            except Exception as exc:  # report it and carry on with the rest
+                results[uid] = f"not trashed ({exc})"
+        return results
+
+
+def _api_parts(part):
+    yield part
+    for child in part.get("parts", []) or []:
+        yield from _api_parts(child)
+
+
+def open_drafts(mailbox, user):
+    """The person's Gmail drafts: through the Gmail API when it's their own mailbox and their Mail is on, otherwise
+    over IMAP with the app password, as before."""
+    from crm.mail.outbound import uses_api
+
+    if mailbox.user_id == getattr(user, "pk", None) and uses_api(mailbox):
+        return ApiDrafts(mailbox)
+    return Drafts(mailbox)

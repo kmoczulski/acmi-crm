@@ -218,6 +218,7 @@ def send(mailbox, client, raw, thread_id="", draft_id="", user=None):
     if not settings.MAIL_SEND_ENABLED:
         raise ComposeError("Sending is switched off on this hub (ACMI_MAIL_SEND).")
     result = client.send(raw, thread_id=thread_id)
+    result["message_id"] = client.sent_message_id(result)
     if draft_id:
         try:
             client.delete_draft(draft_id)
@@ -238,6 +239,8 @@ def log_sent(mailbox, raw, result, user=None):
 
     email = parse_message(raw, uid=uid_of(result.get("id", "0")), thread_id=decimal_thread_id(result.get("threadId", "")),
                           labels=["\\Sent"])
+    if result.get("message_id"):  # what Gmail really sent it with
+        email.message_id = result["message_id"][:500]
     recorder = process_messages(mailbox, [email])
     recorder.finish()
     if user is not None:  # from a shared mailbox, the timeline still says who wrote it

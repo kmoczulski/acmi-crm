@@ -70,6 +70,8 @@ class FakeGmail:
         self.fail_on, self.calls, self.posts = set(), [], []
         self.sent, self.drafts, self.send_status = [], {}, 200
         self.send_as = [{"sendAsEmail": email, "isPrimary": True, "signature": ""}]
+        self.draft_msgs = {}  # draft id -> a message (api_message shape), for the news review's drafts
+        self.rewrite_message_id = False  # Gmail sometimes sends with a Message-ID of its own
         self.label_list = [{"id": "INBOX", "name": "INBOX", "type": "system"},
                            {"id": "SENT", "name": "SENT", "type": "system"},
                            {"id": "UNREAD", "name": "UNREAD", "type": "system"},
@@ -108,6 +110,13 @@ class FakeGmail:
             label = {"id": f"Label_{len(self.label_list) + 1}", "name": json["name"], "type": "user"}
             self.label_list.append(label)
             return FakeResponse(label)
+        if path.startswith("/messages/") and path.endswith("/trash"):
+            mid = path.split("/")[2]
+            for m in [*self.messages.values(), *self.draft_msgs.values()]:
+                if m["id"] == mid:
+                    m["labelIds"] = [lb for lb in m["labelIds"] if lb != "DRAFT"] + ["TRASH"]
+                    return FakeResponse({"id": mid})
+            return FakeResponse({}, 404)
         tid, verb = path.removeprefix("/threads/").split("/")
         msgs = [m for m in self.messages.values() if m["threadId"] == tid]
         if not msgs:
@@ -135,8 +144,9 @@ class FakeGmail:
         from email import message_from_bytes, policy
 
         parsed = message_from_bytes(raw, policy=policy.default)
+        msg_id = f"<gmail-{gid}@mail.gmail.com>" if self.rewrite_message_id else str(parsed["Message-ID"])
         self.messages[gid] = api_message(gid, thread, str(parsed["From"]), str(parsed["To"] or ""),
-                                         str(parsed["Subject"]), labels=("SENT",), msg_id=str(parsed["Message-ID"]))
+                                         str(parsed["Subject"]), labels=("SENT",), msg_id=msg_id)
         self.order.append(gid)
         return FakeResponse({"id": gid, "threadId": thread, "labelIds": ["SENT"]})
 
@@ -174,6 +184,12 @@ class FakeGmail:
                 ids = [i for i in ids if any(h["name"] == "Message-ID" and h["value"].strip("<>") == want
                                              for h in self.messages[i]["payload"]["headers"])]
             return FakeResponse({"messages": [{"id": i} for i in ids]})
+        if path == "/drafts":
+            return FakeResponse({"drafts": [{"id": d, "message": {"id": m["id"]}} for d, m in self.draft_msgs.items()]})
+        if path.startswith("/drafts/"):
+            did = path.removeprefix("/drafts/")
+            return FakeResponse({"id": did, "message": self.draft_msgs[did]}) if did in self.draft_msgs \
+                else FakeResponse({}, 404)
         if path == "/settings/sendAs":
             return FakeResponse({"sendAs": self.send_as})
         if path == "/labels":

@@ -199,7 +199,9 @@ def send(report, user):
     from django.utils.html import escape
 
     from .models import Mailbox, OutreachSettings
-    from .outreach.sender import SendError, Smtp, build_message
+    from .mail.imap import MailboxError
+    from .mail.outbound import outbound
+    from .outreach.sender import SendError, build_message
 
     recipients = [r.strip() for r in report.recipients.replace(";", ",").split(",") if "@" in r]
     if not recipients:
@@ -214,8 +216,11 @@ def send(report, user):
                  f'font-size:14px;white-space:pre-wrap">{escape(report.body)}</pre></body></html>')
     subject = f"{report.campus.code} update, week of {report.week_of:%b %d}"
     msg = build_message(mailbox, ", ".join(recipients), subject, html_body, report.body, [], settings)
-    with Smtp(mailbox) as smtp:
-        smtp.send(msg)
+    try:
+        with outbound(mailbox) as smtp:
+            smtp.send(msg)
+    except MailboxError as exc:
+        raise SendError(str(exc)) from exc
     report.status, report.sent_by, report.sent_at = CampusReport.Status.SENT, user, timezone.now()
     report.recipients = ", ".join(recipients)
     report.save(update_fields=["status", "sent_by", "sent_at", "recipients", "updated_at"])
