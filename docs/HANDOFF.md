@@ -159,8 +159,8 @@ API** (first run 9:17: 10 messages, no error, no duplicates). **Step 3 (`mail-in
 see "Built 2026-10-26: mail-inbox" at the end of this file (merged `a6bd5e9`, migrated, backup
 `backups/db-2026-10-26-before-mail-inbox.sqlite3`). **Step 3b (`mail-long-threads`) merged 2026-10-26** (PR #7, `aadf190`,
 no migration): "Built 2026-10-26: mail-long-threads". The 10:17 sync finished the inbox fill (303 inbox threads
-indexed, no error) and sent 6 new-mail alerts. **Next: step 4, `mail-actions`** (archive, read / unread, star, labels,
-Trash, snooze), then step 5, compose and reply.
+indexed, no error) and sent 6 new-mail alerts. **Step 4 (`mail-actions`)**: "Built 2026-10-26: mail-actions". Next: step 5,
+compose and reply (Kellen, 2026-10-26: "I can't respond to an email?").
 
 **Next, in order**
 1. **Granola (time-sensitive: Granola only keeps 30 days).**
@@ -2052,3 +2052,27 @@ Branch `mail-long-threads`, no migration. All in the reading pane of `/inbox/` p
   it done with no error.)
 - **Tests:** `crm/tests/test_long_threads.py` (16) plus rate-limit tests in `test_gmail_api.py`; 621 pass. Checked in a
   browser on a scratch database with a made-up 85-message thread (desktop and phone width).
+
+
+## Built 2026-10-26: mail-actions (email client step 4; Kellen: "Yes, start step 4 … merge when green")
+
+Branch `mail-actions`, migration `0064_mail_snooze`. Every change is a label change on the person's own Gmail
+(`crm/mail/actions.py`, `POST /inbox/act/`), so it shows in Gmail on the phone a moment later.
+
+- **In the reading pane:** Archive (or Move to inbox, or Restore in Trash), Mark unread, Star, Trash, **Snooze**
+  (later today, tomorrow 8 AM, this weekend, next week, or a picked date and time), **Label** (tick your own labels on
+  and off) and **Move to** (label and archive). Keys: `e` archive, `s` star, `#` Trash, `Shift+U` unread, `z` undo,
+  plus `j` / `k` and `/` from before.
+- **Several at once:** a tick box on each row; the bar that appears has Archive, Read, Unread, Star, Trash, Snooze and
+  Add label / Move.
+- **Undo** after every change: a dark bar above the list with Undo (kept in the session for the next page only).
+- **Opening a thread marks it read**, as in Gmail; the messages that were unread still show "New" that once.
+- **Trash** is Gmail's Trash (Gmail empties it after 30 days). Nothing in the hub deletes permanently; unknown
+  actions are refused. Labels and Move only take the person's own labels (never Spam or other system labels).
+- **Snooze** is the hub's own (Gmail's isn't open to apps): the thread leaves the inbox under a Gmail label
+  `ACMI/Snoozed` (made the first time) and `MailSnooze` keeps the time; each 15-minute sync (`actions.wake_due`, also
+  for inbox-only mailboxes) puts due threads back in the inbox, unread. A snoozed row shows ⏰ and its time.
+- `next` after an action must be a hub path; archive, move, Trash and snooze close the reading pane, as in Gmail.
+- **Fix from 3b:** the Latest message button showed even when it shouldn't (`.mail-latest[hidden]`).
+- **Tests:** `crm/tests/test_mail_actions.py` (15); 637 pass. Checked in a browser on a scratch database: the toolbar
+  and menus at desktop and phone width, bulk select, `e` to archive and `z` to undo.

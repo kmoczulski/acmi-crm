@@ -439,6 +439,9 @@ def _read_gmail(mailbox, client, max_messages, recorder):
         touched += [gmail_api.hex_thread_id(e.thread_id) for e in emails if e.uid in new]
         recorder.stats["inbox threads refreshed"] = len(index.refresh(mailbox, api, touched[:INDEX_REFRESH_MAX]))
         recorder.stats["inbox threads indexed"] = index.warm_inbox(mailbox, api)
+        from . import actions
+
+        recorder.stats["snoozed threads back"] = actions.wake_due(mailbox, api)
         index.prune(mailbox)
     except Exception:  # the inbox index must never fail the timeline sync
         log.exception("Inbox index refresh failed for %s", mailbox)
@@ -472,6 +475,16 @@ def sync_all(max_messages=DEFAULT_MAX_MESSAGES):
             results[str(mb)] = sync_mailbox(mb, max_messages=max_messages)
         except SyncBusy:
             results[str(mb)] = {"skipped (already syncing)": 1}
+    # Inbox-only mailboxes (Mail on, no timeline sync): only snoozed threads coming back.
+    from . import actions, connect, gmail_api
+
+    for mb in Mailbox.objects.filter(enabled=False, backend=Mailbox.Backend.GMAIL_API, user__in=team_users(),
+                                     snoozes__isnull=False).distinct():
+        if connect.is_on(mb.user):
+            try:
+                results[str(mb)] = {"snoozed threads back": actions.wake_due(mb, gmail_api.GmailClient(mb.user))}
+            except Exception as exc:  # noqa: BLE001 - one person's Gmail must not stop the others
+                log.warning("Snooze wake-up failed for %s: %s", mb, exc)
     return results
 
 

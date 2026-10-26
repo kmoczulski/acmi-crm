@@ -201,3 +201,11 @@ def frame_policy(show_images):
     return (f"default-src 'none'; {images}; style-src 'unsafe-inline'; font-src 'none'; form-action 'none'; "
             "base-uri 'none'; frame-ancestors 'self'; sandbox allow-same-origin allow-popups "
             "allow-popups-to-escape-sandbox")
+
+
+def forget(mailbox, gmail_id):
+    """Drop a thread from the cache after it changed (read, labels, Trash), so the pane shows it as it is now."""
+    data = cache.get(_key(mailbox, "thread", gmail_id))
+    cache.delete(_key(mailbox, "thread", gmail_id))
+    for m in (data or {}).get("messages", []):
+        cache.delete(_key(mailbox, "msg", m["id"]))

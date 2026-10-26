@@ -7,21 +7,23 @@ anyone else's mail; a thread or message id that isn't theirs is simply not found
 import io
 import logging
 import zipfile
+from urllib.parse import parse_qsl, urlsplit, urlunsplit
 from concurrent.futures import ThreadPoolExecutor
 
 import requests
 from django.contrib import messages
 from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
-from django.utils.http import content_disposition_header, urlencode
+from django.urls import reverse
+from django.utils.http import content_disposition_header, url_has_allowed_host_and_scheme, urlencode
 from django.views.decorators.clickjacking import xframe_options_sameorigin
 from django.views.decorators.http import require_POST
 
 from crm import prefs
 from crm.ai import enabled as ai_enabled
-from crm.models import Company, MailThread, Mailbox, Project
+from crm.models import Company, MailSnooze, MailThread, Mailbox, Project
 
-from . import connect, index, render as mail_render, summary as mail_summary, threads as mail_threads
+from . import actions as mail_actions, connect, index, render as mail_render, summary as mail_summary, threads as mail_threads
 from .gmail_api import GmailClient, NotFound, parse_api_message
 from .imap import MailboxError
 from .views import team_only
@@ -105,6 +107,11 @@ def inbox(request, mailbox, client):
         "tab": tab, "threads": threads, "next_token": next_token, "next_offset": next_offset, "offset": offset,
         "page_token": token, "total": total, "reader": reader, "open_id": open_id, "error": error,
         "indexing": tab in TAB_FILTERS and not mailbox.inbox_indexed_at,
+        "undo": request.session.pop("mail_undo", None),
+        "snooze_choices": mail_actions.snooze_choices(),
+        "snoozed": dict(MailSnooze.objects.filter(mailbox=mailbox, gmail_id__in=[t.gmail_id for t in threads])
+                        .values_list("gmail_id", "until")),
+        "here": request.get_full_path(),
         "thread_base": "?" + urlencode({k: v for k, v in [("label", label), ("q", query), ("tab", tab if tab != "all" else ""),
                                                           ("t", open_id)] if v}),
     })
@@ -126,11 +133,17 @@ def reader_for(request, mailbox, client, gmail_id, threads=()):
         or MailThread.objects.filter(mailbox=mailbox, gmail_id=gmail_id).first()
     groups, hidden = mail_threads.group(mail_threads.files_of(msgs))
     unread = [m for m in msgs if m["unread"]]
-    texts = {}  # for Find in this thread
+    texts, labels = {}, set()  # for Find in this thread; the thread's labels for the toolbar
     for raw in mail_render.get_thread(mailbox, client, gmail_id).get("messages", []):
         email = parse_api_message(raw)
         texts[raw["id"]] = f"{email.from_name} {email.body}".lower() if email else ""
+        labels |= set(raw.get("labelIds") or [])
+    if unread:
+        mark_read(mailbox, client, gmail_id, row)
+    snooze = MailSnooze.objects.filter(mailbox=mailbox, gmail_id=gmail_id).first()
     return {
+        "labels": labels, "in_inbox": "INBOX" in labels, "starred": "STARRED" in labels,
+        "in_trash": "TRASH" in labels, "snoozed_until": snooze.until if snooze else None,
         "id": gmail_id, "subject": subject, "order": order,
         "messages": msgs if order == "newest" else list(reversed(msgs)),
         "latest": msgs[0]["id"] if msgs else "",
@@ -142,6 +155,60 @@ def reader_for(request, mailbox, client, gmail_id, threads=()):
         "other_parts": mail_threads.other_parts(mailbox, client, gmail_id, subject, msgs),
         "summarize": ai_enabled(), "texts": texts,
     }
+
+
+def mark_read(mailbox, client, gmail_id, row=None):
+    """Opening a thread marks it read, as in Gmail. A failure here never stops the thread from showing."""
+    try:
+        client.modify_thread(gmail_id, remove=["UNREAD"])
+    except (MailboxError, requests.RequestException):
+        log.warning("Couldn't mark %s read for %s", gmail_id, mailbox, exc_info=True)
+        return
+    mail_render.forget(mailbox, gmail_id)
+    MailThread.objects.filter(mailbox=mailbox, gmail_id=gmail_id).update(unread=False)
+    if row is not None:
+        row.unread = False
+
+
+def _safe_next(request, fallback):
+    nxt = request.POST.get("next", "")
+    if nxt and url_has_allowed_host_and_scheme(nxt, allowed_hosts={request.get_host()}, require_https=request.is_secure()) \
+            and nxt.startswith("/"):
+        return nxt
+    return fallback
+
+
+@mail_required
+@require_POST
+def act(request, mailbox, client):
+    """Archive, read / unread, star, label, move, Trash or snooze the picked threads, then back to where you were,
+    with Undo. The undo is kept in the session for the next page only."""
+    action = request.POST.get("action", "")
+    ids = request.POST.getlist("t")
+    nxt = _safe_next(request, reverse("crm:inbox"))
+    until = mail_actions.snooze_until(request.POST.get("when", ""), request.POST.get("custom", "")) \
+        if action == "snooze" else None
+    undoing = request.POST.get("undo") == "1"
+    try:
+        text, undo = mail_actions.apply(mailbox, client, action, ids, label=request.POST.get("label", ""), until=until)
+    except mail_actions.ActionError as exc:
+        messages.error(request, str(exc))
+        return redirect(nxt)
+    except (MailboxError, requests.RequestException) as exc:
+        messages.error(request, str(exc) if isinstance(exc, MailboxError) else "Couldn't reach Gmail. Try again.")
+        return redirect(nxt)
+    request.session.pop("mail_undo", None)
+    if undoing:
+        messages.success(request, "Undone.")
+    elif undo:
+        request.session["mail_undo"] = {**undo, "text": text}
+    else:
+        messages.success(request, text)
+    if action in mail_actions.LEAVES_THE_LIST and not undoing:
+        parts = urlsplit(nxt)
+        query = [(k, v) for k, v in parse_qsl(parts.query) if not (k == "t" and v in ids)]
+        nxt = urlunsplit(parts._replace(query=urlencode(query)))
+    return redirect(nxt)
 
 
 @mail_required

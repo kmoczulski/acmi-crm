@@ -144,12 +144,18 @@ class LongThreadPageTests(TestCase):
         self.assertEqual(outline[4]["files"], 0)  # the lawyer's logo doesn't count
         self.assertEqual({a for a, _ in reader["people"]}, {"will@firehawkaerospace.com", "jon@cozen.com", ME})
         self.assertEqual(reader["first_unread"], "0053")  # the older of the two unread
-        r = self.open()
-        self.assertNotContains(r, "New since you last read")  # newest first: the new ones are already on top
+        r = self.open()  # opened once already, so read now
+        self.assertNotContains(r, "New since you last read")
         self.assertContains(r, "All 85 messages")
         self.assertNotContains(r, "image001.png")  # logos left out of each message's files too
-        r = self.open(order="oldest")
-        self.assertContains(r, 'id="new-since"')
+
+    def test_new_since_you_last_read_in_oldest_first_order(self):
+        self.assertNotContains(self.open(order="newest"), 'id="new-since"')  # newest first: the new ones are on top
+        for m in self.fake.messages.values():
+            if m["id"] in ("0053", "0055"):
+                m["labelIds"] = ["INBOX", "UNREAD"]
+        cache.clear()
+        self.assertContains(self.open(order="oldest"), 'id="new-since"')
 
     def test_oldest_first_is_remembered(self):
         reader = self.open(order="oldest").context["reader"]

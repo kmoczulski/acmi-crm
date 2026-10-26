@@ -1264,6 +1264,22 @@ class MailThread(models.Model):
             return ""
 
 
+class MailSnooze(models.Model):
+    """A thread someone snoozed in the hub (crm/mail/actions.py): out of the inbox under the "ACMI/Snoozed" Gmail
+    label until `until`, when the sync puts it back in the inbox, unread. Gmail's own snooze isn't open to apps."""
+
+    mailbox = models.ForeignKey(Mailbox, on_delete=models.CASCADE, related_name="snoozes")
+    gmail_id = models.CharField(max_length=40)
+    until = models.DateTimeField(db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["mailbox", "gmail_id"], name="mail_snooze_unique")]
+
+    def __str__(self):
+        return f"{self.gmail_id} until {self.until:%b %d %H:%M}"
+
+
 class MailLabel(models.Model):
     """A Gmail label in someone's mailbox (their folders), kept to draw the folder pane without asking Gmail."""
 

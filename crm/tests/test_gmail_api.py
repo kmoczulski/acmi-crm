@@ -67,7 +67,7 @@ class FakeGmail:
         self.email, self.history_id = email, history_id
         self.history = []  # message ids added after the profile's marker
         self.history_status, self.status = 200, 200
-        self.fail_on, self.calls = set(), []
+        self.fail_on, self.calls, self.posts = set(), [], []
         self.label_list = [{"id": "INBOX", "name": "INBOX", "type": "system"},
                            {"id": "SENT", "name": "SENT", "type": "system"},
                            {"id": "UNREAD", "name": "UNREAD", "type": "system"},
@@ -91,8 +91,27 @@ class FakeGmail:
         self.history.append(message["id"])
         self.history_id = str(int(self.history_id) + 1)
 
-    def post(self, url, data=None, timeout=None):
-        return FakeResponse({"access_token": "fresh", "expires_in": 3600})
+    def post(self, url, data=None, timeout=None, json=None, headers=None):
+        if not url.startswith(gmail_api.API):  # Google's token endpoint
+            return FakeResponse({"access_token": "fresh", "expires_in": 3600})
+        path = url.removeprefix(gmail_api.API)
+        self.posts.append((path, json))
+        if path == "/labels":
+            label = {"id": f"Label_{len(self.label_list) + 1}", "name": json["name"], "type": "user"}
+            self.label_list.append(label)
+            return FakeResponse(label)
+        tid, verb = path.removeprefix("/threads/").split("/")
+        msgs = [m for m in self.messages.values() if m["threadId"] == tid]
+        if not msgs:
+            return FakeResponse({}, 404)
+        add, remove = (json or {}).get("addLabelIds", []), (json or {}).get("removeLabelIds", [])
+        if verb == "trash":
+            add, remove = ["TRASH"], ["INBOX"]
+        elif verb == "untrash":
+            add, remove = ["INBOX"], ["TRASH"]
+        for m in msgs:
+            m["labelIds"] = [lb for lb in m["labelIds"] if lb not in remove] + [lb for lb in add if lb not in m["labelIds"]]
+        return FakeResponse({"id": tid})
 
     def get(self, url, params=None, headers=None, timeout=None):
         path = url.removeprefix(gmail_api.API)

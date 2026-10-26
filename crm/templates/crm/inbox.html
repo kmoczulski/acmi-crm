@@ -31,16 +31,46 @@
       {% for key, name in tabs %}<a role="tab" href="?label=INBOX&tab={{ key }}" class="{% if tab == key %}on{% endif %}" aria-selected="{% if tab == key %}true{% else %}false{% endif %}">{{ name }}</a>{% endfor %}
     </div>
     {% endif %}
+    {% if undo %}
+    <form class="mail-undo" method="post" action="{% url 'crm:inbox_act' %}">{% csrf_token %}
+      <span>{{ undo.text }}</span>
+      <input type="hidden" name="action" value="{{ undo.action }}"><input type="hidden" name="label" value="{{ undo.label }}">
+      {% for t in undo.threads %}<input type="hidden" name="t" value="{{ t }}">{% endfor %}
+      <input type="hidden" name="undo" value="1"><input type="hidden" name="next" value="{{ here }}">
+      <button class="btn btn-small" data-key="z">Undo</button>
+    </form>
+    {% endif %}
     {% if error %}<p class="mail-error">{{ error }}</p>{% endif %}
+    <form class="mail-bulk" id="mail-bulk" method="post" action="{% url 'crm:inbox_act' %}" data-bulk hidden>{% csrf_token %}
+      <input type="hidden" name="next" value="{{ here }}">
+      <span class="lc-small" data-bulk-count></span>
+      {% if label == "TRASH" %}<button class="btn btn-small" name="action" value="untrash">Restore</button>
+      {% elif label == "INBOX" and not query %}<button class="btn btn-small" name="action" value="archive">Archive</button>
+      {% else %}<button class="btn btn-small" name="action" value="inbox">Move to inbox</button>{% endif %}
+      <button class="btn btn-small" name="action" value="read">Read</button>
+      <button class="btn btn-small" name="action" value="unread">Unread</button>
+      <button class="btn btn-small" name="action" value="star">Star</button>
+      {% if label != "TRASH" %}<button class="btn btn-small" name="action" value="trash">Trash</button>{% endif %}
+      <span class="mail-bulk-pick">
+        <select name="when" aria-label="Snooze until">{% for key, name, when in snooze_choices %}<option value="{{ key }}">{{ name }}</option>{% endfor %}</select>
+        <button class="btn btn-small" name="action" value="snooze">Snooze</button>
+      </span>
+      {% if user_labels %}<span class="mail-bulk-pick">
+        <select name="label" aria-label="Label">{% for lb in user_labels %}<option value="{{ lb.gmail_id }}">{{ lb.name }}</option>{% endfor %}</select>
+        <button class="btn btn-small" name="action" value="label">Add label</button>
+        <button class="btn btn-small" name="action" value="move">Move</button>
+      </span>{% endif %}
+    </form>
     {% if indexing %}<p class="muted lc-small mail-note">Still sorting your inbox into these tabs; the rest appears after the next sync (within 15 minutes).</p>{% endif %}
     <ul class="mail-rows" data-mail-rows>
       {% for t in threads %}
       <li class="mail-row{% if t.unread %} unread{% endif %}{% if t.gmail_id == open_id %} on{% endif %}">
+        <input type="checkbox" class="mail-pick" name="t" value="{{ t.gmail_id }}" form="mail-bulk" aria-label="Select {{ t.subject|default:'(no subject)' }}" data-pick>
         <a href="?label={{ label|urlencode }}{% if query %}&q={{ query|urlencode }}{% endif %}{% if tab != 'all' %}&tab={{ tab }}{% endif %}{% if page_token %}&p={{ page_token|urlencode }}{% endif %}{% if offset %}&o={{ offset }}{% endif %}&t={{ t.gmail_id }}">
           <span class="mail-from">{% for s in t.senders|slice:":3" %}{% if s.1 == mailbox.email %}me{% else %}{{ s.0|default:s.1 }}{% endif %}{% if not forloop.last %}, {% endif %}{% endfor %}{% if t.message_count > 1 %} <span class="muted">{{ t.message_count }}</span>{% endif %}</span>
           <span class="mail-date">{% if t.has_attachments %}<span title="Has attachments" aria-label="Has attachments">📎</span> {% endif %}{{ t.last_message_at|date:"M j" }}</span>
           <span class="mail-subject">{% if t.starred %}<span title="Starred" aria-label="Starred">★</span> {% endif %}{{ t.subject|default:"(no subject)" }}</span>
-          <span class="mail-snippet">{{ t.snippet }}</span>
+          <span class="mail-snippet">{% with until=snoozed|get_item:t.gmail_id %}{% if until %}<span class="tag">⏰ {{ until|date:"D M j, g A" }}</span> {% endif %}{% endwith %}{{ t.snippet }}</span>
           {% if t.chips %}<span class="mail-chips">{% for kind, name, url in t.chips|slice:":4" %}<span class="mail-chip chip-{{ kind }}">{{ name }}</span>{% endfor %}</span>{% endif %}
         </a>
       </li>
@@ -59,6 +89,60 @@
       <div class="mail-reader-head">
         <a class="btn btn-small mail-back" href="?label={{ label|urlencode }}{% if query %}&q={{ query|urlencode }}{% endif %}{% if tab != 'all' %}&tab={{ tab }}{% endif %}">← Back</a>
         <h2>{{ reader.subject }}</h2>
+        <div class="mail-actions">
+          <form method="post" action="{% url 'crm:inbox_act' %}" class="mail-actions-main">{% csrf_token %}
+            <input type="hidden" name="t" value="{{ reader.id }}"><input type="hidden" name="next" value="{{ here }}">
+            {% if reader.in_trash %}<button class="btn btn-small" name="action" value="untrash" data-key="#">Restore</button>
+            {% elif reader.in_inbox %}<button class="btn btn-small" name="action" value="archive" data-key="e" title="Archive (e)">Archive</button>
+            {% else %}<button class="btn btn-small" name="action" value="inbox" data-key="e">Move to inbox</button>{% endif %}
+            <button class="btn btn-small" name="action" value="unread" data-key="U" title="Mark unread (Shift+U)">Mark unread</button>
+            {% if reader.starred %}<button class="btn btn-small" name="action" value="unstar" data-key="s" title="Remove star (s)">★ Starred</button>
+            {% else %}<button class="btn btn-small" name="action" value="star" data-key="s" title="Star (s)">☆ Star</button>{% endif %}
+            {% if not reader.in_trash %}<button class="btn btn-small" name="action" value="trash" data-key="#" title="Move to Trash (#)">Trash</button>{% endif %}
+          </form>
+          <details class="mail-menu"><summary class="btn btn-small">Snooze</summary>
+            <div class="mail-menu-pop">
+              {% if reader.snoozed_until %}
+              <form method="post" action="{% url 'crm:inbox_act' %}">{% csrf_token %}
+                <input type="hidden" name="t" value="{{ reader.id }}"><input type="hidden" name="next" value="{{ here }}">
+                <button class="btn-link" name="action" value="unsnooze">Unsnooze now</button></form>
+              {% endif %}
+              {% for key, name, when in snooze_choices %}
+              <form method="post" action="{% url 'crm:inbox_act' %}">{% csrf_token %}
+                <input type="hidden" name="t" value="{{ reader.id }}"><input type="hidden" name="next" value="{{ here }}">
+                <input type="hidden" name="when" value="{{ key }}"><button class="btn-link" name="action" value="snooze">{{ name }}</button></form>
+              {% endfor %}
+              <form method="post" action="{% url 'crm:inbox_act' %}" class="mail-menu-custom">{% csrf_token %}
+                <input type="hidden" name="t" value="{{ reader.id }}"><input type="hidden" name="next" value="{{ here }}">
+                <input type="datetime-local" name="custom" aria-label="Snooze until a date and time" required>
+                <button class="btn btn-small" name="action" value="snooze">Snooze</button></form>
+            </div>
+          </details>
+          {% if user_labels %}
+          <details class="mail-menu"><summary class="btn btn-small">Label</summary>
+            <div class="mail-menu-pop">
+              {% for lb in user_labels %}
+              <form method="post" action="{% url 'crm:inbox_act' %}">{% csrf_token %}
+                <input type="hidden" name="t" value="{{ reader.id }}"><input type="hidden" name="next" value="{{ here }}">
+                <input type="hidden" name="label" value="{{ lb.gmail_id }}">
+                {% if lb.gmail_id in reader.labels %}<button class="btn-link" name="action" value="unlabel">☑ {{ lb.name }}</button>
+                {% else %}<button class="btn-link" name="action" value="label">☐ {{ lb.name }}</button>{% endif %}
+              </form>
+              {% endfor %}
+            </div>
+          </details>
+          <details class="mail-menu"><summary class="btn btn-small">Move to</summary>
+            <div class="mail-menu-pop">
+              {% for lb in user_labels %}
+              <form method="post" action="{% url 'crm:inbox_act' %}">{% csrf_token %}
+                <input type="hidden" name="t" value="{{ reader.id }}"><input type="hidden" name="next" value="{{ here }}">
+                <input type="hidden" name="label" value="{{ lb.gmail_id }}"><button class="btn-link" name="action" value="move">{{ lb.name }}</button></form>
+              {% endfor %}
+            </div>
+          </details>
+          {% endif %}
+        </div>
+        {% if reader.snoozed_until %}<p class="lc-small"><span class="tag">⏰ Snoozed until {{ reader.snoozed_until|date:"D M j, g:i A" }}</span></p>{% endif %}
         {% if reader.chips %}<div class="mail-chips">{% for kind, name, url in reader.chips %}<a class="mail-chip chip-{{ kind }}" href="{{ url }}">{{ name }}</a>{% endfor %}</div>{% endif %}
         <p class="muted lc-small">{{ reader.messages|length }} message{{ reader.messages|length|pluralize }} ·
           {% if reader.order == "newest" %}<strong>Newest first</strong> · <a href="{{ thread_base }}&order=oldest">Oldest first</a>{% else %}<a href="{{ thread_base }}&order=newest">Newest first</a> · <strong>Oldest first</strong>{% endif %}
@@ -342,6 +426,26 @@
     });
   })();
 
+  // Bulk actions: the bar appears once a conversation is ticked.
+  (function () {
+    const bar = document.querySelector('[data-bulk]');
+    const picks = [...document.querySelectorAll('[data-pick]')];
+    if (!bar) return;
+    const update = () => {
+      const n = picks.filter(p => p.checked).length;
+      bar.hidden = !n;
+      bar.querySelector('[data-bulk-count]').textContent = n ? `${n} selected` : '';
+    };
+    picks.forEach(p => p.addEventListener('change', update));
+    update();
+  })();
+  document.addEventListener('keydown', e => {
+    if (e.target.closest('input, textarea, select, [contenteditable]') || e.ctrlKey || e.metaKey || e.altKey) return;
+    const key = e.key === 'U' && e.shiftKey ? 'U' : e.key;
+    if (!['e', 's', '#', 'U', 'z'].includes(key)) return;
+    const btn = document.querySelector(`[data-key="${CSS.escape(key)}"]`);
+    if (btn) { e.preventDefault(); btn.click(); }
+  });
   // Folders on a phone.
   document.querySelectorAll('[data-folders-toggle]').forEach(btn => btn.addEventListener('click', () => {
     document.getElementById('mail-folders').classList.toggle('open');

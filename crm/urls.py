@@ -139,6 +139,7 @@ urlpatterns = [
     path("mail/", mail_views.mail_home, name="mail"),
     path("inbox/", inbox_views.inbox, name="inbox"),
     path("inbox/files/", inbox_views.files, name="inbox_files"),
+    path("inbox/act/", inbox_views.act, name="inbox_act"),
     path("inbox/t/<str:gmail_id>/summary/", inbox_views.thread_summary, name="inbox_summary"),
     path("inbox/t/<str:gmail_id>/files.zip", inbox_views.thread_files_zip, name="inbox_zip"),
     path("inbox/m/<str:message_id>/body/", inbox_views.message_body, name="inbox_body"),

@@ -1996,6 +1996,7 @@ a.mail-chip:hover { text-decoration: none; filter: brightness(.95); }
 .mail-new-line { margin: 10px 0 2px; font-size: 12px; font-weight: 600; color: var(--accent); border-top: 2px solid var(--accent); padding-top: 4px; }
 .mail-msg.flash { animation: mail-flash 1.6s ease-out; }
 @keyframes mail-flash { from { background: var(--accent-soft); } to { background: transparent; } }
+.mail-latest[hidden] { display: none; }
 .mail-latest { position: sticky; bottom: 12px; float: right; box-shadow: 0 4px 14px rgba(0,0,0,.15); }
 @media (max-width: 760px) {
   .mail-outline-list a { grid-template-columns: 2em minmax(0, 1fr) auto; }
@@ -2006,3 +2007,31 @@ a.mail-chip:hover { text-decoration: none; filter: brightness(.95); }
 .mail-files-search input[type=search] { flex: 1 1 220px; min-width: 0; }
 .mail-files-search select { max-width: 100%; }
 .mail-filelist-page { max-height: none; }
+/* Mail actions (step 4) */
+.mail-row { display: flex; align-items: stretch; border-bottom: 1px solid var(--line); }
+.mail-row > a { flex: 1; min-width: 0; border-bottom: 0; }
+.mail-pick { margin: 12px 0 0 10px; flex: none; width: 16px; height: 16px; }
+.mail-undo { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: var(--text); color: #fff; font-size: 13px; }
+.mail-undo .btn { background: transparent; color: #fff; border-color: rgba(255,255,255,.5); }
+.mail-bulk { display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; padding: 6px 8px; background: var(--accent-soft);
+  border-bottom: 1px solid var(--line); }
+.mail-bulk[hidden] { display: none; }
+.mail-bulk-pick { display: inline-flex; gap: 4px; align-items: center; }
+.mail-bulk select { max-width: 150px; font-size: 12px; }
+.mail-actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 4px 0 6px; }
+.mail-actions-main { display: flex; flex-wrap: wrap; gap: 6px; }
+.mail-menu { position: relative; }
+.mail-menu > summary { list-style: none; cursor: pointer; }
+.mail-menu > summary::-webkit-details-marker { display: none; }
+.mail-menu-pop { position: absolute; z-index: 6; top: calc(100% + 4px); left: 0; min-width: 210px; max-height: 320px; overflow-y: auto;
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: 0 8px 24px rgba(0,0,0,.15); padding: 6px 0; }
+.mail-menu-pop form { margin: 0; }
+.mail-menu-pop .btn-link { display: block; width: 100%; text-align: left; padding: 6px 12px; color: var(--text); }
+.mail-menu-pop .btn-link:hover { background: var(--bg); text-decoration: none; }
+.mail-menu-custom { display: flex; gap: 4px; padding: 6px 12px; border-top: 1px solid var(--line); margin-top: 4px; }
+.mail-menu-custom input { min-width: 0; flex: 1; font-size: 12px; }
+@media (max-width: 760px) {
+  .mail-actions { position: relative; }
+  .mail-menu { position: static; }
+  .mail-menu-pop { left: 0; right: 0; min-width: 0; }
+}

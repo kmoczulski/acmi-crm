@@ -104,10 +104,20 @@ class GmailClient:
         self._access()
 
     def get(self, path, params=None):
+        return self._request("get", path, params=params)
+
+    def post(self, path, body=None):
+        """A change in Gmail (labels, Trash). Only ever called from a person's own click (crm/mail/actions.py)."""
+        return self._request("post", path, body=body or {})
+
+    def _request(self, method, path, params=None, body=None):
         refresh = False
         for attempt in range(RETRIES + 1):
-            r = self.session.get(f"{API}{path}", params=params, timeout=TIMEOUT,
-                                 headers={"Authorization": f"Bearer {self._access(force=refresh)}"})
+            headers = {"Authorization": f"Bearer {self._access(force=refresh)}"}
+            if method == "post":
+                r = self.session.post(f"{API}{path}", json=body, headers=headers, timeout=TIMEOUT)
+            else:
+                r = self.session.get(f"{API}{path}", params=params, timeout=TIMEOUT, headers=headers)
             refresh = False
             if r.status_code == 401 and attempt == 0:
                 refresh = True  # the access token expired early: refresh it once and try again
@@ -191,6 +201,19 @@ class GmailClient:
 
     def labels(self):
         return self.get("/labels").get("labels", [])
+
+    def create_label(self, name):
+        return self.post("/labels", {"name": name, "labelListVisibility": "labelShow",
+                                     "messageListVisibility": "show"})
+
+    def modify_thread(self, thread_id, add=(), remove=()):
+        return self.post(f"/threads/{thread_id}/modify", {"addLabelIds": list(add), "removeLabelIds": list(remove)})
+
+    def trash_thread(self, thread_id):
+        return self.post(f"/threads/{thread_id}/trash")
+
+    def untrash_thread(self, thread_id):
+        return self.post(f"/threads/{thread_id}/untrash")
 
     def label(self, label_id):
         return self.get(f"/labels/{label_id}")
