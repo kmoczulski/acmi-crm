@@ -165,7 +165,9 @@ indexed, no error) and sent 6 new-mail alerts. **Step 4 (`mail-actions`) merged 
 Gmail signature** merged (PR #10). **Step 6 (`mail-filing`) merged 2026-10-26** (PR #11, `b5cd494`, migrated,
 backup `backups/db-2026-10-26-before-mail-filing.sqlite3`): "Built 2026-10-26: mail-filing". The 11:47 sync put CRM
 labels on 24 of Kellen's threads (12 labels, e.g. ACMI/Projects/MEIH, ACMI/Tenants/RTX; no error). **Step 7
-(`mail-shared`)**: "Built 2026-10-26: mail-shared". Left in `docs/EMAIL_CLIENT.md`: step 8 outreach on the Gmail
+(`mail-shared`) merged 2026-10-26** (PR #12, `90f077f`, migrated, backup
+`backups/db-2026-10-26-before-mail-shared.sqlite3`): "Built 2026-10-26: mail-shared". No shared mailbox connected yet:
+the redirect URI has to be added in Google Cloud first. Left in `docs/EMAIL_CLIENT.md`: step 8 outreach on the Gmail
 API, step 9 hosting.
 
 **Next, in order**
