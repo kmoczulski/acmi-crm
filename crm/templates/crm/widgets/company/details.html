@@ -1,0 +1,22 @@
+{% load crm_tags %}
+<button type="button" class="btn btn-small widget-link" style="top:8px" onclick="document.getElementById('edit-dialog').showModal()">Edit</button>
+{% include "crm/partials/company_details.html" %}
+{% include "crm/partials/edit_dialog.html" with title="company" %}
+{% if IS_MANAGER %}
+<details style="margin-top:10px"><summary class="muted" style="font-size:12px;cursor:pointer">Merge another company into this one</summary>
+  <form method="post" action="{% url 'crm:company_merge_into' company.pk %}" class="inline-form" style="margin-top:6px"
+        onsubmit="return confirm('Merge that company into {{ company.name|escapejs }}? Its people, emails and documents move here and it is deleted.')">{% csrf_token %}
+    <input name="other" list="merge-company-names" placeholder="Company name" required style="flex:1">
+    <button class="btn-small">Merge</button>
+  </form>
+  <datalist id="merge-company-names">{% for n in merge_candidates %}<option value="{{ n }}">{% endfor %}</datalist>
+</details>
+<p style="margin:10px 0 0;font-size:12px"><a class="muted" href="{% url 'crm:company_move' company.pk %}">Move to directory</a> <span class="muted">(a consultant, vendor or lender, not a prospect)</span></p>
+<details class="danger-zone"><summary>Delete this company</summary>
+  <form method="post" action="{% url 'crm:company_delete' company.pk %}" style="margin-top:8px"
+        onsubmit="return confirm('Delete {{ company.name|escapejs }} and its whole timeline, tasks, notes and opportunities? This cannot be undone.')">{% csrf_token %}
+    <label class="muted" style="font-size:12px;display:block;margin-bottom:6px"><input type="checkbox" name="people" value="delete"> Also delete its {{ people|length }} people</label>
+    <button class="btn-small btn-danger">Delete company</button>
+  </form>
+</details>
+{% endif %}

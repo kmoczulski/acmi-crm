@@ -1,0 +1,17 @@
+{% load crm_tags %}
+<div class="co-facts">
+  <div><span class="label">Stage</span><span class="value">{{ company.get_status_display }}</span></div>
+  <div><span class="label">Owner</span><span class="value">{{ company.owner|username|default:"—" }}</span></div>
+  <div><span class="label">Last touch</span><span class="value">{% if company.last_interaction_at %}{{ company.days_since_touch }} days ago{% else %}Never{% endif %}</span>
+    <span class="sub">{{ company.touch_count }} outreach email{{ company.touch_count|pluralize }}{% if company.last_response %} · {{ company.last_response }}{% endif %}</span></div>
+  <div><span class="label">Next meeting</span><span class="value">{% if next_meeting %}<a href="{% qs_set tab='meetings' %}#meeting-{{ next_meeting.pk }}">{{ next_meeting.start|date:"M j" }}</a>{% else %}{{ company.next_interaction_at|date:"M j"|default:"—" }}{% endif %}</span></div>
+  <div><span class="label">Who knows them</span><span class="value">{{ company.strongest_connection_user|username|default:"—" }}</span>
+    {% if company.connection_strength %}<span class="sub">{{ company.connection_strength }}{% if team|length > 1 %} · {{ team|length }} teammates in touch{% endif %}</span>{% endif %}</div>
+  <div><span class="label">Fit</span><span class="value">{% if company.fit_score %}{{ company.fit_score }} / 5{% else %}—{% endif %}</span>
+    {% if company.fit_score %}<span class="sub">{{ fit_definition|truncatechars:40 }}</span>{% endif %}</div>
+  <div><span class="label">Campus interest</span><span class="value">{{ company.campus_label|default:"—" }}</span></div>
+  {% if company_projects %}<div><span class="label">Projects</span><span class="value">{% for p, n in company_projects %}<a class="chip chip-project" href="{{ p.get_absolute_url }}" title="{{ n }} emails">{{ p.name }}</a>{% endfor %}</span></div>{% endif %}
+  {% if latest_news %}<div class="co-fact-wide"><span class="label">Latest news</span>
+    <span class="sub" style="color:var(--text)">{% if latest_news.url %}<a href="{{ latest_news.url }}" target="_blank" rel="noopener">{{ latest_news.summary|truncatechars:80 }}</a>{% else %}{{ latest_news.summary|truncatechars:80 }}{% endif %}</span>
+    <span class="sub">{{ latest_news.occurred_at|date:"M j, Y" }}</span></div>{% endif %}
+</div>

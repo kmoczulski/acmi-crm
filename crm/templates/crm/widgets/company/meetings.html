@@ -1,0 +1,4 @@
+{% load crm_tags %}
+{% if meeting_count > latest_meetings|length %}<a href="{% qs_set tab='meetings' %}" class="widget-link">All {{ meeting_count }} meetings →</a>{% endif %}
+{% for c in latest_meetings %}{% include "crm/partials/company_meeting_card.html" %}
+{% empty %}<p class="muted" style="margin:0">No meetings with {{ company.name }} yet. Granola notes and calendar invites with their people land here.</p>{% endfor %}

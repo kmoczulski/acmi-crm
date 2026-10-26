@@ -42,6 +42,54 @@ class CompanyPageTests(TestCase):
         Opportunity.objects.create(name="Acme Huntsville", company=self.co, stage=OpportunityStage.values[0])
         self.url = reverse("crm:company_detail", args=[self.co.pk])
 
+    def test_the_overview_is_one_feed_newest_first_with_the_rest_as_widgets(self):
+        """Kellen, 2026-10-26: "more like Trello, where comments and meeting updates/notes are in chronological
+        order." Comments, notes, meetings (with their notes and action items) and email share one list."""
+        from crm.models import Comment, Note
+
+        now = timezone.now()
+        Note.objects.create(body="Owner wants to close by spring", author=self.simon, company=self.co)
+        Comment.objects.create(body="Called Ann, she liked the brief", author=self.kellen, company=self.co)
+        Activity.objects.create(kind=Activity.Kind.EMAIL_RECEIVED, occurred_at=now - timedelta(days=1), company=self.co,
+                                summary="Re: site brief", body="Thanks, looks good", source="gmail")
+        # The import also writes a meeting as an activity row; the feed shows the meeting itself, once.
+        Activity.objects.create(kind=Activity.Kind.MEETING, occurred_at=self.held.start, company=self.co, summary="Acme intro")
+        r = self.client.get(self.url)
+        self.assertContains(r, 'data-layout="company"')
+        for widget in ("facts", "feed", "details", "meetings", "actions", "people", "deals"):
+            self.assertContains(r, f'data-widget="{widget}"')
+        feed = r.content.decode().split('id="comments"', 1)[1].split("Full timeline", 1)[0]
+        order = [feed.index(s) for s in ("Acme site visit", "Called Ann, she liked", "Owner wants to close",
+                                         "Re: site brief", "Acme intro")]
+        self.assertEqual(order, sorted(order))  # upcoming meeting, then the comment, the note, yesterday's email, the held meeting
+        self.assertEqual(feed.count('data-kind="meeting"'), 2)
+        self.assertEqual(feed.count('data-kind="email"'), 1)
+        self.assertIn("Send the Fayetteville site brief", feed)  # the meeting's action items ride along
+        self.assertContains(r, 'data-feed-filter="comment note"')
+        self.assertContains(r, "Customize page")
+
+    def test_the_layout_is_the_persons_own_and_separate_from_the_dashboard(self):
+        import json
+
+        self.client.post(reverse("crm:prefs_save"), {"key": "company", "value": json.dumps(
+            [{"id": "feed", "w": 12}, {"id": "details", "w": 4, "h": 300}, {"id": "nope", "w": 4}])})
+        r = self.client.get(self.url)
+        self.assertEqual([(w["id"], w["w"], w["h"]) for w in r.context["grid"]["layout"]], [("feed", 12, 0), ("details", 4, 300)])
+        self.assertNotContains(r, 'data-widget="meetings"')
+        r = self.client.get(self.url, {"customize": "1"})
+        self.assertContains(r, "Customizing your page")
+        self.assertContains(r, 'data-add-widget="meetings"')
+        self.assertContains(r, 'data-add-widget="feed" disabled')
+        self.assertEqual(self.client.get(reverse("crm:home")).context["layout"][0]["id"], "kpis")  # untouched
+        self.client.post(reverse("crm:prefs_save"), {"key": "company", "value": "null"})
+        self.assertEqual(len(self.client.get(self.url).context["grid"]["layout"]), 11)
+
+    def test_the_other_tabs_keep_the_details_column(self):
+        r = self.client.get(self.url, {"tab": "people"})
+        self.assertContains(r, "Team connections")
+        self.assertContains(r, 'id="edit-dialog"')
+        self.assertNotContains(r, 'data-layout="company"')
+
     def test_overview_shows_meeting_summary_and_action_items_in_place(self):
         r = self.client.get(self.url)
         self.assertContains(r, "Acme intro")

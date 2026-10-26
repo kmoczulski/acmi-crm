@@ -1,7 +1,11 @@
-"""The company page's meeting cards, action items and activity filters (view: crm.views.company_detail).
+"""The company page's meeting cards, action items, activity filters and the overview's feed (view:
+crm.views.company_detail).
 
 Meetings lead the page: each card shows the Granola summary in place, with its "Next Steps" listed separately as
 action items (owner, done state, Make task). The open action items across every meeting sit with the company's tasks.
+The overview's Activity widget is one list, newest first, of comments, notes, meetings (with notes and action items)
+and the conversation (Kellen, 2026-10-26: "like Trello, where comments and meeting updates/notes are in
+chronological order").
 """
 from django.core.paginator import Paginator
 from django.db.models import Count
@@ -11,6 +15,11 @@ from . import meetings
 from .models import Activity, Task
 
 MEETINGS_PAGE = 10
+FEED_LIMIT = 40
+EMAIL_KINDS = {Activity.Kind.EMAIL_SENT, Activity.Kind.EMAIL_RECEIVED, Activity.Kind.REPLY, Activity.Kind.BOUNCE,
+               Activity.Kind.AUTO_REPLY}
+# Meetings and notes come from their own rows (Meeting, Note), so their echoes on the activity timeline stay out.
+FEED_ECHOES = (Activity.Kind.MEETING, Activity.Kind.GRANOLA_NOTE, Activity.Kind.NOTE)
 
 # Activity tab filter: ?kind=<key> -> Activity kinds. "All" is no filter.
 ACTIVITY_FILTERS = {
@@ -87,9 +96,25 @@ def meeting_context(company, request, tab):
         "open_items": open_items,
         "done_items": done_items,
         "meeting_task_ids": set(tasks),
+        "all_meetings": all_meetings, "meeting_tasks": tasks,
     }
     if tab == "meetings":
         page = Paginator(upcoming[::-1] + past, MEETINGS_PAGE).get_page(request.GET.get("mpage"))
         ctx["meeting_page"] = page
         ctx["meeting_cards"] = _cards(page.object_list, tasks)
     return ctx
+
+
+def feed(comments, notes, meeting_list, tasks, activities, limit=FEED_LIMIT):
+    """The overview's Activity widget: [{when, kind, obj}] newest first. kind is comment (a Comment), note (a Note),
+    meeting (a card, as _cards makes), or email / call / change (an Activity). `activities` is the conversation
+    already filtered (no background rows, no FEED_ECHOES); meeting cards are built only for the meetings kept."""
+    items = [(c.created_at, "comment", c) for c in comments]
+    items += [(n.created_at, "note", n) for n in notes]
+    items += [(a.occurred_at, "email" if a.kind in EMAIL_KINDS else "call" if a.kind == Activity.Kind.CALL else "change", a)
+              for a in activities]
+    items += [(m.start, "meeting", m) for m in meeting_list]
+    items.sort(key=lambda t: t[0], reverse=True)
+    items = items[:limit]
+    cards = {c["m"].pk: c for c in _cards([obj for _, kind, obj in items if kind == "meeting"], tasks)}
+    return [{"when": when, "kind": kind, "obj": cards[obj.pk] if kind == "meeting" else obj} for when, kind, obj in items]

@@ -2,10 +2,12 @@
 // 0 = fit its content). Widgets go anywhere: side by side, stacked beside a tall one. Moving one pushes the others
 // out of its way and everything floats up to close gaps. Drag by the title (mouse) or the ⠿ handle (mouse or touch),
 // any time; the corner resizes. Keyboard: focus ⠿, arrows move, Shift + arrows resize. Below 1000px wide the
-// widgets stack in their order, with ↑ ↓ to reorder. Saved per person (crm/prefs.py, key "dashboard").
+// widgets stack in their order, with ↑ ↓ to reorder. Saved per person (crm/prefs.py) under the grid's data-layout
+// key: "dashboard" for the dashboard, "company" for a company page's overview.
 (function () {
   const grid = document.getElementById('widgets');
   if (!grid) return;
+  const KEY = grid.dataset.layout || 'dashboard', NAME = grid.dataset.name || 'dashboard';
   const bar = document.querySelector('.customize-bar');
   const live = document.getElementById('widgets-live');
   const COLS = 12, ROW = 8, GAP = 16;  // a grid row is 8px; widgets keep 16px between them
@@ -60,7 +62,7 @@
   const layout = () => widgets().map(w => ({id: w.dataset.widget, x: +w.dataset.x, y: +w.dataset.y, w: +w.dataset.w,
                                              h: +w.dataset.h || 0}));
   let saving = null;
-  const save = () => { clearTimeout(saving); saving = setTimeout(() => window.acmiPrefs.save('dashboard', layout()), 300); };
+  const save = () => { clearTimeout(saving); saving = setTimeout(() => window.acmiPrefs.save(KEY, layout()), 300); };
 
   function setWidth(w, n) {
     n = Math.max(2, Math.min(COLS, n));
@@ -83,7 +85,7 @@
   function setMode(on) {
     grid.classList.toggle('customizing', on);
     bar.hidden = !on;
-    document.querySelectorAll('.hero-btn[data-customize]').forEach(b => { b.textContent = on ? 'Done customizing' : 'Customize dashboard'; });
+    document.querySelectorAll('[data-customize][data-label]').forEach(b => { b.textContent = on ? 'Done customizing' : b.dataset.label; });
     const url = new URL(location.href);
     on ? url.searchParams.set('customize', '1') : url.searchParams.delete('customize');
     history.replaceState(null, '', url);
@@ -121,12 +123,16 @@
   }
 
   document.querySelectorAll('[data-add-widget]').forEach(b => b.addEventListener('click', async () => {
-    await window.acmiPrefs.save('dashboard', [...layout(), {id: b.dataset.addWidget, w: 6, h: 0}]);
-    location.href = location.pathname + '?customize=1#widgets';  // the new widget's content comes from the server
+    await window.acmiPrefs.save(KEY, [...layout(), {id: b.dataset.addWidget, w: 6, h: 0}]);
+    // The new widget's content comes from the server. Already on ?customize=1 (the usual case: the button put it in
+    // the URL), a URL that differs only by #widgets would be a fragment jump, not a reload.
+    const target = location.pathname + '?customize=1';
+    if (location.pathname + location.search === target) location.reload();
+    else location.href = target + '#widgets';
   }));
-  document.querySelector('[data-reset-dashboard]')?.addEventListener('click', async () => {
-    if (!confirm('Put the dashboard back to the standard layout?')) return;
-    await window.acmiPrefs.save('dashboard', null);
+  document.querySelector('[data-reset-layout]')?.addEventListener('click', async () => {
+    if (!confirm(`Put the ${NAME} back to the standard layout?`)) return;
+    await window.acmiPrefs.save(KEY, null);
     location.href = location.pathname;
   });
 

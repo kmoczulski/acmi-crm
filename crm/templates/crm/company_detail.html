@@ -1,5 +1,5 @@
 {% extends "crm/base.html" %}
-{% load crm_tags humanize %}
+{% load crm_tags humanize static %}
 {% block title %}{{ company.name }} · ACMI CRM{% endblock %}
 {% block content %}
 <nav class="crumbs no-print" aria-label="Breadcrumb"><a href="{% url 'crm:company_list' %}">Companies</a> › <span>{{ company.name }}</span></nav>
@@ -20,77 +20,15 @@
   <a href="{% qs_set tab='people' bg='' tpage='' mpage='' kind='' %}" class="{% if tab == 'people' %}active{% endif %}">People <span class="count">{{ people|length }}</span></a>
   <a href="{% qs_set tab='opportunities' bg='' tpage='' mpage='' kind='' %}" class="{% if tab == 'opportunities' %}active{% endif %}">Deals <span class="count">{{ opportunities|length }}</span></a>
   <a href="{% qs_set tab='sites' bg='' tpage='' mpage='' kind='' %}" class="{% if tab == 'sites' %}active{% endif %}">Site searches <span class="count">{{ land_searches|length }}</span></a>
+  {% if tab == 'overview' %}<span class="spacer"></span><button type="button" class="btn btn-small co-customize" data-customize data-label="Customize page">{% if grid.customize %}Done customizing{% else %}Customize page{% endif %}</button>{% endif %}
 </nav>
 
+{% if tab == 'overview' %}
+{% include "crm/partials/widget_grid.html" %}
+{% else %}
 <div class="co-record">
   <section class="co-main">
-    {% if tab == 'overview' %}
-      <div class="co-facts">
-        <div><span class="label">Stage</span><span class="value">{{ company.get_status_display }}</span></div>
-        <div><span class="label">Owner</span><span class="value">{{ company.owner|username|default:"—" }}</span></div>
-        <div><span class="label">Last touch</span><span class="value">{% if company.last_interaction_at %}{{ company.days_since_touch }} days ago{% else %}Never{% endif %}</span>
-          <span class="sub">{{ company.touch_count }} outreach email{{ company.touch_count|pluralize }}{% if company.last_response %} · {{ company.last_response }}{% endif %}</span></div>
-        <div><span class="label">Next meeting</span><span class="value">{% if next_meeting %}<a href="#meeting-{{ next_meeting.pk }}">{{ next_meeting.start|date:"M j" }}</a>{% else %}{{ company.next_interaction_at|date:"M j"|default:"—" }}{% endif %}</span></div>
-        <div><span class="label">Who knows them</span><span class="value">{{ company.strongest_connection_user|username|default:"—" }}</span>
-          {% if company.connection_strength %}<span class="sub">{{ company.connection_strength }}{% if team|length > 1 %} · {{ team|length }} teammates in touch{% endif %}</span>{% endif %}</div>
-        <div><span class="label">Fit</span><span class="value">{% if company.fit_score %}{{ company.fit_score }} / 5{% else %}—{% endif %}</span>
-          {% if company.fit_score %}<span class="sub">{{ fit_definition|truncatechars:40 }}</span>{% endif %}</div>
-        <div><span class="label">Campus interest</span><span class="value">{{ company.campus_label|default:"—" }}</span></div>
-        {% if company_projects %}<div><span class="label">Projects</span><span class="value">{% for p, n in company_projects %}<a class="chip chip-project" href="{{ p.get_absolute_url }}" title="{{ n }} emails">{{ p.name }}</a>{% endfor %}</span></div>{% endif %}
-        {% if latest_news %}<div class="co-fact-wide"><span class="label">Latest news</span>
-          <span class="sub" style="color:var(--text)">{% if latest_news.url %}<a href="{{ latest_news.url }}" target="_blank" rel="noopener">{{ latest_news.summary|truncatechars:80 }}</a>{% else %}{{ latest_news.summary|truncatechars:80 }}{% endif %}</span>
-          <span class="sub">{{ latest_news.occurred_at|date:"M j, Y" }}</span></div>{% endif %}
-      </div>
-
-      <div class="grid-2 co-pair">
-        <div class="panel">
-          <h3>Who we know <a href="{% qs_set tab='people' %}" class="h3-link">All {{ people|length }}</a></h3>
-          {% for p in people|slice:":5" %}
-            <div class="row-line"><span><a href="{{ p.get_absolute_url }}">{{ p }}</a>{% if p.title %} <span class="muted">· {{ p.title|truncatechars:40 }}</span>{% endif %}</span>
-              <span class="muted">{{ p.last_interaction_at|ago|default:"no touch yet" }}</span></div>
-          {% empty %}<p class="muted" style="margin:0">No people yet. <a href="{% url 'crm:person_create' %}?company={{ company.pk }}">Add one</a></p>{% endfor %}
-        </div>
-        <div class="panel">
-          <h3>Open deals <a href="{% qs_set tab='opportunities' %}" class="h3-link">All {{ opportunities|length }}</a></h3>
-          {% for o in open_deals %}
-            <div class="row-line"><span><a href="{{ o.get_absolute_url }}">{{ o.name }}</a> <span class="stage stage-{{ o.stage }}">{{ o.get_stage_display }}</span>
-              {% if o.next_step %}<div class="muted" style="font-size:12px">Next: {{ o.next_step|truncatechars:70 }}</div>{% endif %}</span>
-              <span class="muted" style="text-align:right">{{ o.value|money }}{% if o.site_label %}<br>{{ o.site_label }}{% endif %}</span></div>
-          {% empty %}<p class="muted" style="margin:0">No open deals. <a href="{% url 'crm:opportunity_create' %}?company={{ company.pk }}">New tenant deal</a></p>{% endfor %}
-        </div>
-      </div>
-
-      <div class="co-section-head">
-        <h2>Meetings</h2>
-        {% if meeting_count > latest_meetings|length %}<a href="{% qs_set tab='meetings' %}">All {{ meeting_count }} meetings →</a>{% endif %}
-      </div>
-      {% for c in latest_meetings %}{% include "crm/partials/company_meeting_card.html" %}
-      {% empty %}<div class="panel muted">No meetings with {{ company.name }} yet. Granola notes and calendar invites with their people land here.</div>{% endfor %}
-
-      <div class="panel">
-        <h3>Open action items and tasks <a href="{% qs_set tab='actions' %}" class="h3-link">All</a></h3>
-        {% include "crm/partials/company_actions.html" with limit=6 %}
-      </div>
-
-      <details class="panel co-fold">
-        <summary>AI summary{% if ai_summary %} <span class="fold-hint">{{ ai_summary.headline|truncatechars:110 }}</span>{% endif %}</summary>
-        {% include "crm/partials/ai_summary.html" %}
-      </details>
-      <details class="panel co-fold" id="notes">
-        <summary>Notes <span class="count">{{ notes|length }}</span>{% with n=notes.0 %}{% if n %} <span class="fold-hint">{{ n.body|truncatechars:90 }}</span>{% endif %}{% endwith %}</summary>
-        {% include "crm/partials/company_notes.html" %}
-      </details>
-      <details class="panel co-fold">
-        <summary>Comments <span class="count">{{ comments|length }}</span></summary>
-        {% include "crm/partials/comments.html" %}
-      </details>
-      <details class="panel co-fold">
-        <summary>Recent activity <span class="fold-hint">email, notes and changes</span></summary>
-        <ul class="timeline">{% for a in recent_activity %}{% include "crm/partials/timeline_item.html" %}{% empty %}<li><span></span><span class="muted">No activity yet.</span></li>{% endfor %}</ul>
-        <a href="{% qs_set tab='activity' %}">Full timeline →</a>
-      </details>
-
-    {% elif tab == 'meetings' %}
+    {% if tab == 'meetings' %}
       {% for c in meeting_cards %}{% include "crm/partials/company_meeting_card.html" %}
       {% empty %}<div class="panel muted">No meetings with {{ company.name }} yet.</div>{% endfor %}
       {% if meeting_page.paginator.num_pages > 1 %}
@@ -165,36 +103,25 @@
   </section>
 
   <aside class="co-side">
-    <div class="panel">
-      <h3>Details <button type="button" class="btn btn-small" style="float:right" onclick="document.getElementById('edit-dialog').showModal()">Edit</button></h3>
-      {% include "crm/partials/company_details.html" %}
-      {% include "crm/partials/edit_dialog.html" with title="company" %}
-      {% if IS_MANAGER %}
-      <details style="margin-top:10px"><summary class="muted" style="font-size:12px;cursor:pointer">Merge another company into this one</summary>
-        <form method="post" action="{% url 'crm:company_merge_into' company.pk %}" class="inline-form" style="margin-top:6px"
-              onsubmit="return confirm('Merge that company into {{ company.name|escapejs }}? Its people, emails and documents move here and it is deleted.')">{% csrf_token %}
-          <input name="other" list="merge-company-names" placeholder="Company name" required style="flex:1">
-          <button class="btn-small">Merge</button>
-        </form>
-        <datalist id="merge-company-names">{% for n in merge_candidates %}<option value="{{ n }}">{% endfor %}</datalist>
-      </details>
-      <p style="margin:10px 0 0;font-size:12px"><a class="muted" href="{% url 'crm:company_move' company.pk %}">Move to directory</a> <span class="muted">(a consultant, vendor or lender, not a prospect)</span></p>
-      <details class="danger-zone"><summary>Delete this company</summary>
-        <form method="post" action="{% url 'crm:company_delete' company.pk %}" style="margin-top:8px"
-              onsubmit="return confirm('Delete {{ company.name|escapejs }} and its whole timeline, tasks, notes and opportunities? This cannot be undone.')">{% csrf_token %}
-          <label class="muted" style="font-size:12px;display:block;margin-bottom:6px"><input type="checkbox" name="people" value="delete"> Also delete its {{ people|length }} people</label>
-          <button class="btn-small btn-danger">Delete company</button>
-        </form>
-      </details>
-      {% endif %}
+    <div class="panel co-details">
+      <h3>Details</h3>
+      {% include "crm/widgets/company/details.html" %}
     </div>
     {% include "crm/partials/drive_panel_slot.html" with kind="company" pk=company.pk %}
     {% include "crm/partials/record_side.html" %}
   </aside>
 </div>
+{% endif %}
 {% endblock %}
 {% block scripts %}
+{% if tab == 'overview' %}<script src="{% static 'crm/dashboard.js' %}?v={{ ASSET_VERSION }}"></script>{% endif %}
 <script>
+  // The feed's chips show one kind of entry at a time (comments and notes, meetings, email).
+  document.querySelectorAll('[data-feed-filter]').forEach(btn => btn.addEventListener('click', () => {
+    const kinds = btn.dataset.feedFilter.split(' ').filter(Boolean);
+    btn.closest('.feed-filters').querySelectorAll('button').forEach(b => b.classList.toggle('on', b === btn));
+    btn.closest('.feed').querySelectorAll('.feed-item').forEach(el => { el.hidden = kinds.length > 0 && !kinds.includes(el.dataset.kind); });
+  }));
   // Long summaries start clipped with a fade; the button shows the rest in place.
   document.querySelectorAll('[data-clamp]').forEach(el => {
     const btn = el.nextElementSibling;

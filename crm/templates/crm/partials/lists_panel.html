@@ -1,0 +1,19 @@
+{% load crm_tags %}
+<div class="panel">
+  {% if not no_title %}<h3>Lists</h3>{% endif %}
+  {% for e in list_entries %}
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+      <a href="{{ e.list.get_absolute_url }}">{{ e.list.name }}</a>
+      <span>{% if e.stage %}<span class="tag">{{ e.stage }}</span>{% endif %}
+      <form method="post" action="{% url 'crm:list_entry_remove' e.pk %}" style="display:inline">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button class="btn-link btn-small" title="Remove from list">×</button></form></span>
+    </div>
+  {% empty %}<p class="muted" style="margin:0 0 8px">Not in any list.</p>{% endfor %}
+  {% if available_lists %}
+  <form method="post" action="{% url 'crm:list_add_entry' %}" class="inline-form" style="margin-top:8px">{% csrf_token %}
+    <input type="hidden" name="{{ record_field }}" value="{{ record.pk }}">
+    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+    <select name="list">{% for l in available_lists %}<option value="{{ l.pk }}">{{ l.name }}</option>{% endfor %}</select>
+    <button class="btn-small">Add to list</button>
+  </form>
+  {% endif %}
+</div>

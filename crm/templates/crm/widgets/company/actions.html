@@ -1,0 +1,3 @@
+{% load crm_tags %}
+<a href="{% qs_set tab='actions' %}" class="widget-link">All</a>
+{% include "crm/partials/company_actions.html" with limit=6 %}

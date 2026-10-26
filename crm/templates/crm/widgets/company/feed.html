@@ -1,0 +1,80 @@
+{% load crm_tags humanize %}
+{% comment %}Trello-style activity: what happened with this company, newest first, with comments and notes alongside the
+meeting notes (and their action items) and the email. feed = company_page.feed(...): {when, kind, obj}.{% endcomment %}
+<div class="feed" id="comments">
+  <form method="post" action="{% url 'crm:comment_add' %}" class="feed-compose">{% csrf_token %}
+    <input type="hidden" name="company" value="{{ company.pk }}">
+    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+    <span class="feed-avatar" aria-hidden="true">{{ user.first_name|default:user.username|slice:":1"|upper }}</span>
+    <div class="feed-main">
+      <textarea name="body" rows="2" placeholder="Write a comment… @ and a name notifies someone (e.g. @Simon)" aria-label="Comment" required></textarea>
+      <div class="feed-compose-actions"><button class="btn-small btn-primary">Comment</button></div>
+    </div>
+  </form>
+  <details class="feed-note">
+    <summary>+ Add a note instead <span class="muted">(kept on the record, notifies nobody)</span></summary>
+    <form method="post" action="{% url 'crm:note_add' %}">{% csrf_token %}
+      <input type="hidden" name="company" value="{{ company.pk }}">
+      <input type="hidden" name="next" value="{{ request.get_full_path }}">
+      {{ note_form.body }}
+      <button class="btn-small" style="margin-top:6px">Add note</button>
+    </form>
+  </details>
+  <div class="feed-filters" role="group" aria-label="Show">
+    <button type="button" class="on" data-feed-filter="">All</button>
+    <button type="button" data-feed-filter="comment note">Comments &amp; notes</button>
+    <button type="button" data-feed-filter="meeting call">Meetings</button>
+    <button type="button" data-feed-filter="email">Email</button>
+  </div>
+  {% for e in feed %}
+    {% if e.kind == 'comment' %}{% with c=e.obj %}
+    <article class="feed-item" data-kind="comment">
+      <span class="feed-avatar" aria-hidden="true">{{ c.author|username|default:"?"|slice:":1"|upper }}</span>
+      <div class="feed-main">
+        <div class="feed-head"><strong>{{ c.author|username|default:"Someone" }}</strong> commented{% if c.task %} on task <a href="{{ c.task.get_absolute_url }}">{{ c.task.title|truncatechars:40 }}</a>{% elif c.opportunity %} on <a href="{{ c.opportunity.get_absolute_url }}">{{ c.opportunity.name|truncatechars:40 }}</a>{% endif %}
+          <span class="muted">· {{ c.created_at|date:"M j, Y, g:i A" }}</span>
+          {% if c.author == user %}<form method="post" action="{% url 'crm:comment_delete' c.pk %}" class="feed-delete" onsubmit="return confirm('Delete this comment?')">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button class="btn-link">Delete</button></form>{% endif %}
+        </div>
+        <div class="feed-body">{{ c.body|mentions }}</div>
+      </div>
+    </article>{% endwith %}
+    {% elif e.kind == 'note' %}{% with n=e.obj %}
+    <article class="feed-item" data-kind="note">
+      <span class="feed-avatar" aria-hidden="true">{{ n.author|username|default:"?"|slice:":1"|upper }}</span>
+      <div class="feed-main">
+        <div class="feed-head"><strong>{{ n.author|username|default:"Someone" }}</strong> added a note <span class="muted">· {{ n.created_at|date:"M j, Y, g:i A" }}</span></div>
+        <div class="feed-body feed-pre">{{ n.body }}</div>
+      </div>
+    </article>{% endwith %}
+    {% elif e.kind == 'meeting' %}{% with c=e.obj m=e.obj.m %}
+    <article class="feed-item feed-meeting{% if c.upcoming %} feed-upcoming{% endif %}" data-kind="meeting">
+      <span class="feed-avatar feed-icon" title="Meeting" aria-hidden="true">📅</span>
+      <div class="feed-main">
+        <div class="feed-head"><strong>{{ m.title }}</strong> {% if c.upcoming %}<span class="pill pill-good">Upcoming</span>{% else %}meeting{% endif %}
+          <span class="muted">· {{ m.start|date:"D, M j, Y, g:i A" }}{% if c.outside %} · with {{ c.outside|slice:":4"|join:", " }}{% if c.outside|length > 4 %} and {{ c.outside|length|add:"-4" }} more{% endif %}{% endif %}</span>
+          <span class="feed-links">{% if m.url %}<a href="{{ m.url }}" target="_blank" rel="noopener">{% if m.source == 'granola' %}Granola{% else %}Calendar{% endif %} ↗</a>{% endif %}<a href="{% qs_set tab='meetings' %}#meeting-{{ m.pk }}">Open</a></span>
+        </div>
+        {% if c.summary_html %}<div class="feed-body granola clamp" data-clamp>{{ c.summary_html }}</div><button type="button" class="btn-link btn-small clamp-toggle" hidden>Show full summary</button>
+        {% elif not c.upcoming %}<div class="feed-body muted">No notes for this meeting.</div>{% endif %}
+        {% if c.items %}
+        <div class="feed-actions">
+          <h5 class="co-sub">Action items <span class="muted">{{ c.open_items }} open of {{ c.items|length }}</span></h5>
+          {% for i in c.items %}{% include "crm/partials/action_item.html" with compact=True %}{% endfor %}
+        </div>
+        {% endif %}
+      </div>
+    </article>{% endwith %}
+    {% else %}{% with a=e.obj %}
+    <article class="feed-item" data-kind="{{ e.kind }}">
+      <span class="feed-avatar feed-icon" title="{{ a.get_kind_display }}" aria-hidden="true">{{ a.kind|kind_icon }}</span>
+      <div class="feed-main">
+        <div class="feed-head">{% conversation a %} <span class="muted">· {{ a.get_kind_display|lower }} · {{ a.occurred_at|date:"M j, Y, g:i A" }}</span>
+          {% if MAIL_ON and a.message_id and a.source == "gmail" %}<span class="feed-links"><a href="{% url 'crm:inbox_open' %}?m={{ a.message_id|urlencode }}">Open in Mail</a></span>{% endif %}</div>
+        <div class="feed-body">{% if a.url %}<a href="{{ a.url }}" target="_blank" rel="noopener">{{ a.summary }}</a>{% else %}{{ a.summary }}{% endif %}{% if a.outcome %} {{ a.outcome|pill:"response" }}{% endif %} {% context_chip a %}
+          {% with text=a|body_text:320 %}{% if text %}<div class="feed-excerpt">{{ text }}</div>{% endif %}{% endwith %}</div>
+      </div>
+    </article>{% endwith %}
+    {% endif %}
+  {% empty %}<p class="muted" style="margin:8px 0 0">Nothing yet. The first comment, note, meeting or email lands here.</p>{% endfor %}
+  <a href="{% qs_set tab='activity' %}" class="more-link">Full timeline →</a>
+</div>

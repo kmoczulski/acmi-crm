@@ -424,15 +424,9 @@ def home(request):
     Only the widgets on someone's dashboard are worked out.
     """
     today = timezone.localdate()
-    layout = prefs.dashboard_layout(request.user)
-    shown = {w["id"] for w in layout}
-    ctx = {
-        "layout": layout,
-        "customize": request.GET.get("customize") == "1",
-        "headless": prefs.HEADLESS,
-        "widths": prefs.WIDTHS,
-        "gallery": [{"id": k, "title": v[0], "description": v[3], "shown": k in shown} for k, v in prefs.WIDGETS.items()],
-    }
+    grid = prefs.layout_context(request.user, "dashboard", request.GET.get("customize") == "1")
+    shown = grid["shown"]
+    ctx = {"grid": grid, "layout": grid["layout"], "customize": grid["customize"]}
     if "my_day" in shown:
         my_tasks = Task.objects.filter(assignee=request.user, done=False).select_related("company", "person", "assignee", "opportunity")
         ctx["overdue"] = [t for t in my_tasks if t.due_date and t.due_date < today]
@@ -539,7 +533,6 @@ def company_detail(request, pk):
         "done_tasks": task_rows(company.tasks.filter(done=True))[:10],
         "notes": company.notes_set.select_related("author")[:20],
         "latest_news": latest_news,
-        "recent_activity": recent_activity(activities, limit=8, include_sent=True),
         "list_entries": company.list_entries.select_related("list"),
         "available_lists": List.objects.filter(object_type=ObjectType.COMPANY).exclude(entries__company=company),
         "task_form": TaskForm(initial={"assignee": request.user}),
@@ -571,6 +564,14 @@ def company_detail(request, pk):
         filtered, ctx["activity_kind"] = company_page.filter_activity(activities, request.GET.get("kind"))
         ctx["timeline"] = _timeline(filtered, request)
         ctx["activity_chips"] = company_page.activity_chips(activities)
+    elif tab == "overview":
+        # The overview is a widget grid like the dashboard's, laid out per person (crm/prefs.py "company").
+        grid = ctx["grid"] = prefs.layout_context(request.user, "company", request.GET.get("customize") == "1")
+        if "feed" in grid["shown"]:
+            conversation = recent_activity(activities.exclude(kind__in=company_page.FEED_ECHOES),
+                                           limit=company_page.FEED_LIMIT, include_sent=True)
+            ctx["feed"] = company_page.feed(ctx["comments"], ctx["notes"], ctx["all_meetings"], ctx["meeting_tasks"],
+                                            conversation)
     return render(request, "crm/company_detail.html", ctx)
 
 
