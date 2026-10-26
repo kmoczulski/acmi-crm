@@ -161,7 +161,8 @@ see "Built 2026-10-26: mail-inbox" at the end of this file (merged `a6bd5e9`, mi
 no migration): "Built 2026-10-26: mail-long-threads". The 10:17 sync finished the inbox fill (303 inbox threads
 indexed, no error) and sent 6 new-mail alerts. **Step 4 (`mail-actions`) merged 2026-10-26** (PR #8, `bf602f0`, migrated, backup
 `backups/db-2026-10-26-before-mail-actions.sqlite3`): "Built 2026-10-26: mail-actions". **Step 5
-(`mail-compose`)**: "Built 2026-10-26: mail-compose" (Kellen, 2026-10-26: "I can't respond to an email?").
+(`mail-compose`) merged 2026-10-26** (PR #9, `ca4bb4f`, no migration): "Built 2026-10-26: mail-compose" (Kellen, 2026-10-26: "I can't respond to an email?"). Next in
+`docs/EMAIL_CLIENT.md`: step 6 `mail-filing` (File to a record, Open in Mail, CRM labels in Gmail, team comments).
 
 **Next, in order**
 1. **Granola (time-sensitive: Granola only keeps 30 days).**
