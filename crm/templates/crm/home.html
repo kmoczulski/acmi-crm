@@ -3,7 +3,7 @@
 {% block content %}
 <section class="hero">
   <div class="hero-top">
-    <h1>Good {% now "A" as ampm %}{% if ampm == "AM" %}morning{% else %}afternoon{% endif %}, {{ user.first_name|default:user.username }}</h1>
+    <h1><span data-greeting>{% greeting %}</span>, {{ user.first_name|default:user.username }}</h1>
     <span class="spacer"></span>
     <button type="button" class="btn hero-btn" data-customize>{% if customize %}Done customizing{% else %}Customize dashboard{% endif %}</button>
   </div>
@@ -73,4 +73,11 @@
 </div>
 {% include "crm/partials/meeting_dialog.html" %}
 {% endblock %}
-{% block scripts %}<script src="{% static 'crm/dashboard.js' %}?v={{ ASSET_VERSION }}"></script>{% endblock %}
+{% block scripts %}<script>
+  // The greeting follows the viewer's own clock (Eastern, Central, travelling...); the server's is the fallback.
+  (function () {
+    const el = document.querySelector('[data-greeting]'); if (!el) return;
+    const h = new Date().getHours();
+    el.textContent = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+  })();
+</script><script src="{% static 'crm/dashboard.js' %}?v={{ ASSET_VERSION }}"></script>{% endblock %}

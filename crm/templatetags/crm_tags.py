@@ -338,3 +338,11 @@ def report_cell(o, key):
     if key in ("target_close", "est_delivery"):
         return f"{value:%b} {value.year}"
     return value
+
+
+@register.simple_tag
+def greeting():
+    """"Good morning" before noon, "Good afternoon" until 5 PM, "Good evening" after, in the team's time zone. The
+    dashboard then redoes it in the browser from the viewer's own clock (home.html), so Eastern sees Eastern."""
+    hour = timezone.localtime().hour
+    return "Good morning" if hour < 12 else "Good afternoon" if hour < 17 else "Good evening"
