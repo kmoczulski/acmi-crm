@@ -2060,3 +2060,15 @@ a.mail-chip:hover { text-decoration: none; filter: brightness(.95); }
   .compose-row { grid-template-columns: 1fr; gap: 2px; }
   .compose-more > summary { margin-left: 0; }
 }
+
+.compose-sig-preview { border-left: 2px solid var(--line); padding: 4px 10px; margin: 4px 0; font-size: 13px; overflow-wrap: anywhere; }
+.compose-sig-preview img { max-width: 100%; height: auto; }
+.sig-form { display: flex; flex-direction: column; gap: 6px; }
+
+.mail-inline { margin: 10px 0 14px; max-width: none; border-color: var(--accent); box-shadow: 0 2px 10px rgba(31,58,95,.08); }
+.mail-inline-head { display: flex; align-items: center; gap: 10px; }
+.mail-inline-head .spacer { flex: 1; }
+.mail-inline .compose-body { min-height: 140px; }
+.mail-inline[hidden] { display: none; }
+.compose-files[hidden] { display: none; }
+@media (max-width: 760px) { .mail-reader-head { position: static; } }

@@ -241,3 +241,80 @@ class ComposeAccessTests(TestCase):
         self.client.force_login(user)
         r = self.client.get(reverse("crm:inbox_compose"))
         self.assertRedirects(r, reverse("crm:mail_settings"), fetch_redirect_response=False)
+
+
+@override_settings(**SEND)
+class SignatureAndInlineReplyTests(TestCase):
+    """Kellen: "I would rather keep the reply function inline… my signature isn't showing up"."""
+
+    def setUp(self):
+        cache.clear()
+        self.user = connected_user()
+        self.user.first_name, self.user.last_name = "Kellen", "Moczulski"
+        self.user.save()
+        Mailbox.objects.create(user=self.user, email=ME, backend=Mailbox.Backend.GMAIL_API, backfill_done=True)
+        self.fake = FakeGmail([api_message("0a01", "a1", WILL, ME, "PDA", body="Can you send it?",
+                                           msg_id="<pda-1@fh>", attachment="Site plan v3.pdf")])
+        self.fake.send_as = [{"sendAsEmail": ME, "isPrimary": True,
+                              "signature": '<div><b>Kellen Moczulski</b><br>ACMI Properties<script>x()</script>'
+                                           '<br><img src="https://lh3.googleusercontent.com/logo.png"></div>'}]
+        self.client.force_login(self.user)
+        patcher = mock.patch.object(gmail_api, "requests", self.fake)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def sent(self):
+        return message_from_bytes(self.fake.sent[-1][1], policy=policy.default)
+
+    def send_reply(self, **extra):
+        return self.client.post(reverse("crm:inbox_compose"), {
+            "mode": "reply", "reply_to_id": "0a01", "to": "will@firehawkaerospace.com", "subject": "Re: PDA",
+            "body": "Here it is.", "thread_id": "a1", "back": "/inbox/?label=INBOX&t=a1", **extra})
+
+    def test_the_gmail_signature_goes_under_emails_by_default(self):
+        self.send_reply()
+        msg = self.sent()
+        rich = msg.get_body(("html",)).get_content()
+        self.assertIn('<div class="gmail_signature"><div><b>Kellen Moczulski</b><br>ACMI Properties', rich)
+        self.assertIn("lh3.googleusercontent.com/logo.png", rich)
+        self.assertNotIn("<script", rich)
+        self.assertIn("Here it is.\n\nKellen Moczulski\nACMI Properties", msg.get_body(("plain",)).get_content())
+
+    def test_a_hub_signature_or_none(self):
+        self.client.post(reverse("crm:mail_signature"), {"mode": "custom", "signature": "KM, ACMI"})
+        self.send_reply()
+        self.assertIn("Here it is.\n\nKM, ACMI", self.sent().get_body(("plain",)).get_content())
+        self.client.post(reverse("crm:mail_signature"), {"mode": "none"})
+        self.send_reply()
+        self.assertNotIn("KM, ACMI", self.sent().get_body(("plain",)).get_content())
+        self.assertNotIn("gmail_signature", self.sent().get_body(("html",)).get_content())
+        self.client.post(reverse("crm:mail_signature"), {"mode": "gmail"})
+        self.send_reply()
+        self.assertIn("ACMI Properties", self.sent().get_body(("plain",)).get_content())
+
+    def test_the_settings_page_shows_the_gmail_signature(self):
+        r = self.client.get(reverse("crm:mail_settings"))
+        self.assertContains(r, "<b>Kellen Moczulski</b>")
+        self.assertContains(r, 'value="gmail" checked')
+
+    def test_the_reply_box_opens_in_the_reading_pane(self):
+        r = self.client.get(reverse("crm:inbox"), {"t": "a1"})
+        self.assertContains(r, "data-inline hidden")
+        self.assertContains(r, 'data-reply="0a01" data-mode="reply"')
+        self.assertContains(r, 'data-reply="0a01" data-mode="forward"')
+        f = self.client.get(reverse("crm:inbox_reply_fields"), {"reply": "0a01", "mode": "forward"}).json()
+        self.assertEqual((f["subject"], f["to"], f["thread_id"]), ("Fwd: PDA", "", ""))
+        self.assertEqual(f["forward_files"], [{"part": "1", "name": "Site plan v3.pdf", "size": 120000}])
+        self.assertIn("<b>Kellen Moczulski</b>", f["signature_html"])
+        f = self.client.get(reverse("crm:inbox_reply_fields"), {"reply": "0a01", "mode": "reply"}).json()
+        self.assertEqual((f["to"], f["thread_id"], f["in_reply_to"]),
+                         ("Will Edwards <will@firehawkaerospace.com>", "a1", "<pda-1@fh>"))
+        self.assertEqual(self.client.get(reverse("crm:inbox_reply_fields"), {"reply": "ffff"}).status_code, 404)
+
+    def test_the_reply_box_sends_without_leaving_the_thread(self):
+        r = self.send_reply(inline="1")
+        self.assertEqual(r.json(), {"ok": True, "url": "/inbox/?label=INBOX&t=a1"})
+        self.assertEqual(self.fake.sent[-1][0], {"threadId": "a1"})
+        r = self.send_reply(inline="1", to="will@firehawk")
+        self.assertEqual(r.status_code, 400)
+        self.assertIn("isn't an email address", r.json()["error"])

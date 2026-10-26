@@ -69,6 +69,7 @@ class FakeGmail:
         self.history_status, self.status = 200, 200
         self.fail_on, self.calls, self.posts = set(), [], []
         self.sent, self.drafts, self.send_status = [], {}, 200
+        self.send_as = [{"sendAsEmail": email, "isPrimary": True, "signature": ""}]
         self.label_list = [{"id": "INBOX", "name": "INBOX", "type": "system"},
                            {"id": "SENT", "name": "SENT", "type": "system"},
                            {"id": "UNREAD", "name": "UNREAD", "type": "system"},
@@ -160,6 +161,8 @@ class FakeGmail:
             return FakeResponse({"emailAddress": self.email, "historyId": self.history_id})
         if path == "/messages":
             return FakeResponse({"messages": [{"id": i} for i in reversed(self.order)]})  # newest first
+        if path == "/settings/sendAs":
+            return FakeResponse({"sendAs": self.send_as})
         if path == "/labels":
             return FakeResponse({"labels": self.label_list})
         if path.startswith("/labels/"):

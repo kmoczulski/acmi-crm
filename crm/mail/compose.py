@@ -50,10 +50,58 @@ def parse_recipients(text, field="To"):
     return out
 
 
-def signature(user):
-    """The person's own signature (Mail in the hub settings), or their name."""
-    saved = prefs.get_prefs(user).get("mail_signature")
-    return saved if saved is not None else (user.get_full_name() or user.username)
+SIGNATURE_CACHE = 3600
+
+
+def signature_mode(user):
+    """"gmail" (the signature set in Gmail; the default), "custom" (one written on Mail in the hub) or "none"."""
+    p = prefs.get_prefs(user)
+    return p.get("mail_signature_mode") or ("custom" if p.get("mail_signature") else "gmail")
+
+
+def gmail_signature(mailbox, client):
+    """The signature the person set in Gmail (Settings › Signature), cleaned; "" if none. Read with the Gmail
+    permission they already gave, cached an hour."""
+    from django.core.cache import cache
+
+    from crm.news.drafts import sanitize_html
+
+    key = f"mail-gmail-signature:{mailbox.pk}"
+    cached = cache.get(key)
+    if cached is not None:
+        return cached
+    try:
+        found = client.get("/settings/sendAs").get("sendAs", [])
+    except Exception:  # no signature is better than no email
+        log.warning("Couldn't read the Gmail signature for %s", mailbox, exc_info=True)
+        return ""
+    own = next((a for a in found if a.get("sendAsEmail", "").lower() == mailbox.email.lower()), None) \
+        or next((a for a in found if a.get("isPrimary")), {})
+    value = sanitize_html(own.get("signature", "") or "")
+    cache.set(key, value, SIGNATURE_CACHE)
+    return value
+
+
+def signature_parts(user, mailbox=None, client=None):
+    """(plain, html) of the signature that goes under an email."""
+    from crm.news.drafts import html_to_text
+
+    mode = signature_mode(user)
+    if mode == "none":
+        return "", ""
+    if mode == "custom":
+        text = prefs.get_prefs(user).get("mail_signature", "")
+        return text, html.escape(text).replace("\n", "<br>")
+    rich = gmail_signature(mailbox, client) if mailbox is not None and client is not None else ""
+    if rich:
+        return html_to_text(rich), rich
+    name = user.get_full_name() or user.username
+    return name, html.escape(name)
+
+
+def signature(user, mailbox=None, client=None):
+    """The signature as text, for showing on a page."""
+    return signature_parts(user, mailbox, client)[0]
 
 
 def _without(addresses, own):
@@ -115,15 +163,16 @@ def quoted(mailbox, msg, mode):
 
 
 def build(mailbox, user, to, cc=(), bcc=(), subject="", body="", quote=("", ""), in_reply_to="", references="",
-          files=()):
-    """The email as bytes and its Message-ID. files: [(name, bytes, mime type)]."""
+          files=(), sig=None):
+    """The email as bytes and its Message-ID. files: [(name, bytes, mime type)]; sig: (plain, html), by default the
+    person's chosen signature without Gmail's (which needs a Gmail client)."""
     if not to and not cc and not bcc:
         raise ComposeError("Add at least one recipient.")
     if len(to) + len(cc) + len(bcc) > MAX_RECIPIENTS:
         raise ComposeError(f"That's more than {MAX_RECIPIENTS} recipients. Use the send queue for a mailing.")
     if sum(len(data) for _, data, _ in files) > MAX_BYTES:
         raise ComposeError("Attachments add up to more than 25 MB, Gmail's limit. Share a Drive link instead.")
-    sig = signature(user)
+    sig_plain, sig_html = sig if sig is not None else signature_parts(user)
     msg = EmailMessage()
     msg["From"] = formataddr((user.get_full_name() or "", mailbox.email))
     if to:
@@ -139,9 +188,9 @@ def build(mailbox, user, to, cc=(), bcc=(), subject="", body="", quote=("", ""),
         msg["In-Reply-To"] = in_reply_to
         msg["References"] = references or in_reply_to
     plain_quote, html_quote = quote
-    plain = (body or "").rstrip() + (f"\n\n{sig}" if sig else "") + plain_quote
-    rich = (text_to_html(body or "") + (f"<p>{html.escape(sig).replace(chr(10), '<br>')}</p>" if sig else "")
-            + html_quote)
+    plain = (body or "").rstrip() + (f"\n\n{sig_plain}" if sig_plain else "") + plain_quote
+    rich = text_to_html(body or "") + (f'<br><div class="gmail_signature">{sig_html}</div>' if sig_html else "") \
+        + html_quote
     msg.set_content(plain)
     msg.add_alternative(f'<div dir="ltr">{rich}</div>', subtype="html")
     for name, data, mime in files:
@@ -196,7 +245,7 @@ def save_draft(mailbox, client, user, fields, draft_id=""):
     if fields["to"] or fields["cc"] or fields["bcc"]:
         raw, _ = build(mailbox, user, fields["to"], fields["cc"], fields["bcc"], fields["subject"], fields["body"],
                        quote=fields.get("quote", ("", "")), in_reply_to=fields.get("in_reply_to", ""),
-                       references=fields.get("references", ""))
+                       references=fields.get("references", ""), sig=signature_parts(user, mailbox, client))
     else:
         raw = _draft_without_recipients(mailbox, user, fields)
     answer = client.save_draft(raw, draft_id=draft_id, thread_id=fields.get("thread_id", ""))

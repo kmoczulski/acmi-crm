@@ -1,5 +1,5 @@
 {% extends "crm/base.html" %}
-{% load crm_tags %}
+{% load crm_tags static %}
 {% block title %}{% if reader %}{{ reader.subject }} · {% endif %}{{ label_name }} · Mail · ACMI CRM{% endblock %}
 {% block content %}
 <div class="mail-app{% if reader %} has-reader{% endif %}">
@@ -92,9 +92,9 @@
         <h2>{{ reader.subject }}</h2>
         {% if reader.latest %}
         <div class="mail-reply-bar">
-          <a class="btn btn-small btn-primary" href="{% url 'crm:inbox_compose' %}?reply={{ reader.latest }}&mode=reply&back={{ here|urlencode }}" data-key="r" title="Reply (r)">↩ Reply</a>
-          <a class="btn btn-small" href="{% url 'crm:inbox_compose' %}?reply={{ reader.latest }}&mode=all&back={{ here|urlencode }}" data-key="a" title="Reply all (a)">↩ Reply all</a>
-          <a class="btn btn-small" href="{% url 'crm:inbox_compose' %}?reply={{ reader.latest }}&mode=forward&back={{ here|urlencode }}" data-key="f" title="Forward (f)">↪ Forward</a>
+          <a class="btn btn-small btn-primary" href="{% url 'crm:inbox_compose' %}?reply={{ reader.latest }}&mode=reply&back={{ here|urlencode }}" data-reply="{{ reader.latest }}" data-mode="reply" data-key="r" title="Reply (r)">↩ Reply</a>
+          <a class="btn btn-small" href="{% url 'crm:inbox_compose' %}?reply={{ reader.latest }}&mode=all&back={{ here|urlencode }}" data-reply="{{ reader.latest }}" data-mode="all" data-key="a" title="Reply all (a)">↩ Reply all</a>
+          <a class="btn btn-small" href="{% url 'crm:inbox_compose' %}?reply={{ reader.latest }}&mode=forward&back={{ here|urlencode }}" data-reply="{{ reader.latest }}" data-mode="forward" data-key="f" title="Forward (f)">↪ Forward</a>
         </div>
         {% endif %}
         <div class="mail-actions">
@@ -235,7 +235,7 @@
         <iframe class="mail-frame" title="Message from {{ m.from_name }}" sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox" loading="lazy"
                 src="{% url 'crm:inbox_body' m.id %}" data-mail-frame data-message="{{ m.id }}"></iframe>
         <p class="mail-images" hidden><button type="button" class="btn btn-small" data-show-images>Show images</button> <span class="muted lc-small">Images from the sender are blocked so they can't tell you opened this.</span></p>
-        <p class="mail-msg-reply lc-small"><a href="{% url 'crm:inbox_compose' %}?reply={{ m.id }}&mode=reply&back={{ here|urlencode }}">Reply</a> · <a href="{% url 'crm:inbox_compose' %}?reply={{ m.id }}&mode=all&back={{ here|urlencode }}">Reply all</a> · <a href="{% url 'crm:inbox_compose' %}?reply={{ m.id }}&mode=forward&back={{ here|urlencode }}">Forward</a></p>
+        <p class="mail-msg-reply lc-small"><a href="{% url 'crm:inbox_compose' %}?reply={{ m.id }}&mode=reply&back={{ here|urlencode }}" data-reply="{{ m.id }}" data-mode="reply">Reply</a> · <a href="{% url 'crm:inbox_compose' %}?reply={{ m.id }}&mode=all&back={{ here|urlencode }}" data-reply="{{ m.id }}" data-mode="all">Reply all</a> · <a href="{% url 'crm:inbox_compose' %}?reply={{ m.id }}&mode=forward&back={{ here|urlencode }}" data-reply="{{ m.id }}" data-mode="forward">Forward</a></p>
         {% if m.files %}
         <ul class="mail-files">
           {% for a in m.files %}<li><a href="{% url 'crm:inbox_part' m.id a.part %}">📎 {{ a.name }}</a> <span class="muted lc-small">{{ a.size|filesizeformat }}</span></li>{% endfor %}
@@ -243,6 +243,33 @@
         {% endif %}
       </details>
       {% endfor %}
+      <form class="mail-inline panel compose" method="post" enctype="multipart/form-data" action="{% url 'crm:inbox_compose' %}"
+            data-inline hidden data-fields-url="{% url 'crm:inbox_reply_fields' %}" data-draft-url="{% url 'crm:inbox_draft' %}">
+        {% csrf_token %}
+        <input type="hidden" name="inline" value="1">
+        <input type="hidden" name="mode"><input type="hidden" name="reply_to_id"><input type="hidden" name="thread_id">
+        <input type="hidden" name="in_reply_to"><input type="hidden" name="references">
+        <input type="hidden" name="draft_id" data-draft-id><input type="hidden" name="back" value="{{ here }}">
+        <div class="mail-inline-head"><strong data-inline-title>Reply</strong><span class="spacer"></span>
+          <span class="muted lc-small" data-draft-state aria-live="polite"></span>
+          <a class="lc-small" href="{% url 'crm:inbox_compose' %}" data-inline-more>Full page</a>
+          <button type="button" class="btn btn-small" data-inline-close aria-label="Close the reply">✕</button></div>
+        <label class="compose-row"><span>To</span><input type="text" name="to" autocomplete="off"></label>
+        <details class="compose-more"><summary class="lc-small">Cc / Bcc</summary>
+          <label class="compose-row"><span>Cc</span><input type="text" name="cc" autocomplete="off"></label>
+          <label class="compose-row"><span>Bcc</span><input type="text" name="bcc" autocomplete="off"></label>
+        </details>
+        <label class="compose-row"><span>Subject</span><input type="text" name="subject" maxlength="500"></label>
+        <textarea name="body" rows="7" class="compose-body" aria-label="Your reply"></textarea>
+        <div class="compose-sig" data-inline-sig-row hidden><span class="muted lc-small">Your signature goes under it · <a href="{% url 'crm:mail_settings' %}#signature">Change</a></span><div class="compose-sig-preview" data-inline-sig></div></div>
+        <fieldset class="compose-files" data-inline-files hidden></fieldset>
+        <label class="compose-attach lc-small">📎 Attach files <input type="file" name="files" multiple></label>
+        <p class="mail-error" data-compose-error hidden></p>
+        <div class="compose-actions">
+          <button class="btn-primary" data-send>Send</button>
+          <span class="compose-countdown" data-countdown hidden>Sending in <strong data-seconds>10</strong>… <button type="button" class="btn btn-small" data-undo-send>Undo</button></span>
+        </div>
+      </form>
       <button type="button" class="btn btn-small mail-latest" data-latest="{{ reader.latest }}" hidden>{% if reader.order == "newest" %}↑{% else %}↓{% endif %} Latest message</button>
       {{ reader.texts|json_script:"mail-texts" }}
     {% else %}
@@ -472,4 +499,5 @@
     });
   })();
 </script>
+<script src="{% static 'crm/compose.js' %}?v={{ ASSET_VERSION }}"></script>
 {% endblock %}

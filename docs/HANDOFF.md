@@ -2106,3 +2106,22 @@ Branch `mail-compose`, no migration. `crm/mail/compose.py`, `compose_views.py`, 
   on a scratch database through the fake Gmail (nothing really sent): reply from `r`, the countdown and Undo, a draft
   saved, Send and back to the thread, forward at phone width.
 - **Not yet:** recipient autocomplete, rich-text formatting (bold, links) in the editor, "remind me if no reply".
+
+
+## Built 2026-10-26: inline reply and the Gmail signature (Kellen: "I would rather keep the reply function inline with the email message… my signature isn't showing up")
+
+Branch `mail-inline-reply`, no migration.
+
+- **Inline reply:** Reply / Reply all / Forward (buttons, `r` / `a` / `f`, the links under each message) open a reply
+  box right under that message in the reading pane, filled from `/inbox/compose/fields/` (to, Cc, subject,
+  threading, the original's files on a forward, the signature). It has the same Cc / Bcc, files, draft autosave and
+  10-second Undo as the full page, sends in the background (`inline=1` answers JSON) and reloads the thread with the
+  reply in it; mistakes show in the box with the text kept. **Full page** opens the old page; New message still uses it.
+  The page script is now `crm/static/crm/compose.js`, shared by both.
+- **Signature:** the hub only added the person's name. It now uses **the signature set in Gmail** (read from Gmail's
+  send-as settings with the existing `gmail.modify` permission, cleaned, cached an hour), shown under the reply box
+  and the compose page. Mail in the hub › Your signature: the one in Gmail (default), a different one for the hub, or
+  none (`UserPrefs` "mail_signature_mode" / "mail_signature").
+- **Tests:** 5 more in `crm/tests/test_compose.py`; 659 pass. Checked in a browser through the fake Gmail: `r` opens
+  the box under the newest message, Send counts down and returns to the thread with the reply, Reply all at phone
+  width with the Gmail signature showing.

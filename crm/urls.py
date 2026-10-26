@@ -141,6 +141,7 @@ urlpatterns = [
     path("inbox/files/", inbox_views.files, name="inbox_files"),
     path("inbox/act/", inbox_views.act, name="inbox_act"),
     path("inbox/compose/", compose_views.compose_page, name="inbox_compose"),
+    path("inbox/compose/fields/", compose_views.reply_fields, name="inbox_reply_fields"),
     path("inbox/draft/", compose_views.save_draft, name="inbox_draft"),
     path("inbox/draft/discard/", compose_views.discard_draft, name="inbox_draft_discard"),
     path("mail-setup/signature/", compose_views.save_signature, name="mail_signature"),

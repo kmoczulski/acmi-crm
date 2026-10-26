@@ -31,9 +31,13 @@
 <section class="panel" style="max-width:720px" id="signature">
   <h3>Your signature</h3>
   <p class="muted lc-small">Added under every email you send from the hub.</p>
-  <form method="post" action="{% url 'crm:mail_signature' %}">{% csrf_token %}
-    <textarea name="signature" rows="4" style="width:100%" aria-label="Signature">{{ signature }}</textarea>
-    <p><button class="btn btn-small">Save signature</button></p>
+  <form method="post" action="{% url 'crm:mail_signature' %}" class="sig-form">{% csrf_token %}
+    <label><input type="radio" name="mode" value="gmail"{% if signature_mode == "gmail" %} checked{% endif %}> The one in Gmail{% if not gmail_signature %} <span class="muted lc-small">(none set in Gmail yet: your name is used)</span>{% endif %}</label>
+    {% if gmail_signature %}<div class="compose-sig-preview">{{ gmail_signature|safe }}</div>{% endif %}
+    <label><input type="radio" name="mode" value="custom"{% if signature_mode == "custom" %} checked{% endif %}> A different one for the hub</label>
+    <textarea name="signature" rows="4" style="width:100%" aria-label="Signature for the hub">{{ signature }}</textarea>
+    <label><input type="radio" name="mode" value="none"{% if signature_mode == "none" %} checked{% endif %}> No signature</label>
+    <p><button class="btn btn-small">Save</button></p>
   </form>
 </section>
 {% endif %}

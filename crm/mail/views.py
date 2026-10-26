@@ -9,11 +9,12 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
-from crm import gcal
+from crm import gcal, prefs
 from crm.models import Company, Firm, MailConnection, MailFilter, Mailbox, UnmatchedEmail
 from crm.permissions import is_partner
 
 from . import connect, sync
+from .imap import MailboxError
 
 
 def mail_home(request):
@@ -199,10 +200,20 @@ def cron_sync(request):
 # ---------------------------------------------------------------------------
 
 
-def compose_signature(user):
-    from .compose import signature
+def signature_settings(user):
+    """What the signature panel on Mail in the hub shows: the mode, the custom text and Gmail's own signature."""
+    from . import compose
+    from .gmail_api import GmailClient
 
-    return signature(user)
+    out = {"signature_mode": compose.signature_mode(user),
+           "signature": prefs.get_prefs(user).get("mail_signature", ""), "gmail_signature": ""}
+    mailbox = Mailbox.objects.filter(user=user).first()
+    if mailbox is not None and connect.is_on(user):
+        try:
+            out["gmail_signature"] = compose.gmail_signature(mailbox, GmailClient(user))
+        except MailboxError:
+            pass
+    return out
 
 
 def team_only(view):
@@ -224,7 +235,7 @@ def mail_settings(request):
         "on": connect.is_on(request.user),
         "unavailable": connect.unavailable_reason(request.user),
         "calendar_connected": gcal.connected(request.user),
-        "signature": compose_signature(request.user),
+        **signature_settings(request.user),
     })
 
 

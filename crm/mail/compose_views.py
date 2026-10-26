@@ -70,7 +70,7 @@ def compose_page(request, mailbox, client):
         fields.update(compose.reply_fields(mailbox, original, mode))
     return render(request, "crm/compose.html", {
         "f": fields, "body": "", "original": mail_render.summary(original) if original else None,
-        "signature": compose.signature(request.user), "mailbox": mailbox,
+        "signature_html": compose.signature_parts(request.user, mailbox, client)[1], "mailbox": mailbox,
         "templates": list(EmailTemplate.objects.filter(active=True).order_by("template_id")
                           .values("template_id", "name", "subject", "body_plain")),
         "first_name": _first_name(fields["to"]), "sending_on": compose.settings.MAIL_SEND_ENABLED,
@@ -89,27 +89,34 @@ def _send(request, mailbox, client, original, mode):
             if mode == "forward":
                 files = compose.forwarded_files(mailbox, client, original, request.POST.getlist("forward_part")) + files
         raw, _ = compose.build(mailbox, request.user, f["to"], f["cc"], f["bcc"], f["subject"], f["body"], quote=quote,
-                               in_reply_to=f["in_reply_to"], references=f["references"], files=files)
+                               in_reply_to=f["in_reply_to"], references=f["references"], files=files,
+                               sig=compose.signature_parts(request.user, mailbox, client))
         result = compose.send(mailbox, client, raw, thread_id=f["thread_id"] if mode in ("reply", "all") else "",
                               draft_id=request.POST.get("draft_id", ""))
     except compose.ComposeError as exc:
-        return _form_again(request, mailbox, original, mode, str(exc))
+        return _form_again(request, mailbox, client, original, mode, str(exc))
     except (MailboxError, requests.RequestException) as exc:
         text = str(exc) if isinstance(exc, MailboxError) else "Couldn't reach Gmail, so nothing was sent. Try again."
-        return _form_again(request, mailbox, original, mode, text)
+        return _form_again(request, mailbox, client, original, mode, text)
     try:
         index.refresh(mailbox, client, [result.get("threadId", "")])
     except Exception:  # the email went; the list catches up on its own
         log.warning("Index refresh after sending failed for %s", mailbox, exc_info=True)
     messages.success(request, "Sent.")
     if mode in ("reply", "all") and back.startswith("/") and not back.startswith("//") and "t=" in back:
-        return redirect(back)  # back to the thread you were reading, now with your reply in it
-    return redirect(f"{reverse('crm:inbox')}?label=SENT&t={result.get('threadId', '')}")
+        url = back  # back to the thread you were reading, now with your reply in it
+    else:
+        url = f"{reverse('crm:inbox')}?label=SENT&t={result.get('threadId', '')}"
+    if request.POST.get("inline"):  # the reading pane's own reply box: it reloads the thread itself
+        return JsonResponse({"ok": True, "url": url})
+    return redirect(url)
 
 
-def _form_again(request, mailbox, original, mode, error):
+def _form_again(request, mailbox, client, original, mode, error):
     """The form as the person left it, with what went wrong. Uploaded files have to be picked again."""
     post = request.POST
+    if post.get("inline"):  # the reading pane's reply box keeps what was typed and shows the error itself
+        return JsonResponse({"error": error}, status=400)
     fields = {k: post.get(k, "") for k in ("to", "cc", "subject", "thread_id", "in_reply_to", "references",
                                            "reply_to_id")}
     fields.update({"mode": mode, "bcc": post.get("bcc", ""),
@@ -118,9 +125,31 @@ def _form_again(request, mailbox, original, mode, error):
         "f": fields, "body": post.get("body", ""), "error": error, "draft_id": post.get("draft_id", ""),
         "kept_parts": post.getlist("forward_part"),
         "original": mail_render.summary(original) if original else None,
-        "signature": compose.signature(request.user), "mailbox": mailbox, "templates": [],
+        "signature_html": compose.signature_parts(request.user, mailbox, client)[1], "mailbox": mailbox,
+        "templates": [],
         "first_name": "", "sending_on": compose.settings.MAIL_SEND_ENABLED, "back": post.get("back", ""),
     }, status=400)
+
+
+@mail_required
+def reply_fields(request, mailbox, client):
+    """For the reading pane's inline reply box: who it goes to, the subject and threading for a reply, reply all or
+    forward of one message, the original's files on a forward, and the signature to show."""
+    original = _original(mailbox, client, request.GET.get("reply", ""))
+    if original is None:
+        raise Http404()
+    mode = request.GET.get("mode", "reply")
+    if mode not in ("reply", "all", "forward"):
+        mode = "reply"
+    fields = compose.reply_fields(mailbox, original, mode)
+    return JsonResponse({
+        **{k: fields.get(k, "") for k in ("to", "cc", "subject", "thread_id", "in_reply_to", "references",
+                                         "reply_to_id", "mode")},
+        "forward_files": [{"part": a["part"], "name": a["name"], "size": a["size"]}
+                          for a in fields.get("forward_files", [])],
+        "signature_html": compose.signature_parts(request.user, mailbox, client)[1],
+        "sending_on": compose.settings.MAIL_SEND_ENABLED,
+    })
 
 
 @mail_required
@@ -161,6 +190,12 @@ def discard_draft(request, mailbox, client):
 @team_only
 @require_POST
 def save_signature(request):
-    prefs.set_pref(request.user, "mail_signature", request.POST.get("signature", "")[:2000])
+    """Which signature goes under your emails: the one in Gmail (default), one written here, or none."""
+    mode = request.POST.get("mode", "custom")
+    if mode not in ("gmail", "custom", "none"):
+        mode = "gmail"
+    prefs.set_pref(request.user, "mail_signature_mode", mode)
+    if mode == "custom":
+        prefs.set_pref(request.user, "mail_signature", request.POST.get("signature", "")[:2000])
     messages.success(request, "Signature saved.")
     return redirect("crm:mail_settings")
