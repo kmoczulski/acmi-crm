@@ -82,6 +82,12 @@ green, 470 tests) and **migrated on the real database** the same night on the la
 "Built 2026-10-21: boards-core" below. Kellen also took the defaults on the UX second pass's eight questions: its
 "Second pass" section and screenshots are now in `docs/UX_REVIEW.md` and `docs/ux-review-2/`.
 
+**Email in the hub, designed 2026-10-25** (Kellen asked; design only, no code): an Outlook-style mail client
+(labels, threads, reading pane, compose / reply / forward, Gmail search, File to a record and Open in Mail back) over
+the Gmail API with per-person sign-in (`gmail.modify`, Internal app so no Google verification), **optional per person**
+(Kellen: "it shouldn't be required"). Design, build order (migrations from 0060, after PRs #1 and #2) and Kellen's
+questions are in `docs/EMAIL_CLIENT.md`. Waiting on his answers before step 1 (`mail-connect`).
+
 **Next, in order**
 1. **Granola (time-sensitive: Granola only keeps 30 days).**
    - Kellen connects the Granola connector in Claude (Settings › Connectors). Its tools are `list_meetings`,
