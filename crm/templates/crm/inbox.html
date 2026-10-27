@@ -510,6 +510,18 @@
     });
   })();
 </script>
+<script>
+  // The mail pane lays itself out by its own width (mid: folders fold into a menu; narrow: one column), so it holds
+  // together in a split view and when the divider is dragged.
+  (function () {
+    const app = document.querySelector('.mail-app');
+    if (!app || !window.ResizeObserver) return;
+    new ResizeObserver(([e]) => {
+      const w = e.contentRect.width;
+      app.dataset.w = w <= 760 ? 'narrow' : w <= 1000 ? 'mid' : 'wide';
+    }).observe(app);
+  })();
+</script>
 <script src="{% static 'crm/compose.js' %}?v={{ ASSET_VERSION }}"></script>
 <script src="{% static 'crm/attach.js' %}?v={{ ASSET_VERSION }}"></script>
 <script src="{% static 'crm/recipients.js' %}?v={{ ASSET_VERSION }}" data-url="{% url 'crm:inbox_suggest' %}"></script>

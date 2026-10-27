@@ -2003,24 +2003,28 @@ a.mail-chip:hover { text-decoration: none; filter: brightness(.95); }
 .mail-images { margin: 6px 0; }
 .mail-files { list-style: none; padding: 0; margin: 8px 0 0; display: flex; flex-wrap: wrap; gap: 6px 14px; }
 .mail-files a { overflow-wrap: anywhere; }
-@media (max-width: 1100px) {
-  .mail-app { grid-template-columns: minmax(280px, 360px) minmax(0, 1fr); }
-  .mail-folders { display: none; position: absolute; z-index: 5; width: 220px; max-height: 70vh; box-shadow: 0 8px 24px rgba(0,0,0,.15);
+/* Layout follows the width of the mail pane itself (data-w, set by the script in inbox.html), not the window: in a split side it's narrower. */
+.mail-app[data-w=mid], .mail-app[data-w=narrow] { grid-template-columns: minmax(260px, 360px) minmax(0, 1fr); }
+.mail-app[data-w=mid] .mail-folders, .mail-app[data-w=narrow] .mail-folders { display: none; position: absolute; z-index: 5; width: 220px; max-height: 70vh; box-shadow: 0 8px 24px rgba(0,0,0,.15);
     border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); }
-  .mail-folders.open { display: block; }
-  .mail-folders-toggle { display: inline-block; }
-  .mail-app { position: relative; }
-  .mail-folders { top: 46px; left: 8px; }
-}
+  .mail-app[data-w=mid] .mail-folders.open, .mail-app[data-w=narrow] .mail-folders.open { display: block; }
+.mail-app[data-w=mid] .mail-folders-toggle, .mail-app[data-w=narrow] .mail-folders-toggle { display: inline-block; }
+.mail-app[data-w=mid], .mail-app[data-w=narrow] { position: relative; }
+.mail-app[data-w=mid] .mail-folders, .mail-app[data-w=narrow] .mail-folders { top: 46px; left: 8px; }
+.mail-app[data-w=narrow] { grid-template-columns: minmax(0, 1fr); }
+.mail-app[data-w=narrow].has-reader .mail-list { display: none; }
+.mail-app[data-w=narrow]:not(.has-reader) .mail-reader { display: none; }
+.mail-app[data-w=narrow] .mail-back { display: inline-block; }
+.mail-app[data-w=narrow] .mail-reader { padding: 0 12px 24px; }
+.mail-app[data-w=narrow] .mail-list { border-right: 0; }
+.mail-app[data-w=narrow] .mail-reader-head { position: static; }
 @media (max-width: 760px) {
   main:has(.mail-app) { padding: 0; }
-  .mail-app { grid-template-columns: minmax(0, 1fr); height: calc(var(--main-vh, 100vh) - var(--topbar-h)); border: 0; border-radius: 0; }
-  .mail-app.has-reader .mail-list { display: none; }
-  .mail-app:not(.has-reader) .mail-reader { display: none; }
-  .mail-back { display: inline-block; }
-  .mail-reader { padding: 0 12px 24px; }
-  .mail-list { border-right: 0; }
+  .mail-app { height: calc(var(--main-vh, 100vh) - var(--topbar-h)); border: 0; border-radius: 0; }
 }
+/* In a split side the mail pane fills the frame. */
+html.embedded main:has(.mail-app) { padding: 0; }
+html.embedded .mail-app { height: 100vh; min-height: 0; border: 0; border-radius: 0; }
 /* Long threads (step 3b) */
 .mail-tools { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 8px; }
 .mail-find { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
@@ -2149,13 +2153,21 @@ form.attach-over { outline: 2px dashed var(--accent); outline-offset: 4px; }
 .compose-sig-preview img { max-width: 100%; height: auto; }
 .sig-form { display: flex; flex-direction: column; gap: 6px; }
 
-.mail-inline { margin: 10px 0 14px; max-width: none; border-color: var(--accent); box-shadow: 0 2px 10px rgba(31,58,95,.08); }
+.mail-inline { position: sticky; bottom: 0; z-index: 3; margin: 10px -4px 0; max-width: none; max-height: 78%; overflow-y: auto; gap: 6px;
+  border-color: var(--accent); box-shadow: 0 -6px 18px rgba(31,58,95,.12); }
+.mail-inline .compose-row { grid-template-columns: 56px minmax(0, 1fr); }
+.mail-inline .compose-more > summary { margin-left: 64px; }
+.mail-inline .compose-attach { margin: 0; }
+.mail-inline-foot { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.mail-inline-foot .compose-attach { flex: 1; min-width: 0; }
+.mail-inline-foot .compose-actions { flex-direction: row-reverse; }
 .mail-inline-head { display: flex; align-items: center; gap: 10px; }
 .mail-inline-head .spacer { flex: 1; }
-.mail-inline .compose-body { min-height: 140px; }
+.mail-inline .compose-body { min-height: 120px; }
+.mail-inline .compose-editor { min-height: 110px; max-height: 40vh; overflow-y: auto; }
+.mail-app[data-w=narrow] .mail-inline { margin: 10px -8px 0; max-height: 85%; }
 .mail-inline[hidden] { display: none; }
 .compose-files[hidden] { display: none; }
-@media (max-width: 760px) { .mail-reader-head { position: static; } }
 
 /* Filing, notes (step 6) */
 .mail-filed { margin: 4px 0; display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }

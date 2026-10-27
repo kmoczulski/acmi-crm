@@ -487,6 +487,15 @@
     box.dataset.ready = '1';
     inlineEd = setup(box, true).ed;
     box.querySelector('[data-inline-close]').addEventListener('click', () => { box.hidden = true; });
+    // Esc closes the box (an empty one, or after confirming); Ctrl/Cmd+Enter sends.
+    box.addEventListener('keydown', e => {
+      if (e.key === 'Escape' && !e.target.closest('.addr-suggest')) {
+        if (!inlineEd.area.textContent.trim() || confirm('Close the reply? Your draft stays saved in Gmail.')) box.hidden = true;
+      } else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        box.querySelector('[data-send]').click();
+      }
+    });
   }
   window.initInlineReply = initInline;
   initInline();
@@ -518,7 +527,7 @@
     (end || msg || document.querySelector('[data-reader] .mail-reader-head')).after(box);
     box.hidden = false;
     const focus = mode === 'forward' ? box.querySelector('[name=to]') : inlineEd.area;
-    box.scrollIntoView({behavior: 'smooth', block: 'center'});
+    box.scrollIntoView({behavior: 'smooth', block: 'nearest'});
     setTimeout(() => focus.focus(), 250);
   }
   document.addEventListener('click', e => {
