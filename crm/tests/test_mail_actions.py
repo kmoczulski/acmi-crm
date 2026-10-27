@@ -138,6 +138,31 @@ class MailActionTests(TestCase):
         self.assertFalse(MailThread.objects.get(gmail_id="a1").unread)
         self.assertIn(("/threads/a1/modify", {"addLabelIds": [], "removeLabelIds": ["UNREAD"]}), self.fake.posts)
 
+    def test_a_conversation_opens_in_place_without_the_list(self):
+        self.fake.calls.clear()
+        r = self.client.get(reverse("crm:inbox"), {"t": "a1", "label": "INBOX"}, HTTP_X_MAIL_PANE="1")
+        self.assertEqual(r.status_code, 200)
+        self.assertNotIn("<html", r.content.decode().lower())  # just the pane
+        self.assertContains(r, "<h2>PDA</h2>", html=False)
+        self.assertContains(r, 'data-key="e"')
+        self.assertContains(r, "data-inline")  # the reply box comes with it
+        self.assertContains(r, 'value="/inbox/?t=a1&amp;label=INBOX"')  # actions come back to this conversation
+        self.assertNotIn("/threads", [path for path, _ in self.fake.calls])  # Gmail isn't asked for the list
+        self.assertFalse(MailThread.objects.get(gmail_id="a1").unread)  # opening it still marks it read
+        self.fake.status = 500
+        self.assertEqual(self.client.get(reverse("crm:inbox"), {"t": "b2"}, HTTP_X_MAIL_PANE="1").status_code, 502)
+
+    def test_resting_on_a_row_reads_it_ahead_without_marking_it_read(self):
+        posts = len(self.fake.posts)
+        self.assertEqual(self.client.get(reverse("crm:inbox_warm"), {"t": "a1"}).status_code, 204)
+        self.assertEqual(len(self.fake.posts), posts)
+        self.assertTrue(MailThread.objects.get(gmail_id="a1").unread)
+        self.fake.calls.clear()
+        self.client.get(reverse("crm:inbox"), {"t": "c3"}, HTTP_X_MAIL_PANE="1")
+        self.client.get(reverse("crm:inbox_warm"), {"t": "c3"})
+        self.assertEqual([p for p, _ in self.fake.calls if p.startswith("/threads/c3")], ["/threads/c3"])  # cached
+        self.assertEqual(self.client.get(reverse("crm:inbox_warm"), {"t": "nope"}).status_code, 204)
+
     def test_the_reading_pane_toolbar_and_its_keys(self):
         r = self.client.get(reverse("crm:inbox"), {"t": "b2"})
         for key in ('data-key="e"', 'data-key="s"', 'data-key="#"', 'data-key="U"'):

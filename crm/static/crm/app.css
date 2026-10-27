@@ -1964,6 +1964,7 @@ a.mail-chip:hover { text-decoration: none; filter: brightness(.95); }
 .mail-error { color: var(--bad); background: var(--bad-bg); }
 .mail-more { padding: 8px 12px; }
 .mail-reader { overflow-y: auto; min-width: 0; padding: 0 20px 24px; }
+.mail-reader.loading { opacity: .5; transition: opacity .15s .1s; pointer-events: none; }
 .mail-reader-head { position: sticky; top: 0; background: var(--panel); padding: 14px 0 8px; z-index: 1;
   border-bottom: 1px solid var(--line); margin-bottom: 8px; }
 .mail-reader-head h2 { font-size: 18px; margin: 0 0 6px; overflow-wrap: anywhere; }

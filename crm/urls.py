@@ -142,6 +142,7 @@ urlpatterns = [
     path("needs-filing/act/", mail_views.needs_filing_act, name="needs_filing_act"),
     path("needs-filing/same-person/<int:pk>/", mail_views.same_person, name="same_person"),
     path("inbox/", inbox_views.inbox, name="inbox"),
+    path("inbox/warm/", inbox_views.warm, name="inbox_warm"),
     path("inbox/files/", inbox_views.files, name="inbox_files"),
     path("inbox/act/", inbox_views.act, name="inbox_act"),
     path("inbox/file/", inbox_views.file_to, name="inbox_file"),

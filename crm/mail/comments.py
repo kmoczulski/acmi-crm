@@ -22,9 +22,9 @@ def message_ids(thread):
     return out
 
 
-def for_thread(user, thread):
-    """The notes this person may see on this thread, oldest first."""
-    ids = message_ids(thread)
+def for_thread(user, thread, ids=None):
+    """The notes this person may see on this thread, oldest first. ids: its Message-IDs, when already read."""
+    ids = message_ids(thread) if ids is None else ids
     if not ids:
         return []
     keyed = MailCommentKey.objects.filter(message_id__in=ids).values("comment")

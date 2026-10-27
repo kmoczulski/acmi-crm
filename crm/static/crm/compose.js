@@ -185,10 +185,18 @@
 
   document.querySelectorAll('[data-compose]').forEach(form => setup(form, false));
 
-  // The reading pane's inline reply box: Reply / Reply all / Forward fill it in place, under the message.
-  const box = document.querySelector('[data-inline]');
-  if (!box) return;
-  const inlineEd = setup(box, true).ed;
+  // The reading pane's inline reply box: Reply / Reply all / Forward fill it in place, under the message. The inbox
+  // calls initInlineReply again when it swaps in another conversation (and with it a new box).
+  let box = null, inlineEd = null;
+  function initInline() {
+    box = document.querySelector('[data-inline]');
+    if (!box || box.dataset.ready) return;
+    box.dataset.ready = '1';
+    inlineEd = setup(box, true).ed;
+    box.querySelector('[data-inline-close]').addEventListener('click', () => { box.hidden = true; });
+  }
+  window.initInlineReply = initInline;
+  initInline();
   const esc = s => String(s).replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
   const titles = {reply: 'Reply', all: 'Reply all', forward: 'Forward'};
   async function open(messageId, mode) {
@@ -221,9 +229,8 @@
   }
   document.addEventListener('click', e => {
     const a = e.target.closest('[data-reply]');
-    if (!a) return;
+    if (!a || !box || !box.isConnected) return;
     e.preventDefault();
     open(a.dataset.reply, a.dataset.mode || 'reply');
   });
-  box.querySelector('[data-inline-close]').addEventListener('click', () => { box.hidden = true; });
 })();
