@@ -7,6 +7,7 @@ from django.db.models import F
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from django.utils.http import url_has_allowed_host_and_scheme
 
 from ..models import Assignment, AssignmentSite, Company, LandSite
 from ..permissions import is_manager, refuse
@@ -57,6 +58,17 @@ def assignment_detail(request, pk):
     a = get_object_or_404(Assignment, pk=pk)
     if request.method == "POST":
         action = request.POST.get("action")
+        if action == "delete":
+            # Its reports go with it (they were written for this client); the sites themselves stay.
+            if a.created_by_id != request.user.pk and not is_manager(request.user):
+                return refuse(request)
+            name = a.name
+            a.delete()
+            messages.success(request, f"Deleted “{name}”. Its sites are still in Land.")
+            back = request.POST.get("next", "")
+            ok = url_has_allowed_host_and_scheme(back, allowed_hosts={request.get_host()},
+                                                 require_https=request.is_secure())
+            return redirect(back if ok else "crm:assignments")
         if action == "details":
             a.name = (request.POST.get("name") or a.name).strip()[:200]
             typed = (request.POST.get("company") or "").strip()
