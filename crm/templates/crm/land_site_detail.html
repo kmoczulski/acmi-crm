@@ -195,6 +195,22 @@
       {% else %}<p class="muted lc-small" style="margin:0">A mail-merged letter to each owner, with mailing labels and a mail-house CSV. Logging them dates Owner contacted.</p>{% endif %}
     </section>
 
+    {% if parcels %}<section class="panel" id="comps">
+      <h3>Sale comps nearby <a href="{% url 'crm:land_comps' %}?site={{ site.pk }}" style="float:right;text-transform:none;letter-spacing:0">All comps</a></h3>
+      {% with vr=site_range %}{% if vr %}<div class="lc-small"><b>Value range</b><span class="team-only-tag">team only</span>
+        {% if vr.enough %}<div class="lc-range">
+          <a href="{% url 'crm:land_comps' %}?{{ vr.query }}">Low<b>${{ vr.low|intcomma }}</b>/ac</a>
+          <a href="{% url 'crm:land_comps' %}?{{ vr.query }}">Base<b>${{ vr.base|intcomma }}</b>/ac</a>
+          <a href="{% url 'crm:land_comps' %}?{{ vr.query }}">High<b>${{ vr.high|intcomma }}</b>/ac</a>
+        </div>
+        <div class="muted">From <a href="{% url 'crm:land_comps' %}?{{ vr.query }}">{{ vr.n }} land sales</a> within {{ vr.miles }} mi, {{ vr.band.0|floatformat:0 }}-{{ vr.band.1|floatformat:0 }} ac, sold {{ vr.since|date:"M Y" }} to {{ vr.until|date:"M Y" }}: about ${{ vr.total_low|intcomma }} to ${{ vr.total_high|intcomma }} for the site. Not an appraisal; never on the brief.</div>
+        {% else %}<div class="muted">Not enough comps ({{ vr.n }} of the {{ vr.min_comps }} needed within {{ vr.miles }} mi, {{ vr.band.0|floatformat:0 }}-{{ vr.band.1|floatformat:0 }} ac, last {{ vr.years }} years).{% if vr.texas %} Texas publishes no sale prices: add the ones you know.{% endif %}</div>{% endif %}
+      </div>{% endif %}{% endwith %}
+      {% with sc=site_comps %}{% if sc.comps %}<table class="lc-table">{% for c in sc.comps %}<tr><th>{{ c.sale_date|date:"M Y" }}</th><td><b>${{ c.price_per_acre|floatformat:0|intcomma }}/ac</b> <span class="muted">· {{ c.acres|floatformat:0|intcomma }} ac{% if c.miles is not None %} · {{ c.miles|floatformat:1 }} mi{% endif %}{% if c.source == "team" %} · team{% endif %}</span> <a href="{% url 'crm:land_comp_edit' c.pk %}">›</a></td></tr>{% endfor %}</table>
+      {% else %}<p class="muted lc-small">No recorded sales within {{ sc.miles }} mi in the last {{ sc.years }} years.{% if sc.texas %} {{ sc.texas_note }}{% endif %}</p>{% endif %}{% endwith %}
+      <div class="lc-small"><a href="{% url 'crm:land_comp_new' %}?site={{ site.pk }}">+ Add a comp</a></div>
+    </section>{% endif %}
+
     {% with add_url=new_approval_url show_matrix=True for_site=site %}{% include "crm/partials/approval_panel.html" %}{% endwith %}
 
     <section class="panel">

@@ -23,6 +23,7 @@ FIELDS = [
     ("acres", "the owner's acres in the site"),
     ("county", "the county's name"),
     ("site", "the site's name in the CRM"),
+    ("other_owners", "one letter per owner group: “Some of this land is held as A and B.” (blank otherwise)"),
     ("date", "the letter's date"),
     ("sender", "your name"),
     ("sender_title", "your title"),
@@ -143,14 +144,17 @@ def long_date(day):
     return f"{day:%B} {day.day}, {day.year}"
 
 
-def recipients(site):
+def recipients(site, by_group=False):
     """One row per owner and mailing address among the site's included parcels, most acres first: who, where, which
-    parcels, and the letters already logged to them. Excluded parcels are left out."""
+    parcels, and the letters already logged to them. Excluded parcels are left out. by_group: one row per owner group
+    (crm/land/portfolio.py) instead, addressed as the group's largest parcel has it, naming the other owners."""
     groups = {}
     for d in site_deals(site):
         if d.included:
             p = d.parcel
-            groups.setdefault((_squash(p.owner_name), _squash(p.mail_address), _squash(p.mail_zip)[:5]), []).append(d)
+            key = (("group", p.portfolio_key) if by_group and p.portfolio_key
+                   else (_squash(p.owner_name), _squash(p.mail_address), _squash(p.mail_zip)[:5]))
+            groups.setdefault(key, []).append(d)
     logged = list(site.letters.select_related("sent_by"))
     rows = []
     for deals in groups.values():
@@ -165,6 +169,8 @@ def recipients(site):
             "acres": sum(x.legal_acres or x.acres or 0 for x in parcels),
             "letters": [x for x in logged if pks & set(x.parcels or [])],
             "mailable": bool(address and ((p.mail_city or "").strip() or (p.mail_zip or "").strip())),
+            "others": list(dict.fromkeys(nice(x.owner_name) for x in parcels[1:]
+                                         if x.owner_name and _squash(x.owner_name) != _squash(p.owner_name))),
         })
         rows[-1]["lines"] = address_lines(rows[-1], title=True)
     rows.sort(key=lambda r: -r["acres"])
@@ -212,6 +218,7 @@ def context(site, row, sender, day, dear=""):
         "acres": acres_text(row["acres"]),
         "county": _and(list(dict.fromkeys(p.county.name for p in row["parcels"]))),
         "site": site.name,
+        "other_owners": f"Some of this land is held as {_and(row['others'])}." if row.get("others") else "",
         "date": long_date(day),
         **{key: sender.get(key, "") for key, _, _ in SENDER_FIELDS},
     }
@@ -240,7 +247,21 @@ def build(site, rows, body, sender, day, dears=None):
     """The merged letters, in the order of rows: [{row, lines (the address block), text}]."""
     dears = dears or {}
     return [{"row": r, "lines": address_lines(r, title=True),
-             "text": merge(body, context(site, r, sender, day, dears.get(r["key"], "")))} for r in rows]
+             "text": merge(with_others(body) if r.get("others") else body,
+                           context(site, r, sender, day, dears.get(r["key"], "")))} for r in rows]
+
+
+def with_others(body):
+    """A letter to an owner group names the other owners: when the body doesn't use {other_owners}, it goes in as its
+    own paragraph after the one that describes the land."""
+    if "{other_owners}" in (body or ""):
+        return body
+    paras = (body or "").split(PARA)
+    at = next((i for i, x in enumerate(paras) if "{property}" in x or "{parcels}" in x), 0 if len(paras) < 2 else 1)
+    return PARA.join(paras[:at + 1] + ["{other_owners}"] + paras[at + 1:])
+
+
+PARA = "\n\n"  # a blank line between paragraphs
 
 
 def label_sheets(rows, start=1):

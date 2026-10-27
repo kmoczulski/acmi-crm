@@ -941,7 +941,7 @@ class SiteBriefTests(TestCase):
             form = self.client.get(f"/land/sites/{self.site.pk}/brief/customize/")
             self.assertContains(form, "Your own sections")
             resp = self.client.post(f"/land/sites/{self.site.pk}/brief/customize/", {
-                "show": ["maps", "ownership", "flags", "verify", "notes", "flyer", "claims"],  # power and parcels left out
+                "show": ["maps", "ownership", "flags", "verify", "notes", "flyer", "claims", "comps"],  # power and parcels left out
                 "extra_title_0": "Why ACMI likes it", "extra_body_0": "Next to the I-10 interchange."})
             self.assertRedirects(resp, f"/land/sites/{self.site.pk}/brief/")
             cut = self.client.get(f"/land/sites/{self.site.pk}/brief/")

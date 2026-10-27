@@ -13,7 +13,7 @@ from .entitlements import views as entitlement_views
 from .tenants import views as tenant_views
 from .land import assignment_views as asg_views
 from . import settings_views
-from .land import brief_views, diligence_views, letter_views
+from .land import brief_views, comp_views, diligence_views, letter_views
 from .land import card_views as land_card_views
 from .land import views as land_views
 from .mail import compose_views, inbox_views
@@ -208,6 +208,11 @@ urlpatterns = [
     path("land/views/save/", land_views.view_save, name="land_view_save"),
     path("land/views/<int:pk>/delete/", land_views.view_delete, name="land_view_delete"),
     path("land/assemblage.json", land_views.assemblage_json, name="land_assemblage"),
+    path("land/comps/", comp_views.comps_page, name="land_comps"),
+    path("land/comps/new/", comp_views.comp_edit, name="land_comp_new"),
+    path("land/comps/<int:pk>/", comp_views.comp_edit, name="land_comp_edit"),
+    path("land/comps/<int:pk>/delete/", comp_views.comp_delete, name="land_comp_delete"),
+    path("land/comps/<int:pk>/flyer/", comp_views.comp_flyer, name="land_comp_flyer"),
     path("land/assignments/", asg_views.assignment_list, name="assignments"),
     path("land/assignments/<int:pk>/", asg_views.assignment_detail, name="assignment_detail"),
     path("land/assignments/<int:pk>/sites/<int:entry_pk>/", asg_views.assignment_report, name="assignment_report"),

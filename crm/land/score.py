@@ -481,6 +481,9 @@ def methodology():
 
 
 def apply(parcel):
+    from . import signals
+
     parcel.zoning_class = zoning_class(parcel)
     parcel.score, parcel.score_reasons, parcel.killers = screen(parcel)
+    signals.apply(parcel)  # off-market signals: stored alongside, never part of the score
     return parcel

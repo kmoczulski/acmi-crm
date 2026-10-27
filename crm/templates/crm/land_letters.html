@@ -32,6 +32,8 @@
 
   <div>
     <section class="panel">
+      {% if by_group %}<input type="hidden" name="group" value="1">{% endif %}
+      <p class="lc-small" style="margin:0 0 6px">{% if by_group %}<b>One letter per owner group</b>: owners with the same name in the county or the same mailing address get one letter, addressed as the largest parcel has it and naming the other owners. <a href="?">One letter per owner instead</a>{% else %}One letter per owner and address. {% if groups_here %}<a href="?group=1">One letter per owner group instead</a> (same owner name in the county or same mailing address).{% endif %}{% endif %}</p>
       <h3>Owners <span class="lt-pick lc-small">Tick <button type="button" class="btn-link" data-pick="all">all</button> · <button type="button" class="btn-link" data-pick="new">not written to yet</button> · <button type="button" class="btn-link" data-pick="none">none</button></span></h3>
       <div class="table-wrap" style="border:0">
         <table class="data">
@@ -39,7 +41,7 @@
           <tbody>{% for r in rows %}
             <tr{% if not r.mailable %} class="row-excluded"{% endif %}>
               <td><input type="checkbox" name="to" value="{{ r.key }}" aria-label="Write to {{ r.name }}"{% if r.picked %} checked{% endif %}{% if not r.mailable %} disabled{% endif %} data-sent="{{ r.letters|length }}"></td>
-              <td class="wrap"><b>{{ r.name }}</b>
+              <td class="wrap"><b>{{ r.name }}</b>{% if r.others %} <span class="muted lc-small">also for {{ r.others|join:", " }}</span>{% endif %}
                 <div class="muted lc-small">{% if r.mailable %}{{ r.lines|slice:"1:"|join:", " }}{% else %}No mailing address on the appraisal roll{% endif %}</div>
                 {% if r.letters %}<div class="lc-small lt-sent">{{ r.letters|length }} letter{{ r.letters|length|pluralize }} sent · last {{ r.letters.0.sent_on|date:"M j" }}</div>{% endif %}
                 {% if r.mailable %}<label class="lt-dear lc-small">Dear <input name="dear_{{ r.key }}" value="{{ r.dear }}"></label>{% endif %}</td>

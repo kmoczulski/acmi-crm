@@ -32,7 +32,32 @@
       {% if p.care_of and p.care_of != p.owner_name %}<dt>Also / c/o</dt><dd>{{ p.care_of }}</dd>{% endif %}
       <dt>Mailing</dt><dd>{{ p.mailing|default:"Not listed" }}</dd>
       {% if p.owner_parcels and p.owner_parcels > 1 %}<dt>Holdings</dt><dd>{{ p.owner_acres|floatformat:0|intcomma }} ac across {{ p.owner_parcels }} parcels in {{ p.county.name }} Co.</dd>{% endif %}
+      {% if p.last_sale_date %}<dt>Last transfer</dt><dd>{{ p.last_sale_date|date:"M j, Y" }}{% if p.last_sale_price %} · <b>${{ p.last_sale_price|intcomma }}</b>{% if p.acres %} <span class="muted">(${% widthratio p.last_sale_price p.acres 1 as ppa %}{{ ppa|intcomma }}/ac)</span>{% endif %}{% elif p.county.state == "TX" %} <span class="muted">· no price (Texas doesn't disclose)</span>{% endif %}
+        {% if p.last_sale_type %}<div class="muted lc-small">{{ p.last_sale_type }}{% if p.last_sale_deed %} · {{ p.last_sale_deed }}{% endif %}</div>{% elif p.last_sale_deed %}<div class="muted lc-small">{{ p.last_sale_deed }}</div>{% endif %}</dd>{% elif p.last_sale_deed %}<dt>Deed</dt><dd>{{ p.last_sale_deed }}</dd>{% endif %}
     </dl>
+    {% if signal_chips %}<div class="sig-chips" title="Off-market signals: separate from the buy-box score">{% for code, label, detail in signal_chips %}<span class="sig-chip sig-{{ code }}" title="{{ detail }}">{{ label }}</span>{% endfor %}</div>{% endif %}
+    {% if group %}<div class="lc-group lc-small"><b>Same owner group:</b> {{ group.parcels }} parcels, {{ group.acres|floatformat:0|intcomma }} ac across {{ group.counties|join:", " }}
+      <ul>{% for o in group.others %}<li><a href="{{ o.get_absolute_url }}">{{ o.owner_name|default:"Unknown owner" }}</a> <span class="muted">· {{ o.acres|floatformat:0|intcomma }} ac · {{ o.county.name }} {{ o.county.state }}</span></li>{% endfor %}{% if group.more %}<li class="muted">and {{ group.more }} more</li>{% endif %}</ul>
+      <div class="muted">Grouped by the same owner name in the county or the same mailing address anywhere.</div></div>{% endif %}
+  </section>
+
+  <section>
+    <h3>Sale comps nearby <a class="lc-small" href="{% url 'crm:land_comps' %}?parcel={{ p.pk }}" style="float:right;text-transform:none;letter-spacing:0">All comps</a></h3>
+    {% with vr=value_range %}<div class="lc-small"><b>Value range</b><span class="team-only-tag">team only</span>
+      {% if vr.enough %}<div class="lc-range">
+        <a href="{% url 'crm:land_comps' %}?{{ vr.query }}" title="Lower quartile of the comps">Low<b>${{ vr.low|intcomma }}</b>/ac</a>
+        <a href="{% url 'crm:land_comps' %}?{{ vr.query }}" title="Median of the comps">Base<b>${{ vr.base|intcomma }}</b>/ac</a>
+        <a href="{% url 'crm:land_comps' %}?{{ vr.query }}" title="Upper quartile of the comps">High<b>${{ vr.high|intcomma }}</b>/ac</a>
+      </div>
+      <div class="muted">From <a href="{% url 'crm:land_comps' %}?{{ vr.query }}">{{ vr.n }} land sales</a> within {{ vr.miles }} mi, {{ vr.band.0|floatformat:0 }}-{{ vr.band.1|floatformat:0 }} ac, sold {{ vr.since|date:"M Y" }} to {{ vr.until|date:"M Y" }}. About ${{ vr.total_low|intcomma }} to ${{ vr.total_high|intcomma }} for {{ p.acres|floatformat:0|intcomma }} ac. Not an appraisal.</div>
+      {% else %}<div class="muted">Not enough comps ({{ vr.n }} of the {{ vr.min_comps }} needed within {{ vr.miles }} mi, {{ vr.band.0|floatformat:0 }}-{{ vr.band.1|floatformat:0 }} ac, last {{ vr.years }} years).{% if vr.texas %} Texas publishes no sale prices: add the ones you know.{% endif %}</div>{% endif %}
+    </div>{% endwith %}
+    {% with sc=sale_comps %}
+    {% if sc.comps %}<table class="lc-table">{% for c in sc.comps %}<tr><th>{{ c.sale_date|date:"M Y" }}</th><td><b>${{ c.price_per_acre|floatformat:0|intcomma }}/ac</b> <span class="muted">· {{ c.acres|floatformat:0|intcomma }} ac · ${{ c.price|intcomma }}{% if c.miles is not None %} · {{ c.miles|floatformat:1 }} mi{% endif %}{% if c.improved %} · buildings{% endif %}{% if c.source == "team" %} · team{% endif %}</span> <a href="{% url 'crm:land_comp_edit' c.pk %}">›</a></td></tr>{% endfor %}</table>
+    {% if sc.total > sc.comps|length %}<div class="muted lc-small">{{ sc.total }} within {{ sc.miles }} mi in the last {{ sc.years }} years: median ${{ sc.summary.median|intcomma }}/ac.</div>{% endif %}
+    {% else %}<p class="muted lc-small">No recorded sales within {{ sc.miles }} mi in the last {{ sc.years }} years.{% if sc.texas %} {{ sc.texas_note }}{% endif %}</p>{% endif %}
+    {% endwith %}
+    <div class="lc-small"><a href="{% url 'crm:land_comp_new' %}?parcel={{ p.pk }}">+ Add a comp</a>{% if own_comp %} · this parcel's own sale is <a href="{% url 'crm:land_comp_edit' own_comp.pk %}">a comp</a>{% endif %}</div>
   </section>
 
   <section>

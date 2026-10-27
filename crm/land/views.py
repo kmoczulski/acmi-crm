@@ -3,7 +3,7 @@ import csv
 import json
 
 from django.contrib import messages
-from django.db.models import Q
+from django.db.models import F, Q
 from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -14,11 +14,14 @@ from shapely.geometry import shape
 from ..entitlements import logic as entitlement_logic
 from ..models import Campus, LandCounty, LandSite, Parcel, Project
 from ..permissions import is_manager, manager_required, refuse, team_users
-from . import diligence, layers, score, zoning_ref
+from . import diligence, layers, score, signals, zoning_ref
 from .lookup import identify, run_checks
 from .sources import LIMIT_LAYERS, STORED_LAYERS
 
 MAX_SHAPES = 2500
+# List order on the map: the buy-box score, or the separate off-market motivation / owner-group size.
+SORTS = {"": ("-score", "-acres"), "motivation": ("-motivation", "-score", "-acres"),
+         "portfolio": ("-portfolio_acres", "-score", "-acres")}
 LAND_USE_GROUPS = {
     "industrial": ("F2",),
     "ag": ("D", "E"),
@@ -50,8 +53,13 @@ def _filtered(params):
         qs = qs.filter(zoning_class__in=zclasses)
     if params.get("unincorporated"):
         qs = qs.filter(in_city="")
-    if params.get("out_of_state"):
-        qs = qs.exclude(mail_state__in=["TX", ""])
+    if params.get("out_of_state"):  # the owner mails from another state than the land's
+        qs = qs.exclude(mail_state="").exclude(mail_state=F("county__state"))
+    sigs = [s for s in params.getlist("signal") if s in dict(signals.FILTERS)]
+    if sigs:
+        qs = qs.filter(signals.filter_q(sigs))
+    if params.get("portfolio"):
+        qs = qs.filter(portfolio_parcels__gte=2)
     if params.get("no_killers"):
         qs = qs.filter(killers=[])
     status = params.get("status", "open")
@@ -108,7 +116,7 @@ def land_search(request):
     }
     return render(request, "crm/land_search.html", {
         "counties": counties, "focus": focus, "totals": totals, "layer_counts": layers.layer_counts(),
-        "statuses": Parcel.Status.choices, "zoning_classes": score.ZONING_CLASSES,
+        "statuses": Parcel.Status.choices, "zoning_classes": score.ZONING_CLASSES, "signal_filters": signals.FILTERS,
         "incentive_programs": __import__("crm.land.incentives", fromlist=["public"]).public(),
         "fema_flood_layer": __import__("crm.land.sources", fromlist=["x"]).fema_flood_layer_id(),
         "zoning_counts": dict(Parcel.objects.values_list("zoning_class").annotate(n=Count("id"))),
@@ -127,8 +135,10 @@ def parcels_json(request):
     zoom = int(request.GET.get("zoom") or 10)
     as_points = zoom < 12
     fields = ["pk", "county__name", "key", "prop_id", "owner_name", "acres", "score", "status", "killers", "lat", "lon",
-              "situs_address", "near", "in_city", "state_land_use", "market_value", "zoning_class", "zoning"]
-    rows = qs.order_by("-score", "-acres").only(*[f for f in fields if "__" not in f], "county__name",
+              "situs_address", "near", "in_city", "state_land_use", "market_value", "zoning_class", "zoning",
+              "signals", "motivation", "portfolio_parcels"]
+    order = SORTS.get(request.GET.get("sort"), SORTS[""])
+    rows = qs.order_by(*order).only(*[f for f in fields if "__" not in f], "county__name",
                                                   *([] if as_points else ["geometry"]))
     features, listed, total = [], [], 0
     for p in rows.iterator(chunk_size=2000):
@@ -144,7 +154,8 @@ def parcels_json(request):
         if len(listed) < 150:
             listed.append({**props, "county": p.county.name, "address": p.situs_address,
                            "use": _list_use(p), "city": p.in_city,
-                           "ppa": p.value_per_acre})
+                           "ppa": p.value_per_acre, "signals": [signals.LABELS.get(c, c) for c in p.signals.split()],
+                           "group": p.portfolio_parcels or 0})
     return JsonResponse({"type": "FeatureCollection", "features": features, "total": total,
                          "truncated": total > len(features), "points": as_points, "list": listed})
 
@@ -186,9 +197,25 @@ def _owned(parcel):
     return out
 
 
+def _sales_context(parcel):
+    """Last transfer, off-market signals, owner group, nearby comps and the team-only value range for the card."""
+    from . import comps, portfolio, signals
+
+    if not parcel:
+        return {}
+    return {
+        "signal_chips": signals.chips(parcel), "group": portfolio.summary(parcel),
+        "sale_comps": comps.nearby(lat=parcel.lat, lon=parcel.lon, county=parcel.county, limit=5,
+                                   exclude_parcels=[parcel.pk]),
+        "value_range": comps.parcel_value_range(parcel),
+        "own_comp": parcel.sale_comps.filter(source="county").first(),
+    }
+
+
 def _card(request, parcel, live=None):
     checks = (parcel.checks or {}) if parcel else {}
     return render(request, "crm/partials/land_card.html", {
+        **_sales_context(parcel),
         "owned": _owned(parcel) if parcel else [],
         "p": parcel, "live": live, "checks": checks, "near_rows": near_rows(parcel) if parcel else [],
         "zoning_ref": zoning_ref.district_for(parcel) if parcel else None,
@@ -422,7 +449,8 @@ def export_csv(request):
                 "Mailing address", "Mail city", "Mail state", "Mail ZIP", "Property address", "Land use", "Zoning",
                 "Zoning category", "Market value",
                 "Value / acre", "City limits", "Transmission (mi)", "Substation (mi)", "Highway (mi)", "Rail (mi)",
-                "Military base (mi)", "Latitude", "Longitude", "Link"])
+                "Military base (mi)", "Last transfer", "Last price", "How conveyed", "Off-market signals",
+                "Owner group parcels", "Owner group acres", "Latitude", "Longitude", "Link"])
     base = request.build_absolute_uri("/")[:-1]
     for p in qs.order_by("-score", "-acres")[:20000]:
         if near and not _near_ok(p, near):
@@ -433,8 +461,10 @@ def export_csv(request):
                     score.land_use_label(p.state_land_use) or p.state_land_use, p.zoning,
                     score.ZONING_LABELS.get(p.zoning_class, ""), p.market_value or "",
                     p.value_per_acre or "", p.in_city or "Unincorporated", m("transmission"), m("substation"),
-                    m("highway"), m("rail"), m("military"), round(p.lat, 6), round(p.lon, 6),
-                    base + p.get_absolute_url()])
+                    m("highway"), m("rail"), m("military"),
+                    p.last_sale_date.isoformat() if p.last_sale_date else "", p.last_sale_price or "", p.last_sale_type,
+                    "; ".join(signals.LABELS.get(c, c) for c in p.signals.split()), p.portfolio_parcels or "",
+                    p.portfolio_acres or "", round(p.lat, 6), round(p.lon, 6), base + p.get_absolute_url()])
     return resp
 
 
@@ -1035,7 +1065,20 @@ def site_detail(request, pk):
         "letters_logged": site.letters.count(), "last_letter": site.letters.first(),
         "approvals": entitlement_logic.annotate(list(entitlement_logic.with_related(site.approvals.all()))),
         "matrix": entitlement_logic.MATRIX, "new_approval_url": reverse("crm:approval_create") + f"?site={site.pk}",
+        **_site_sales(site, parcels),
     })
+
+
+def _site_sales(site, parcels):
+    """Sale comps around the site and its team-only value range."""
+    from . import comps
+
+    center = comps.site_center(site) if parcels else None
+    if not center:
+        return {}
+    return {"site_comps": comps.nearby(lat=center[0], lon=center[1], county=center[3], limit=6,
+                                       exclude_parcels=[p.pk for p in parcels]),
+            "site_range": comps.site_value_range(site)}
 
 
 def _tenant_context(site):

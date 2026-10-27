@@ -89,3 +89,6 @@ table.method td.num { text-align: right; width: 34px; }
 .brief-cover td, .brief-cover th { font-size: 12.5px; padding: 6px 8px; line-height: 1.35; }
 .brief-cover td { border-bottom: 1px solid #e3e7ec; }
 .brief-cover tr { break-inside: avoid; }
+.brief-team-only { border: 1px dashed #c9ced6; border-radius: 6px; padding: 4px 10px 8px; margin: 10px 0; }
+.sig-chip { display: inline-block; font-size: 11px; padding: 1px 6px; border-radius: 9px; background: #fff2d6; color: #8a5a00; margin: 1px 2px; }
+@media print { .brief-team-only { display: none !important; } }

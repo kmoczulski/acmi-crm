@@ -1882,6 +1882,23 @@ class Parcel(models.Model):
     near = models.JSONField(default=dict, blank=True, help_text="{layer: {miles, name, ...}}")
     owner_acres = models.FloatField(null=True, blank=True, help_text="Same owner's total acres in this county")
     owner_parcels = models.PositiveIntegerField(null=True, blank=True)
+    # Owner group (crm/land/portfolio.py): stored parcels whose owners share a name in the county, or a mailing
+    # address anywhere. Blank = no other stored parcel in the group.
+    portfolio_key = models.CharField(max_length=24, blank=True, db_index=True)
+    portfolio_parcels = models.PositiveIntegerField(null=True, blank=True)
+    portfolio_acres = models.FloatField(null=True, blank=True)
+    # Last transfer, where the county publishes it (crm/land/sales.py). Price stays empty where it isn't published
+    # (Texas never publishes it).
+    last_sale_date = models.DateField(null=True, blank=True)
+    last_sale_price = models.BigIntegerField(null=True, blank=True)
+    last_sale_type = models.CharField(max_length=80, blank=True, help_text="How it was conveyed, as the county says")
+    last_sale_arms_length = models.BooleanField(null=True, blank=True, help_text="Blank = the county doesn't say")
+    last_sale_deed = models.CharField(max_length=60, blank=True, help_text="Deed book / page or document number")
+    last_sale_source = models.CharField(max_length=120, blank=True)
+    # Off-market signals (crm/land/signals.py): codes with a space either side, e.g. " long_hold estate ".
+    signals = models.CharField(max_length=120, blank=True)
+    motivation = models.PositiveSmallIntegerField(default=0, db_index=True,
+                                                  help_text="Weighted count of off-market signals (not the buy-box score)")
     # Live lookups (crm/land/lookup.py), run on demand and cached here.
     checks = models.JSONField(default=dict, blank=True)
     checked_at = models.DateTimeField(null=True, blank=True)
@@ -2135,6 +2152,54 @@ class SiteParcelDeal(models.Model):
     def status_for_milestones(self):
         reached = [st for key, _, st in LandSite.MILESTONES if (self.milestones or {}).get(key)]
         return min(reached, key=lambda st: LandSite.STATUS_ORDER.index(st)) if reached else None
+
+
+class SaleComp(models.Model):
+    """A land sale used as a comparable: from county records where they publish a price and the sale looks
+    arms-length (crm/land/sales.py sync_comps), or entered by the team (Texas publishes no prices)."""
+
+    class Source(models.TextChoices):
+        COUNTY = "county", "County record"
+        TEAM = "team", "Entered by the team"
+
+    source = models.CharField(max_length=10, choices=Source.choices, default=Source.TEAM, db_index=True)
+    record_key = models.CharField(max_length=120, blank=True, help_text="County comps: parcel key(s) and sale date")
+    county = models.ForeignKey(LandCounty, null=True, blank=True, on_delete=models.SET_NULL, related_name="sale_comps")
+    parcel = models.ForeignKey(Parcel, null=True, blank=True, on_delete=models.SET_NULL, related_name="sale_comps")
+    site = models.ForeignKey(LandSite, null=True, blank=True, on_delete=models.SET_NULL, related_name="sale_comps")
+    sale_date = models.DateField(db_index=True)
+    price = models.BigIntegerField()
+    acres = models.FloatField()
+    price_per_acre = models.FloatField(editable=False, db_index=True)
+    place = models.CharField(max_length=200, blank=True, help_text="Address or description of the land")
+    buyer = models.CharField(max_length=255, blank=True)
+    seller = models.CharField(max_length=255, blank=True)
+    arms_length = models.BooleanField(null=True, blank=True, help_text="Blank = not known")
+    conveyance = models.CharField(max_length=80, blank=True)
+    deed = models.CharField(max_length=60, blank=True)
+    improved = models.BooleanField(default=False, help_text="Buildings on it: the price isn't land alone")
+    parcels_count = models.PositiveSmallIntegerField(default=1, help_text="Parcels the one price covered")
+    lat = models.FloatField(null=True, blank=True, db_index=True)
+    lon = models.FloatField(null=True, blank=True)
+    source_note = models.CharField(max_length=255, blank=True, help_text="Where the figure came from (broker, deed...)")
+    notes = models.TextField(blank=True, help_text="Internal: never printed on a brief")
+    internal_only = models.BooleanField(default=False, help_text="Keep off outside reports (e.g. broker intel under NDA)")
+    flyer = models.FileField("broker flyer", upload_to="comps/%Y/%m/", blank=True)
+    created_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-sale_date"]
+        constraints = [models.UniqueConstraint(fields=["county", "record_key"], condition=models.Q(source="county"),
+                                               name="salecomp_county_record_unique")]
+
+    def __str__(self):
+        return f"{self.sale_date:%Y-%m-%d} · {self.acres:,.0f} ac · ${self.price:,}"
+
+    def save(self, *args, **kwargs):
+        self.price_per_acre = round(self.price / self.acres, 2) if self.acres else 0
+        super().save(*args, **kwargs)
 
 
 class Assignment(models.Model):

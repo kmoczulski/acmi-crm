@@ -241,10 +241,11 @@ the redirect URI has to be added in Google Cloud first. **Step 8
    order: capture gaps and Granola; duplicates and undo; accessibility, phone, states and wording; roles, outside-facing
    output, rough edges.
 4. **Sale comps per area, and off-market signals** (long holds, estates, tax-delinquent where counties publish it):
-   the rest of roadmap item 7.
-5. **Owner-data gaps:** Hays has values for 42% of parcels and Charles has mailing addresses for 66%. Fill them from
-   assessor files with `load_owners`. This matters for landowner letters: an owner with no mailing address can't be
-   written to.
+   the rest of roadmap item 7. Built on branch `land-sales` (2026-10-26, see its section at the end); merge, migrate
+   and run `refresh_sales` on the real database.
+5. **Owner-data gaps:** Charles mailing addresses and values come from the statewide MD layer on branch `land-sales`
+   (`refresh_sales Charles`). Hays market value stays blank where Hays CAD has none (don't derive it; land value is on
+   99%). This matters for landowner letters: an owner with no mailing address can't be written to.
 6. **Go-live once billing is on:** Cloud Run jobs and Scheduler, Cloud Storage, hub.acmigroup.com (`docs/ROADMAP.md`
    section 1).
 
@@ -879,6 +880,11 @@ Grande and I-10/I-8 Business Park, Eloy = Pinal) plus Greene County, IN (NSWC Cr
   layer lacks; owner totals use the enriched owners (`parcels._enrichment_records`).
 - Hoke / Greene / east Pinal owner data needs the assessor's bulk file or a paid parcel dataset (Regrid, Dynamo Spatial,
   Land Records); a file could be joined by parcel number with a small `enrich`-style loader.
+- **Update 2026-10-26 (branch `land-sales`):** real-DB coverage before it (owner / mailing / market / land value):
+  Charles 2148 / 1409 / 0 / 0, Hays 2897 / 2841 / 1237 / 2895, the rest fine. `refresh_sales Charles` fills Charles's
+  mailing and values from the statewide MD layer (2,460 of 2,465 of its 16+ acre records have a whole mailing
+  address, 2,359 a value). Hays's blank market values are blank at Hays CAD too and are left blank (its market figure
+  isn't land + improvements, so it can't be derived).
 
 ### load_owners: join an owner file onto loaded parcels (2026-10-16)
 
@@ -2329,3 +2335,98 @@ in `docs/UX_REVIEW.md` "Second pass", with decisions 2 and 3 as recommended. `cr
   Granola still compares titles); reading an .ics that is only an attachment with no inline copy (needs one more
   Gmail call per message); undo for a card someone accepted by hand (as before, only Claude's own filings undo); the
   scheduled Granola task itself.
+
+## Built 2026-10-26: land-sales (sale comps, off-market signals, Charles and Hays owner data)
+
+Branch `land-sales`, migration `0069_land_sales` (depends on `0067_assignment_company`; another branch takes `0068_`,
+so re-chain it at merge). Kellen asked for it the same day; the owner groups and the value range were added mid-build
+(Kellen approved both). Code: `crm/land/sales.py`, `signals.py`, `portfolio.py`, `comps.py`, `comp_views.py`;
+`manage.py refresh_sales`.
+
+- **Last transfer on every parcel** (`Parcel.last_sale_date / _price / _type / _arms_length / _deed / _source`), from
+  each county's own records (table below). Never a derived price: Texas never has one. Blanks never overwrite; a
+  different transfer replaces all of the old one (its price doesn't carry over). `load_parcels` now runs it after a
+  load (`parcels.after_load`; a sale source that's down leaves the load as it is), and
+  `manage.py refresh_sales <county ...> | --all [--commit]` re-reads it without geometry (dry run by default).
+- **Charles mailing and values:** the statewide MD iMAP layer (`mdgeodata.md.gov/imap/.../MD_ParcelBoundaries/
+  MapServer/0`, SDAT data, joined on ACCTID, `JURSCODE = 'CHAR'`; geodata.md.gov shows a maintenance page) gives the
+  owner mailing address (`OWNADD1/2`, `OWNCITY`, `OWNSTATE`, `OWNERZIP`) and values (`NFMLNDVL`, `NFMIMPVL`,
+  `NFMTTLVL`). It has no owner names: those stay the county layer's. `KEEP_IF_BLANK` keeps the filled fields through a
+  Charles reload.
+- **Hays:** Hays County's own layer (`services5.arcgis.com/bVphnK8rPe5MHUSr/.../Hays_County_Parcels/FeatureServer/0`,
+  Hays CAD data, keyed `prop_id`) gives the deed date and volume / page or document number. It has several rows per
+  parcel (deed history): the latest is kept. Its `market` is blank on the same parcels as StratMap and isn't land +
+  improvements, so market value isn't filled or derived. hayscad.com refuses scripts (403); not worked around.
+- **Sale comps** (`SaleComp`): county comps come from parcels whose last transfer has a price of $1,000+ and looks
+  arms-length (the county marks it so; Maricopa, which never says, counts unless marked otherwise). SDAT
+  multiple-account sales (code 3) are left out (the price covers accounts we may not store). Parcels on one sale (same
+  date and deed, or same date and price) make one comp with their acres added. `improved` = buildings worth $25k+ and
+  10%+ of the value. They're re-made on every refresh; ones that no longer qualify go, unless the team put notes, a
+  site or a flyer on them; their figures can't be edited. **Team comps** (/land/comps/new/, "+ Add a comp" on the card
+  and site page): date, price, acres ($/acre worked out), buyer, seller, arms-length, deed, county or location,
+  parcel / site link, source note, team notes, broker flyer, "keep off outside reports".
+- **Comps page** /land/comps/: a county, a site or a parcel (?parcel=) with a radius (15 mi default), acreage band,
+  date range, arms-length (default leaves out non-arms-length; "confirmed" only; all), land only. Table, map pins,
+  count, median and quartile $/acre; `?format=csv`. Texas pages say why there are only team comps.
+- **Panels:** "Sale comps nearby" on the parcel card, the site page (`#comps`) and the site brief (page 2, section
+  `comps`, which the customize page can switch off). The brief shows no buyer, seller or notes and no comp marked
+  internal, and gives "County record" or "ACMI research" as the source. It keeps the ACMI logo.
+- **Value range (team only):** low / base / high $/acre = lower quartile / median / upper quartile of nearby land comps
+  (within 15 mi, or comps without a location in the same county; a third to three times the acres; last 5 years, 10
+  when that gives under 3; no buildings; not marked non-arms-length), with the count, the date span and a link to
+  exactly those comps. Under 3 comps it says "Not enough comps". It's on the parcel card and the site page only: never
+  the brief, the PDF, guest views, the data room or letters. Never from asking prices or assessed values.
+- **Off-market signals** (`Parcel.signals`, `motivation`; worked out in `score.apply`, so every load, owner-file join
+  and `score_parcels` updates them; the buy-box score is unchanged): long hold (last transfer 20+ years ago: "Owned
+  since YYYY"), estate / heirs / life estate / deceased, family (ET AL / ET UX), trust, out-of-state owner, absentee
+  (mails from outside the 3-digit ZIP areas of the county's own situs addresses), inherited / non-arms-length last
+  transfer (where the county marks it: SDAT code 4, Madison's will / estate / gift / quitclaim deeds). Public owners get
+  none. Chips on the card and the land-search list; a Signals filter and "Sort list by Motivation" on land search. In
+  the brief they show only on the app's own page (class `no-print`, never in the PDF or a printout). `motivation`
+  weights: estate 3; long hold, non-arms-length, out-of-state 2; absentee, family, trust 1. The old "Out-of-state
+  owner" checkbox compared every county to TX; it now compares to the land's own state.
+- **Tax-delinquent: none.** No loaded county publishes delinquency in its parcel service (Pinal's TaxParcels has
+  tax-due fields, all empty for 20+ acre parcels, and they're bills, not arrears). Tax-sale lists exist as PDFs or
+  newspaper notices (Charles County's annual tax sale, Maricopa's lien sale) and aren't loaded. So there's no signal
+  and no filter for it.
+- **Owner groups** (`Parcel.portfolio_key / _parcels / _acres`; `portfolio.rebuild()` runs after every load, owner-file
+  join and refresh). The rule: two stored parcels are one group when the owner names match after normalising and
+  they're in the same county, or when the owners mail to the same address anywhere (street + 5-digit ZIP; case,
+  punctuation, suite / unit numbers and street-word spellings ignored). An address doesn't link when its c/o line is a
+  tax service, bank, law firm or accountant, when more than 5 different owner names use it (a registered agent, a
+  manager), or, for a PO box, more than 3. Links chain. The card shows "Same owner group: N parcels, X ac across
+  <counties>" with the others; land search has an owner-group filter and a sort by group acres. **Landowner letters**
+  have "One letter per owner group instead" (`?group=1`): one letter to the owner and address of the group's largest
+  parcel, with "Some of this land is held as A and B." after the paragraph about the land (or wherever
+  `{other_owners}` is in the letter). No LLC / Secretary of State tracing (not now).
+- **Tests:** `crm/tests/test_land_sales.py` (21; every county service mocked); 731 pass. A live read-only check of each
+  sale source's query on 2026-10-26 (no database) found these records with a transfer date at 16+ ac: Charles 2,233 of
+  2,465 (1,186 with a price), Hays 3,434 of 3,699, Madison 9,379, Morgan 4,729 (1,487 with a price), Harnett 4,956,
+  Hoke 18,124, Pinal 57,524 (32,620 with a price; the full-window area adds small parcels). Not checked in a browser.
+
+**Sale and deed fields by county (checked 2026-10-26 with `?f=json` and sample queries)**
+
+| County | Layer | Transfer date | Price | Arms-length / type | Deed |
+|---|---|---|---|---|---|
+| Charles MD | MD iMAP statewide (SDAT) | `TRADATE` | `CONSIDR1` | `CONVEY1`: 1 arms-length improved, 2 vacant, 3 multiple accounts, 4 not arms-length (MD Assessment Procedure Manual) | `GR1LIBR1` / `GR1FOLO1` liber / folio |
+| Hays TX | Hays County parcels (Hays CAD) | `Deed_Date` | none (Texas) | none | `Volume` / `Page`, else `Number` |
+| Bastrop, Blanco, Caldwell, Comal, Guadalupe TX | TxGIO StratMap | none (`DATE_ACQ` is when TxGIO got the file, the same on every record) | none | none | none |
+| Limestone AL | Huntsville combined parcels | none | none | none | `Book1` / `Page1` exist but aren't labelled as the deed: not used |
+| Madison AL | City of Madison copy | `DeedDate` | none | `DeedType` (WARR, SURV, DEED, QTCL, LIFE, PREP, WILL, GIFT, EXEC, DIST, AFFD, FORC...) | `DeedBook` / `DeedPage` |
+| Morgan AL | Huntsville combined parcels | `LastSalesDate` | `SoldTotalPrice` | `UseOnSales` (1 = used in the assessor's sales study) | `LastDeed` |
+| Cumberland NC | NC OneMap | none | none | none | `sourceref` "Deed Book/Page" |
+| Harnett NC | NC OneMap | `saledatetx` (month and year) | none | none | `sourceref` |
+| Moore NC | NC OneMap | `saledate` (602 of 5,095 big parcels; the rest a 1900 fill value) | none | none | `sourceref` |
+| Hoke NC | Hoke County GIS | `DEED_DATE` | none | none | `DEED_BOOK` / `DEED_PAGE` |
+| Maricopa AZ | County Assessor | `DEED_DATE`, `SALE_DATE` | `SALE_PRICE` (only when the sale is the latest deed, within 90 days) | not given | `DEED_NUMBER` |
+| Pinal AZ | County TaxParcels | `SALEDATE` | `SALEPRICE` | `REASONTOEXCLUDE` (blank = used in the assessor's study; the codes aren't published, so excluded = not known) | `RECEPTIONNO` (mostly blank) |
+| Greene IN | IndianaMap + WTHGIS table | none | none | none | none |
+
+NC OneMap's `transfdate` is the date NC OneMap got the county's file, not a sale. No NC layer has a price field (no
+excise-stamp figure in any loaded layer).
+
+**To run on the real database (Kellen's OK first; back up as "How to work in this repo" says):**
+1. Re-chain `0069_land_sales` onto whatever `0068_` lands, then `manage.py migrate crm`.
+2. `manage.py refresh_sales Charles Hays` (dry run), then the same with `--commit`.
+3. `manage.py refresh_sales --all` (dry run), then with `--commit`: the other counties' transfers, signals on every
+   county (including the ones with no sale source), county comps and owner groups.
