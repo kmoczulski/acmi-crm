@@ -693,6 +693,18 @@ def suggestion_create(request, company_id):
 
 
 @require_POST
+@require_POST
+def reply_dismiss(request, pk):
+    """My day: this reply needs no answer from me, so take it off my list (only mine)."""
+    act = get_object_or_404(Activity, pk=pk, kind=Activity.Kind.REPLY)
+    kept = [i for i in prefs.get_prefs(request.user).get(pipeline.REPLIES_DISMISSED, []) if i != act.pk]
+    prefs.set_pref(request.user, pipeline.REPLIES_DISMISSED, (kept + [act.pk])[-500:])
+    if request.headers.get("X-Requested-With") == "fetch":
+        return JsonResponse({"ok": True})
+    messages.success(request, "Taken off your list.")
+    return redirect(_safe_next(request, reverse("crm:home")))
+
+
 def suggestion_dismiss(request, company_id):
     company = get_object_or_404(Company, pk=company_id)
     DealSuggestionDismissal.objects.get_or_create(company=company, defaults={"dismissed_by": request.user})

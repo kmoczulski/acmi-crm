@@ -146,6 +146,12 @@ class ComposeTests(TestCase):
         for kept in ("<b>Will</b>", "<i>three</i>", "<u>things</u>", "<ol><li>PDA</li>", '<a href="https://acmigroup.com">'):
             self.assertIn(kept, html)
         self.assertNotIn("script", html)
+        self.post(mode="new", to="will@firehawkaerospace.com", subject="c", body="x",
+                  body_html='<span style="color: rgb(192, 57, 43);">red</span> <span style="background-color: rgb(255, 241, 118);">hi</span>')
+        colours = self.sent()[1].get_body(("html",)).get_content()
+        self.assertIn('style="color: rgb(192, 57, 43);"', colours)
+        self.assertIn('style="background-color: rgb(255, 241, 118);"', colours)
+        _, msg = self.sent(-2)
         self.assertNotIn("javascript:", html)
         plain = msg.get_body(("plain",)).get_content()
         self.assertIn("Hi Will, three things:\n1. PDA\n2. Site plan\n- see our site", plain)

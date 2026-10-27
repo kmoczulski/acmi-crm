@@ -59,6 +59,7 @@ urlpatterns = [
     path("opportunities/contacts/<int:pk>/remove/", views.opportunity_contact_remove, name="opportunity_contact_remove"),
     path("opportunities/suggested/<int:company_id>/create/", views.suggestion_create, name="suggestion_create"),
     path("opportunities/suggested/<int:company_id>/dismiss/", views.suggestion_dismiss, name="suggestion_dismiss"),
+    path("my-day/replies/<int:pk>/dismiss/", views.reply_dismiss, name="reply_dismiss"),
     path("documents/add/", views.document_add, name="document_add"),
     path("documents/<int:pk>/delete/", views.document_delete, name="document_delete"),
     path("documents/<int:pk>/file/", views.document_file, name="document_file"),

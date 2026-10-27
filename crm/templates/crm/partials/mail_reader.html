@@ -161,7 +161,7 @@
         <iframe class="mail-frame" title="Message from {{ m.from_name }}" sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox" loading="lazy"
                 src="{% url 'crm:inbox_body' m.id %}" data-mail-frame data-message="{{ m.id }}"></iframe>
         <p class="mail-images" hidden><button type="button" class="btn btn-small" data-show-images>Show images</button> <span class="muted lc-small">Images from the sender are blocked so they can't tell you opened this.</span></p>
-{% if can_change %}        <p class="mail-msg-reply lc-small"><a href="{% url 'crm:inbox_compose' %}?reply={{ m.id }}&mode=reply&back={{ here|urlencode }}" data-reply="{{ m.id }}" data-mode="reply">Reply</a> · <a href="{% url 'crm:inbox_compose' %}?reply={{ m.id }}&mode=all&back={{ here|urlencode }}" data-reply="{{ m.id }}" data-mode="all">Reply all</a> · <a href="{% url 'crm:inbox_compose' %}?reply={{ m.id }}&mode=forward&back={{ here|urlencode }}" data-reply="{{ m.id }}" data-mode="forward">Forward</a></p>{% endif %}
+{% if can_change %}        <div class="mail-msg-reply"><a class="btn btn-small" href="{% url 'crm:inbox_compose' %}?reply={{ m.id }}&mode=reply&back={{ here|urlencode }}" data-reply="{{ m.id }}" data-mode="reply">↩ Reply</a><a class="btn btn-small" href="{% url 'crm:inbox_compose' %}?reply={{ m.id }}&mode=all&back={{ here|urlencode }}" data-reply="{{ m.id }}" data-mode="all">↩ Reply all</a><a class="btn btn-small" href="{% url 'crm:inbox_compose' %}?reply={{ m.id }}&mode=forward&back={{ here|urlencode }}" data-reply="{{ m.id }}" data-mode="forward">↪ Forward</a></div>{% endif %}
         {% if m.files %}
         <ul class="mail-files">
           {% for a in m.files %}<li><a href="{% url 'crm:inbox_part' m.id a.part %}">📎 {{ a.name }}</a> <span class="muted lc-small">{{ a.size|filesizeformat }}</span></li>{% endfor %}
@@ -169,6 +169,14 @@
         {% endif %}
       </details>
       {% endfor %}
+    {% if can_change and reader.latest %}
+      <div class="mail-reply-end" data-reply-end>
+        <a class="btn btn-primary" href="{% url 'crm:inbox_compose' %}?reply={{ reader.latest }}&mode=reply&back={{ here|urlencode }}" data-reply="{{ reader.latest }}" data-mode="reply">↩ Reply</a>
+        <a class="btn" href="{% url 'crm:inbox_compose' %}?reply={{ reader.latest }}&mode=all&back={{ here|urlencode }}" data-reply="{{ reader.latest }}" data-mode="all">↩ Reply all</a>
+        <a class="btn" href="{% url 'crm:inbox_compose' %}?reply={{ reader.latest }}&mode=forward&back={{ here|urlencode }}" data-reply="{{ reader.latest }}" data-mode="forward">↪ Forward</a>
+        <span class="muted lc-small">to the latest message · or press r, a, f</span>
+      </div>
+    {% endif %}
     {% if can_change %}
       <form class="mail-inline panel compose" method="post" enctype="multipart/form-data" action="{% url 'crm:inbox_compose' %}"
             data-inline hidden data-fields-url="{% url 'crm:inbox_reply_fields' %}" data-draft-url="{% url 'crm:inbox_draft' %}"

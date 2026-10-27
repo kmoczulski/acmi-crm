@@ -146,6 +146,7 @@ class MailActionTests(TestCase):
         self.assertContains(r, "<h2>PDA</h2>", html=False)
         self.assertContains(r, 'data-key="e"')
         self.assertContains(r, "data-inline")  # the reply box comes with it
+        self.assertContains(r, "data-reply-end")  # Reply / Reply all / Forward under the thread too
         self.assertContains(r, 'value="/inbox/?t=a1&amp;label=INBOX"')  # actions come back to this conversation
         self.assertNotIn("/threads", [path for path, _ in self.fake.calls])  # Gmail isn't asked for the list
         self.assertFalse(MailThread.objects.get(gmail_id="a1").unread)  # opening it still marks it read

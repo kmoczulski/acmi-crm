@@ -9,7 +9,8 @@
 
   const TOOLS = [
     ['bold', '<b>B</b>', 'Bold (Ctrl+B)'], ['italic', '<i>I</i>', 'Italic (Ctrl+I)'],
-    ['underline', '<u>U</u>', 'Underline (Ctrl+U)'], ['strikeThrough', '<s>S</s>', 'Strikethrough'], null,
+    ['underline', '<u>U</u>', 'Underline (Ctrl+U)'], ['strikeThrough', '<s>S</s>', 'Strikethrough'],
+    ['foreColor', '<span class="compose-a">A</span>', 'Text colour'], ['hiliteColor', '<span class="compose-hl">H</span>', 'Highlight'], null,
     ['insertUnorderedList', '•&thinsp;≡', 'Bulleted list'], ['insertOrderedList', '1.&thinsp;≡', 'Numbered list'],
     ['outdent', '⇤', 'Indent less'], ['indent', '⇥', 'Indent more'], null,
     ['createLink', '🔗', 'Link (Ctrl+K)'], ['removeFormat', 'T̸', 'Clear formatting'],
@@ -19,7 +20,8 @@
   // Times: your calendar for a week beside the email. Click free time to offer a slot; Insert puts the picked
   // slots into the email where the cursor was, in your time zone.
   const times = (function () {
-    const HOUR_PX = 44, FIRST = 7, LAST = 20, SNAP = 15;
+    const FIRST = 7, LAST = 20, SNAP = 15, HEAD_PX = 38, MIN_HOUR = 56, WIDTH_KEY = 'times-panel-width';
+    let HOUR_PX = MIN_HOUR;
     let panel = null, target = null, url = '', weekStart = null, events = [], picked = [], length = 30, weekends = false;
     const pad = n => String(n).padStart(2, '0');
     const iso = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -42,6 +44,7 @@
       panel.setAttribute('aria-label', 'Pick meeting times');
       panel.hidden = true;
       panel.innerHTML = `
+        <div class="times-resize" data-resize title="Drag to resize" aria-hidden="true"></div>
         <div class="times-head"><strong>Offer times</strong><span class="muted lc-small" data-zone></span>
           <button type="button" class="btn btn-small" data-close aria-label="Close">✕</button></div>
         <div class="times-bar">
@@ -66,6 +69,23 @@
           </div>
         </div>`;
       document.body.append(panel);
+      try { const w = +localStorage.getItem(WIDTH_KEY); if (w) setWidth(w); } catch (e) { /* private window */ }
+      // Drag the left edge to make the panel wider or narrower; remembered in this browser.
+      panel.querySelector('[data-resize]').addEventListener('pointerdown', e => {
+        e.preventDefault();
+        const move = ev => setWidth(window.innerWidth - ev.clientX);
+        const up = () => {
+          window.removeEventListener('pointermove', move);
+          window.removeEventListener('pointerup', up);
+          document.body.classList.remove('times-resizing');
+          try { localStorage.setItem(WIDTH_KEY, String(panel.offsetWidth)); } catch (err) {}
+          fit();
+        };
+        document.body.classList.add('times-resizing');
+        window.addEventListener('pointermove', move);
+        window.addEventListener('pointerup', up);
+      });
+      window.addEventListener('resize', () => { if (!panel.hidden) fit(); });
       panel.querySelector('[data-zone]').textContent = zone();
       panel.querySelector('[data-close]').addEventListener('click', close);
       panel.querySelectorAll('[data-week]').forEach(b => b.addEventListener('click', () => {
@@ -78,6 +98,18 @@
       panel.querySelector('[data-insert]').addEventListener('click', insert);
       panel.querySelector('[data-grid]').addEventListener('click', pick);
       document.addEventListener('keydown', e => { if (e.key === 'Escape' && !panel.hidden) close(); });
+    }
+
+    function setWidth(px) {
+      const w = Math.round(Math.max(380, Math.min(px, window.innerWidth - 320, 1100)));
+      document.documentElement.style.setProperty('--times-w', w + 'px');
+    }
+    // The hours stretch to fill the panel's height, so the whole day shows without scrolling when there's room.
+    function fit() {
+      const wrap = panel.querySelector('.times-grid-wrap');
+      const head = parseInt(panel.querySelector('[data-grid]').style.getPropertyValue('--head'), 10) || HEAD_PX;
+      const hour = Math.max(MIN_HOUR, Math.floor((wrap.clientHeight - head - 4) / (LAST - FIRST)));
+      if (hour !== HOUR_PX) { HOUR_PX = hour; draw(); }
     }
 
     async function load() {
@@ -121,9 +153,12 @@
       const now = new Date();
       const list = days();
       grid.style.setProperty('--days', list.length);
+      grid.style.setProperty('--hour', HOUR_PX + 'px');
       let html = '<div class="times-hours">';
       for (let h = FIRST; h < LAST; h++) html += `<span style="top:${(h - FIRST) * HOUR_PX}px">${h % 12 || 12}${h < 12 ? 'a' : 'p'}</span>`;
       html += '</div>';
+      const allDayRows = Math.max(0, ...list.map(d => events.filter(e => e.allDay && e.start < addDays(d, 1) && e.end > d).length));
+      grid.style.setProperty('--head', (HEAD_PX + allDayRows * 14) + 'px');
       list.forEach(d => {
         const next = addDays(d, 1);
         const allDay = events.filter(e => e.allDay && e.start < next && e.end > d);
@@ -136,7 +171,7 @@
         }
         events.filter(e => !e.allDay && e.start < next && e.end > d).forEach(e => {
           const a = Math.max(0, top(e.start < d ? d : e.start)), b = Math.min((LAST - FIRST) * HOUR_PX, top(e.end > next ? next : e.end));
-          if (b > a) html += `<div class="times-busy" style="top:${a}px;height:${Math.max(b - a, 12)}px" title="${esc(e.title)} · ${esc(span(e))}">${esc(e.title)}</div>`;
+          if (b > a) html += `<div class="times-busy${b - a < 22 ? ' short' : ''}${b - a < 40 ? ' brief' : ''}" style="top:${a}px;height:${Math.max(b - a, 12)}px" title="${esc(e.title)} · ${esc(span(e))}"><span class="times-busy-time">${esc(span(e))}</span> ${esc(e.title)}</div>`;
         });
         picked.forEach((s, i) => {
           if (iso(s.start) !== iso(d)) return;
@@ -187,9 +222,11 @@
       if (!weekStart) weekStart = monday(new Date());
       panel.hidden = false;
       document.body.classList.add('times-open');
+      fit();
       load().then(() => {
+        fit();
         const wrap = panel.querySelector('.times-grid-wrap');
-        wrap.scrollTop = Math.max(0, (Math.min(Math.max(new Date().getHours(), 9), LAST - 4) - FIRST - 1) * HOUR_PX);
+        if (wrap.scrollHeight > wrap.clientHeight + 2) wrap.scrollTop = Math.max(0, (Math.min(Math.max(new Date().getHours(), 9), LAST - 4) - FIRST - 1) * HOUR_PX);
       });
     }
     function close() {
@@ -199,6 +236,14 @@
     }
     return {open, close};
   })();
+
+  // The colours offered for text and for highlighting; "" takes the colour off.
+  const SWATCHES = {
+    foreColor: [['', 'Default'], ['#1d2330', 'Black'], ['#6b7280', 'Grey'], ['#c0392b', 'Red'], ['#d35400', 'Orange'],
+      ['#1e7a46', 'Green'], ['#1f5fbf', 'Blue'], ['#7b3fb5', 'Purple']],
+    hiliteColor: [['', 'None'], ['#fff176', 'Yellow'], ['#b9f6ca', 'Green'], ['#b3e5fc', 'Blue'], ['#f8bbd0', 'Pink'],
+      ['#ffe0b2', 'Orange'], ['#e0e0e0', 'Grey']],
+  };
 
   function editor(form, textarea) {
     const bar = document.createElement('div');
@@ -247,8 +292,37 @@
       if (range && range.collapsed) document.execCommand('insertHTML', false, `<a href="${url.replace(/"/g, '%22')}">${textToHtml(url)}</a>`);
       else document.execCommand('createLink', false, url);
     };
+    // Text colour and highlight: a row of swatches under the button; the selection stays put while you pick.
+    const pop = document.createElement('div');
+    pop.className = 'compose-swatches';
+    pop.hidden = true;
+    bar.append(pop);
+    let popFor = '';
+    const swatches = cmd => {
+      if (!pop.hidden && popFor === cmd) { pop.hidden = true; return; }
+      popFor = cmd;
+      pop.innerHTML = SWATCHES[cmd].map(([c, name]) =>
+        `<button type="button" class="compose-swatch${c ? '' : ' none'}" data-color="${c}" title="${name}" aria-label="${name}" style="${c ? 'background:' + c : ''}"></button>`).join('');
+      const b = bar.querySelector(`[data-cmd="${cmd}"]`);
+      pop.style.left = b.offsetLeft + 'px';
+      pop.hidden = false;
+    };
+    const colour = c => {
+      area.focus();
+      document.execCommand('styleWithCSS', false, true);  // inline styles, which every mail app shows
+      if (popFor === 'hiliteColor') document.execCommand('hiliteColor', false, c || 'transparent');
+      else document.execCommand('foreColor', false, c || '#1d2330');
+      document.execCommand('styleWithCSS', false, false);
+      pop.hidden = true;
+      sync();
+      area.dispatchEvent(new Event('input', {bubbles: true}));
+    };
+    pop.addEventListener('click', e => { const s = e.target.closest('[data-color]'); if (s) colour(s.dataset.color); });
+    document.addEventListener('mousedown', e => { if (!pop.hidden && !bar.contains(e.target)) pop.hidden = true; });
+
     const run = cmd => {
       area.focus();
+      if (cmd === 'foreColor' || cmd === 'hiliteColor') { swatches(cmd); return; }
       if (cmd === 'createLink') link();
       else {
         document.execCommand(cmd, false, null);
@@ -264,7 +338,7 @@
       b.classList.toggle('on', on);
       b.setAttribute('aria-pressed', on ? 'true' : 'false');
     });
-    bar.addEventListener('mousedown', e => { if (e.target.closest('[data-cmd]')) e.preventDefault(); });  // keep the selection
+    bar.addEventListener('mousedown', e => { if (e.target.closest('[data-cmd], [data-color]')) e.preventDefault(); });  // keep the selection
     bar.addEventListener('click', e => { const b = e.target.closest('[data-cmd]'); if (b) run(b.dataset.cmd); });
     area.addEventListener('keydown', e => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); run('createLink'); }
@@ -417,7 +491,7 @@
   initInline();
   const esc = s => String(s).replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
   const titles = {reply: 'Reply', all: 'Reply all', forward: 'Forward'};
-  async function open(messageId, mode) {
+  async function open(messageId, mode, from) {
     const r = await fetch(`${box.dataset.fieldsUrl}?reply=${encodeURIComponent(messageId)}&mode=${mode}`);
     if (!r.ok) { location.href = `${box.action}?reply=${encodeURIComponent(messageId)}&mode=${mode}`; return; }
     const f = await r.json();
@@ -439,7 +513,8 @@
     files.hidden = !(f.forward_files || []).length;
     box.querySelector('[data-send]').disabled = !f.sending_on;
     const msg = document.getElementById('m-' + messageId);
-    (msg || document.querySelector('[data-reader] .mail-reader-head')).after(box);
+    const end = from && from.closest('[data-reply-end]');  // from the bar under the thread: open right there
+    (end || msg || document.querySelector('[data-reader] .mail-reader-head')).after(box);
     box.hidden = false;
     const focus = mode === 'forward' ? box.querySelector('[name=to]') : inlineEd.area;
     box.scrollIntoView({behavior: 'smooth', block: 'center'});
@@ -449,6 +524,6 @@
     const a = e.target.closest('[data-reply]');
     if (!a || !box || !box.isConnected) return;
     e.preventDefault();
-    open(a.dataset.reply, a.dataset.mode || 'reply');
+    open(a.dataset.reply, a.dataset.mode || 'reply', a);
   });
 })();
