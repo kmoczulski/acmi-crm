@@ -193,7 +193,7 @@ Group - Indiana 74, Capitalization 41, MEIH (a second board, 21 cards) 34, Proje
 Commerce Prospects 1 (closed).
 
 **Kellen, 2026-10-26: not imported:** AMP, Group-Communications Calendar, Federal-Pursuits, Properties-Exploration
-Park, Properties-Project Volare, Federal-Airport Commerce Prospects. Not yet decided: Federal-General, Group - Indiana,
+Park, Properties-Project Volare, Federal-Airport Commerce Prospects, Federal-General. Not yet decided: Group - Indiana,
 Properties-Capitalization, Properties-Campus Pursuits, Properties-NSIH and the second MEIH board. No import command
 exists yet (`boards-import` isn't built); nothing has been written to the database.
 
