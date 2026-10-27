@@ -736,6 +736,9 @@ def opportunity_detail(request, pk):
         c.next = nxt.get(c.pk)
     return render(request, "crm/opportunity_detail.html", {
         "needs": needs, "qd_buildings": tenant_fit.buildings(needs), "agreements": agreements,
+        # The deal lives in its company card: the company header and tabs, and the company's other deals.
+        "other_deals": opp.company.opportunities.exclude(pk=opp.pk).order_by("name"),
+        "deal_count": opp.company.opportunities.count(),
         "record": opp,
         "opp": opp,
         "form": form,

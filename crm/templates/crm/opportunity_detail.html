@@ -1,15 +1,14 @@
 {% extends "crm/base.html" %}
 {% load crm_tags humanize %}
-{% block title %}{{ opp.name }} · ACMI CRM{% endblock %}
+{% block title %}{{ opp.company.name }} · {{ opp.name }} · ACMI CRM{% endblock %}
 {% block content %}
-<nav class="crumbs no-print" aria-label="Breadcrumb"><a href="{% url 'crm:opportunity_board' %}">Tenant pipeline</a> › <a href="{{ opp.company.get_absolute_url }}">{{ opp.company.name }}</a> › <span>{{ opp.name }}</span></nav>
-<div class="record-head">
-  <h1>{{ opp.name }}</h1>
-  <a href="{{ opp.company.get_absolute_url }}">{{ opp.company.name }}</a>
+{% include "crm/partials/company_card_head.html" with company=opp.company tab="opportunities" crumb=opp.name deal_count=deal_count %}
+<div class="deal-in-company">
+  <h2>{{ opp.name }}</h2>
   <span class="stage stage-{{ opp.stage }}">{{ opp.get_stage_display }}</span>
   <span class="muted">{{ days_in_stage }} day{{ days_in_stage|pluralize }} in stage</span>
   {% if opp.investor_report %}<span class="tag" title="On the investor pipeline report">Investor report</span>{% endif %}
-  <div class="record-nav"><a href="{% url 'crm:opportunity_board' %}">Back to board</a></div>
+  {% if other_deals %}<span class="muted lc-small">Other deals: {% for d in other_deals %}<a href="{{ d.get_absolute_url }}">{{ d.name }}</a>{% if not forloop.last %} · {% endif %}{% endfor %}</span>{% endif %}
 </div>
 <div class="record">
   <aside>

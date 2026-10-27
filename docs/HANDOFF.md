@@ -2430,3 +2430,16 @@ excise-stamp figure in any loaded layer).
 2. `manage.py refresh_sales Charles Hays` (dry run), then the same with `--commit`.
 3. `manage.py refresh_sales --all` (dry run), then with `--commit`: the other counties' transfers, signals on every
    county (including the ones with no sale source), county comps and owner groups.
+
+## Built 2026-10-26: deals live in the company card, and a Back button (Kellen: "Everything should live in the company card. Also make it easier to go back")
+
+Branch `company-card`, no migration.
+
+- **Tenant pipeline** cards and table rows lead with the company name; the deal name sits underneath (hidden when it's the same).
+- **A deal opens inside its company card:** the deal page now carries the company's header, breadcrumb (Companies › company › Deals › deal)
+  and tab bar with Deals active, plus the company's other deals (`partials/company_card_head.html`). Same URL
+  (`/opportunities/<pk>/`), so every existing link (board, report, search, alerts) lands there. The old "Back to board" link is gone.
+- **← Back to <page>** above every page (`static/crm/back.js`): the hub page you came from, per browser tab (sessionStorage).
+  Tab and filter changes on the same page update its entry, so Back goes to the previous page, not the previous tab; it
+  uses the browser's own back when that's where it goes, so the scroll position comes back too.
+- Tests: `crm/tests/test_company_card.py` (3); 716 pass. Checked in the browser on a scratch database with made-up deals.

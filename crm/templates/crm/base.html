@@ -111,6 +111,7 @@
   {% endwith %}
   <div class="main-col">
   <main>
+    {% if request.user.is_authenticated %}<div id="hub-back" class="hub-back no-print" hidden></div>{% endif %}
     {% if messages %}<ul class="messages">{% for m in messages %}<li class="{{ m.tags }}">{{ m }}</li>{% endfor %}</ul>{% endif %}
     {% block content %}{% endblock %}
   </main>
@@ -127,6 +128,7 @@
 <div id="nav-config" hidden data-search="{% url 'crm:search' %}" data-prefs="{% url 'crm:prefs_save' %}"></div>
 <script src="{% static 'crm/nav.js' %}?v={{ ASSET_VERSION }}"></script>
 <script src="{% static 'crm/views.js' %}?v={{ ASSET_VERSION }}"></script>
+<script src="{% static 'crm/back.js' %}?v={{ ASSET_VERSION }}"></script>
 <script>
   // Long lists (.clist[data-limit]) show the first N items with "Show N more" / "Show less".
   document.querySelectorAll('.clist[data-limit]').forEach(list => {
