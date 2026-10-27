@@ -5,6 +5,8 @@ Read this first when picking the project up in a new chat, along with
 
 ## Pick up here (2026-10-25)
 
+**Fortress data room started 2026-10-26** (Kellen: "build out the room so it can be seen"): room 1 "Fortress" on the real database (backup `backups/db-2026-10-26-before-fortress-room.sqlite3`), active, costs shown, win % off, every campus, no partner firm (Fortress isn't in the directory). It shows all 27 investor-report deals; none has a partner note yet, no files, no partner invited. Manager page `/data-rooms/1/`, preview `/room/?room=1` (not logged); both render on the real data.
+
 **Client searches 2026-10-26** (Kellen: "I can't delete a client search"; merged fast-forward `56d3693`, CI green, 712 tests, no migration): **Delete** on the search page and on each row of Client searches and a company's Site searches tab, for the search's creator or a Manager. Its reports go with it; the sites stay in Land. A **+ Land search** button in the company page header starts one for that company.
 
 **David walkthrough fixes 2026-10-26** (Kellen: "start on bugs 1-9 from the David review in a worktree"; branch
