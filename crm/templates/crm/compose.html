@@ -10,7 +10,7 @@
 {% if error %}<p class="mail-error">{{ error }}</p>{% endif %}
 {% if not sending_on %}<p class="mail-error">Sending is switched off on this hub (ACMI_MAIL_SEND). You can still save drafts.</p>{% endif %}
 <form class="panel compose" method="post" enctype="multipart/form-data" action="{% url 'crm:inbox_compose' %}" data-compose
-      data-draft-url="{% url 'crm:inbox_draft' %}">
+      data-draft-url="{% url 'crm:inbox_draft' %}" data-calendar-url="{% url 'crm:inbox_calendar' %}">
   {% csrf_token %}
   <input type="hidden" name="mode" value="{{ f.mode }}">
   <input type="hidden" name="reply_to_id" value="{{ f.reply_to_id }}">

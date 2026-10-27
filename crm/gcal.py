@@ -83,6 +83,31 @@ def fetch_events(token, session=requests):
         params["pageToken"] = data["nextPageToken"]
 
 
+def week(user, start, days=7, session=requests):
+    """The person's own calendar from `start` (an aware datetime) for `days`, for picking meeting times while writing
+    an email: [{start, end, title, all_day}], read live (read only) and never stored. Events they marked "free" or
+    declined don't block time and are left out."""
+    token = token_for(user)
+    if token is None:
+        raise CalendarError("Connect Google Calendar on the Calendar page to see your week here.")
+    params = {"timeMin": start.isoformat(), "timeMax": (start + timedelta(days=days)).isoformat(),
+              "singleEvents": "true", "orderBy": "startTime", "maxResults": "250"}
+    r = session.get(EVENTS_URL, params=params, timeout=TIMEOUT,
+                    headers={"Authorization": f"Bearer {access_token(token, session)}"})
+    if r.status_code in (401, 403):
+        raise CalendarError("Google Calendar access was not granted. Reconnect Google Calendar.")
+    r.raise_for_status()
+    out = []
+    for e in r.json().get("items", []):
+        declined = any(a.get("self") and a.get("responseStatus") == "declined" for a in e.get("attendees", []))
+        if e.get("status") == "cancelled" or e.get("transparency") == "transparent" or declined:
+            continue
+        s, en = e.get("start", {}), e.get("end", {})
+        out.append({"start": s.get("dateTime") or s.get("date"), "end": en.get("dateTime") or en.get("date"),
+                    "title": e.get("summary", "") or "Busy", "all_day": "dateTime" not in s})
+    return out
+
+
 def to_meeting(event):
     """Google event -> the dict crm.meetings.import_meetings reads. None for all-day events."""
     start = event.get("start", {}).get("dateTime")

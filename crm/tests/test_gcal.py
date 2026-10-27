@@ -124,3 +124,39 @@ class CalendarSyncTests(TestCase):
         other = User.objects.create_user("simon", password="x")
         self.client.force_login(other)
         self.assertContains(self.client.get(reverse("crm:meeting_list")), "Connect Google Calendar")
+
+    # The Times panel beside an email: one week, read live
+
+    def test_a_week_for_offering_times(self):
+        start = timezone.now()
+        fake = FakeGoogle({"first": {"items": [
+            event("e1", "ARA design review", start + timedelta(hours=2), ["kmoczulski@acmigroup.com"]),
+            {**event("free", "Focus (free)", start, []), "transparency": "transparent"},
+            {**event("no", "Declined", start, []), "attendees": [{"email": "k@x", "self": True,
+                                                                    "responseStatus": "declined"}]},
+            event("gone", "Cancelled", start, [], status="cancelled"),
+            {"id": "ooo", "status": "confirmed", "summary": "Out of office", "start": {"date": "2026-11-26"},
+             "end": {"date": "2026-11-27"}},
+        ]}})
+        found = gcal.week(self.user, start, session=fake)
+        self.assertEqual([(e["title"], e["all_day"]) for e in found],
+                         [("ARA design review", False), ("Out of office", True)])
+        self.assertEqual(found[1]["start"], "2026-11-26")
+        _, _, auth = fake.calls[-1]
+        self.assertEqual(auth, "Bearer new-access")
+
+    def test_the_times_panel_answers_with_the_week_or_why_not(self):
+        from unittest import mock
+
+        self.client.force_login(self.user)
+        with mock.patch.object(gcal, "week", return_value=[{"start": "2026-10-28T10:00:00-04:00",
+                                                            "end": "2026-10-28T11:00:00-04:00",
+                                                            "title": "Tour", "all_day": False}]) as week:
+            r = self.client.get(reverse("crm:inbox_calendar"), {"start": "2026-10-26"})
+        self.assertEqual(r.json()["events"][0]["title"], "Tour")
+        self.assertEqual(r.json()["start"], "2026-10-26")
+        self.assertEqual(timezone.localtime(week.call_args[0][1]).date().isoformat(), "2026-10-26")
+        self.token.account.delete()
+        r = self.client.get(reverse("crm:inbox_calendar"), {"start": "nonsense"})
+        self.assertEqual(r.status_code, 400)
+        self.assertIn("Connect Google Calendar", r.json()["error"])

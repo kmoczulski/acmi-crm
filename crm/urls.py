@@ -169,6 +169,7 @@ urlpatterns = [
     path("mail-setup/shared/<int:pk>/log/", mail_views.shared_log, name="mail_shared_log"),
     path("inbox/compose/", compose_views.compose_page, name="inbox_compose"),
     path("inbox/compose/fields/", compose_views.reply_fields, name="inbox_reply_fields"),
+    path("inbox/compose/calendar/", compose_views.calendar_week, name="inbox_calendar"),
     path("inbox/draft/", compose_views.save_draft, name="inbox_draft"),
     path("inbox/draft/discard/", compose_views.discard_draft, name="inbox_draft_discard"),
     path("mail-setup/signature/", compose_views.save_signature, name="mail_signature"),

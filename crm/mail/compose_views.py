@@ -162,6 +162,30 @@ def reply_fields(request, mailbox, client):
     })
 
 
+@team_only
+def calendar_week(request):
+    """Your calendar for a week (?start=YYYY-MM-DD, the first day shown) for the Times panel beside an email."""
+    from datetime import date, datetime, time
+
+    from django.utils import timezone
+
+    from crm import gcal
+
+    try:
+        day = date.fromisoformat(request.GET.get("start", ""))
+    except ValueError:
+        day = timezone.localdate()
+    start = timezone.make_aware(datetime.combine(day, time()))
+    try:
+        events = gcal.week(request.user, start)
+    except gcal.CalendarError as exc:
+        return JsonResponse({"error": str(exc)}, status=400)
+    except requests.RequestException:
+        log.warning("Calendar week failed for %s", request.user, exc_info=True)
+        return JsonResponse({"error": "Couldn't reach Google Calendar. Try again."}, status=502)
+    return JsonResponse({"start": day.isoformat(), "events": events})
+
+
 @mail_required
 @require_POST
 def save_draft(request, mailbox, client):
