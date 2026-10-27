@@ -1,5 +1,5 @@
-// Address suggestions (crm/mail/search.py, /inbox/suggest/): To, Cc and Bcc suggest people as you type the name or
-// address after the last comma; ↑ ↓ to move, Enter or Tab to take one, Esc to close. The mail search box suggests
+// Address suggestions (crm/mail/search.py, /inbox/suggest/): To, Cc and Bcc suggest people as you type the name,
+// address or company after the last comma ("Everyone at <company>" adds all of its people); ↑ ↓ to move, Enter or Tab to take one, Esc to close. The mail search box suggests
 // people (searches their mail both ways) and says which companies, firms or people a plain search also covers.
 (function () {
   const url = document.currentScript.dataset.url;
@@ -31,7 +31,8 @@
       }
       const name = /[,;"<>@]/.test(p.name) ? '"' + p.name.replace(/"/g, '') + '"' : p.name;
       const done = input.value.split(/[,;]/).slice(0, -1).map(s => s.trim()).filter(Boolean);
-      done.push(p.name ? `${name} <${p.email}>` : p.email);
+      if (p.emails) done.push(...p.emails.filter(e => !done.some(d => d.toLowerCase().includes(e))));  // everyone at a company
+      else done.push(p.name ? `${name} <${p.email}>` : p.email);
       input.value = done.join(', ') + ', ';
       input.dispatchEvent(new Event('input', {bubbles: true}));  // the draft autosave listens for this
       close();
@@ -44,8 +45,9 @@
       const n = ++seq;
       const d = await fetch(`${url}?q=${encodeURIComponent(words)}${search ? '&records=1' : ''}`).then(r => r.json()).catch(() => null);
       if (n !== seq || !d) return;
-      items = d.people.map(p => search ? {...p, query: `{from:${p.email} to:${p.email} cc:${p.email}}`} : p);
-      const people = items.map((p, i) => `<div class="addr-row" role="option" data-i="${i}">
+      items = d.people.filter(p => !(search && p.emails)).map(p => search ? {...p, query: `{from:${p.email} to:${p.email} cc:${p.email}}`} : p);
+      const people = items.map((p, i) => p.emails ? `<div class="addr-row addr-group" role="option" data-i="${i}">
+          <b>${esc(p.name)}</b> <span class="muted lc-small">adds them all</span></div>` : `<div class="addr-row" role="option" data-i="${i}">
           <b>${esc(p.name || p.email)}</b>${p.name ? ` <span class="muted">${esc(p.email)}</span>` : ''}${p.detail ? ` <span class="addr-detail">${esc(p.detail)}</span>` : ''}
           ${search ? '<span class="muted lc-small"> · mail with them</span>' : ''}</div>`).join('');
       const covers = search && d.records.length ? `<div class="addr-note muted lc-small">Searching “${esc(words)}” also finds mail with

@@ -511,6 +511,7 @@
   })();
 </script>
 <script src="{% static 'crm/compose.js' %}?v={{ ASSET_VERSION }}"></script>
+<script src="{% static 'crm/attach.js' %}?v={{ ASSET_VERSION }}"></script>
 <script src="{% static 'crm/recipients.js' %}?v={{ ASSET_VERSION }}" data-url="{% url 'crm:inbox_suggest' %}"></script>
 <script>
   // Search options: the fields become Gmail search operators in the box, then search.

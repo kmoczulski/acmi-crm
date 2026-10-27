@@ -69,33 +69,68 @@ def recipients(user, words, limit=8):
     """Address-book suggestions for the To / Cc / Bcc fields: [{"name", "email", "detail"}], best first.
 
     Teammates, CRM people, directory firm contacts, then people who have written to this mailbox; names or
-    addresses starting with the words rank above ones that only contain them.
+    addresses starting with the words rank above ones that only contain them. A company's or firm's name finds its
+    people too ("booz" lists Booz Allen's contacts), with an "Everyone at <company>" row ({"emails": [...]}) first
+    when it has more than one.
     """
     w = " ".join((words or "").split()).lower()
     if len(w) < 2:
         return []
-    seen, out = set(), []
+    seen, out, groups = set(), [], []
 
-    def add(name, email, detail=""):
+    def add(name, email, detail="", rank=None):
         email = (email or "").strip().lower()
         name = (name or "").strip()
-        if not email or "@" not in email or email in seen or w not in f"{name.lower()} {email}":
+        if not email or "@" not in email:
+            return
+        if rank is None:
+            if w not in f"{name.lower()} {email}":
+                return
+            starts = name.lower().startswith(w) or email.startswith(w) or f" {w}" in f" {name.lower()}"
+            rank = 0 if starts else 1
+        if email in seen:  # found twice (by address and by company): keep the better place
+            for r in out:
+                if r["email"] == email and rank < r["_rank"]:
+                    r["_rank"] = rank
             return
         seen.add(email)
-        starts = name.lower().startswith(w) or email.startswith(w) or f" {w}" in f" {name.lower()}"
-        out.append({"name": name, "email": email, "detail": detail, "_rank": 0 if starts else 1})
+        out.append({"name": name, "email": email, "detail": detail, "_rank": rank})
+
+    def group(org, contacts, rank):
+        emails = []
+        for name, email in contacts:
+            email = (email or "").strip().lower()
+            if email and "@" in email and email not in emails:
+                emails.append(email)
+        if len(emails) > 1:
+            groups.append({"name": f"Everyone at {org} ({len(emails)})", "email": ", ".join(emails), "detail": "",
+                           "emails": emails, "_rank": rank})
+
+    def org_rank(org):
+        # By the company's name: just after the people whose own name matches.
+        return 0.5 if org.lower().startswith(w) or f" {w}" in f" {org.lower()}" else 1.5
 
     for u in get_user_model().objects.filter(is_active=True).filter(
             Q(first_name__icontains=w) | Q(last_name__icontains=w) | Q(email__icontains=w)).exclude(email="")[:10]:
         add(u.get_full_name(), u.email, "ACMI")
     people = Person.objects.filter(Q(full_name__icontains=w) | Q(email__icontains=w)) \
-        .exclude(email__isnull=True).select_related("company").order_by("-last_interaction_at", "full_name")[:25]
+        .exclude(email__isnull=True).exclude(email_valid=False).select_related("company") \
+        .order_by("-last_interaction_at", "full_name")[:25]
     for p in people:
         add(p.full_name, p.email, p.company.name if p.company else "")
+    for co in Company.objects.filter(name__icontains=w).order_by("-last_interaction_at", "name")[:3]:
+        staff = list(co.people.exclude(email__isnull=True).exclude(email="").exclude(email_valid=False)
+                     .order_by("-last_interaction_at", "full_name").values_list("full_name", "email")[:25])
+        group(co.name, staff, org_rank(co.name) - 0.1)
+        for name, email in staff:
+            add(name, email, co.name, rank=org_rank(co.name))
     firms = Firm.objects.annotate(c=Cast("contacts", TextField())).filter(Q(c__icontains=w) | Q(name__icontains=w))[:10]
     for f in firms:
+        by_name = w in f.name.lower()
+        if by_name:
+            group(f.name, [(c.get("name"), c.get("email")) for c in f.contacts or []], org_rank(f.name) - 0.1)
         for c in f.contacts or []:
-            add(c.get("name"), c.get("email"), f.name)
+            add(c.get("name"), c.get("email"), f.name, rank=org_rank(f.name) if by_name else None)
     mailbox = getattr(user, "mailbox", None)
     if mailbox is not None:
         threads = MailThread.objects.filter(mailbox=mailbox).annotate(s=Cast("senders", TextField())) \
@@ -105,4 +140,7 @@ def recipients(user, words, limit=8):
                 if (address or "").lower() != mailbox.email.lower():
                     add(name, address, "")
     out.sort(key=lambda r: r["_rank"])  # stable: keeps teammates, then CRM, then mail order within each rank
-    return [{k: v for k, v in r.items() if k != "_rank"} for r in out[:limit]]
+    if groups:
+        limit = max(limit, 12)  # a company's people fill the list
+    out = sorted(groups[:2] + out, key=lambda r: r["_rank"])[:limit]
+    return [{k: v for k, v in r.items() if k != "_rank"} for r in out]

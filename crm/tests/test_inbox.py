@@ -169,6 +169,19 @@ class InboxTests(TestCase):
         records = self.client.get(url, {"q": "shore", "records": "1"}).json()["records"]
         self.assertEqual(records, [{"kind": "firm", "label": "Shore United Bank"}])
 
+    def test_a_company_name_suggests_its_people(self):
+        # Kellen: "type a company name into the To section of the email and select a person".
+        Person.objects.create(full_name="Will Edwards", email="will@firehawkaerospace.com", company=self.company)
+        Person.objects.create(full_name="Ann Lee", email="ann@firehawkaerospace.com", company=self.company)
+        Person.objects.create(full_name="Old Address", email="old@firehawkaerospace.com", company=self.company,
+                              email_valid=False)
+        people = self.client.get(reverse("crm:inbox_suggest"), {"q": "fireh"}).json()["people"]
+        self.assertEqual(people[0]["emails"], ["ann@firehawkaerospace.com", "will@firehawkaerospace.com"])
+        self.assertTrue(people[0]["name"].startswith("Everyone at Firehawk Aerospace (2)"))
+        self.assertEqual({p["email"] for p in people[1:3]}, {"will@firehawkaerospace.com", "ann@firehawkaerospace.com"})
+        self.assertTrue(all(p["detail"] == "Firehawk Aerospace" for p in people[1:3]))
+        self.assertNotIn("old@firehawkaerospace.com", {p["email"] for p in people})  # bounced
+
     def test_other_folders(self):
         r = self.get(label="SENT")
         self.assertEqual([t.gmail_id for t in r.context["threads"]], ["a1"])

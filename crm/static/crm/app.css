@@ -2119,6 +2119,11 @@ a.mail-chip:hover { text-decoration: none; filter: brightness(.95); }
 .compose-sig { margin: 0; }
 .compose-files { border: 1px solid var(--line); border-radius: var(--radius); padding: 6px 10px; display: flex; flex-direction: column; gap: 4px; }
 .compose-attach input { margin-left: 6px; max-width: 100%; }
+/* Picked attachments, kept across picks (attach.js). */
+.attach-list { list-style: none; margin: 4px 0 8px; padding: 0; font-size: 13px; }
+.attach-list li { padding: 2px 0; }
+.attach-list .btn-link { font-size: 16px; line-height: 1; padding: 0 4px; }
+form.attach-over { outline: 2px dashed var(--accent); outline-offset: 4px; }
 .compose-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .compose-actions .spacer { flex: 1; }
 .compose-countdown { display: inline-flex; gap: 6px; align-items: center; }
