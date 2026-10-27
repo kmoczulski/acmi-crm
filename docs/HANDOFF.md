@@ -5,6 +5,8 @@ Read this first when picking the project up in a new chat, along with
 
 ## Pick up here (2026-10-25)
 
+**Trello history, Prospecting 2026-10-26** (Kellen: "pull all the comments and boards from trello"; merged fast-forward `195d697`, CI green, 718 tests, no migration; applied on the real database, backup `backups/db-2026-10-26-before-trello-prospecting.sqlite3`): Kellen ran `trello_fetch.py` (15 boards, full history, `data/imports/trello/2026-10-26/`). `manage.py import_trello <folder> [--apply]` (`crm/boards/trello_import.py`, dry run by default) put Properties-Prospecting onto the Tenant pipeline board: all 1,661 comments with their author and date (1,132 on 103 deal cards, also on the deal page; 361 on cards linked to a company, also on the company page; 168 on cards with no record), 200 checklists (564 items), 175 attachment links, 807 card-history entries, 12 labels, 260 cards for Trello cards with no deal on 15 unbound lists (New Leads, Cold, Partners, Outreach Summary / Admin open; Targets and the old lists archived). The CRM wins: deal cards keep their title, stage, description and dates; only labels and members were added. Outsiders (Joe Don Bowling 96, Olivia Jaskula-Dybka 30, four others) have their name at the start of the comment. Nobody was notified; a re-run adds nothing. 13 mirror cards skipped. **Next:** the other boards (both MEIH boards, NSIH, General, Campus Pursuits, Capitalization), each with a mapping for Kellen first; skipped boards are in `docs/TRELLO_MAPPING.md`.
+
 **Fortress data room started 2026-10-26** (Kellen: "build out the room so it can be seen"): room 1 "Fortress" on the real database (backup `backups/db-2026-10-26-before-fortress-room.sqlite3`), active, costs shown, win % off, every campus, no partner firm (Fortress isn't in the directory). It shows all 27 investor-report deals; none has a partner note yet, no files, no partner invited. Manager page `/data-rooms/1/`, preview `/room/?room=1` (not logged); both render on the real data.
 
 **Client searches 2026-10-26** (Kellen: "I can't delete a client search"; merged fast-forward `56d3693`, CI green, 712 tests, no migration): **Delete** on the search page and on each row of Client searches and a company's Site searches tab, for the search's creator or a Manager. Its reports go with it; the sites stay in Land. A **+ Land search** button in the company page header starts one for that company.
@@ -253,8 +255,6 @@ the redirect URI has to be added in Google Cloud first. **Step 8
 
 **Waiting on Kellen**
 - Connect Granola and set up the daily task, on the acmiproperties Claude account (above).
-- Run `.venv/Scripts/python -I scripts/trello_fetch.py` at the laptop (read-only, a few minutes): every board Kellen
-  can see, with its full history, into `data/imports/trello/<date>/`. The Trello review and import start from there.
 - Who "Dave" is in the tracker's Lead column: 9 deals are owned by David DeNardo and 1 by David Dowell, because the
   Oct 14 import read "Dave" as DeNardo. The hub's `Dave` account is David Dowell.
 - Confirm who stays a Manager (Admin › Groups). Everyone with an account is one today.

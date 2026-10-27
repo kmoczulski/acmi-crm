@@ -194,8 +194,9 @@ Commerce Prospects 1 (closed).
 
 **Kellen, 2026-10-26: not imported:** AMP, Group-Communications Calendar, Federal-Pursuits, Properties-Exploration
 Park, Properties-Project Volare, Federal-Airport Commerce Prospects, Federal-General, Group - Indiana. **To import:**
-Properties-Prospecting, Maryland / MEIH, the second MEIH board, Properties-NSIH, Properties-General, Properties-Campus Pursuits and Properties-Capitalization. No import command
-exists yet (`boards-import` isn't built); nothing has been written to the database.
+Properties-Prospecting, Maryland / MEIH, the second MEIH board, Properties-NSIH, Properties-General, Properties-Campus Pursuits and Properties-Capitalization. 
+
+**Imported 2026-10-26: Properties-Prospecting** (`manage.py import_trello`, see HANDOFF "Trello history, Prospecting"): 1,661 comments, 200 checklists, 175 attachments, 807 history entries onto the Tenant pipeline board; decision 6 below taken as recommended (New Leads and Cold as unbound lists, cards linked to their company). The other boards still need their mapping.
 
 ## Needs Kellen's decision
 
