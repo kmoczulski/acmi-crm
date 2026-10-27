@@ -297,7 +297,9 @@ join this board when General is imported.
 6. **Patrick Dillmann** (18 comments, a board member): outside the team, name kept in his comments (recommended), or
    does he need a hub account?
 
-## Properties-General: import plan (proposed 2026-10-27, waiting on Kellen)
+## Properties-General: import plan (2026-10-27)
+
+**Imported 2026-10-27** (see HANDOFF "Trello history, Properties-General"). Kellen's answers: 1 changed: the NSIH and Hostetler date cards wait for the PSA and related documents ("I can upload the PSA and related docs"); their comments and attachments went onto the NSIH board's agreement cards. 2, 3 and 4 as recommended.
 
 334 cards on 31 lists (9 open, 22 archived), **688 comments** (Kellen 326, David DeNardo 245, Simon 101, Olivia
 Jaskula-Dybka 7, a few from others). It's three things at once: the team's live general lists, the NSIH critical
