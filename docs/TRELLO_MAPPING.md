@@ -249,8 +249,8 @@ Todd Catlin 2, Ken Rothaermel 1), 11 checklists of 6 items, 23 attachments.
 
 ## Properties-NSIH: import plan (proposed 2026-10-27, waiting on Kellen)
 
-David DeNardo's working board for the Bloomfield, Indiana campus. 121 cards (12 open lists' worth plus 6 archived
-lists), **521 comments** (David DeNardo 455, Simon 43, Patrick Dillmann 18, Kellen 2, Olivia Jaskula-Dybka 2, Eli
+David DeNardo's working board for the Bloomfield, Indiana campus. 121 cards on 10 open lists and 6 archived
+ones, **521 comments** (David DeNardo 455, Simon 43, Patrick Dillmann 18, Kellen 2, Olivia Jaskula-Dybka 2, Eli
 Miller 1), 42 checklists, 61 attachments. Comments by list: Design & Construction 218 (Haskell alone 57, Pepper /
 Weddle 31, Prometheus change orders 29, Structurepoint 27), Administration 99, Infrastructure / Utilities 52, Due
 Diligence 41, Land Contracts 26, Parcel Owners 25, Tenancy / Contracts 24, Prospecting (archived) 18, Capitalization 15.
