@@ -297,6 +297,55 @@ join this board when General is imported.
 6. **Patrick Dillmann** (18 comments, a board member): outside the team, name kept in his comments (recommended), or
    does he need a hub account?
 
+## Properties-General: import plan (proposed 2026-10-27, waiting on Kellen)
+
+334 cards on 31 lists (9 open, 22 archived), **688 comments** (Kellen 326, David DeNardo 245, Simon 101, Olivia
+Jaskula-Dybka 7, a few from others). It's three things at once: the team's live general lists, the NSIH critical
+dates, and the history of old campuses and projects. Comments by group:
+
+| Group | Trello lists | Comments | Goes to |
+|---|---|---|---|
+| Team lists (open) | Press / Postings (12), Administrative (8), Other Markets (23), Airport Commerce (11) | 146 | A new team board, **"ACMI general"** |
+| NSIH dates | Critical Dates - NSIH (19 + 1 mirror), Critical Dates - Hostetler / NSIH (20), and the archived "NSIH (Bloomfield, IN)" (11) and its Critical Dates [David] (4) | 28 | The **NSIH** board |
+| Deals | Project North Star - Niron Magnetics (5, archived list), MEIH - ARA's one real card (ARA - Lease Negotiation) | 5 | Niron's cards go on "ACMI general" in an archived list, linked to the Niron deal; the ARA card goes on the MEIH board, archived, linked to the ARA deal |
+| Old campuses and projects (archived) | Avio (15) and Critical Dates - Avio (3), Strategic (34), RRAD (5), Propulsion Park (Tasks 7, Critical Dates 7), Precision Park (9, 5), King Ranch - Aurora (7), TexAmericas (2), U.S. Army Enterprise Strategic Capital Partnership (2 + 1 mirror), Prospecting (7), Tenant Followups (1) | 276 (Avio 158, Strategic 48, Propulsion Park 34) | An archived board, **"Properties-General archive"** |
+| Exploration Park and Volare (archived) | Exploration Park (30), its Critical Dates (19), Exploration Park - Archive (37), Project Volare (4) | 233 | **Skipped**, as the Exploration Park and Volare boards were |
+| Mirrors and empty lists | 4390 Indian Head Hwy - Critcal Dates (11 mirrors of MEIH cards), MEIH - ARA's 13 mirrors, Project Dragon - Elbit, Volare (Hurt, VA), Press Releases (empty) | 0 | Skipped |
+
+### "ACMI general" (team board)
+
+Lists kept as in Trello: **Press / postings**, **Administrative**, **Other markets**, **Airport Commerce**, and the
+archived **Project North Star – Niron**. Links: Spinner Modifications (22 comments) and Airport Commerce: Spinner
+Questions → the Spinner deal; Supernova Modifications → the Supernova deal; Vendor: The Schreifer Group → that firm;
+Niron's five cards → the Niron Magnetics deal. Everything else is a plain card (Denver MSA, iMarket - Taylor TX,
+Berkeley Space Center, Prince 10 - Tucson…). Press cards keep their due dates (Prometheus permits and grading, the NYC
+office, the sign at Harvest Church…). Labels: Ongoing and On-Going merge, To Do and To-Do merge; Tentative, Follow Up,
+PR/Postings, Information and the campus labels (NSIH, Exploration Park, Precision Park, Project Volare, BAHAP,
+Houston Space Center, Ground Lease) are kept as labels.
+
+### NSIH dates on the NSIH board
+
+Two new lists: **Critical dates – Prometheus / NFP** (Critical Dates - NSIH: the Phase 2 feasibility and extension
+dates out to 2030, the monthly project-control report and invoice to Prometheus, the ground-lease extensions, the
+NFP Phase 1 dates) and **Critical dates – Hostetler PSA** (20 cards: feasibility and its two extensions, deposits,
+title objection, closing with 0 / 1 / 2 extensions on Dec 21, Mar 22 and Jun 21, farming, timber, survival to Dec
+2028). Cards keep their due dates and done ticks; Trello's archived ones come over archived. The old "NSIH (Bloomfield,
+IN)" lists (2025, Phase 1) come over as archived cards on Administration. **Not ticked in Trello, so they'll show as
+late:** Title Objection Deadline (Sep 22), Send ACMI Invoice to Prometheus (Sep 1), and the three 2025 Phase 1
+feasibility dates.
+
+### Kellen's decisions for Properties-General
+
+1. **NSIH and Hostetler dates:** import them as dated cards on the NSIH board now (recommended: the hub has no
+   Hostetler or Prometheus contract, and the Hostetler closing is Dec 21), or skip them until the PSA and agreements
+   are uploaded as contracts, as with ARA?
+2. **The team lists:** a new "ACMI general" team board (recommended), or onto an existing board?
+3. **Old campuses and projects:** one archived "Properties-General archive" board with Avio, Strategic, RRAD,
+   Propulsion Park, Precision Park, King Ranch, TexAmericas, the Army partnership, Prospecting and Tenant Followups (276
+   comments; recommended, so the history is searchable), or skip them?
+4. **Exploration Park and Volare lists** (233 comments): skip, as their boards were (recommended), or put them in the
+   archive board too?
+
 ## Needs Kellen's decision
 
 1. **Full history.** The exports lack 89–92% of comments on Prospecting and General. Options: run
