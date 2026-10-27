@@ -2258,3 +2258,74 @@ Branch `mail-outreach-api`, no migration. `crm/mail/outbound.py`.
   first (today that's Kellen, already on). Then: Google Account › Security › App passwords › remove the hub's; and
   delete the `ACMI_IMAP_PASSWORD_KELLEN` line from `.env` (Claude can do that part). Anyone without Mail on would
   then fall back to IMAP and fail, with a message saying so.
+
+
+## Built 2026-10-26: ux-capture (UX second pass area 1)
+
+Branch `ux-capture`, migration `0068_ux_capture` (may be renumbered at merge). Findings C1–C5 and the code part of G1
+in `docs/UX_REVIEW.md` "Second pass", with decisions 2 and 3 as recommended. `crm/needs_filing.py`, `crm/invites.py`.
+
+- **Needs filing (C1)** at `/needs-filing/` replaces Mail review (`/mail/` redirects there; the menu item, search
+  page link and badge are renamed). One card per unknown domain joining its queued emails, its meetings (by attendee
+  domain, 90 days back to 60 ahead) and its emailed invites. Claude's domain verdict is the headline with one primary
+  action: "Looks like a bank. File Harbor Point Bank as a lender on Project Anvil?". **Accept** files the firm (or
+  adds the company, or ignores the domain), links its meetings, and for a bank, debt fund or broker adds an
+  Identified capital source on the project. **Change** opens the same choices by hand (directory type, project,
+  company or existing company, ignore, name). **Not now** hides the card 14 days (`FilingSnooze`); **Never** is the
+  Ignore filter. The project guess: project names and keywords in subjects and meeting titles, then the projects
+  the same threads are tagged or filed with, then the projects the other firms and companies at its meetings work
+  on. Cards with a meeting come first, then Claude's surest verdicts, then the latest. 25 per page; `?domain=` shows
+  one card (the calendar's File link). Mailbox setup, team mailboxes and filters moved to the bottom of the page.
+  Undo works as before for what Claude filed on its own, and now also takes the firm off its meetings.
+- **Claude files more on its own (decision 2):** a directory verdict at high confidence, or at medium once the team
+  has met someone at the domain (a medium verdict from an earlier run is filed when a meeting turns up). Domains seen
+  only as meeting attendees are sorted too, with the meetings in the evidence. Still never a Company.
+- **Firms on meetings (C2):** `Meeting.firms`, filled at import, from invites and after any filing by attendee domain
+  or firm contact email (`needs_filing.link`; companies are linked the same way). Firm chips with the type on
+  calendar rows, the pop-up and the week widget; "Coming up" meetings on the firm page, a project's Capital page (its
+  providers) and Build page (its team). The firm page's meeting list also reads the links.
+- **"No record" marker (C3):** `Meeting.unfiled` / `unfiled_domains`: outside attendees no person, company or firm
+  knows (free mail and ignored domains don't count). "2 outside attendees, no record · File" on the calendar, the week
+  widget and the pop-up (attendees tagged No record); a "No record" filter on the calendar. Counted in the Outreach
+  badge (the Needs filing count) and a once-a-day bell note to Managers from the due sweep ("Needs filing: 3 meetings
+  this week with outside people and no record; 12 organizations waiting"). The links are refreshed for the window
+  at the start of every `sort_domains` run (every 15 minutes), with or without Claude.
+- **Emailed invites (C4):** the mail sync keeps calendar parts (`ParsedEmail.calendar`, both readers; an attached
+  .ics with no data inline is skipped) and reads them to RFC 5545 (folding, quoted CN, TZID including Outlook's
+  Windows zone names, alarms), or Google's "Invitation: Title @ Thu Oct 29, 2026 2pm - 3pm (EDT)" subject when there's
+  no calendar part. Forwarded ones too. The meeting is source "invite" (`invite:<UID>`); a meeting already within 15
+  minutes with a similar title or a shared outside attendee just gains the guests; a later calendar event or Granola
+  note takes over an invite row the same way. Cancellations remove an unclaimed invite row; replies never add one;
+  ACMI-only invites are left to the calendar sync. An odd invite never fails the sync.
+- **Same person (C5):** a free-mail sender whose display name (two words or more) is exactly one Person's name is
+  held as `AddressSuggestion`, shown on Needs filing: "Same person, add this address" puts the address in
+  `other_emails` and the waiting email on their timeline; "Not them" stops it for that address. **Search** now finds
+  queue senders and unfiled meeting attendees (group "Not filed yet", badge "Not filed yet") and firm contacts (group
+  "Directory contacts": they are filed, on a firm, so they aren't called unfiled).
+- **Action items (G1, code only):** `Task.meeting` became `Task.meetings` (the migration copies each link over and
+  back; `task.meeting` still reads the first one). The owner comes from the name in brackets, `(Simon)` or `[Simon]`;
+  "by Friday", "tomorrow", "end of week", "next week", "end of month", "by Oct 30", "by 10/30" are read as the due
+  date from the meeting's day (prefilled in the form). The same title and owner within 7 days is one task (the other
+  meeting joins it; the item shows "also from …"). "Make tasks for all N items" on the pop-up. `import_meetings` was
+  already idempotent by Granola id (tested now); it prints and posts one bell note per run to Managers: "Granola
+  import: 5 meetings (3 new, 2 updated), 4 transcripts; 2 meetings need filing" (`--quiet` for none). No scheduled
+  task or connector was set up: that goes on the acmiproperties Claude account.
+- **Backfill:** `manage.py link_meetings` (dry run; `--apply` writes) links every existing meeting to its firms and
+  companies and marks who has no record.
+- **Files:** `crm/needs_filing.py`, `crm/invites.py`, `crm/management/commands/link_meetings.py`,
+  `crm/templates/crm/needs_filing.html` (replaces `mail.html`), partials `mail_setup.html`, `firm_chip.html`,
+  `unfiled_marker.html`, `upcoming_meetings.html`; changes in `crm/meetings.py`, `crm/directory/sort.py` and
+  `logic.py`, `crm/mail/sync.py`, `parse.py`, `gmail_api.py`, `views.py`, `crm/search.py`, `crm/notify.py`,
+  `crm/views.py`, the calendar, week widget, pop-up, firm, Capital and Build templates.
+- **Tests:** `crm/tests/test_capture.py` (27, the invite is made up to the standard); 737 pass. Checked in a
+  browser on a scratch database: the cards and Accept, firm chips and the marker on the calendar and week widget,
+  the pop-up's "Make tasks for all", the page at phone width. The migration was run forward and back on a scratch
+  copy with a task linked to a meeting.
+- **On the laptop, after a backup:** `manage.py migrate crm`, then `manage.py link_meetings` (read the counts) and
+  `manage.py link_meetings --apply`. Then look at Needs filing (expect more cards than Mail review had: meeting-only
+  domains are new), a lender meeting on the calendar, and the next `sort_domains` log line for what Claude filed at
+  medium with a meeting.
+- **Left out:** the attendee-based merge of calendar and Granola duplicates (D1, area 2: invites use it, calendar ↔
+  Granola still compares titles); reading an .ics that is only an attachment with no inline copy (needs one more
+  Gmail call per message); undo for a card someone accepted by hand (as before, only Claude's own filings undo); the
+  scheduled Granola task itself.

@@ -17,11 +17,13 @@
     <div class="week-day {% if d.today %}today{% endif %} {% if d.past %}past{% endif %}">
       <div class="week-date"><span>{{ d.date|date:"D" }}</span> <strong>{{ d.date|date:"j" }}</strong></div>
       {% for m in d.meetings %}
-        <button type="button" class="cal-event week-event {% if m.companies.all %}ext{% endif %}" data-id="{{ m.pk }}" title="{{ m.title }}">
+        <button type="button" class="cal-event week-event {% if m.companies.all or m.firms.all %}ext{% endif %}" data-id="{{ m.pk }}" title="{{ m.title }}">
           <span class="week-time">{{ m.start|time:"g:i A" }}</span>
           <span class="week-title">{% if m.summary %}📝 {% endif %}{{ m.title }}</span>
           {% for c in m.companies.all|slice:":2" %}<span class="week-co">{{ c.name }}</span>{% endfor %}
+          {% for f in m.firms.all|slice:":2" %}<span class="week-co week-firm">{{ f.name }} · {{ f.get_kind_display|lower }}</span>{% endfor %}
         </button>
+        {% if m.unfiled %}{% include "crm/partials/unfiled_marker.html" with compact=True %}{% endif %}
       {% empty %}<div class="muted week-empty">—</div>{% endfor %}
     </div>
     {% endfor %}

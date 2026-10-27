@@ -721,8 +721,9 @@ class Task(models.Model):
     repeat = models.CharField(max_length=10, choices=Repeat.choices, blank=True,
                               help_text="When this is ticked done, the next one is created")
     repeat_until = models.DateField(null=True, blank=True, help_text="Stop repeating after this date")
-    meeting = models.ForeignKey("Meeting", null=True, blank=True, on_delete=models.SET_NULL, related_name="tasks",
-                                help_text="The meeting whose action item this came from")
+    meetings = models.ManyToManyField("Meeting", blank=True, related_name="tasks",
+                                      help_text="The meetings whose action item this came from (the same item on two "
+                                                "meetings is one task)")
     created_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -752,6 +753,11 @@ class Task(models.Model):
 
     def record(self):
         return self.opportunity or self.person or self.company or self.site
+
+    @property
+    def meeting(self):
+        """The first meeting the task came from (most have one)."""
+        return min(self.meetings.all(), key=lambda m: m.start, default=None)
 
     def get_absolute_url(self):
         return reverse("crm:task_detail", args=[self.pk])
@@ -784,7 +790,8 @@ class Task(models.Model):
 class Meeting(models.Model):
     """One meeting from Granola notes and/or Google Calendar; shown on the Meetings calendar."""
 
-    source = models.CharField(max_length=20, choices=[("granola", "Granola"), ("calendar", "Google Calendar")])
+    source = models.CharField(max_length=20, choices=[("granola", "Granola"), ("calendar", "Google Calendar"),
+                                                      ("invite", "Emailed invite")])
     external_id = models.CharField(max_length=255, unique=True)
     calendar_id = models.CharField(max_length=255, blank=True, help_text="Calendar event merged into this meeting")
     title = models.CharField(max_length=500)
@@ -795,7 +802,13 @@ class Meeting(models.Model):
     action_items = models.JSONField(default=list, blank=True, help_text="[{title, owner, detail, task_id}]")
     attendees = models.JSONField(default=list, blank=True, help_text="[{name, email}]")
     companies = models.ManyToManyField(Company, blank=True, related_name="meetings")
+    firms = models.ManyToManyField("Firm", blank=True, related_name="meetings",
+                                   help_text="Directory firms at the meeting, by attendee domain or contact email")
     team = models.ManyToManyField(User, blank=True, related_name="meetings")
+    # Outside attendees no record knows (no person, company or firm, not free mail, not ignored): the calendar's
+    # "no record" marker and the Needs filing cards. Kept up to date by crm/needs_filing.py.
+    unfiled = models.JSONField(default=list, blank=True, help_text="[{name, email}] of outside attendees with no record")
+    unfiled_domains = models.JSONField(default=list, blank=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
@@ -810,6 +823,10 @@ class Meeting(models.Model):
     @property
     def outside_attendees(self):
         return [a for a in self.attendees if not a.get("email", "").lower().endswith("@acmigroup.com")]
+
+    @property
+    def unfiled_emails(self):
+        return {a["email"].lower() for a in self.unfiled or []}
 
 
 class CampusUpdate(models.Model):
@@ -1516,6 +1533,53 @@ class UnmatchedEmail(models.Model):
 
     def __str__(self):
         return f"{self.address}: {self.subject}"
+
+
+class FilingSnooze(models.Model):
+    """"Not now" on a Needs filing card: the domain's card stays out of the inbox (and its count) until the date."""
+
+    domain = models.CharField(max_length=255, unique=True)
+    until = models.DateField()
+    created_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.domain} until {self.until}"
+
+
+class AddressSuggestion(models.Model):
+    """A free-mail sender (gmail.com and the like) whose display name matches a Person: "Same person, add this
+    address". The email waits here until someone says yes (the address goes on the person and the email on their
+    timeline) or no."""
+
+    class Status(models.TextChoices):
+        OPEN = "open", "Waiting"
+        ADDED = "added", "Address added"
+        DISMISSED = "dismissed", "Not them"
+
+    person = models.ForeignKey(Person, on_delete=models.CASCADE, related_name="address_suggestions")
+    address = models.EmailField(max_length=255, db_index=True)
+    name = models.CharField(max_length=255, blank=True)
+    mailbox = models.ForeignKey(Mailbox, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    message_id = models.CharField(max_length=500)
+    thread_id = models.CharField(max_length=100, blank=True)
+    occurred_at = models.DateTimeField()
+    kind = models.CharField(max_length=20, choices=Activity.Kind.choices)
+    outcome = models.CharField(max_length=60, blank=True)
+    subject = models.CharField(max_length=500, blank=True)
+    snippet = models.TextField(blank=True)
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.OPEN, db_index=True)
+    decided_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-occurred_at"]
+        constraints = [
+            models.UniqueConstraint(fields=["message_id", "address"], name="address_suggestion_once_per_message"),
+        ]
+
+    def __str__(self):
+        return f"{self.address} → {self.person}"
 
 
 # ---------------------------------------------------------------------------
@@ -3413,7 +3477,7 @@ class DomainSort(models.Model):
     """Claude's read of who's behind an email domain, from the mail itself (signatures, subjects, the domain): a
     prospect (a Company), a firm for the directory (with its type) or neither. For a domain waiting in the mail review
     queue, a clear directory firm is filed automatically (status Filed, with Undo); anything else is a suggestion on
-    Mail review. For an existing Company (company set), a suggestion that it's really a vendor, which a Manager acts
+    Needs filing. For an existing Company (company set), a suggestion that it's really a vendor, which a Manager acts
     on with Move to directory."""
 
     class Verdict(models.TextChoices):

@@ -1,0 +1,7 @@
+{% comment %}The next meetings with a firm, or with a project's lenders or team (Meeting.firms). upcoming = the meetings,
+title = the panel's heading. Nothing shows when there are none.{% endcomment %}{% if upcoming %}<section class="panel" id="upcoming">
+  <h3>{{ title }}</h3>
+  {% for m in upcoming %}<div class="row-line"><span><a href="{{ m.get_absolute_url }}">{{ m.title|truncatechars:60 }}</a>
+    {% for f in m.firms.all|slice:":2" %}{% include "crm/partials/firm_chip.html" %}{% endfor %}</span>
+    <span class="lc-small muted">{{ m.start|date:"D M j, g:i a" }}</span></div>{% endfor %}
+</section>{% endif %}

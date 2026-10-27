@@ -12,6 +12,7 @@ from django.utils.safestring import mark_safe
 from ..ai import enabled as ai_enabled
 from ..contracts import ai as contract_ai
 from ..contracts import text as textmod
+from ..directory import logic as directory_logic
 from ..models import Bid, BudgetLine, BuildMilestone, ChangeOrder, Draw, Project, ProjectAnswer, TeamMember
 from ..permissions import is_manager, refuse
 from . import ai, logic
@@ -114,6 +115,8 @@ def project_build(request, pk):
         "groups": BudgetLine.Group.choices, "co_reasons": ChangeOrder.Reason.choices,
         "co_statuses": ChangeOrder.Status.choices, "draw_statuses": Draw.Status.choices,
         "next_draw": (project.draws.aggregate(m=Max("number"))["m"] or 0) + 1,
+        "upcoming": directory_logic.upcoming_with(
+            project.team.exclude(directory=None).values_list("directory", flat=True)),
     })
 
 

@@ -418,7 +418,7 @@ class GmailSyncTests(TestCase):
         self.mailbox.backend = Mailbox.Backend.GMAIL_API
         self.mailbox.save()
         self.client.force_login(self.user)
-        r = self.client.get(reverse("crm:mail"))
+        r = self.client.get(reverse("crm:needs_filing"))
         self.assertContains(r, "read through")
         self.assertNotContains(r, "add your Gmail app password")
 

@@ -187,7 +187,7 @@ class TaskAndCommentTests(TestCase):
 
     def test_top_menus(self):
         r = self.client.get(reverse("crm:home"))
-        for label in (">Home<", "Possible duplicates", ">Tenant pipeline<", ">Calendar<", "Mail review", ">Sites<", ">Map<",
+        for label in (">Home<", "Possible duplicates", ">Tenant pipeline<", ">Calendar<", "Needs filing", ">Sites<", ">Map<",
                       ">Companies<", "Rent roll"):
             self.assertContains(r, label)
 

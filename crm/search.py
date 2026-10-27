@@ -2,6 +2,9 @@
 
 Companies we're actually talking to come first (an open deal, then the most recent touch), so typing a few
 letters of a tenant's name finds it without knowing which list it lives on.
+
+People and organizations nobody has filed yet are found too, labelled "Not filed yet": senders waiting in Needs
+filing and meeting attendees no record knows. So are the contacts kept on directory firms.
 """
 from django.db.models import Exists, OuterRef, Q
 from django.http import JsonResponse
@@ -9,7 +12,7 @@ from django.urls import reverse
 from django.utils.timezone import localtime
 
 from .models import (
-    OPEN_STAGES, Campus, Card, Company, Contract, Firm, LandSite, Meeting, Opportunity, Person, Project,
+    OPEN_STAGES, Campus, Card, Company, Contract, Firm, LandSite, Meeting, Opportunity, Person, Project, UnmatchedEmail,
 )
 
 PER_GROUP = 6
@@ -38,7 +41,7 @@ PAGES = [
     ("Lists", "crm:list_index", "", "", "Directory"),
     ("Possible duplicates", "crm:duplicates", "", "merge", "Directory"),
     ("Send queue", "crm:outreach_home", "", "outreach email campaign", "Outreach"),
-    ("Mail review", "crm:mail", "", "inbox unmatched", "Outreach"),
+    ("Needs filing", "crm:needs_filing", "", "mail review inbox unmatched unknown senders", "Outreach"),
     ("News review", "crm:news_home", "", "news", "Outreach"),
     ("Email templates", "crm:template_list", "", "outreach", "Outreach"),
     ("Weekly report", "crm:weekly_report", "", "report", "Outreach"),
@@ -128,6 +131,15 @@ def results(text):
         _hit(f.name, f.get_absolute_url(), f.get_kind_display())
         for f in Firm.objects.filter(Q(name__icontains=text) | Q(domains__icontains=text))[:PER_GROUP]
     ])
+    contacts = []
+    low = text.lower()
+    for f in Firm.objects.filter(contacts__icontains=text)[:PER_GROUP]:
+        for c in f.contacts or []:
+            if low in (c.get("name") or "").lower() or low in (c.get("email") or "").lower():
+                contacts.append(_hit(c.get("name") or c.get("email"), f.get_absolute_url() + "#contacts",
+                                     " · ".join(x for x in (c.get("title"), f.name) if x), "Directory contact"))
+    add("Directory contacts", contacts[:PER_GROUP])
+    add("Not filed yet", unfiled(text))
     add("Meetings", [
         _hit(m.title, m.get_absolute_url(), f"{localtime(m.start):%b} {localtime(m.start).day}, {m.start.year}")
         for m in Meeting.objects.filter(title__icontains=text).order_by("-start")[:4]
@@ -138,6 +150,30 @@ def results(text):
         .select_related("list__board").order_by("-updated_at")[:PER_GROUP]
     ])
     return groups
+
+
+def unfiled(text):
+    """Senders waiting in Needs filing (one row per domain) and meeting attendees no record knows."""
+    from .needs_filing import _domain
+
+    hits, seen = [], set()
+    rows = (UnmatchedEmail.objects.filter(Q(name__icontains=text) | Q(address__icontains=text) | Q(domain__icontains=text))
+            .order_by("-occurred_at").values_list("domain", "name", "address")[:60])
+    for domain, name, address in rows:
+        if domain in seen:
+            continue
+        seen.add(domain)
+        hits.append(_hit(name or address, reverse("crm:needs_filing") + f"?domain={domain}", f"{address} · emails waiting",
+                         "Not filed yet", "unfiled-tone"))
+    low = text.lower()
+    for m in Meeting.objects.filter(unfiled__icontains=text).order_by("-start")[:PER_GROUP]:
+        for a in m.unfiled:
+            if (low in (a.get("name") or "").lower() or low in a["email"]) and a["email"] not in seen:
+                seen.add(a["email"])
+                when = localtime(m.start)
+                hits.append(_hit(a.get("name") or a["email"], m.get_absolute_url(),
+                                 f"{a['email']} · at {m.title[:40]}, {when:%b} {when.day}", "Not filed yet", "unfiled-tone"))
+    return hits[:PER_GROUP]
 
 
 def search(request):

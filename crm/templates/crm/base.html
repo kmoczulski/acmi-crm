@@ -59,11 +59,11 @@
         </div>
       </details>
 
-      <details class="tn-menu {% if '/outreach/' in p or '/mail/' in p or '/news/' in p or '/reports/weekly' in p %}active{% endif %}">
+      <details class="tn-menu {% if '/outreach/' in p or '/needs-filing/' in p or '/news/' in p or '/reports/weekly' in p %}active{% endif %}">
         <summary>Outreach{% if mail_queue_count or news_open_count %} <span class="tn-dot" title="Items to review"></span>{% endif %}</summary>
         <div class="tn-drop">
           <a href="{% url 'crm:outreach_home' %}" class="{% if p == '/outreach/' or '/batches/' in p %}on{% endif %}"><strong>Send queue</strong><span>Outreach emails ready to go</span></a>
-          <a href="{% url 'crm:mail' %}" class="{% if '/mail/' in p %}on{% endif %}"><strong>Mail review{% if mail_queue_count %} <span class="tag">{{ mail_queue_count }}</span>{% endif %}</strong><span>Email from senders we don't know yet</span></a>
+          <a href="{% url 'crm:needs_filing' %}" class="{% if '/needs-filing/' in p %}on{% endif %}"><strong>Needs filing{% if mail_queue_count %} <span class="tag">{{ mail_queue_count }}</span>{% endif %}</strong><span>Emails and meetings with people we don't know yet</span></a>
           <a href="{% url 'crm:news_home' %}" class="{% if '/news/' in p %}on{% endif %}"><strong>News review{% if news_open_count %} <span class="tag">{{ news_open_count }}</span>{% endif %}</strong><span>News that could start a conversation</span></a>
           <a href="{% url 'crm:template_list' %}" class="{% if '/outreach/templates' in p %}on{% endif %}"><strong>Email templates</strong><span></span></a>
           <a href="{% url 'crm:weekly_report' %}" class="{% if '/reports/weekly' in p %}on{% endif %}"><strong>Weekly report</strong><span></span></a>

@@ -2123,3 +2123,26 @@ details.mail-notes:not([open]) { background: transparent; padding: 2px 0; }
 .shared-grant { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 6px; }
 .plain-list { list-style: none; padding: 0; margin: 0; }
 .plain-list .inline-form { display: inline; }
+
+/* Needs filing (crm/needs_filing.py) and the calendar's firm chips and "no record" marker */
+.nf-card { padding: 12px 14px; }
+.nf-head { display: flex; gap: 10px; align-items: flex-start; }
+.nf-verdict { margin: 8px 0 6px 26px; }
+.nf-actions { margin-left: 26px; display: flex; flex-wrap: wrap; gap: 6px; align-items: flex-start; }
+.nf-change > summary { list-style: none; cursor: pointer; }
+.nf-change > summary::-webkit-details-marker { display: none; }
+.nf-change-form { display: grid; gap: 6px; margin-top: 6px; padding: 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); max-width: 460px; }
+.nf-change-form fieldset { border: 0; padding: 0; margin: 0; display: grid; gap: 4px; font-size: 13px; }
+.nf-change-form legend { font-weight: 600; font-size: 12px; color: var(--muted); }
+.nf-body { margin: 10px 0 0 26px; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+.nf-body h4 { margin: 0 0 3px; font-size: 12px; color: var(--muted); font-weight: 600; }
+.nf-same { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; border-top: 1px solid var(--line); padding: 8px 0; }
+.chip-firm { background: #fdf3d8; color: #6b4600; }
+.chip-firm .chip-kind { font-weight: 400; }
+.cal-firm { display: block; font-size: 10.5px; color: #6b4600; overflow: hidden; text-overflow: ellipsis; }
+.week-co.week-firm { color: #6b4600; background: #fdf3d8; }
+.unfiled { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin: 4px 0 10px; padding: 6px 8px; border-radius: 6px; background: var(--warn-bg); font-size: 12.5px; }
+.unfiled-compact { margin: 2px 0 4px; padding: 2px 5px; font-size: 11px; gap: 4px; }
+.unfiled-compact .btn-small { padding: 0 6px; font-size: 11px; }
+.cal-legend { font-size: 12px; }
+.stage.unfiled-tone { background: var(--warn-bg); color: #8a5a00; }

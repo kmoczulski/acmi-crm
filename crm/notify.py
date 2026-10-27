@@ -200,3 +200,6 @@ def due_sweep(user):
     closing.reminders(user, today)  # closing checklist items
     entitlements.reminders(user, today)  # hearings, lapsing approvals, conditions due
     capital.reminders(user, today)  # term sheet offers expiring, lenders' next steps
+    from . import needs_filing
+
+    needs_filing.daily_note(user, today)  # Managers: meetings with outside people and no record

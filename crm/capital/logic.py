@@ -8,7 +8,7 @@ from types import SimpleNamespace
 from django.db.models import Q
 from django.utils import timezone
 
-from ..directory.logic import emails, file_queued, meetings, short_name, upcoming_meetings  # noqa: F401
+from ..directory.logic import emails, file_queued, meetings, short_name, upcoming_meetings, upcoming_with  # noqa: F401
 from ..models import CapitalLog, CapitalSource, Notification, TermSheet
 from ..templatetags.crm_tags import money
 

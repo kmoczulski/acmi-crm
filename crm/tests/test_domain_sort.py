@@ -1,5 +1,5 @@
 """Claude sorting email domains (crm/directory/sort.py): sure vendors are filed in the directory with Undo, the rest are
-suggestions on Mail review, existing Companies are only flagged, and nothing ever creates a Company. Claude is mocked."""
+suggestions on Needs filing, existing Companies are only flagged, and nothing ever creates a Company. Claude is mocked."""
 import json
 from datetime import datetime, time
 from unittest import mock
@@ -81,7 +81,7 @@ class AutoSortTests(SortBase):
                          {"firehawk.test", "bigdigest.test", "maybe.test"})
         self.assertFalse(Company.objects.exists())
         self.assertEqual(DomainSort.objects.get(domain="maybe.test").status, "suggested")
-        self.assertContains(self.client.get("/mail/"), 'placeholder="Firehawk"')
+        self.assertContains(self.client.get("/needs-filing/"), 'placeholder="Firehawk"')
 
         # A second run doesn't ask Claude about domains it has seen.
         patch, stream = claude()
@@ -105,16 +105,16 @@ class AutoSortTests(SortBase):
         patch, _ = claude(result("gfrlaw.test", "directory", "law", "Gordon Feinblatt", "medium", "An engagement letter."))
         with patch:
             sort.auto_sort()
-        page = self.client.get("/mail/")
+        page = self.client.get("/needs-filing/")
         self.assertContains(page, "An engagement letter.")
-        self.assertContains(page, "File as Claude says")
+        self.assertContains(page, "Accept: file as Claude says")
         s = DomainSort.objects.get()
         self.client.post(f"/directory/sorts/{s.pk}/", {"action": "file", "back": "mail"})
         firm = Firm.objects.get(name="Gordon Feinblatt")
         self.assertEqual(firm.kind, "law")
         s.refresh_from_db()
         self.assertEqual((s.status, s.decided_by), ("done", self.user))
-        self.assertFalse(Notification.objects.exists())  # a person did it: no bell note
+        self.assertFalse(Notification.objects.filter(kind=Notification.Kind.DIRECTORY).exists())  # a person did it
 
     def test_undo_puts_the_mail_back(self):
         self.queue("gus@terracon.com", "Geotech proposal", n=2)

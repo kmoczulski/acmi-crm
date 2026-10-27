@@ -31,7 +31,7 @@
           <td class="lc-small">{{ p.contacts|length }}</td>
           <td class="wrap lc-small">{% for s in p.sources.all %}<a href="{{ s.get_absolute_url }}">{{ s.project.name }}: {{ s.get_kind_display|lower }}</a> <span class="pill cap-{{ s.status }}">{{ s.get_status_display }}</span><br>{% endfor %}{% for t in p.team_roles.all %}<a href="{% url 'crm:project_build' t.project.pk %}#team">{{ t.project.name }}: {{ t.get_role_display|lower }}</a> <span class="muted">· {{ t.get_status_display|lower }}</span><br>{% endfor %}{% if not p.sources.all and not p.team_roles.all %}–{% endif %}</td>
           <td class="lc-small">{{ p.last_email|date:"M j, Y"|default:"–" }}</td></tr>
-      {% empty %}<tr><td colspan="6" class="muted">{% if q or kind %}Nothing matches.{% else %}None yet. They're added here, by name on a capital source or a project's team, from a domain in Mail review, or with Move to directory on a Company.{% endif %}</td></tr>{% endfor %}</tbody>
+      {% empty %}<tr><td colspan="6" class="muted">{% if q or kind %}Nothing matches.{% else %}None yet. They're added here, by name on a capital source or a project's team, from a domain in Needs filing, or with Move to directory on a Company.{% endif %}</td></tr>{% endfor %}</tbody>
     </table></div>
   </section>
   <aside>

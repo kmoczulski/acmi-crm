@@ -24,14 +24,16 @@ def app_context(request):
     from django.utils import timezone
 
     from . import notify
-    from .models import NewsScan, Task, UnmatchedEmail
+    from .models import NewsScan, Task
 
     from . import prefs, search
 
     queue = news_open = unread = due = 0
     user_prefs, pages, new_items, mail_on = {}, [], [], False
     if getattr(request, "user", None) and request.user.is_authenticated:
-        queue = UnmatchedEmail.objects.values("domain").distinct().count()
+        from . import needs_filing
+
+        queue = needs_filing.count()  # organizations with email or meetings and no record: the Outreach badge
         news_open = NewsScan.objects.filter(status=NewsScan.Status.OPEN).count()
         today = str(timezone.localdate())
         if hasattr(request, "session") and request.session.get("due_sweep") != today:

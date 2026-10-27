@@ -286,6 +286,8 @@ def _our_thread_checker(mailbox):
 
 def process_messages(mailbox, emails, recorder=None):
     """Log a batch of ParsedEmail for one mailbox. Returns the Recorder."""
+    from crm import invites
+
     recorder = recorder or Recorder()
     matcher = recorder.matcher
     own = {mailbox.email.lower()}
@@ -303,6 +305,13 @@ def process_messages(mailbox, emails, recorder=None):
             # Mail a teammate sent (e.g. Kellen, with Simon cc'd) is ACMI outreach in every
             # teammate's mailbox, not "received" internal mail.
             senders = own | ({email.from_addr} if matcher.is_internal(email.from_addr) else set())
+            if email.calendar or invites.is_invitation(email.subject):
+                try:  # a meeting invite, maybe forwarded: onto the calendar (crm/invites.py)
+                    added, merged = invites.from_email(email, mailbox)
+                    recorder.stats["meetings from invites"] += added
+                    recorder.stats["invites merged into meetings"] += merged
+                except Exception:  # an odd invite must never fail the sync
+                    log.exception("Couldn't read the invite in %s", email.message_id)
             envelopes = classify(email, senders, is_our_thread)
             bulk = email.from_addr not in own and email.is_bulk
             for env in envelopes:
@@ -331,6 +340,9 @@ def process_messages(mailbox, emails, recorder=None):
 
 def _park(event, matcher, recorder):
     domain = domain_of(event.address)
+    if domain in FREE_MAIL and event.kind != Activity.Kind.BOUNCE and same_person(event):
+        recorder.stats["same-person suggestions"] += 1
+        return
     if not domain or domain in FREE_MAIL or domain in matcher.ignored or event.kind == Activity.Kind.BOUNCE:
         recorder.stats["skipped (unknown personal/ignored address)"] += 1
         return
@@ -358,6 +370,51 @@ def _park(event, matcher, recorder):
     )
     if created:
         recorder.stats["sent to review queue"] += 1
+
+
+def same_person(event):
+    """A free-mail sender whose display name is exactly one Person's name: "Same person, add this address" on Needs
+    filing. Returns the suggestion, or None."""
+    from crm.models import AddressSuggestion
+
+    name = " ".join((event.name or "").split())
+    if len(name.split()) < 2:  # a first name alone matches too many people
+        return None
+    people = list(Person.objects.filter(full_name__iexact=name)[:2])
+    if len(people) != 1 or AddressSuggestion.objects.filter(
+            address=event.address, person=people[0], status=AddressSuggestion.Status.DISMISSED).exists():
+        return None  # nobody, more than one, or someone already said "not them"
+    suggestion, _ = AddressSuggestion.objects.get_or_create(
+        message_id=event.message_id, address=event.address,
+        defaults={"person": people[0], "name": name[:255], "mailbox": event.mailbox, "thread_id": event.thread_id,
+                  "occurred_at": event.occurred_at, "kind": event.kind, "outcome": event.outcome,
+                  "subject": event.subject[:500], "snippet": event.body[:1000]})
+    return suggestion
+
+
+def add_address(suggestion, user=None):
+    """Yes, same person: the address goes on the person and their waiting emails from it onto their timeline."""
+    from crm.models import AddressSuggestion
+
+    person = suggestion.person
+    with transaction.atomic():
+        if not person.email:
+            person.email = suggestion.address
+        elif suggestion.address not in [e.lower() for e in person.other_emails or []]:
+            person.other_emails = [*(person.other_emails or []), suggestion.address]
+        person.save()
+        waiting = AddressSuggestion.objects.filter(address=suggestion.address, person=person,
+                                                   status=AddressSuggestion.Status.OPEN).select_related("mailbox")
+        recorder = Recorder()
+        for s in waiting:
+            if s.mailbox_id:
+                recorder.record(EmailEvent(
+                    mailbox=s.mailbox, message_id=s.message_id, thread_id=s.thread_id, occurred_at=s.occurred_at,
+                    subject=s.subject, body=s.snippet, kind=s.kind, outcome=s.outcome, address=s.address,
+                    name=s.name), person, person.company)
+        n = waiting.update(status=AddressSuggestion.Status.ADDED, decided_by=user)
+        recorder.finish()
+    return n
 
 
 LOCK_MINUTES = 15

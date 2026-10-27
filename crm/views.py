@@ -2,6 +2,7 @@ import re
 from urllib.parse import parse_qs, urlencode
 
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.contrib import messages
 from django.core.paginator import Paginator
 from django.db.models import Count, Max, Q
@@ -9,6 +10,7 @@ from django.http import FileResponse, Http404, HttpResponse, HttpResponseBadRequ
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.dateparse import parse_date
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
@@ -401,7 +403,7 @@ def week_calendar(request):
     monday = today - timedelta(days=today.weekday()) + timedelta(weeks=offset)
     days = [monday + timedelta(days=i) for i in range(7)]
     everyone = request.GET.get("cal") == "all"
-    qs = Meeting.objects.filter(start__date__gte=days[0], start__date__lte=days[-1]).prefetch_related("companies")
+    qs = Meeting.objects.filter(start__date__gte=days[0], start__date__lte=days[-1]).prefetch_related("companies", "firms")
     if not everyone:
         qs = qs.filter(team=request.user).distinct()
     by_day = {}
@@ -839,7 +841,8 @@ def task_add(request):
 
 def task_detail(request, pk):
     """A task as a Trello-style card: details, repeat, comments."""
-    task = get_object_or_404(Task.objects.select_related("assignee", "company", "person", "opportunity", "meeting"), pk=pk)
+    task = get_object_or_404(Task.objects.select_related("assignee", "company", "person", "opportunity")
+                             .prefetch_related("meetings"), pk=pk)
     old_assignee = task.assignee_id
     data = None
     if request.method == "POST":  # the side form leaves out the title and description, which are edited in place
@@ -1322,18 +1325,21 @@ def meeting_list(request):
     except ValueError:
         first = today.replace(day=1)
     weeks = cal.Calendar(firstweekday=6).monthdatescalendar(first.year, first.month)
-    qs = Meeting.objects.filter(start__date__gte=weeks[0][0], start__date__lte=weeks[-1][-1]).prefetch_related("companies")
+    qs = (Meeting.objects.filter(start__date__gte=weeks[0][0], start__date__lte=weeks[-1][-1])
+          .prefetch_related("companies", "firms"))
     who = request.GET.get("who", "all")
     if who == "me":
         qs = qs.filter(team=request.user)
     elif who == "outside":
         qs = qs.filter(companies__isnull=False).distinct()
+    elif who == "unfiled":  # outside attendees no record knows (crm/needs_filing.py)
+        qs = qs.exclude(unfiled=[])
     by_day = {}
     for m in qs:
         by_day.setdefault(timezone.localtime(m.start).date(), []).append(m)
     prev_month = (first.replace(day=1) - timezone.timedelta(days=1)).replace(day=1)
     next_month = (first.replace(day=28) + timezone.timedelta(days=7)).replace(day=1)
-    upcoming = Meeting.objects.filter(start__gte=timezone.now()).prefetch_related("companies")[:8]
+    upcoming = Meeting.objects.filter(start__gte=timezone.now()).prefetch_related("companies", "firms")[:8]
     return render(request, "crm/meetings.html", {
         "weeks": [[{"date": d, "meetings": by_day.get(d, []), "other": d.month != first.month, "today": d == today}
                    for d in week] for week in weeks],
@@ -1360,13 +1366,17 @@ def calendar_sync_now(request):
 
 def meeting_panel(request, pk):
     """The pop-up: Granola summary, action items (each can become a task), attendees, companies."""
-    m = get_object_or_404(Meeting.objects.prefetch_related("companies", "team"), pk=pk)
-    tasks = Task.objects.in_bulk([i["task_id"] for i in m.action_items if i.get("task_id")])
+    m = get_object_or_404(Meeting.objects.prefetch_related("companies", "team", "firms"), pk=pk)
+    tasks = Task.objects.prefetch_related("meetings").in_bulk([i["task_id"] for i in m.action_items if i.get("task_id")])
     items = [{**i, "index": n, "task": tasks.get(i.get("task_id"))} for n, i in enumerate(m.action_items)]
+    base = timezone.localtime(m.start).date()
     for i in items:
         i["done"] = bool(i["task"] and i["task"].done)
+        i["due_guess"] = None if i["task"] else meetings.due_from_text(f"{i['title']} {i.get('detail', '')}", base)
+        i["other_meetings"] = [x for x in i["task"].meetings.all() if x.pk != m.pk] if i["task"] else []
     return render(request, "crm/partials/meeting_panel.html", {
         "m": m, "items": items, "summary_html": meetings.render_markdown(m.summary), "users": active_users(),
+        "untasked": sum(1 for i in items if not i["task"]),
         "next": m.get_absolute_url(),  # the pop-up is fetched, so its forms return to the calendar, not the fragment
     })
 
@@ -1391,24 +1401,29 @@ def meeting_make_task(request, pk):
     index = int(request.POST.get("index", -1))
     if not 0 <= index < len(m.action_items):
         raise Http404
-    item = m.action_items[index]
-    if not item.get("task_id"):
-        owner = None
-        if item.get("owner"):
-            first = item["owner"].split()[0].split(",")[0].lower()
-            owner = next((u for u in active_users() if (u.first_name or "").lower() == first or u.username == first), None)
-        assignee = get_object_or_404(type(request.user), pk=request.POST["assignee"]) if request.POST.get("assignee") else (owner or request.user)
-        due = request.POST.get("due_date") or None
-        due_time = request.POST.get("due_time") or None
-        company = m.companies.first()
-        task = Task.objects.create(
-            title=item["title"][:300], notes=(item.get("detail", "") + f"\n\nFrom meeting: {m.title} ({m.start:%b %d}) {m.url}").strip(),
-            due_date=due, due_time=due_time if due else None, assignee=assignee, company=company, meeting=m, created_by=request.user,
-        )
-        items = list(m.action_items)
-        items[index] = {**item, "task_id": task.pk}
-        m.action_items = items
-        m.save(update_fields=["action_items"])
+    assignee = get_object_or_404(get_user_model(), pk=request.POST["assignee"]) if request.POST.get("assignee") else None
+    due = parse_date(request.POST.get("due_date") or "") if request.POST.get("due_date") else None
+    task, created = meetings.make_task(m, index, request.user, assignee=assignee, due=due,
+                                       due_time=request.POST.get("due_time") or None)
+    if task is not None:
+        who = task.assignee.get_full_name() or task.assignee.username if task.assignee else "nobody"
+        if created:
+            notify.task_assigned(task, request.user)
+            messages.success(request, f"Task created for {who}: {task.title}")
+        else:
+            messages.success(request, f"Same item as {who}'s task from another meeting this week: linked to it.")
+    return redirect(_safe_next(request, m.get_absolute_url()))
+
+
+@require_POST
+def meeting_make_tasks(request, pk):
+    """"Make tasks for all N items": owners from the names in brackets, "by Friday" as the due date."""
+    m = get_object_or_404(Meeting, pk=pk)
+    made, joined = meetings.make_all_tasks(m, request.user)
+    for task in made:
         notify.task_assigned(task, request.user)
-        messages.success(request, f"Task created for {assignee.get_full_name() or assignee.username}: {task.title}")
+    text = f"Made {len(made)} task{'s' if len(made) != 1 else ''}"
+    if joined:
+        text += f"; {len(joined)} item{'s' if len(joined) != 1 else ''} joined the same task from another meeting"
+    messages.success(request, text + ".")
     return redirect(_safe_next(request, m.get_absolute_url()))

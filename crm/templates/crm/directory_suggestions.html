@@ -5,10 +5,10 @@
   <h1>Sorted from email</h1>
   <span class="spacer"></span>
   <a class="btn" href="{% url 'crm:directory' %}">Directory</a>
-  <a class="btn" href="{% url 'crm:mail' %}">Mail review</a>
+  <a class="btn" href="{% url 'crm:needs_filing' %}">Needs filing</a>
 </div>
 <p class="muted" style="margin-top:0">After each mail sync Claude reads the emails from new domains. A firm it's sure is a consultant, lawyer, engineer,
-  vendor or lender is filed in the Directory (undo it below); anything else waits in Mail review with Claude's suggestion. Claude never creates a Company.</p>
+  vendor or lender is filed in the Directory (undo it below); anything else waits in Needs filing with Claude's suggestion. Claude never creates a Company.</p>
 
 <section class="panel">
   <h3>Filed by Claude · 30 days ({{ filings|length }})</h3>
@@ -19,7 +19,7 @@
         <td>{% if s.firm %}<a href="{{ s.firm.get_absolute_url }}">{{ s.firm.name }}</a>{% endif %} <span class="muted lc-small">· {{ s.kind_label }}</span></td>
         <td class="wrap lc-small">{{ s.reason }}</td>
         <td class="lc-small">{{ s.decided_at|date:"M j" }}</td>
-        <td><form method="post" action="{% url 'crm:firm_sort_action' s.pk %}" onsubmit="return confirm('Put {{ s.domain|escapejs }} back in Mail review?')">{% csrf_token %}<input type="hidden" name="action" value="undo"><button class="btn-small">Undo</button></form></td></tr>
+        <td><form method="post" action="{% url 'crm:firm_sort_action' s.pk %}" onsubmit="return confirm('Put {{ s.domain|escapejs }} back in Needs filing?')">{% csrf_token %}<input type="hidden" name="action" value="undo"><button class="btn-small">Undo</button></form></td></tr>
     {% empty %}<tr><td colspan="5" class="muted">Nothing filed lately.</td></tr>{% endfor %}</tbody>
   </table>
 </section>

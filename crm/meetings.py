@@ -8,12 +8,20 @@ Input is a JSON list (written by the scheduled Claude task, or by hand), one obj
 
 A transcript is saved for good (crm/transcripts.py) and written to a .txt file once the import commits.
 
-Every meeting with at least one other person (or real notes) becomes a Meeting on the calendar.
+Every meeting with at least one other person (or real notes) becomes a Meeting on the calendar. Re-importing the
+same Granola note (by its id) updates the row in place, so the scheduled import can read overlapping days.
 A calendar event within 15 minutes of a Granola note with a similar title is the same meeting, whichever arrives
 first (the calendar sync usually does): the Granola note takes over the calendar row and its timeline entries.
+An emailed invite (source "invite", crm/invites.py) at the same time with a similar title or a shared outside
+attendee is taken over the same way by the calendar event or the Granola note.
+Each meeting is linked to the directory firms and companies its attendees belong to, and notes the outside
+attendees no record knows (crm/needs_filing.py).
 Meetings with outside companies also become one timeline Activity per company (matched by
 attendee email, then email domain): past ones move a company to "Meeting held", future ones set
 "Next meeting". Re-importing updates in place and keeps tasks already made from action items.
+
+Action items become tasks (make_task): the owner from the name in brackets, a "by Friday" in the item read as the
+due date, and the same item (same title, same owner) from another meeting within a week joins the existing task.
 """
 import html
 import json
@@ -59,12 +67,12 @@ def action_items(summary):
             continue
         if line.startswith("- ") or line.startswith("* "):
             body = stripped[2:].strip()
-            m = re.match(r"\*\*(.+?)\*\*\s*(?:\(([^)]+)\))?\s*(.*)$", body)
+            m = re.match(r"\*\*(.+?)\*\*\s*(?:[(\[]([^)\]]+)[)\]])?\s*(.*)$", body)
             if m:
                 title, owner, rest = m.group(1), m.group(2) or "", m.group(3)
             else:
                 title, owner, rest = body, "", ""
-                o = re.search(r"\(([A-Z][^)]{1,40})\)\s*$", title)
+                o = re.search(r"[(\[]([A-Z][^)\]]{1,40})[)\]]\s*$", title)
                 if o:
                     owner, title = o.group(1), title[: o.start()].strip()
             items.append({"title": _plain(title), "owner": _plain(owner), "detail": _plain(rest)})
@@ -184,6 +192,9 @@ def _parse(value):
 
 @transaction.atomic
 def import_meetings(meetings):
+    from . import needs_filing
+
+    known = needs_filing.Known()
     team = _team_lookup()
     domains = {}
     for pk, ds in Company.objects.values_list("pk", "domains"):
@@ -193,7 +204,7 @@ def import_meetings(meetings):
     people = {p.email: p for p in Person.objects.filter(email__in=emails).select_related("company")}
     now = timezone.now()
     stats = {"meetings": 0, "calendar": 0, "skipped": 0, "created": 0, "updated": 0, "internal_only": 0,
-             "merged": 0, "transcripts": 0, "unmatched": set()}
+             "merged": 0, "transcripts": 0, "unmatched": set(), "new": 0, "need_filing": 0}
     touched, saved = set(), []
     token = suppress_history.set(True)
     try:
@@ -225,10 +236,15 @@ def import_meetings(meetings):
                 continue
             if meeting.source == "granola" and m.get("source") == "calendar":
                 stats["merged"] += 1
-            meeting.attendees = [{"name": a.get("name", ""), "email": a["email"]} for a in attendees] or meeting.attendees
+            stats["new"] += meeting.pk is None
+            meeting.attendees = _merge_attendees(
+                [{"name": a.get("name", ""), "email": a["email"]} for a in attendees], meeting.attendees,
+                keep=meeting.source != m.get("source", "calendar") or getattr(meeting, "_took_invite", False))
             meeting.save()
             meeting.team.add(*internal)
             meeting.companies.add(*by_company.keys())
+            needs_filing.link(meeting, known)
+            stats["need_filing"] += bool(meeting.unfiled)
             stats["calendar"] += 1
             if has_transcript:
                 saved_t = transcripts.save(meeting, m.get("transcript"), m.get("source") or "granola")
@@ -275,6 +291,33 @@ def _near(start, source):
                                   start__lte=start + timedelta(minutes=15))
 
 
+def _merge_attendees(new, old, keep=False):
+    """The incoming attendee list; with keep (another source's row), the old list plus anyone new."""
+    if not keep:
+        return new or old
+    out, seen = list(old or []), {(a.get("email") or "").lower() for a in old or []}
+    for a in new:
+        if a["email"].lower() not in seen:
+            out.append(a)
+            seen.add(a["email"].lower())
+    return out
+
+
+def _outside(attendees):
+    return {(a.get("email") or "").lower() for a in attendees or []
+            if "@" in (a.get("email") or "") and (a.get("email") or "").lower().rsplit("@", 1)[-1] not in INTERNAL_DOMAINS}
+
+
+def same_invite(meeting, title, attendees):
+    """An emailed invite is the same meeting as a row at the same time with a similar title or a shared outside
+    attendee (invites from the other side often carry their own title)."""
+    return _same_meeting(meeting.title, title) or bool(_outside(meeting.attendees) & _outside(attendees))
+
+
+def _invite_for(m, start):
+    return next((x for x in _near(start, "invite") if same_invite(x, m.get("title"), m.get("attendees"))), None)
+
+
 def _drop_calendar_activities(event_id):
     Activity.objects.filter(source=Activity.Source.CALENDAR, source_id__startswith=f"{event_id}:").delete()
 
@@ -301,7 +344,8 @@ def merge_duplicates(apply=False):
                 note.save(update_fields=["calendar_id", "end"])
                 note.companies.add(*cal.companies.all())
                 note.team.add(*cal.team.all())
-                cal.tasks.update(meeting=note)
+                for task in cal.tasks.all():
+                    task.meetings.add(note)
                 if not MeetingTranscript.objects.filter(meeting=note).exists():
                     MeetingTranscript.objects.filter(meeting=cal).update(meeting=note)
                 cal.delete()
@@ -323,6 +367,12 @@ def _meeting_for(m, start, summary):
             meeting.calendar_id = m["id"]
             meeting.end = meeting.end or _parse(m.get("end"))
             return meeting
+    if meeting is None and source in ("calendar", "granola"):
+        # An emailed invite got there first: the calendar event or the note takes over its row.
+        meeting = _invite_for(m, start)
+        if meeting is not None:
+            meeting.external_id, meeting.source = ext, source
+            meeting._took_invite = True
     if meeting is None and source == "granola":
         # The calendar sync got there first: the note takes over that row (its tasks, companies and team stay on it).
         cal = next((x for x in _near(start, "calendar") if _same_meeting(x.title, m.get("title"))), None)
@@ -342,3 +392,123 @@ def _meeting_for(m, start, summary):
         kept = {i["title"]: i.get("task_id") for i in meeting.action_items or [] if i.get("task_id")}
         meeting.action_items = [{**i, "task_id": kept.get(i["title"])} for i in action_items(summary)]
     return meeting
+
+
+# ---------------------------------------------------------------------------
+# Action items → tasks
+# ---------------------------------------------------------------------------
+
+WEEKDAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"]
+SAME_TASK_DAYS = 7
+
+
+def due_from_text(text, base):
+    """A due date from the words in an action item, counted from the meeting's day: "by Friday", "by tomorrow",
+    "end of week", "next week", "end of month", "by Oct 30", "by 10/30", "today" / "EOD". None when it says none."""
+    t = " ".join((text or "").lower().split())
+    if re.search(r"\b(today|eod|end of (the )?day)\b", t):
+        return base
+    if re.search(r"\btomorrow\b", t):
+        return base + timedelta(days=1)
+    if re.search(r"\b(end of (the )?week|eow|this week)\b", t):
+        return base + timedelta(days=(4 - base.weekday()) % 7)
+    if re.search(r"\bnext week\b", t):
+        return base + timedelta(days=7 - base.weekday())
+    if re.search(r"\b(end of (the )?month|eom)\b", t):
+        import calendar
+
+        return base.replace(day=calendar.monthrange(base.year, base.month)[1])
+    m = re.search(r"\b(?:by|before|on|due)\s+(?:(?:this|next)\s+)?(" + "|".join(WEEKDAYS)
+                  + r"|mon|tue|tues|wed|thu|thur|thurs|fri)\b", t)
+    if m:
+        day = next(i for i, w in enumerate(WEEKDAYS) if w.startswith(m.group(1)[:3]))
+        ahead = (day - base.weekday()) % 7
+        if "next " + m.group(1) in t:
+            ahead += 7
+        return base + timedelta(days=ahead)
+    m = re.search(r"\b(" + "|".join(MONTHS) + r")(?:uary|ruary|ch|il|e|y|ust|t|tember|ober|ember)?\.?\s+(\d{1,2})"
+                  r"(?:st|nd|rd|th)?\b", t)
+    if m:
+        return _dated(base, MONTHS.index(m.group(1)) + 1, int(m.group(2)))
+    m = re.search(r"\b(?:by|before|on|due)\s+(\d{1,2})/(\d{1,2})\b", t)
+    if m:
+        return _dated(base, int(m.group(1)), int(m.group(2)))
+    return None
+
+
+def _dated(base, month, day):
+    from datetime import date
+
+    try:
+        d = date(base.year, month, day)
+    except ValueError:
+        return None
+    return d if d >= base - timedelta(days=31) else d.replace(year=base.year + 1)
+
+
+def owner_for(name, users):
+    """The teammate an action item's bracketed name means: first name, username, full name or last name."""
+    words = [w.strip(",.").lower() for w in (name or "").split() if w.strip(",.")]
+    if not words:
+        return None
+    full = " ".join(words)
+    for test in (lambda u: (u.get_full_name() or "").lower() == full,
+                 lambda u: (u.first_name or "").lower() == words[0] or u.username.lower() == words[0],
+                 lambda u: len(words) == 1 and (u.last_name or "").lower() == words[0]):
+        hit = [u for u in users if test(u)]
+        if len(hit) == 1:
+            return hit[0]
+    return None
+
+
+def same_task(title, assignee, meeting):
+    """An open-or-done task with the same title and owner made within a week, or from a meeting within a week."""
+    from django.db.models import Q
+
+    from .models import Task
+
+    week = timedelta(days=SAME_TASK_DAYS)
+    return (Task.objects.filter(title__iexact=title.strip(), assignee=assignee)
+            .filter(Q(created_at__gte=timezone.now() - week)
+                    | Q(meetings__start__gte=meeting.start - week, meetings__start__lte=meeting.start + week))
+            .order_by("-created_at").first())
+
+
+def make_task(meeting, index, user, assignee=None, due=None, due_time=None):
+    """Turn one action item into a task, or link it to the same task from a meeting a few days apart. Returns
+    (task, created) or (None, False) when the item already has one."""
+    from .models import Task
+    from .forms import active_users
+
+    item = meeting.action_items[index]
+    if item.get("task_id") and Task.objects.filter(pk=item["task_id"]).exists():
+        return None, False
+    assignee = assignee or owner_for(item.get("owner"), list(active_users())) or user
+    if due is None:
+        due = due_from_text(f"{item.get('title', '')} {item.get('detail', '')}",
+                            timezone.localtime(meeting.start).date())
+    task = same_task(item["title"][:300], assignee, meeting)
+    created = task is None
+    if created:
+        task = Task.objects.create(
+            title=item["title"][:300], due_date=due, due_time=due_time if due else None, assignee=assignee,
+            notes=(item.get("detail", "")
+                   + f"\n\nFrom meeting: {meeting.title} ({meeting.start:%b %d}) {meeting.url}").strip(),
+            company=meeting.companies.first(), created_by=user)
+    task.meetings.add(meeting)
+    items = list(meeting.action_items)
+    items[index] = {**item, "task_id": task.pk}
+    meeting.action_items = items
+    meeting.save(update_fields=["action_items"])
+    return task, created
+
+
+def make_all_tasks(meeting, user):
+    """"Make tasks for all N items": every item without a task. Returns (tasks made, items joined to one)."""
+    made, joined = [], []
+    for index in range(len(meeting.action_items or [])):
+        task, created = make_task(meeting, index, user)
+        if task is not None:
+            (made if created else joined).append(task)
+    return made, joined

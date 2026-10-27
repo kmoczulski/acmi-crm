@@ -8,7 +8,7 @@
     <h1>{{ p.name }} <span class="tag">{{ p.get_kind_display }}</span></h1>
     <div class="muted">{% if p.domains %}{{ p.domains|join:", " }}{% else %}No email domain yet{% endif %}{% if p.website %} · <a href="{{ p.website }}" target="_blank" rel="noopener">website</a>{% endif %}
       · not a CRM company, never in outreach</div>
-    {% for s in filings %}<form method="post" action="{% url 'crm:firm_sort_action' s.pk %}" class="lc-small" style="margin-top:4px" onsubmit="return confirm('Put {{ s.domain|escapejs }} back in Mail review?')">{% csrf_token %}<input type="hidden" name="action" value="undo">
+    {% for s in filings %}<form method="post" action="{% url 'crm:firm_sort_action' s.pk %}" class="lc-small" style="margin-top:4px" onsubmit="return confirm('Put {{ s.domain|escapejs }} back in Needs filing?')">{% csrf_token %}<input type="hidden" name="action" value="undo">
       Claude filed {{ s.domain }} here from email on {{ s.decided_at|date:"M j" }}: {{ s.reason }} <button class="btn-link lc-small">Undo</button></form>{% endfor %}
   </div>
 </div>
@@ -34,10 +34,7 @@
     </section>
   </div>
   <div>
-    {% if upcoming %}<section class="panel">
-      <h3>Coming up</h3>
-      {% for m in upcoming %}<div class="row-line"><a href="{{ m.get_absolute_url }}">{{ m.title|truncatechars:60 }}</a><span class="lc-small muted">{{ m.start|date:"M j, g:i a" }}</span></div>{% endfor %}
-    </section>{% endif %}
+    {% include "crm/partials/upcoming_meetings.html" with title="Coming up" %}
     <section class="panel" id="contacts">
       <h3>Contacts</h3>
       {% for c in p.contacts %}<div class="row-line"><span><b>{{ c.name }}</b>{% if c.title %} <span class="muted lc-small">· {{ c.title }}</span>{% endif %}

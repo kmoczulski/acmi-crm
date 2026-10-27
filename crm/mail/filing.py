@@ -2,7 +2,7 @@
 
 Filing is the deliberate step that shares a thread with the team (section 5): its emails go on the record's timeline
 where everyone sees them, like the ones the sync logs. Where the sync already logged an email, filing only adds the
-deal or project; where it didn't (a gmail.com sender, a domain still in Mail review, an internal thread), filing
+deal or project; where it didn't (a gmail.com sender, a domain still in Needs filing, an internal thread), filing
 writes the timeline entries with the sync's own keys, so nothing is ever logged twice. A lender's or consultant's
 thread goes on the directory firm (FirmEmail), never on a Company. Unfiling takes off exactly what the filing added.
 """
@@ -153,7 +153,7 @@ def file_thread(mailbox, client, gmail_id, target, user=None, source=MailFiling.
 
 
 def _attach_queued_domains(mailbox, emails, company, user):
-    """The thread's senders whose domain waits in Mail review: attach the domain to the company (Mail review's own
+    """The thread's senders whose domain waits in Needs filing: attach the domain to the company (the review queue's own
     step, so the rest of that domain's waiting mail follows)."""
     from .sync import approve_domain
 

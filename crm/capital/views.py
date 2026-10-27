@@ -91,6 +91,7 @@ def project_capital(request, pk):
         "latest": latest, "compare": logic.compare(latest) if len(latest) > 1 else [],
         "form": SourceForm(initial={"project": project, "owner": request.user}),
         "today": today,
+        "upcoming": logic.upcoming_with({s.provider_id for s in sources}),
     })
 
 

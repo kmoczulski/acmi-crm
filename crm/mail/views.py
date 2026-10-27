@@ -20,24 +20,31 @@ from .imap import MailboxError
 
 
 def mail_home(request):
-    mailbox = Mailbox.objects.filter(user=request.user).first()
-    queue = sync.review_queue()
-    from crm.directory import sort
+    """The old Mail review address: it's Needs filing now."""
+    return redirect(reverse("crm:needs_filing") + (f"?{request.GET.urlencode()}" if request.GET else ""))
 
-    sorts = sort.suggestions()
-    for g in queue:
-        g["sort"] = sorts.get(g["domain"])
-        if g["sort"] and g["sort"].verdict == "company" and g["sort"].name:
-            g["suggested_name"] = g["sort"].name  # Claude's reading of the name, from the signatures
-    return render(request, "crm/mail.html", {
+
+def needs_filing(request):
+    """One card per organization we don't know yet (crm/needs_filing.py), the "Same person?" suggestions, and the
+    mailbox setup and filters further down."""
+    from crm import needs_filing as nf
+    from crm.directory import sort
+    from crm.models import AddressSuggestion, Project
+
+    mailbox = Mailbox.objects.filter(user=request.user).first()
+    only = (request.GET.get("domain") or "").strip().lower()
+    cards, page, total = nf.cards(request.GET.get("page") or 1, only=only)
+    return render(request, "crm/needs_filing.html", {
+        "cards": cards, "page": page, "total": total, "only": only,
+        "same_person": AddressSuggestion.objects.filter(status=AddressSuggestion.Status.OPEN)
+        .select_related("person__company")[:30],
+        "projects": Project.objects.filter(active=True),
         "mailbox": mailbox,
         # Read through Mail in the hub (the Gmail API), a mailbox needs no app password.
         "has_password": bool(mailbox and (mailbox.backend == Mailbox.Backend.GMAIL_API or mailbox.get_password()
                                           or connect.is_on(request.user))),
         "env_var": f"ACMI_IMAP_PASSWORD_{request.user.username.upper()}",
         "mailboxes": Mailbox.objects.select_related("user"),
-        "queue": queue,
-        "queue_total": sum(g["count"] for g in queue),
         "filters": MailFilter.objects.all(),
         "filter_kinds": MailFilter.Kind.choices,
         "firm_kinds": Firm.Kind.choices,
@@ -47,11 +54,66 @@ def mail_home(request):
 
 
 @require_POST
+def needs_filing_act(request):
+    """A card's buttons: accept (what the headline proposes, or what Change picked), later (Not now) or never."""
+    from crm import needs_filing as nf
+    from crm.models import Project
+
+    domain = (request.POST.get("domain") or "").strip().lower()
+    action = request.POST.get("action", "")
+    back = reverse("crm:needs_filing") + (f"?page={request.POST['page']}" if request.POST.get("page", "").isdigit() else "")
+    if not domain:
+        return redirect(back)
+    if action == "later":
+        nf.not_now(domain, request.user)
+        messages.success(request, f"{domain} is out of the way for {nf.SNOOZE_DAYS} days.")
+    elif action == "never":
+        nf.never(domain, request.user)
+        messages.success(request, f"{domain} won't be offered again. Mail with people already in the CRM is still "
+                                  "logged.")
+    elif action == "accept":
+        existing = None
+        if (request.POST.get("existing") or "").strip():
+            existing = Company.objects.filter(name__iexact=request.POST["existing"].strip()).first()
+            if existing is None:
+                messages.error(request, f"No company named “{request.POST['existing'].strip()}”.")
+                return redirect(back)
+        project = Project.objects.filter(pk=request.POST.get("project") or 0).first()
+        kind = request.POST.get("kind", "")
+        try:
+            text = nf.accept(domain, request.user, as_=request.POST.get("as") or None,
+                             kind=kind if kind in Firm.Kind.values else "", name=request.POST.get("name", ""),
+                             project=project, existing=existing)
+        except ValueError as exc:
+            messages.error(request, str(exc))
+        else:
+            messages.success(request, text)
+    return redirect(back)
+
+
+@require_POST
+def same_person(request, pk):
+    """"Same person, add this address": yes adds it to the person (and the waiting email to their timeline)."""
+    from crm.models import AddressSuggestion
+
+    s = get_object_or_404(AddressSuggestion, pk=pk, status=AddressSuggestion.Status.OPEN)
+    if request.POST.get("action") == "add":
+        n = sync.add_address(s, request.user)
+        messages.success(request, f"{s.address} is on {s.person} now: {n} email{'s' if n != 1 else ''} logged.")
+    else:
+        AddressSuggestion.objects.filter(address=s.address, person=s.person,
+                                         status=AddressSuggestion.Status.OPEN).update(
+            status=AddressSuggestion.Status.DISMISSED, decided_by=request.user)
+        messages.success(request, f"Noted: {s.address} isn't {s.person}.")
+    return redirect(reverse("crm:needs_filing") + "#same-person")
+
+
+@require_POST
 def mailbox_setup(request):
     email = request.POST.get("email", "").strip().lower()
     if "@" not in email:
         messages.error(request, "Enter your Gmail address.")
-        return redirect("crm:mail")
+        return redirect("crm:needs_filing")
     days = request.POST.get("backfill_days", "365")
     mailbox, created = Mailbox.objects.get_or_create(user=request.user, defaults={"email": email})
     if not created and mailbox.email != email:
@@ -64,7 +126,7 @@ def mailbox_setup(request):
     mailbox.enabled = True
     mailbox.save()
     messages.success(request, "Mailbox saved.")
-    return redirect("crm:mail")
+    return redirect("crm:needs_filing")
 
 
 @require_POST
@@ -74,14 +136,14 @@ def mailbox_sync_now(request):
         stats = sync.sync_mailbox(mailbox)
     except sync.SyncBusy as exc:
         messages.error(request, str(exc))
-        return redirect("crm:mail")
+        return redirect("crm:needs_filing")
     mailbox.refresh_from_db()
     if mailbox.last_error:
         messages.error(request, mailbox.last_error)
     else:
         summary = ", ".join(f"{v} {k}" for k, v in sorted(stats.items()) if v)
         messages.success(request, f"Synced: {summary or 'nothing new'}.")
-    return redirect("crm:mail")
+    return redirect("crm:needs_filing")
 
 
 @require_POST
@@ -93,15 +155,15 @@ def review_approve(request):
         company = Company.objects.filter(name__iexact=existing).first()
         if company is None:
             messages.error(request, f"No company named “{existing}”. Leave it blank to create a new one.")
-            return redirect("crm:mail")
+            return redirect("crm:needs_filing")
     try:
         company, stats = sync.approve_domain(domain, company=company, company_name=request.POST.get("name", ""),
                                              user=request.user)
     except ValueError as e:
         messages.error(request, str(e))
-        return redirect("crm:mail")
+        return redirect("crm:needs_filing")
     messages.success(request, f"{domain} → {company.name}: {stats['activities created']} emails logged.")
-    return redirect("crm:mail")
+    return redirect("crm:needs_filing")
 
 
 @require_POST
@@ -112,7 +174,7 @@ def review_dismiss(request):
         kind = MailFilter.Kind.IGNORE
     sync.dismiss_domain(domain, kind=kind, user=request.user)
     messages.success(request, f"{domain} will be {'protected' if kind == MailFilter.Kind.PROTECT else 'ignored'}.")
-    return redirect("crm:mail")
+    return redirect("crm:needs_filing")
 
 
 @require_POST
@@ -121,7 +183,7 @@ def review_bulk(request):
     action = request.POST.get("action")
     if not domains:
         messages.error(request, "Tick at least one domain.")
-        return redirect("crm:mail")
+        return redirect("crm:needs_filing")
     if action in (MailFilter.Kind.IGNORE, MailFilter.Kind.PROTECT):
         for domain in domains:
             sync.dismiss_domain(domain, kind=action, user=request.user)
@@ -137,7 +199,7 @@ def review_bulk(request):
             logged += stats["activities created"]
             added += 1
         messages.success(request, f"Added {added} companies; {logged} emails logged. Rename them from their pages.")
-    return redirect("crm:mail")
+    return redirect("crm:needs_filing")
 
 
 @require_POST
@@ -153,13 +215,13 @@ def filter_add(request):
             # Protected means never stored: drop anything already queued for it.
             UnmatchedEmail.objects.filter(address=pattern).delete()
             UnmatchedEmail.objects.filter(domain=pattern.lstrip("@")).delete()
-    return redirect("crm:mail")
+    return redirect("crm:needs_filing")
 
 
 @require_POST
 def filter_delete(request, pk):
     MailFilter.objects.filter(pk=pk).delete()
-    return redirect("crm:mail")
+    return redirect("crm:needs_filing")
 
 
 def company_names(request):

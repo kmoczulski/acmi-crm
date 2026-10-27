@@ -198,7 +198,7 @@ def chips(mailbox, threads):
     """{gmail thread id: [(kind, name, url), ...]} for these threads. Kinds: project, deal, company, firm, new.
 
     From the timeline (what the sync logged for the thread: its company, deal and projects), the directory's filed
-    mail, and the senders' domains; "new" marks a sender whose domain waits in Mail review."""
+    mail, and the senders' domains; "new" marks a sender whose domain waits in Needs filing."""
     from django.urls import reverse
 
     by_dec = {_decimal(t.gmail_id): t for t in threads}
@@ -236,7 +236,7 @@ def chips(mailbox, threads):
                 pk, name = firms[domain]
                 add(t, "firm", name, reverse("crm:firm", args=[pk]))
             elif domain in queued:
-                add(t, "new", "New sender", reverse("crm:mail"))
+                add(t, "new", "New sender", reverse("crm:needs_filing"))
     order = {"project": 0, "deal": 1, "company": 2, "firm": 3, "new": 4}
     return {k: sorted(v, key=lambda c: order[c[0]]) for k, v in out.items()}
 

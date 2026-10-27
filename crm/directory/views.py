@@ -132,11 +132,11 @@ def file_domain(request):
     domain = (request.POST.get("domain") or "").strip().lower()
     if not domain or not UnmatchedEmail.objects.filter(domain=domain).exists():
         messages.error(request, "That domain isn't in the review queue.")
-        return redirect("crm:mail")
+        return redirect("crm:needs_filing")
     firm, moved = logic.file_domain(domain, request.POST.get("kind", ""), request.POST.get("name", ""), request.user)
     messages.success(request, f"{domain} → {firm.name} in the directory: {moved} email{'s' if moved != 1 else ''} "
                               "filed there.")
-    return redirect("crm:mail")
+    return redirect("crm:needs_filing")
 
 
 # ---------------------------------------------------------------------------
@@ -168,17 +168,17 @@ def sort_action(request, pk):
     """file (take Claude's suggestion for a queued domain), undo (an automatic filing) or dismiss."""
     s = get_object_or_404(DomainSort, pk=pk)
     action = request.POST.get("action", "")
-    back = "crm:mail" if request.POST.get("back") == "mail" else "crm:firm_suggestions"
+    back = "crm:needs_filing" if request.POST.get("back") == "mail" else "crm:firm_suggestions"
     if action == "file" and s.company_id is None and s.status == DomainSort.Status.SUGGESTED:
-        if not UnmatchedEmail.objects.filter(domain=s.domain).exists():
-            messages.error(request, f"{s.domain} isn't in the review queue any more.")
+        if not sort.waiting(s.domain):
+            messages.error(request, f"{s.domain} isn't waiting in Needs filing any more.")
             return redirect(back)
         firm, moved = sort.file(s, request.user)
         messages.success(request, f"{s.domain} → {firm.name} in the directory: {moved} email{'s' if moved != 1 else ''}"
                                   " filed there.")
     elif action == "undo":
         if sort.undo(s, request.user):
-            messages.success(request, f"Undone: {s.domain} is back in Mail review.")
+            messages.success(request, f"Undone: {s.domain} is back in Needs filing.")
     elif action == "dismiss":
         if s.company_id and not is_manager(request.user):
             return refuse(request)
