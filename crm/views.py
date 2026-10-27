@@ -33,7 +33,7 @@ from .permissions import manager_required
 from .pipeline import risk_reasons
 from .reports import COLUMNS as REPORT_COLUMNS, DEFAULT_KEYS as DEFAULT_REPORT_KEYS
 from .reports import chosen_columns as chosen_report_columns
-from .interactions import team_connections
+from .interactions import EMAIL_KINDS, team_connections
 from .mail.parse import new_text
 from .tables import FILTER_CHOICES, CompanyTable, PersonTable
 
@@ -261,11 +261,17 @@ def project_list(request):
         messages.success(request, f"Added campus {campus.code}.")
         return redirect("crm:project_list")
 
+    now = timezone.now()
+
     def stats(p):
         acts = p.activities.all()
         mine = [s for s in sites if s.project_id == p.pk]
-        return {"project": p, "emails": acts.count(), "companies": acts.values("company").distinct().count(),
-                "last": acts.order_by("-occurred_at").values_list("occurred_at", flat=True).first(),
+        # Emails only (no meetings, bounces or auto-replies); "last" is the past only, upcoming meetings go in "next".
+        return {"project": p, "emails": acts.filter(kind__in=EMAIL_KINDS).count(),
+                "companies": acts.values("company").distinct().count(),
+                "last": acts.filter(occurred_at__lte=now).order_by("-occurred_at").values_list("occurred_at", flat=True).first(),
+                "next": acts.filter(kind=Activity.Kind.MEETING, occurred_at__gt=now).order_by("occurred_at")
+                            .values_list("occurred_at", flat=True).first(),
                 "sites": [s for s in mine if s.status != "dropped"],
                 "archived": [s for s in mine if s.status == "dropped"]}
 
@@ -329,7 +335,8 @@ def project_detail(request, pk):
     companies = (
         Company.objects.filter(activities__projects=project)
         .annotate(n=Count("activities", filter=Q(activities__projects=project), distinct=True),
-                  last=Max("activities__occurred_at", filter=Q(activities__projects=project)))
+                  last=Max("activities__occurred_at", filter=Q(activities__projects=project,
+                                                               activities__occurred_at__lte=timezone.now())))
         .order_by("-last")
     )
     page = Paginator(acts.filter(is_background=False).order_by("-occurred_at"), 50).get_page(request.GET.get("page"))
