@@ -6,7 +6,8 @@ from crm.boards import trello_import
 
 BOARDS = {"prospecting": ("Properties-Prospecting", trello_import.import_prospecting),
           "meih": ("Maryland / MEIH", trello_import.import_meih),
-          "nsih": ("Properties-NSIH", trello_import.import_nsih)}
+          "nsih": ("Properties-NSIH", trello_import.import_nsih),
+          "general": ("Properties-General", trello_import.import_general)}
 
 
 class Command(BaseCommand):

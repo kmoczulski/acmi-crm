@@ -71,8 +71,8 @@ def colour(trello_colour):
 
 
 def label_key(name):
-    """'Program/Procurement' and 'Program / procurement' are the same label."""
-    return re.sub(r"\s*/\s*", "/", name.strip().lower())
+    """'Program/Procurement' and 'Program / procurement', 'To Do' and 'To-Do', 'Ongoing' and 'On-Going' are the same."""
+    return re.sub(r"[\s-]+", "", name.strip().lower())
 
 
 def team_users():
@@ -86,6 +86,8 @@ def team_users():
 
 
 class Importer:
+    skip_labels = SKIP_LABELS
+
     def __init__(self, data, board, by=None):
         self.data, self.board, self.by = data, board, by
         self.users = team_users()
@@ -151,7 +153,7 @@ class Importer:
 
     def board_label(self, trello_label):
         name = (trello_label.get("name") or "").strip()
-        if not name or name in SKIP_LABELS:
+        if not name or name in self.skip_labels:
             return None
         if name not in self._board_labels:
             label = next((l for l in self.board.labels.all() if label_key(l.name) == label_key(name)), None)
@@ -258,7 +260,7 @@ class Importer:
             if a["type"] == "commentCard":
                 if target is None:
                     self.counts["comments skipped (card deleted or moved off the board)" if card_id not in cards
-                                else "comments skipped (mirror card)"] += 1
+                                else "comments skipped (card not imported)"] += 1
                     continue
                 self.comment(target, a)
             elif target is not None:
@@ -613,5 +615,152 @@ def import_nsih(data, by=None):
     if board is None:
         raise ValueError("No NSIH campus.")
     imp = NsihImporter(data, board, by)
+    imp.run()
+    return imp
+
+
+# ---------------------------------------------------------------------------
+# Properties-General → "ACMI general", an archived "Properties-General archive" board, and a few cards on the NSIH
+# and MEIH boards (docs/TRELLO_MAPPING.md, "Properties-General"; Kellen's answers of 2026-10-27: the NSIH and
+# Hostetler date cards wait for the PSA and related documents, whose history goes onto the NSIH board's cards).
+# ---------------------------------------------------------------------------
+
+GENERAL = "ACMI general"
+GENERAL_ARCHIVE = "Properties-General archive"
+NIRON_LIST = "Project North Star – Niron"
+# Trello list → (board, hub list, True to put its cards there archived). Lists not named here are skipped.
+GENERAL_LISTS = {
+    "Press / Postings": (GENERAL, "Press / postings", False),
+    "Administrative": (GENERAL, "Administrative", False),
+    "Other Markets": (GENERAL, "Other markets", False),
+    "Airport Commerce": (GENERAL, "Airport Commerce", False),
+    "Project North Star - Niron Magnetics": (GENERAL, NIRON_LIST, False),
+    "NSIH (Bloomfield, IN)": ("NSIH", "Administration", True),
+    "MEIH - ARA": ("MEIH", "ARA Facility – deal", True),
+    **{name: (GENERAL_ARCHIVE, name, False) for name in [
+        "Avio", "Critical Dates - Avio", "Strategic", "RRAD", "Propulsion Park (San Marcos, TX) - Tasks [David]",
+        "Propulsion Park (San Marcos, TX) - Critical Dates [David]", "Precision Park (Lafayette, IN) - Tasks [David]",
+        "Precision Park (Lafayette, IN) - Critical Dates [David]", "King Ranch - Aurora, CO", "TexAmericas",
+        "U.S. Army Enterprise Strategic Capital Partnership", "Prospecting", "Tenant Followups"]},
+}
+# The NSIH date lists: not imported until the PSA and related documents are uploaded (Kellen). Their comments and
+# attachments go onto the NSIH board card for the agreement they come from.
+GENERAL_DATE_LISTS = ("Critical Dates - NSIH", "Critical Dates - Hostetler / NSIH",
+                      "NSIH (Bloomfield, IN) - Critical Dates [David]")
+# Skipped like their own boards (Kellen, 2026-10-26).
+GENERAL_SKIPPED = ("Exploration Park (Houston, TX)", "Exploration Park (Houston, TX) - Critical Dates [Kellen]",
+                   "Exploration Park - Archive", "Project Volare", "Volare (Hurt, VA)")
+GENERAL_CARDS = {
+    "Spinner Modifications": ("opportunity", "Spinner"),
+    "Airport Commerce: Spinner Questions": ("opportunity", "Spinner"),
+    "Spinner Facility Design": ("opportunity", "Spinner"),
+    "Supernova Modifications": ("opportunity", "Supernova"),
+    "Vendor: The Schreifer Group": ("firm", "The Schreifer Group"),
+    "ARA - Lease Negotiation": ("opportunity", "Applied Research Associates"),
+}
+
+
+def date_card_home(list_name, card_name):
+    """The NSIH board card a skipped date card's history goes onto."""
+    if list_name == "Critical Dates - Hostetler / NSIH":
+        return "Land PSA - Hostetler"
+    if "Ground Lease" in card_name:
+        return "Prometheus - Ground Lease"
+    if "Project Control" in card_name or "Invoice" in card_name:
+        return "Prometheus - DMA"
+    return "Land PSA - NFP"
+
+
+class GeneralImporter(NsihImporter):
+    skip_labels = {"High Value", "Medium Value", "Low Value"}
+
+    def __init__(self, data, boards, by=None):
+        super().__init__(data, boards[GENERAL], by)
+        self.boards = boards
+        self._label_caches = {}
+
+    def use(self, board):
+        """Point label matching and list lookups at `board`."""
+        self.board = board
+        self._board_labels = self._label_caches.setdefault(board.pk, {})
+
+    def run(self):
+        hub, cards, redirect = {}, {c["id"]: c for c in self.data["cards"]}, {}
+        list_pos = {i: l.get("pos") or 0 for i, l in self.lists.items()}
+        homes = {}
+        for tc in sorted(self.data["cards"], key=lambda c: (list_pos.get(c["idList"], 0), c.get("pos") or 0)):
+            tlist = self.lists.get(tc["idList"], {}).get("name", "")
+            if tc.get("cardRole") == "mirror" or tc.get("mirrorSourceId") or tc["name"].startswith("https://trello.com/c/"):
+                self.counts["mirror and link cards skipped"] += 1
+                continue
+            if tlist in GENERAL_DATE_LISTS:
+                home = date_card_home(tlist, tc["name"])
+                if home not in homes:
+                    self.use(self.boards["NSIH"])
+                    card = Card.objects.filter(list__board=self.board, title=home).order_by("pk").first()
+                    homes[home] = card
+                    if card is not None:
+                        field = card.record_field()
+                        hub[f"home:{home}"] = (card, {COMMENT_FIELD[field]: card.record()} if field in COMMENT_FIELD else {})
+                if homes[home] is not None:
+                    redirect[tc["id"]] = f"home:{home}"
+                    self.attachments(homes[home], tc)
+                self.counts["NSIH date cards not imported (waiting for the PSA)"] += 1
+                continue
+            if tlist in GENERAL_SKIPPED:
+                self.counts["Exploration Park and Volare cards skipped"] += 1
+                continue
+            if tlist not in GENERAL_LISTS:
+                self.counts[f"cards skipped (list {tlist})"] += 1
+                continue
+            board_name, list_name, all_archived = GENERAL_LISTS[tlist]
+            self.use(self.boards[board_name])
+            kind, rec_name = GENERAL_CARDS.get(tc["name"], (None, None))
+            if tlist == "Project North Star - Niron Magnetics":
+                kind, rec_name = "opportunity", "Niron Magnetics"
+            self.place(hub, tc, list_name, kind, rec_name, archived=True if all_archived else None)
+            self.counts[f"cards onto {board_name}"] += 1
+        self.actions(hub, cards, redirect)
+        return self.counts
+
+    def target_list(self, name):
+        lst = self.board.lists.filter(name=name).first()
+        if lst is None:
+            if self.board.name not in (GENERAL, GENERAL_ARCHIVE):
+                raise ValueError(f"The {self.board.name} board has no list called {name!r}.")
+            last = self.board.lists.order_by("-position").first()
+            lst = BoardList.objects.create(board=self.board, name=name[:120], archived=(name == NIRON_LIST),
+                                           position=(last.position if last else 0) + logic.GAP)
+            self.counts["lists created"] += 1
+        return lst
+
+
+def general_boards(by=None):
+    """{name: board}: the two team boards (made the first time) and the NSIH and MEIH boards."""
+    boards = {}
+    for name, archived, description in [
+        (GENERAL, False, "The team's general lists from the Properties-General Trello board: press and postings, "
+                         "administrative, other markets, Airport Commerce."),
+        (GENERAL_ARCHIVE, True, "Old campuses and projects from the Properties-General Trello board (Avio, Strategic, "
+                                "RRAD, Propulsion Park, Precision Park, King Ranch, TexAmericas…), kept for their history."),
+    ]:
+        board = Board.objects.filter(name=name, kind=Board.Kind.TEAM).first()
+        if board is None:
+            board = logic.create_board(name, by, kind=Board.Kind.TEAM, description=description)
+            board.members.add(*team_users().values())
+            if archived:
+                board.archived = True
+                board.save(update_fields=["archived"])
+        boards[name] = board
+    boards["NSIH"], boards["MEIH"] = nsih_board(by), meih_board()
+    return boards
+
+
+@transaction.atomic
+def import_general(data, by=None):
+    boards = general_boards(by)
+    if boards["NSIH"] is None or boards["MEIH"] is None:
+        raise ValueError("Import the NSIH and MEIH boards first.")
+    imp = GeneralImporter(data, boards, by)
     imp.run()
     return imp

@@ -259,3 +259,62 @@ class NsihImportTests(TestCase):
         trello_import.import_nsih(self.data, self.kellen)
         self.assertEqual(counts, (Board.objects.count(), Card.objects.count(), Comment.objects.count(),
                                   Firm.objects.count()))
+
+
+class GeneralImportTests(TestCase):
+    def setUp(self):
+        from crm.models import Campus, Project
+
+        self.kellen = User.objects.create_user("Kellen", first_name="Kellen", last_name="Moczulski")
+        nsih = Campus.objects.create(code="NSIH", name="National Security Industrial Hub")
+        Project.objects.create(name="NSIH", campus=nsih)
+        Campus.objects.create(code="MEIH", name="Maryland Energetics Innovation Hub")
+        call_command("boards_setup", "--apply", stdout=StringIO())
+        self.nsih_board = trello_import.nsih_board(self.kellen)
+        self.hostetler = Card.objects.create(list=self.nsih_board.lists.get(name="Land contracts"), title="Land PSA - Hostetler")
+        self.spinner = Opportunity.objects.create(name="Spinner", stage="signed", company=Company.objects.create(name="Spinner"))
+        lists = [{"id": "a", "name": "Airport Commerce", "closed": False, "pos": 1},
+                 {"id": "h", "name": "Critical Dates - Hostetler / NSIH", "closed": False, "pos": 2},
+                 {"id": "v", "name": "Avio", "closed": True, "pos": 3},
+                 {"id": "e", "name": "Exploration Park - Archive", "closed": True, "pos": 4}]
+
+        def card(cid, name, lst, att=()):
+            return {"id": cid, "shortLink": cid, "name": name, "desc": "", "idList": lst, "closed": False, "pos": 1,
+                    "idLabels": [], "idMembers": [], "checklists": [], "attachments": list(att)}
+
+        def comment(n, cid):
+            return {"id": f"z{n}", "type": "commentCard", "date": f"2026-0{n}-01T10:00:00.000Z", "memberCreator": KELLEN,
+                    "data": {"text": f"c{n}", "card": {"id": cid}}}
+
+        self.data = {
+            "board": {"name": "Properties-General", "lists": lists, "labels": [], "members": [KELLEN]},
+            "cards": [card("7a01", "Spinner Modifications", "a"),
+                      card("7a02", "Closing Date (No Extensions)", "h", [{"name": "PSA.pdf", "url": "https://trello.com/psa.pdf"}]),
+                      card("7a03", "Programming", "v"), card("7a04", "Houston site", "e")],
+            "checklists": [],
+            "actions": [comment(1, "7a01"), comment(2, "7a02"), comment(3, "7a03"), comment(4, "7a04")],
+        }
+
+    def test_cards_go_to_the_team_and_archive_boards_and_dates_wait_for_the_psa(self):
+        from crm.models import Board
+
+        imp = trello_import.import_general(self.data, self.kellen)
+        spinner = Card.objects.get(source_key="trello:7a01")
+        self.assertEqual((spinner.list.board.name, spinner.list.name, spinner.opportunity),
+                         ("ACMI general", "Airport Commerce", self.spinner))
+        avio = Card.objects.get(source_key="trello:7a03")
+        self.assertEqual(avio.list.board.name, "Properties-General archive")
+        self.assertTrue(Board.objects.get(name="Properties-General archive").archived)
+        self.assertFalse(Card.objects.filter(source_key__in=["trello:7a02", "trello:7a04"]).exists())
+        self.assertEqual(Comment.objects.get(card=self.hostetler).body, "c2")  # the date card's history moved
+        self.assertTrue(self.hostetler.attachments.filter(name="PSA.pdf").exists())
+        self.assertEqual(imp.counts["comments skipped (card not imported)"], 1)  # Exploration Park
+
+    def test_a_rerun_adds_nothing(self):
+        from crm.models import Board
+
+        trello_import.import_general(self.data, self.kellen)
+        counts = (Board.objects.count(), Card.objects.count(), Comment.objects.count(), CardAttachment.objects.count())
+        trello_import.import_general(self.data, self.kellen)
+        self.assertEqual(counts, (Board.objects.count(), Card.objects.count(), Comment.objects.count(),
+                                  CardAttachment.objects.count()))
