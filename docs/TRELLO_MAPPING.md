@@ -247,7 +247,9 @@ Todd Catlin 2, Ken Rothaermel 1), 11 checklists of 6 items, 23 attachments.
    (recommended: yes)
 6. The second board: its own "MEIH program" board (recommended), lists on the MEIH board, or skip?
 
-## Properties-NSIH: import plan (proposed 2026-10-27, waiting on Kellen)
+## Properties-NSIH: import plan (2026-10-27)
+
+**Imported 2026-10-27**: Kellen took all six recommended answers below (see HANDOFF "Trello history, Properties-NSIH").
 
 David DeNardo's working board for the Bloomfield, Indiana campus. 121 cards on 10 open lists and 6 archived
 ones, **521 comments** (David DeNardo 455, Simon 43, Patrick Dillmann 18, Kellen 2, Olivia Jaskula-Dybka 2, Eli
