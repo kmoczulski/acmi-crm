@@ -198,6 +198,55 @@ Properties-Prospecting, Maryland / MEIH, the second MEIH board, Properties-NSIH,
 
 **Imported 2026-10-26: Properties-Prospecting** (`manage.py import_trello`, see HANDOFF "Trello history, Prospecting"): 1,661 comments, 200 checklists, 175 attachments, 807 history entries onto the Tenant pipeline board; decision 6 below taken as recommended (New Leads and Cold as unbound lists, cards linked to their company). The other boards still need their mapping.
 
+## The two MEIH boards: import plan (proposed 2026-10-27, waiting on Kellen)
+
+From the full fetch. Both go to the campus MEIH. Nothing written yet.
+
+### Maryland / MEIH → the hub's MEIH board (board 2, from `boards_setup`; its 7 lists are empty today)
+
+73 cards, 118 comments (Kellen 109, Simon 6, Dave 1, David 1, Joe Don Bowling 1), 55 checklists, 58 attachments.
+Every comment comes over with its author and date. A card linked to a site, contract or deal also puts its comments on
+that record's page. The CRM wins on names, statuses and dates, as on Prospecting.
+
+| Hub list | Trello cards | Linked to |
+|---|---|---|
+| **Land sites** (feed) | Lake Acton Business Park; County Land; Rosewick Development Site; 4390 Indian Head and ETC Building (archived); Billingsley Assemblage; NSWC - IHD; Lewis Place | Lake Acton (site 2); **County Land → Airport Land – 4075 Livingston Rd (County)**; **Rosewick → Rosewick Road** (the site with the Rosewick Road PSA, not Bardon – 9622 Rosewick Rd); 4390 Indian Head Hwy (ETC); Billingsley WCD Assemblage. NSWC - IHD and Lewis Place have no site: plain cards at the end of the list |
+| Land sites, **archived** | COLD - Land Sites: CA Billingsley, Berry Pointe, Berry Rd Assemblage, Copart, Indian Head / Maryland (8 comments); Garner Land | Their sites (all Dropped, except Copart, which is Outreach). Indian Head / Maryland has none. The comments show on each site's page |
+| **Critical dates** (feed) | "4390 Indian Head Highway PSA" (1 attachment) and the 1 comment on "Feasibility Period Expiration" become one card for the 4390 PSA | Contract: 4390 Indian Head Hwy PSA. **The other 10 date cards aren't imported:** Trello still has the pre-extension dates (Oct 22 / Nov 1 / Dec 11 / Dec 21); the hub has the extended ones (Feb 19 to Apr 20, 2027) |
+| **The Forge – 4390 / ETC** | 4390 / ETC - Deal and Design (7): PSA & ETC Lease, Design Meetings / Plans, GC RFP (30 items), Powers Brown B101, Survey Completion Date, "4390 Indian Head Hwy", Survey (archived); plus "4390 IHH - Design Meetings / Plans", which sat in the LABP list | PSA & ETC Lease → the 4390 PSA; "4390 Indian Head Hwy" → its site; the rest plain cards |
+| **ARA Facility – deal** | ARA (16): Contact List & Agreement, Action Items (17 items), certificates of insurance, invoices Month 1-5, budget updates, lease negotiation start / finish, non-renewal notice, PDA initial term expiry | The ARA deal. Dates stay as card due dates, done where Trello ticked them. **Not ticked in Trello, so they'll show as late:** Invoice Month 3 (Aug 17), Complete lease negotiations (Oct 12), Invoice Month 4 (Oct 14), Non-renewal notice (Oct 16). Still ahead: Invoice Month 5 (Nov 16), PDA initial term expires (Nov 15) |
+| **ARA Facility – sites and design** | County Land - Deal and Design (3), LABP - Deal and Design (PSA Negotiation, LABP design archived), ARA Building (4: Design, Design Meetings, GC RFP, MBI B101), Land Use (PGM / Permitting) | County Land PSA and County Land → Airport Land site; PSA Negotiation → Lake Acton site |
+| **Consultants** | Contacts and Consultants (7): Cozen O'Connor (Engaged), Kimley Horn, Maryland Department of Commerce, Transaction Attorney, Land Use Attorney, Contractors, Construction Attorney - Firm Options; archived: Land Use Attorney (6 comments, 12 items), "Respond to counsel on County land PSA", ARA - Architect RFP | Cozen → the firm. Kimley Horn and Maryland Department of Commerce link once they're in the directory (below) |
+| Archived on The Forge | Land Sites' old task cards: Groundbreaking, Civl Engineering (6 comments), Architectural RFP (6 comments), Prometheus extension notice | none |
+
+Labels: Critical Date, Deal Info, Legal, Program/Procurement, Civil and Architecture go onto the board's own categories;
+Ongoing, To Do and Contact Information onto the three labels `boards_setup` added. Members: Kellen, Simon, Dave, David.
+
+### The second "MEIH" board → its own board, "MEIH program"
+
+It isn't a property board. It tracks the MEIH program's milestone deliverables to the funder: MS#1 kickoff to MS#11 Year 1
+final report, quarterly technical and business status reports, quick-win plans. Its members are Paul Kadzielski, John
+Burer, Melissa Guerrero, Ken Rothaermel and Todd Catlin; Kellen isn't one. 21 cards, 34 comments (Joe Don Bowling 31,
+Todd Catlin 2, Ken Rothaermel 1), 11 checklists of 6 items, 23 attachments.
+
+- **Recommended: a separate board, "MEIH program"** (campus MEIH), with Trello's lists kept: Project Background,
+  Upcoming Deliverables, Action Items (RAIL), Blockers, Management Concerns, Campus Engagement, Completed Deliverables
+  (Graveyard is empty and is dropped). Milestones keep their due dates and done ticks (MS#6, due Sep 7 and not ticked,
+  will show late; MS#9-11 are due Dec 18, Mar 19 and Mar 30). Paul is the board's member; the other four aren't in
+  the hub, so their names stay in the comments. Putting it on the MEIH board instead would mix funder reporting into
+  the deal and design lists.
+
+### Kellen's decisions for these two boards
+
+1. County Land = **Airport Land – 4075 Livingston Rd (County)**? (recommended: yes)
+2. Rosewick Development Site = **Rosewick Road** (the one with the PSA)? (recommended: yes)
+3. NSWC - IHD, Lewis Place and Indian Head / Maryland: plain cards (recommended), or make them sites?
+4. ARA dates: card due dates (recommended for now), or make the ARA PDA a contract first so they reach the critical
+   dates calendar and alerts?
+5. Add **Kimley Horn**, **Maryland Department of Commerce** and **Powers Brown** to the directory so the cards link?
+   (recommended: yes)
+6. The second board: its own "MEIH program" board (recommended), lists on the MEIH board, or skip?
+
 ## Needs Kellen's decision
 
 1. **Full history.** The exports lack 89–92% of comments on Prospecting and General. Options: run
