@@ -292,9 +292,14 @@ def _near(start, source):
 
 
 def _merge_attendees(new, old, keep=False):
-    """The incoming attendee list; with keep (another source's row), the old list plus anyone new."""
+    """The incoming attendee list; with keep (another source's row), the old list plus anyone new. Guests an emailed
+    invite added ("via": "invite") stay when the row's own source re-syncs without them."""
     if not keep:
-        return new or old
+        if not new:
+            return old
+        seen = {(a.get("email") or "").lower() for a in new}
+        return list(new) + [a for a in old or []
+                            if a.get("via") == "invite" and (a.get("email") or "").lower() not in seen]
     out, seen = list(old or []), {(a.get("email") or "").lower() for a in old or []}
     for a in new:
         if a["email"].lower() not in seen:
@@ -373,6 +378,8 @@ def _meeting_for(m, start, summary):
         if meeting is not None:
             meeting.external_id, meeting.source = ext, source
             meeting._took_invite = True
+            # The invite's guests are marked, so later syncs of this calendar event or note keep them.
+            meeting.attendees = [{**a, "via": "invite"} for a in meeting.attendees or []]
     if meeting is None and source == "granola":
         # The calendar sync got there first: the note takes over that row (its tasks, companies and team stay on it).
         cal = next((x for x in _near(start, "calendar") if _same_meeting(x.title, m.get("title"))), None)
@@ -463,16 +470,27 @@ def owner_for(name, users):
 
 
 def same_task(title, assignee, meeting):
-    """An open-or-done task with the same title and owner made within a week, or from a meeting within a week."""
+    """An open-or-done task with the same title and owner made within a week, or from a meeting within a week, and
+    about the same record: the meeting's company, (no company) one of its directory firms, or (neither) another
+    team-only meeting. "Send NDA [Simon]" on two different companies' calls stays two tasks."""
     from django.db.models import Q
 
     from .models import Task
 
     week = timedelta(days=SAME_TASK_DAYS)
-    return (Task.objects.filter(title__iexact=title.strip(), assignee=assignee)
-            .filter(Q(created_at__gte=timezone.now() - week)
-                    | Q(meetings__start__gte=meeting.start - week, meetings__start__lte=meeting.start + week))
-            .order_by("-created_at").first())
+    qs = (Task.objects.filter(title__iexact=title.strip(), assignee=assignee)
+          .filter(Q(created_at__gte=timezone.now() - week)
+                  | Q(meetings__start__gte=meeting.start - week, meetings__start__lte=meeting.start + week)))
+    companies = list(meeting.companies.values_list("pk", flat=True))
+    if companies:
+        qs = qs.filter(company__in=companies)
+    else:
+        firms = list(meeting.firms.values_list("pk", flat=True))
+        qs = qs.filter(company__isnull=True)
+        # A firm call joins tasks from that firm's calls; a team-only meeting, tasks from other team-only meetings.
+        qs = (qs.filter(meetings__firms__in=firms) if firms
+              else qs.filter(meetings__isnull=False, meetings__companies__isnull=True, meetings__firms__isnull=True))
+    return qs.distinct().order_by("-created_at").first()
 
 
 def make_task(meeting, index, user, assignee=None, due=None, due_time=None):

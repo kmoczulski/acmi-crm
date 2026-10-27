@@ -186,6 +186,36 @@ class InviteTests(CaptureBase):
         self.assertEqual(invites.save(invites.parse_ics(ics(self.day, cancel=True))[0]), "cancelled")
         self.assertFalse(Meeting.objects.exists())
 
+    # The review found these three: the last invite read always won, whatever its version.
+    def test_an_older_copy_never_moves_the_meeting_back_or_brings_it_back(self):
+        moved = ics(self.day).replace("T140000", "T160000").replace("T150000", "T170000").replace(
+            "DTSTAMP:20261020T150000Z", "SEQUENCE:1\r\nDTSTAMP:20261021T150000Z")
+        invites.save(invites.parse_ics(ics(self.day))[0])
+        self.assertEqual(invites.save(invites.parse_ics(moved)[0]), "updated")
+        self.assertEqual(invites.save(invites.parse_ics(ics(self.day))[0]), "")  # the original, forwarded later
+        self.assertEqual(Meeting.objects.get().start, at(self.day, 16))
+        cancel = ics(self.day, cancel=True).replace("DTSTAMP:20261020T150000Z", "SEQUENCE:2\r\nDTSTAMP:20261022T150000Z")
+        self.assertEqual(invites.save(invites.parse_ics(cancel)[0]), "cancelled")
+        self.assertEqual(invites.save(invites.parse_ics(moved)[0]), "")  # forwarded again after the cancel
+        self.assertFalse(Meeting.objects.exists())
+
+    def test_one_cancelled_occurrence_leaves_the_series(self):
+        invites.save(invites.parse_ics(ics(self.day))[0])
+        one = ics(self.day + timedelta(days=7), cancel=True).replace(
+            "DTSTAMP:", f"RECURRENCE-ID;TZID=America/New_York:{self.day + timedelta(days=7):%Y%m%d}T140000\r\nDTSTAMP:")
+        invites.save(invites.parse_ics(one)[0])
+        self.assertEqual(Meeting.objects.count(), 1)  # the series row stays
+
+    def test_a_calendar_resync_keeps_the_guests_an_invite_added(self):
+        self.meeting("Lender call", [{"email": "kmoczulski@acmigroup.com"}, {"email": "priya.raman@harborpoint.test"}],
+                     source="calendar", ext="calendar:e1")
+        invites.save(invites.parse_ics(ics(self.day))[0])
+        meetings.import_meetings([{"source": "calendar", "id": "e1", "title": "Lender call",
+                                   "start": at(self.day).isoformat(),
+                                   "attendees": [{"email": "kmoczulski@acmigroup.com"},
+                                                 {"email": "priya.raman@harborpoint.test"}]}])
+        self.assertIn("dshah@harborpoint.test", {a["email"] for a in Meeting.objects.get().attendees})
+
     def test_google_invitation_subject_without_a_calendar_part(self):
         email = parse_message((
             "From: Priya Raman <priya.raman@harborpoint.test>\r\nTo: kmoczulski@acmigroup.com\r\n"
@@ -504,6 +534,20 @@ class ActionItemTests(CaptureBase):
         m2 = Meeting.objects.get(external_id="granola:b")
         self.client.post(reverse("crm:meeting_make_task", args=[m2.pk]), {"index": 1})
         self.assertEqual(Task.objects.filter(title="Call Harbor Point").count(), 2)
+
+    def test_the_same_item_on_two_companies_calls_is_two_tasks(self):
+        # The review found this: "Send NDA [Simon]" on Acme's and Beta's calls became one task, on Acme.
+        start = timezone.now()
+        acme = Company.objects.create(name="Acme", domains=["acme.test"])
+        beta = Company.objects.create(name="Beta", domains=["beta.test"])
+        for id_, co, when in [("a", acme, start), ("b", beta, start + timedelta(days=2))]:
+            meetings.import_meetings([{**self.granola(id_, when), "attendees": [
+                {"email": "kmoczulski@acmigroup.com"}, {"email": f"bob@{co.domains[0]}"}]}])
+            m = Meeting.objects.get(external_id=f"granola:{id_}")
+            m.companies.set([co])
+            self.client.post(reverse("crm:meeting_make_task", args=[m.pk]), {"index": 0})
+        tasks = Task.objects.filter(title="Send the site plan by Friday")
+        self.assertEqual(sorted(t.company.name for t in tasks), ["Acme", "Beta"])
 
     def test_import_is_idempotent_by_granola_id_and_posts_one_note(self):
         path = self.settings_dir() / "granola.json"

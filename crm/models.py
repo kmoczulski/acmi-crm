@@ -809,6 +809,8 @@ class Meeting(models.Model):
     # "no record" marker and the Needs filing cards. Kept up to date by crm/needs_filing.py.
     unfiled = models.JSONField(default=list, blank=True, help_text="[{name, email}] of outside attendees with no record")
     unfiled_domains = models.JSONField(default=list, blank=True)
+    invite_version = models.CharField(max_length=40, blank=True,
+                                      help_text="An emailed invite's SEQUENCE and DTSTAMP: an older copy never wins")
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
@@ -1533,6 +1535,18 @@ class UnmatchedEmail(models.Model):
 
     def __str__(self):
         return f"{self.address}: {self.subject}"
+
+
+class InviteCancel(models.Model):
+    """An emailed invite that was cancelled (one occurrence, or the whole meeting): a copy of the original invite
+    forwarded later doesn't put the meeting back."""
+
+    external_id = models.CharField(max_length=255, unique=True, help_text="invite:<UID>[:<RECURRENCE-ID>]")
+    version = models.CharField(max_length=40, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.external_id
 
 
 class FilingSnooze(models.Model):

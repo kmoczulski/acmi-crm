@@ -124,15 +124,21 @@ def load_county(name_or_fips, *, min_acres=20, keep_zip=False, catalog=None, log
 def after_load(county, log=print):
     """Last transfers (and Charles's mailing and values) from the county's sale source, signals, county comps and
     owner groups. A sale source that doesn't answer leaves the load as it is: re-run `manage.py refresh_sales`."""
-    from . import portfolio, sales
+    from . import portfolio, sales, signals
 
+    refreshed = False
     if sales.source_for(county):
         try:
             stats = sales.refresh_county(county, log=log, rebuild_groups=False)
+            refreshed = True
             log(f"{county.name}: last transfers for {stats['with_date']:,} parcels ({stats['with_price']:,} with a "
                 f"price), {stats.get('comps', 0):,} county comps")
         except Exception as exc:  # noqa: BLE001 - the parcels are loaded; the sale data can follow
             log(f"{county.name}: sale data not read ({exc}). Run manage.py refresh_sales {county.name} later.")
+    if not refreshed:
+        # Signals were scored before the parcels were saved, when the county had no land ZIPs to compare mail
+        # against, so "absentee" was never set on a first load. Recompute them now that the parcels are stored.
+        signals.apply_county(county)
     portfolio.rebuild()
     return county
 

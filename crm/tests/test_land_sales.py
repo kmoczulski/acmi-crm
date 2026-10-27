@@ -212,6 +212,22 @@ class SignalTests(TestCase):
         self.assertEqual(labels, ["Owned since 1987", "Out-of-state owner (VA)"])
         self.assertEqual(p.motivation, signals.WEIGHTS["long_hold"] + signals.WEIGHTS["out_of_state"])
 
+    def test_a_first_load_without_a_sale_source_gets_absentee(self):
+        # The review found this: signals were scored before the parcels were saved, when the county had no land
+        # ZIPs yet, and only counties with a sale source were rescored afterwards.
+        from crm.land import parcels
+        from crm.tests.test_land import make_parcel
+
+        blanco = LandCounty.objects.create(fips="48031", name="Blanco", state="TX")
+        signals.reset_cache()
+        signals.area_zip3s(blanco.pk)  # cached empty, as during the load
+        make_parcel(blanco, "1", -98.4, 30.1, situs_zip="78606", mail_state="TX", mail_zip="78606")
+        far = make_parcel(blanco, "2", -98.5, 30.1, situs_zip="78636", mail_state="TX", mail_zip="77002")
+        with mock.patch("crm.land.portfolio.rebuild"):
+            parcels.after_load(blanco, log=lambda *a: None)
+        far.refresh_from_db()
+        self.assertIn("absentee", far.signals)
+
     def test_score_is_unchanged_by_signals_and_land_search_filters(self):
         user = User.objects.create_user("kellen")
         self.client.force_login(user)
