@@ -198,9 +198,9 @@ Properties-Prospecting, Maryland / MEIH, the second MEIH board, Properties-NSIH,
 
 **Imported 2026-10-26: Properties-Prospecting** (`manage.py import_trello`, see HANDOFF "Trello history, Prospecting"): 1,661 comments, 200 checklists, 175 attachments, 807 history entries onto the Tenant pipeline board; decision 6 below taken as recommended (New Leads and Cold as unbound lists, cards linked to their company). The other boards still need their mapping.
 
-## The two MEIH boards: import plan (proposed 2026-10-27, waiting on Kellen)
+## The two MEIH boards: import plan (2026-10-27)
 
-From the full fetch. Both go to the campus MEIH. Nothing written yet.
+**Imported 2026-10-27** (Maryland / MEIH only; see HANDOFF "Trello history, Maryland / MEIH"). **Kellen's answers:** 1 and 2 yes; Lewis Place is **Bryans Road Assemblage**; 4390 is The Forge; NSWC - IHD is managing the relationship with the base, so it's a plain card on Consultants; the ARA date cards are skipped until Kellen uploads the final PDA (their history went onto Contact List & Agreement); 5 yes (the three firms added); 6 no: **the second MEIH board is skipped**. The plan as proposed follows.
 
 ### Maryland / MEIH → the hub's MEIH board (board 2, from `boards_setup`; its 7 lists are empty today)
 
