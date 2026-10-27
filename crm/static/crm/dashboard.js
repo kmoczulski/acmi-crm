@@ -36,7 +36,16 @@
       }
       placed.push(i);
     }
-    const order = items.slice().sort((a, b) => (a.el === moving ? -1 : b.el === moving ? 1 : a.y - b.y || a.x - b.x));
+    // The moved widget goes before a widget in the same columns if it was dropped on that widget's top half, after
+    // it if on the bottom half, so it can land above or below anything (not only on top of everything).
+    const others = items.filter(i => i.el !== moving).sort((a, b) => a.y - b.y || a.x - b.x);
+    const order = others.slice();
+    const m = items.find(i => i.el === moving);
+    if (m) {
+      const sameCols = o => m.x < o.x + o.w && o.x < m.x + m.w;
+      const at = others.findIndex(o => (sameCols(o) ? o.y + o.rows / 2 > m.y : o.y > m.y));
+      order.splice(at < 0 ? order.length : at, 0, m);
+    }
     const done = [];
     for (const i of order) {
       i.x = Math.max(0, Math.min(i.x, COLS - i.w));
@@ -229,8 +238,16 @@
     } else {
       if (e.key === 'ArrowLeft') w.dataset.x = Math.max(0, x - 1);
       if (e.key === 'ArrowRight') w.dataset.x = Math.min(COLS - cols, x + 1);
-      if (e.key === 'ArrowUp') w.dataset.y = Math.max(0, y - Math.max(4, Math.round(rowsOf(w) / 2)));
-      if (e.key === 'ArrowDown') w.dataset.y = y + rowsOf(w) + 1;
+      // Up / down: past the next widget in the same columns (its middle decides which side of it this one lands).
+      const column = widgets().filter(o => o !== w && +o.dataset.x < x + cols && x < +o.dataset.x + +o.dataset.w);
+      if (e.key === 'ArrowUp') {
+        const above = column.filter(o => +o.dataset.y < y).sort((a, b) => +b.dataset.y - +a.dataset.y)[0];
+        w.dataset.y = above ? Math.max(0, +above.dataset.y + Math.floor(rowsOf(above) / 2) - 1) : 0;
+      }
+      if (e.key === 'ArrowDown') {
+        const below = column.filter(o => +o.dataset.y > y).sort((a, b) => +a.dataset.y - +b.dataset.y)[0];
+        w.dataset.y = below ? +below.dataset.y + Math.ceil(rowsOf(below) / 2) + 1 : y + rowsOf(w) + 1;
+      }
       pack(w); save();
       say(`${title(w)}: column ${+w.dataset.x + 1}, ${+w.style.order + 1} of ${widgets().length} in reading order.`);
     }
