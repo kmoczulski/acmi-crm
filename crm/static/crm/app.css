@@ -2189,3 +2189,24 @@ details.mail-notes:not([open]) { background: transparent; padding: 2px 0; }
 .feed-meta { font-size: 12.5px; color: var(--muted); margin-top: 4px; }
 .widget[data-widget="summary"] .ai-headline { font-size: 16.5px; line-height: 1.4; }
 .widget[data-widget="summary"] .ai-summary p, .widget[data-widget="summary"] .ai-summary li { font-size: 14px; }
+
+/* Record cards (nav.js "peek"): a company, deal or person over the page you were on */
+.peek-dialog { width: min(940px, 96vw); }
+.peek-dialog:not([open]) { display: none; }
+.pk .scard-head { border-top-color: var(--accent); align-items: center; }
+.pk .scard-title h2 { font-size: 19px; }
+.pk-actions { display: flex; align-items: center; gap: 8px; flex: none; }
+.pk-actions [hidden] { display: none; }
+.pk-body { padding: 14px 20px 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; max-height: calc(92vh - 90px); }
+.pk-facts { grid-template-columns: repeat(auto-fit, minmax(105px, 1fr)); }
+.pk-cols { display: grid; grid-template-columns: minmax(0, 1fr) 270px; gap: 14px; align-items: start; }
+.pk-main, .pk-side { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.pk-act { display: flex; gap: 8px; padding: 5px 0; border-top: 1px solid #f0f2f5; font-size: 13px; }
+.pk-act:first-of-type { border-top: 0; }
+.pk-icon { flex: none; width: 20px; text-align: center; }
+.pk-cmt { padding: 6px 0; border-top: 1px solid #f0f2f5; font-size: 13px; }
+.pk-cmt:first-of-type { border-top: 0; }
+.pk-cmt p { margin: 2px 0; }
+.pk-row-sub { display: block; font-size: 12px; color: var(--muted); }
+.pk .scard-sec .muted:only-child { margin: 0; font-size: 13px; }
+@media (max-width: 760px) { .pk-cols { grid-template-columns: 1fr; } }

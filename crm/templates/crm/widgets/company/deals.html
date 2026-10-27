@@ -3,5 +3,5 @@
 {% for o in open_deals %}
   <div class="row-line"><span><a href="{{ o.get_absolute_url }}">{{ o.name }}</a> <span class="stage stage-{{ o.stage }}">{{ o.get_stage_display }}</span>
     {% if o.next_step %}<div class="muted" style="font-size:12px">Next: {{ o.next_step|truncatechars:70 }}</div>{% endif %}</span>
-    <span class="muted" style="text-align:right">{{ o.value|money }}{% if o.site_label %}<br>{{ o.site_label }}{% endif %}</span></div>
+    <span class="muted" style="text-align:right">{{ o.value|money }}{% if o.campus %}<br><a href="{% url 'crm:campus_summary' o.campus.code %}">{{ o.site_label }}</a>{% elif o.site_label %}<br>{{ o.site_label }}{% endif %}</span></div>
 {% empty %}<p class="muted" style="margin:0">No open deals. <a href="{% url 'crm:opportunity_create' %}?company={{ company.pk }}">New tenant deal</a></p>{% endfor %}

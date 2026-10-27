@@ -1,0 +1,47 @@
+{% load crm_tags humanize %}
+<div class="scard pk pk-deal">
+  <header class="scard-head">
+    <div class="scard-title">
+      <span class="stage stage-{{ opp.stage }}">{{ opp.get_stage_display }}</span> {{ opp.priority|pill }}{% if opp.investor_report %} <span class="pill pill-good">On the investor report</span>{% endif %}
+      <h2>{{ opp.name }}</h2>
+      <div class="muted lc-small"><a href="{{ opp.company.get_absolute_url }}">{{ opp.company.name }}</a> · {% if opp.campus %}<a href="{% url 'crm:campus_summary' opp.campus.code %}">{{ opp.campus.code }}</a>{% else %}{{ opp.site_label }}{% endif %}{% if opp.owner %} · {{ opp.owner|username }}{% endif %}{% if opp.deal_type %} · {{ opp.get_deal_type_display }}{% endif %}</div>
+    </div>
+    <div class="pk-actions">
+      <a href="#" class="btn btn-small" data-card-back hidden>‹ Back</a>
+      <a href="{{ page }}" class="btn btn-small btn-primary" data-page>Open deal page</a>
+      <button type="button" class="scard-x" data-card-close aria-label="Close">×</button>
+    </div>
+  </header>
+  <div class="pk-body">
+    <div class="scard-facts pk-facts">
+      <div><b>{{ opp.value|money|default:"–" }}</b><span>value</span></div>
+      <div><b>{{ opp.win_probability }}%</b><span>win</span></div>
+      <div><b>{% if opp.sq_ft_need %}{{ opp.sq_ft_need|intcomma }}{% else %}–{% endif %}</b><span>sq ft</span></div>
+      <div><b>{% if opp.acreage_need %}{{ opp.acreage_need|floatformat:"-1"|intcomma }}{% else %}–{% endif %}</b><span>acres</span></div>
+      <div><b>{{ opp.target_close|date:"M j"|default:"–" }}</b><span>target close</span></div>
+      <div><b>{{ days_in_stage }}d</b><span>in stage</span></div>
+    </div>
+    <div class="pk-cols">
+      <div class="pk-main">
+        {% if risk %}<div class="scard-sec"><h3>Needs attention</h3><ul class="scard-risks">{% for r in risk %}<li>{{ r }}</li>{% endfor %}</ul></div>{% endif %}
+        <div class="scard-sec"><h3>Next step</h3>
+          {% if opp.next_step %}<p class="scard-next">{{ opp.next_step }}{% if opp.next_step_due %} <span class="muted">· due {{ opp.next_step_due|date:"M j" }}</span>{% endif %}</p>{% else %}<p class="muted">None set.</p>{% endif %}
+          {% if opp.partner_note %}<p class="muted lc-small">For capital partners: {{ opp.partner_note|truncatechars:200 }}</p>{% endif %}</div>
+        <div class="scard-sec"><h3>Recent activity</h3>
+          {% for a in recent %}<div class="pk-act"><span class="pk-icon" title="{{ a.get_kind_display }}">{{ a.kind|kind_icon }}</span><div><div>{{ a.summary|truncatechars:110 }}{% if a.outcome %} {{ a.outcome|pill:"response" }}{% endif %}</div><div class="muted lc-small">{% conversation a %} · {{ a.occurred_at|date:"M j" }}</div></div></div>
+          {% empty %}<p class="muted">Nothing yet.</p>{% endfor %}</div>
+        {% if comments %}<div class="scard-sec"><h3>Latest comments</h3>{% for c in comments %}<div class="pk-cmt"><b>{{ c.author|username|default:"Someone" }}</b> <span class="muted lc-small">{{ c.created_at|date:"M j" }}</span>{{ c.body|mentions }}</div>{% endfor %}</div>{% endif %}
+      </div>
+      <aside class="pk-side">
+        <div class="scard-sec"><h3>People</h3>
+          {% for c in contacts %}<a class="scard-row" href="{{ c.person.get_absolute_url }}">{{ c.person }}<span class="pk-row-sub">{{ c.get_role_display }}{% if c.person.title %} · {{ c.person.title|truncatechars:40 }}{% endif %}</span></a>
+          {% empty %}<p class="muted">No one on this deal yet.</p>{% endfor %}</div>
+        {% if agreements %}<div class="scard-sec"><h3>Agreements</h3>{% for c in agreements %}<a class="scard-row" href="{{ c.get_absolute_url }}">{{ c.title }} <span class="pill ct-{{ c.status }}">{{ c.get_status_display }}</span></a>{% endfor %}</div>{% endif %}
+        {% if sites %}<div class="scard-sec"><h3>Sites</h3>{% for s in sites %}<a class="scard-row" href="{% url 'crm:land_site_detail' s.pk %}">{{ s.name }}<span class="pk-row-sub">{{ s.get_status_display }}</span></a>{% endfor %}</div>{% endif %}
+        <div class="scard-sec"><h3>Open tasks</h3>
+          {% for t in tasks %}<a class="scard-row" href="{{ t.get_absolute_url }}">{{ t.title }}{% if t.due_date %}<span class="pk-row-sub">{{ t.assignee|username }} · due {{ t.due_date|date:"M j" }}</span>{% endif %}</a>
+          {% empty %}<p class="muted">None open.</p>{% endfor %}</div>
+      </aside>
+    </div>
+  </div>
+</div>

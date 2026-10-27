@@ -1,7 +1,7 @@
 from django.urls import path
 from django.views.generic import RedirectView
 
-from . import campus_views, prefs, push_views, search, views
+from . import campus_views, cards, prefs, push_views, search, views
 from .boards import views as board_views
 from .build import views as build_views
 from .capital import views as capital_views
@@ -30,6 +30,7 @@ urlpatterns = [
     path("companies/", views.company_list, name="company_list"),
     path("companies/new/", views.company_create, name="company_create"),
     path("companies/<int:pk>/", views.company_detail, name="company_detail"),
+    path("companies/<int:pk>/card/", cards.company_card, name="company_card"),
     path("companies/<int:pk>/delete/", views.company_delete, name="company_delete"),
     path("companies/<int:pk>/merge/", views.company_merge_into, name="company_merge_into"),
     path("companies/duplicates/", views.duplicates, name="duplicates"),
@@ -38,10 +39,12 @@ urlpatterns = [
     path("people/", views.person_list, name="person_list"),
     path("people/new/", views.person_create, name="person_create"),
     path("people/<int:pk>/", views.person_detail, name="person_detail"),
+    path("people/<int:pk>/card/", cards.person_card, name="person_card"),
     path("people/<int:pk>/delete/", views.person_delete, name="person_delete"),
     path("opportunities/", views.opportunity_board, name="opportunity_board"),
     path("opportunities/new/", views.opportunity_create, name="opportunity_create"),
     path("opportunities/<int:pk>/", views.opportunity_detail, name="opportunity_detail"),
+    path("opportunities/<int:pk>/card/", cards.opportunity_card, name="opportunity_card"),
     path("opportunities/<int:pk>/fit/", tenant_views.opportunity_fit, name="opportunity_fit"),
     path("leases/", tenant_views.rent_roll, name="rent_roll"),
     path("opportunities/<int:pk>/delete/", views.opportunity_delete, name="opportunity_delete"),

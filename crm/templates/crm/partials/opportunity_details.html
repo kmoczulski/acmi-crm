@@ -2,7 +2,7 @@
 <dl class="details">
   <dt>Stage</dt><dd><span class="stage stage-{{ opp.stage }}">{{ opp.get_stage_display }}</span> <span class="muted">{{ opp.win_probability }}% win</span></dd>
   <dt>Company</dt><dd><a href="{{ opp.company.get_absolute_url }}">{{ opp.company.name }}</a></dd>
-  <dt>Site</dt><dd>{% if opp.campus %}{{ opp.campus }}{% else %}{{ opp.site|default:"TBD" }}{% endif %}</dd>
+  <dt>Site</dt><dd>{% if opp.campus %}<a href="{% url 'crm:campus_summary' opp.campus.code %}">{{ opp.campus }}</a>{% else %}{{ opp.site|default:"TBD" }}{% endif %}{% for s in opp.land_sites.all %}<br><a href="{% url 'crm:land_site_detail' s.pk %}">{{ s.name }}</a> <span class="muted">· {{ s.get_status_display|lower }}</span>{% endfor %}</dd>
   {% if opp.owner %}<dt>Owner</dt><dd>{{ opp.owner|username }}</dd>{% endif %}
   {% if team %}<dt>Deal team</dt><dd>{% for u in team %}{{ u|username }}{% if not forloop.last %}, {% endif %}{% endfor %}</dd>{% endif %}
   {% if opp.priority %}<dt>Priority</dt><dd>{{ opp.priority|pill }}</dd>{% endif %}

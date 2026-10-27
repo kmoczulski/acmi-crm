@@ -5,6 +5,20 @@ Read this first when picking the project up in a new chat, along with
 
 ## Pick up here (2026-10-25)
 
+**Record cards 2026-10-27** (Kellen: "check the clickability between things... on the investor report to a company
+then to their page. Is that necessary? Should it not be their card? ... It should be much more fluid and easy to
+navigate"). A plain click on any company, deal or person link now opens that record's card over the page you are on:
+`crm/cards.py` renders `crm/cards/{company,deal,person}.html` at `<record url>card/`, `nav.js` ("peek") fetches it
+into the `#peek` dialog in `base.html`. The card has the essentials (facts strip, next step or AI headline, recent
+activity, latest comments, people, deals, agreements, sites, open tasks) and an **Open page** button that keeps the
+list position (`?from=`) the link carried. Links inside a card open the next card with **Back**; Esc or the backdrop
+closes. Links go straight to the page when the click carries a modifier (new tab), the link is in a breadcrumb, a
+record header, the record nav or search results, or it has `data-page`. Sites keep their own card on the Sites page.
+Also linked on the way: a deal's campus and land sites on the deal page and in the company page's Open deals widget.
+Tests in `crm/tests/test_cards.py`; checked in Chromium (report row, chained cards, Back, Open page, Esc, list
+position, Ctrl-click); 736 tests green. Tasks, contracts and sites could get cards the same way (`CARD` in nav.js, a view and a
+template each).
+
 **Company page: a widget grid and one chronological feed 2026-10-26** (Kellen: "the company card should be
 customizable like the dashboard and be more so like Trello where comments and meeting updates/notes are in
 chronological order"; branch `claude/beautiful-albattani-6xp3qi`, with the review work below). The Overview tab is

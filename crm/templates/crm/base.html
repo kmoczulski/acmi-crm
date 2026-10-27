@@ -123,6 +123,7 @@
     <div class="palette-foot muted"><kbd>↑</kbd> <kbd>↓</kbd> to move · <kbd>Enter</kbd> to open · <kbd>Esc</kbd> to close</div>
   </div>
 </dialog>
+<dialog id="peek" class="scard-dialog peek-dialog" aria-label="Record card"><div id="peek-body"></div></dialog>
 {{ NAV_PAGES|json_script:"nav-pages" }}
 <div id="nav-config" hidden data-search="{% url 'crm:search' %}" data-prefs="{% url 'crm:prefs_save' %}"></div>
 <script src="{% static 'crm/nav.js' %}?v={{ ASSET_VERSION }}"></script>

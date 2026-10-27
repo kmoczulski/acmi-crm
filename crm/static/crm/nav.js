@@ -153,3 +153,44 @@
     else if (e.key === '/' && !typing && !e.ctrlKey && !e.metaKey) { e.preventDefault(); if (!focusHero()) open(); }
   });
 })();
+
+// Record cards ("peek"): a plain click on a company, deal or person link opens that record's card over the page
+// you're on (fetched from <record url>card/, crm/cards.py), with Open page for the full record. Modifier or middle
+// clicks, links in breadcrumbs, record headers, the record nav and search results, and links marked data-page go
+// straight to the page as before. A link inside a card opens the next card, with Back.
+(function () {
+  const peek = document.getElementById('peek');
+  if (!peek) return;
+  const body = document.getElementById('peek-body');
+  const CARD = /^\/(companies|opportunities|people)\/\d+\/$/;
+  const SKIP = '.crumbs, .record-head, .record-nav, .palette, .hero-results, [data-no-peek]';
+  const stack = [];
+  const backButton = () => body.querySelector('[data-card-back]')?.toggleAttribute('hidden', !stack.length);
+  async function show(url, chain) {
+    if (chain && body.innerHTML) stack.push(body.innerHTML); else if (!chain) stack.length = 0;
+    body.innerHTML = '<p class="muted" style="padding:30px">Loading…</p>';
+    if (!peek.open) peek.showModal();
+    try {
+      const r = await fetch(url, {credentials: 'same-origin', headers: {'X-Requested-With': 'fetch'}});
+      body.innerHTML = r.ok ? await r.text() : '<p class="scard-error" style="margin:20px">Could not load that card (' + r.status + ').</p>';
+    } catch (e) { body.innerHTML = '<p class="scard-error" style="margin:20px">Could not reach the server.</p>'; }
+    backButton();
+    peek.scrollTop = 0;
+    body.querySelector('[data-page]')?.focus();
+  }
+  document.addEventListener('click', e => {
+    if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    const a = e.target.closest('a[href]');
+    if (!a || a.target === '_blank' || a.hasAttribute('data-page') || a.closest(SKIP)) return;
+    let url;
+    try { url = new URL(a.href, location.href); } catch (err) { return; }
+    if (url.origin !== location.origin || !CARD.test(url.pathname) || url.hash) return;
+    e.preventDefault();
+    show(url.pathname + 'card/' + url.search, !!a.closest('#peek'));
+  });
+  peek.addEventListener('click', e => {
+    if (e.target === peek || e.target.closest('[data-card-close]')) { peek.close(); return; }
+    if (e.target.closest('[data-card-back]')) { e.preventDefault(); body.innerHTML = stack.pop() || ''; backButton(); }
+  });
+  peek.addEventListener('close', () => { body.innerHTML = ''; stack.length = 0; });
+})();

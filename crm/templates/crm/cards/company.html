@@ -1,0 +1,47 @@
+{% load crm_tags humanize %}
+<div class="scard pk pk-company">
+  <header class="scard-head">
+    <div class="scard-title">
+      <span class="stage stage-{{ company.status }}">{{ company.get_status_display }}</span> {{ company.priority|pill }}{% for f in company.flags %} <span class="tag">{{ f }}</span>{% endfor %}
+      <h2>{{ company.name }}</h2>
+      <div class="muted lc-small">{% if company.sector %}{{ company.sector }} · {% endif %}{% if company.hq_location %}{{ company.hq_location }} · {% endif %}{% if company.website %}<a href="{{ company.website }}" target="_blank" rel="noopener">{{ company.website|cut:"https://"|cut:"http://"|cut:"www." }}</a> · {% endif %}{% if company.owner %}owner {{ company.owner|username }}{% else %}no owner{% endif %}</div>
+    </div>
+    <div class="pk-actions">
+      <a href="#" class="btn btn-small" data-card-back hidden>‹ Back</a>
+      <a href="{{ page }}" class="btn btn-small btn-primary" data-page>Open company page</a>
+      <button type="button" class="scard-x" data-card-close aria-label="Close">×</button>
+    </div>
+  </header>
+  <div class="pk-body">
+    <div class="scard-facts pk-facts">
+      <div><b>{{ open_deals|length }}</b><span>open deal{{ open_deals|length|pluralize }}</span></div>
+      <div><b>{% if pipeline %}{{ pipeline|money }}{% else %}–{% endif %}</b><span>pipeline</span></div>
+      <div><b>{{ people_count }}</b><span>{{ people_count|pluralize:"person,people" }}</span></div>
+      <div><b>{% if company.last_interaction_at %}{{ company.days_since_touch }}d{% else %}–{% endif %}</b><span>since last touch</span></div>
+      <div><b>{% if next_meeting %}{{ next_meeting.start|date:"M j" }}{% else %}–{% endif %}</b><span>next meeting</span></div>
+      <div><b>{% if company.fit_score %}{{ company.fit_score }}/5{% else %}–{% endif %}</b><span>fit</span></div>
+    </div>
+    <div class="pk-cols">
+      <div class="pk-main">
+        {% if summary %}<div class="scard-sec scard-ai"><h3>✦ AI overview</h3><p class="scard-headline">{{ summary.headline }}</p>{% if summary.next_step %}<p class="scard-next"><b>Next:</b> {{ summary.next_step }}</p>{% endif %}</div>{% endif %}
+        {% if about %}<div class="scard-sec"><h3>Overview</h3><p>{{ about }}</p></div>{% endif %}
+        <div class="scard-sec"><h3>Recent activity</h3>
+          {% for a in recent %}<div class="pk-act"><span class="pk-icon" title="{{ a.get_kind_display }}">{{ a.kind|kind_icon }}</span><div><div>{{ a.summary|truncatechars:110 }}{% if a.outcome %} {{ a.outcome|pill:"response" }}{% endif %}</div><div class="muted lc-small">{% conversation a %} · {{ a.occurred_at|date:"M j" }}</div></div></div>
+          {% empty %}<p class="muted">Nothing yet.</p>{% endfor %}</div>
+        {% if comments %}<div class="scard-sec"><h3>Latest comments</h3>{% for c in comments %}<div class="pk-cmt"><b>{{ c.author|username|default:"Someone" }}</b> <span class="muted lc-small">{{ c.created_at|date:"M j" }}</span>{{ c.body|mentions }}</div>{% endfor %}</div>{% endif %}
+      </div>
+      <aside class="pk-side">
+        <div class="scard-sec"><h3>Open deals</h3>
+          {% for o in open_deals %}<a class="scard-row" href="{{ o.get_absolute_url }}">{{ o.name }}<span class="pk-row-sub">{{ o.get_stage_display }}{% if o.value %} · {{ o.value|money }}{% endif %}{% if o.next_step %} · next: {{ o.next_step|truncatechars:50 }}{% endif %}</span></a>
+          {% empty %}<p class="muted">No open deals.</p>{% endfor %}</div>
+        <div class="scard-sec"><h3>People{% if people_count > people|length %} <span class="muted">{{ people|length }} of {{ people_count }}</span>{% endif %}</h3>
+          {% for p in people %}<a class="scard-row" href="{{ p.get_absolute_url }}">{{ p }}<span class="pk-row-sub">{% if p.title %}{{ p.title|truncatechars:40 }} · {% endif %}{{ p.last_interaction_at|ago|default:"no touch yet" }}</span></a>
+          {% empty %}<p class="muted">No people yet.</p>{% endfor %}</div>
+        <div class="scard-sec"><h3>Open tasks</h3>
+          {% for t in tasks %}<a class="scard-row" href="{{ t.get_absolute_url }}">{{ t.title }}{% if t.due_date %}<span class="pk-row-sub">{{ t.assignee|username }} · due {{ t.due_date|date:"M j" }}</span>{% endif %}</a>
+          {% empty %}<p class="muted">None open.</p>{% endfor %}</div>
+        {% if last_meeting %}<div class="scard-sec"><h3>Last meeting</h3><a class="scard-row" href="{{ last_meeting.get_absolute_url }}">{{ last_meeting.title }}<span class="pk-row-sub">{{ last_meeting.start|date:"M j, Y" }}</span></a></div>{% endif %}
+      </aside>
+    </div>
+  </div>
+</div>
