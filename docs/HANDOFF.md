@@ -5,6 +5,8 @@ Read this first when picking the project up in a new chat, along with
 
 ## Pick up here (2026-10-25)
 
+**Client searches 2026-10-26** (Kellen: "I can't delete a client search"; merged fast-forward `56d3693`, CI green, 712 tests, no migration): **Delete** on the search page and on each row of Client searches and a company's Site searches tab, for the search's creator or a Manager. Its reports go with it; the sites stay in Land. A **+ Land search** button in the company page header starts one for that company.
+
 **David walkthrough fixes 2026-10-26** (Kellen: "start on bugs 1-9 from the David review in a worktree"; branch
 `worktree-david-review-fixes`, migration `0067_assignment_company`. **Merged 2026-10-26** fast-forward `4101657`, CI
 green, 710 tests; real DB migrated through 0067, backup `backups/db-2026-10-26-before-david-review-fixes.sqlite3`;
