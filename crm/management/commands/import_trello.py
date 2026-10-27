@@ -4,7 +4,8 @@ from django.db import transaction
 
 from crm.boards import trello_import
 
-BOARDS = {"prospecting": ("Properties-Prospecting", trello_import.import_prospecting)}
+BOARDS = {"prospecting": ("Properties-Prospecting", trello_import.import_prospecting),
+          "meih": ("Maryland / MEIH", trello_import.import_meih)}
 
 
 class Command(BaseCommand):

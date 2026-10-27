@@ -132,3 +132,73 @@ class TrelloImportTests(TestCase):
             self.assertFalse(Comment.objects.exists())
             call_command("import_trello", d, "--apply", stdout=StringIO())
             self.assertEqual(Comment.objects.count(), 3)
+
+
+def meih_data():
+    lists = [{"id": n, "name": name, "closed": False, "pos": i} for i, (n, name) in enumerate([
+        ("s", "Land Sites"), ("c", "COLD - Land Sites"), ("d", "4390 Indian Head Hwy - Critical Dates"), ("a", "ARA"),
+        ("k", "Contacts and Consultants")])]
+
+    def card(cid, name, lst, **extra):
+        return {"id": cid, "shortLink": cid, "name": name, "desc": "", "idList": lst, "closed": False, "pos": 1,
+                "idLabels": extra.get("labels", []), "idMembers": [], "checklists": [], "attachments": extra.get("att", [])}
+
+    cards = [card("5f01", "Lewis Place", "s"), card("5f02", "NSWC - IHD", "s"), card("5f03", "Berry Rd - Assemblage", "c"),
+             card("5f04", "4390 Indian Head Highway PSA", "d"), card("5f05", "Feasibility Period Expiration", "d"),
+             card("5f06", "Contact List & Agreement", "a", labels=["lb1"]),
+             card("5f07", "Invoice ARA – Month 3 ($18K)", "a", att=[{"name": "inv.pdf", "url": "https://trello.com/inv.pdf"}]),
+             card("5f08", "Kimley Horn", "k")]
+    actions = [{"id": f"x{n}", "type": "commentCard", "date": f"2026-0{n}-01T10:00:00.000Z", "memberCreator": KELLEN,
+                "data": {"text": f"note {n}", "card": {"id": cid}}}
+               for n, cid in enumerate(["5f01", "5f05", "5f07", "5f03"], 1)]
+    return {"board": {"name": "Maryland / MEIH", "lists": lists, "members": [KELLEN],
+                      "labels": [{"id": "lb1", "name": "Program/Procurement", "color": "green"}]},
+            "cards": cards, "checklists": [], "actions": actions}
+
+
+class MeihImportTests(TestCase):
+    def setUp(self):
+        from crm.models import Board, Campus, Contract, Firm, LandSite
+
+        self.kellen = User.objects.create_user("Kellen", first_name="Kellen", last_name="Moczulski")
+        meih = Campus.objects.create(code="MEIH", name="Maryland Energetics Innovation Hub")
+        self.bryans = LandSite.objects.create(name="Bryans Road Assemblage", campus=meih)
+        self.berry = LandSite.objects.create(name="Berry Rd / Tara Pl Assemblage", campus=meih, status="dropped")
+        self.psa = Contract.objects.create(title="4390 Indian Head Hwy PSA", campus=meih)
+        self.ara = Opportunity.objects.create(name="ARA · MEIH", campus=meih, stage="loi_signed",
+                                              company=Company.objects.create(name="Applied Research Associates"))
+        call_command("boards_setup", "--apply", stdout=StringIO())
+        self.board = Board.objects.get(name="MEIH")
+        self.Firm = Firm
+
+    def test_cards_land_on_the_hand_mapped_lists_and_records(self):
+        imp = trello_import.import_meih(meih_data(), self.kellen)
+        lewis = Card.objects.get(source_key="trello:5f01")
+        self.assertEqual((lewis.list.name, lewis.site), ("Land sites", self.bryans))
+        self.assertEqual(Comment.objects.get(card=lewis).site, self.bryans)  # also on the site's page
+        self.assertEqual(Card.objects.get(source_key="trello:5f02").list.name, "Consultants")
+        berry = Card.objects.get(source_key="trello:5f03")
+        self.assertTrue(berry.archived)
+        kimley = Card.objects.get(source_key="trello:5f08")
+        self.assertEqual(kimley.firm, self.Firm.objects.get(name="Kimley Horn"))
+        self.assertEqual(imp.counts["firms added to the directory"], 3)
+        ara = Card.objects.get(source_key="trello:5f06")
+        self.assertEqual((ara.list.name, ara.opportunity), ("ARA Facility – deal", self.ara))
+        self.assertEqual([l.name for l in ara.labels.all()], ["Program / procurement"])  # matched, not duplicated
+
+    def test_date_cards_are_skipped_but_their_history_moves(self):
+        trello_import.import_meih(meih_data(), self.kellen)
+        self.assertFalse(Card.objects.filter(source_key__in=["trello:5f05", "trello:5f07"]).exists())
+        psa_card = Card.objects.get(source_key="trello:5f04")
+        self.assertEqual((psa_card.list.name, psa_card.contract), ("Critical dates", self.psa))
+        self.assertEqual(Comment.objects.get(card=psa_card).body, "note 2")
+        ara = Card.objects.get(source_key="trello:5f06")
+        self.assertEqual(Comment.objects.get(card=ara).opportunity, self.ara)
+        self.assertTrue(ara.attachments.filter(name="inv.pdf").exists())
+
+    def test_a_rerun_adds_nothing(self):
+        trello_import.import_meih(meih_data(), self.kellen)
+        counts = (Card.objects.count(), Comment.objects.count(), CardAttachment.objects.count(), self.Firm.objects.count())
+        trello_import.import_meih(meih_data(), self.kellen)
+        self.assertEqual(counts, (Card.objects.count(), Comment.objects.count(), CardAttachment.objects.count(),
+                                  self.Firm.objects.count()))
