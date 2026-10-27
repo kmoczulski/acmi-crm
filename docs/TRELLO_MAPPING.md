@@ -247,6 +247,54 @@ Todd Catlin 2, Ken Rothaermel 1), 11 checklists of 6 items, 23 attachments.
    (recommended: yes)
 6. The second board: its own "MEIH program" board (recommended), lists on the MEIH board, or skip?
 
+## Properties-NSIH: import plan (proposed 2026-10-27, waiting on Kellen)
+
+David DeNardo's working board for the Bloomfield, Indiana campus. 121 cards (12 open lists' worth plus 6 archived
+lists), **521 comments** (David DeNardo 455, Simon 43, Patrick Dillmann 18, Kellen 2, Olivia Jaskula-Dybka 2, Eli
+Miller 1), 42 checklists, 61 attachments. Comments by list: Design & Construction 218 (Haskell alone 57, Pepper /
+Weddle 31, Prometheus change orders 29, Structurepoint 27), Administration 99, Infrastructure / Utilities 52, Due
+Diligence 41, Land Contracts 26, Parcel Owners 25, Tenancy / Contracts 24, Prospecting (archived) 18, Capitalization 15.
+
+**What the hub has for NSIH:** the campus and one project (NSIH), 38 tenant deals, no land sites, no contracts, no
+entitlements, no board. So, unlike MEIH, there's little for feeds to show, and the board keeps Trello's workstream
+lists.
+
+### A new NSIH board (campus NSIH, project NSIH)
+
+| # | Hub list | From Trello | Links |
+|---|---|---|---|
+| 1 | Administration | Administration (19; 9 archived: Deal Summary 28 comments, Financial Model 11, Investor Deck 9, PSA, Schedule, FAQ…) | Insurance - Marsh → Marsh McLennan Agency. Tax Incentives - Ryan LLC, Legal - Drewry Simmons Vornehm: not in the directory |
+| 2 | Design & construction | Design & Construction (20; 11 archived) | Architect - Haskell → Haskell; CM - Pepper / Weddle → Pepper Construction; Civil - Structurepoint → Structurepoint; Schreifer Group → The Schreifer Group; CMc Contract - Shiel Sexton → Shiel Sexton Company. Architect - Haskell keeps its Nov 16 due date |
+| 3 | Due diligence | Due Diligence (9; Survey and Wetlands archived) | Geotech, gas wells, loggers, Earthsource, SMS Energetics, TRC, Johnny's Signs: none are in the directory |
+| 4 | Infrastructure / utilities | Infrastructure / Utilities (12) | Fiber - Smithville → Smithville; ROW Acquisition → First Group Engineering. The utilities (UDWI & Hoosier, Eastern Heights, Greene County, Midwest, INRD, INDOT, APT Solar) aren't in the directory |
+| 5 | Land contracts | Land Contracts (5): Land PSA - NFP, Land PSA - Hostetler, offers to Sullivan & Myers (archived) and Prometheus, Kelly - neighbor | none: the hub has no NSIH contracts |
+| 6 | Parcel owners | Parcel Owners (25 landowner cards, Royal Family 16 comments) | Plain cards. Landowners never become companies (Kellen, 2026-10-19) |
+| 7 | Tenants and leases | Tenancy / Contracts (7 + 1 mirror skipped) | Prometheus Ground Lease, DMA, Points of Contact, Export Control (archived) → the Prometheus (Kratos / Rafael) deal; Ground Lease - iRocket → iRocket; Tenant - Spinner → Spinner; CFIUS Review → Holland & Knight |
+| 8 | Capitalization | Capitalization (10): CTL Loan, Scaling Space HNW, Prospective LPs, Strongbox, Browning, OneIM, Bain (×2), Fortress, Cerberus | Bain → Bain Capital. The rest aren't in the directory |
+| 9 | Models & decks | Models & Decks (2) | none |
+| 10 | Open tasks (feed) | (new) | NSIH's open tasks |
+| — | Archived on Tenants and leases | Prospecting, an archived list: Lease - Prometheus, Kratos, LOI - Kratos → the Prometheus deal; VTS, Lauth Partnership plain (6 mirror cards skipped) | |
+
+Labels: the board uses none. Members: David, Simon, Kellen, Dave, Paul, John (Melissa Guerrero and Patrick Dillmann
+aren't in the hub). Properties-General's "Critical Dates - NSIH" and "Critical Dates - Hostetler / NSIH" lists will
+join this board when General is imported.
+
+### Kellen's decisions for NSIH
+
+1. **Board layout:** keep Trello's workstream lists as above (recommended), or the MEIH layout (sites, dates, project
+   lists, consultants)? The MEIH layout needs NSIH sites and contracts that don't exist yet.
+2. **Land PSAs (NFP, Hostetler) and the Prometheus ground lease / DMA:** plain cards now (recommended), linked once
+   the documents are uploaded as contracts, or upload them first?
+3. **Directory:** add the firms the cards name that aren't there yet, so the cards link? Services: Ryan LLC, Drewry
+   Simmons Vornehm, Earthsource, SMS Energetics, TRC Companies, Johnny's Signs, APT Solar Solutions, Weddle. Capital:
+   Fortress, Strongbox, Browning, OneIM, Cerberus, CTL Capital. Utilities (UDWI, Hoosier, Eastern Heights, Midwest
+   Gas, INRD, INDOT) stay plain cards. (Recommended: yes for services and capital.)
+4. **Kratos / LOI - Kratos** (archived, 2025): onto the Prometheus (Kratos / Rafael) deal (recommended), or the
+   separate "Kratos · NSIH" deal?
+5. **The Prometheus deal has no campus.** Set it to NSIH? (Recommended: yes; it's a one-field change.)
+6. **Patrick Dillmann** (18 comments, a board member): outside the team, name kept in his comments (recommended), or
+   does he need a hub account?
+
 ## Needs Kellen's decision
 
 1. **Full history.** The exports lack 89–92% of comments on Prospecting and General. Options: run
