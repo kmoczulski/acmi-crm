@@ -171,6 +171,21 @@ def labels(mailbox, client, max_age=timedelta(minutes=10)):
     return system, sorted((r for r in rows if not r.system), key=lambda r: r.name.lower())
 
 
+def label_tree(user_labels):
+    """The person's labels as Gmail nests them ("Deals/MEIH" under "Deals"), in order, for the folder pane:
+    [{name, leaf, depth, label (None for a parent that's only part of a name), children}]."""
+    by_name = {lb.name: lb for lb in user_labels}
+    names = set(by_name)
+    for name in list(names):
+        parts = name.split("/")
+        names.update("/".join(parts[:i]) for i in range(1, len(parts)))
+    ordered = sorted(names, key=lambda n: [p.lower() for p in n.split("/")])
+    from .actions import managed
+
+    return [{"name": n, "leaf": n.rsplit("/", 1)[-1], "depth": n.count("/"), "label": by_name.get(n),
+             "children": any(o.startswith(n + "/") for o in names), "managed": managed(n)} for n in ordered]
+
+
 # ---------------------------------------------------------------------------
 # CRM tags: which company, deal, project or directory firm a thread is about
 # ---------------------------------------------------------------------------

@@ -283,6 +283,10 @@ class GmailClient:
     def update_label(self, label_id, name):
         return self._request("patch", f"/labels/{label_id}", body={"name": name})
 
+    def delete_label(self, label_id):
+        """Remove a label: Gmail takes it off its emails; the emails themselves stay."""
+        return self._request("delete", f"/labels/{label_id}")
+
     def modify_thread(self, thread_id, add=(), remove=()):
         return self.post(f"/threads/{thread_id}/modify", {"addLabelIds": list(add), "removeLabelIds": list(remove)})
 

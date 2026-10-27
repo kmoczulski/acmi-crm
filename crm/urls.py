@@ -145,6 +145,7 @@ urlpatterns = [
     path("inbox/warm/", inbox_views.warm, name="inbox_warm"),
     path("inbox/files/", inbox_views.files, name="inbox_files"),
     path("inbox/act/", inbox_views.act, name="inbox_act"),
+    path("inbox/labels/edit/", inbox_views.label_edit, name="inbox_label_edit"),
     path("inbox/file/", inbox_views.file_to, name="inbox_file"),
     path("inbox/file/options/", inbox_views.file_options, name="inbox_file_options"),
     path("inbox/suggest/", inbox_views.suggest, name="inbox_suggest"),

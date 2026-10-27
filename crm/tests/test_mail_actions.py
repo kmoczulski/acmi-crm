@@ -163,6 +163,54 @@ class MailActionTests(TestCase):
         self.assertEqual([p for p, _ in self.fake.calls if p.startswith("/threads/c3")], ["/threads/c3"])  # cached
         self.assertEqual(self.client.get(reverse("crm:inbox_warm"), {"t": "nope"}).status_code, 204)
 
+    def add_labels(self, *names):
+        for name in names:
+            i = sum(lb["type"] == "user" for lb in self.fake.label_list) + 1
+            self.fake.label_list.append({"id": f"Label_{i}", "name": name, "type": "user"})
+            MailLabel.objects.create(mailbox=self.mailbox, gmail_id=f"Label_{i}", name=name)
+
+    def test_labels_nest_and_collapse_in_the_folder_pane(self):
+        self.add_labels("Deals/NSIH", "Deals/NSIH/Leases", "ACMI/Tenants/Firehawk", "Personal")
+        r = self.client.get(reverse("crm:inbox"))
+        tree = [(n["name"], n["depth"], bool(n["label"]), n["children"]) for n in r.context["label_tree"]]
+        self.assertEqual(tree[:4], [("ACMI", 0, False, True), ("ACMI/Tenants", 1, False, True),
+                                    ("ACMI/Tenants/Firehawk", 2, True, False), ("Deals", 0, False, True)])
+        self.assertIn(("Deals/NSIH", 1, True, True), tree)
+        self.assertContains(r, "data-labels-toggle")
+        self.assertContains(r, 'aria-label="Edit the label Deals/NSIH"')
+        self.assertNotContains(r, 'aria-label="Edit the label ACMI/Tenants/Firehawk"')  # the hub's own
+
+    def label_edit(self, **data):
+        return self.client.post(reverse("crm:inbox_label_edit"), {"next": "/inbox/?label=INBOX", **data}, follow=True)
+
+    def test_rename_a_label_and_the_ones_under_it(self):
+        self.add_labels("Deals/NSIH", "Deals/NSIH/Leases", "Deals/NSIHX")
+        r = self.label_edit(action="rename", label="Label_2", name=" Campus / NSIH ")
+        self.assertContains(r, "Renamed Deals/NSIH to Campus/NSIH.")
+        names = dict(MailLabel.objects.filter(mailbox=self.mailbox).values_list("gmail_id", "name"))
+        self.assertEqual((names["Label_2"], names["Label_3"], names["Label_4"]),
+                         ("Campus/NSIH", "Campus/NSIH/Leases", "Deals/NSIHX"))
+        self.assertIn(("PATCH /labels/Label_3", {"name": "Campus/NSIH/Leases"}), self.fake.posts)
+        for name, error in (("Deals/MEIH", "already a label called Deals/MEIH."),
+                            ("ACMI/Mine", "Names starting ACMI/ are kept"), ("  / ", "Give the label a name.")):
+            self.assertContains(self.label_edit(action="rename", label="Label_2", name=name), error)
+        self.add_labels("ACMI/Snoozed")
+        self.assertContains(self.label_edit(action="rename", label="Label_5", name="Later"), "kept by the hub")
+
+    def test_delete_a_label_keeps_the_emails(self):
+        self.add_labels("Deals/NSIH", "Deals/NSIH/Leases")
+        r = self.label_edit(action="delete", label="Label_2")
+        self.assertContains(r, "Deleted the label Deals/NSIH and 1 label under it. The emails are still in your mailbox.")
+        self.assertEqual(set(MailLabel.objects.filter(mailbox=self.mailbox, system=False).values_list("name", flat=True)),
+                         {"Deals/MEIH"})
+        self.assertEqual([p for p, _ in self.fake.posts if p.startswith("DELETE")],
+                         ["DELETE /labels/Label_3", "DELETE /labels/Label_2"])
+        self.assertFalse([p for p, _ in self.fake.posts if "/threads/" in p])  # no email touched
+        r = self.client.post(reverse("crm:inbox_label_edit"), {"action": "delete", "label": "Label_1",
+                                                                "next": "/inbox/?label=Label_1"})
+        self.assertRedirects(r, reverse("crm:inbox"), fetch_redirect_response=False)  # its folder is gone
+        self.assertContains(self.label_edit(action="delete", label="INBOX"), "Pick one of your labels.")
+
     def test_the_reading_pane_toolbar_and_its_keys(self):
         r = self.client.get(reverse("crm:inbox"), {"t": "b2"})
         for key in ('data-key="e"', 'data-key="s"', 'data-key="#"', 'data-key="U"'):

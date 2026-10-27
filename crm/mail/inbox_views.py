@@ -21,7 +21,7 @@ from django.views.decorators.http import require_POST
 
 from crm import prefs
 from crm.ai import enabled as ai_enabled
-from crm.models import Company, MailFiling, MailSnooze, MailThread, Mailbox, Project, UnmatchedEmail
+from crm.models import Company, MailFiling, MailLabel, MailSnooze, MailThread, Mailbox, Project, UnmatchedEmail
 
 from . import actions as mail_actions, comments as mail_comments, connect, filing as mail_filing, index, shared
 from . import render as mail_render, search as mail_search, summary as mail_summary, threads as mail_threads
@@ -149,6 +149,7 @@ def inbox(request, mailbox, client):
     current = {lb.gmail_id: lb.name for lb in [*system, *user_labels]}.get(label, "All mail" if label == "ALL" else label)
     return render(request, "crm/inbox.html", {
         "mailbox": mailbox, "system_labels": system, "user_labels": user_labels, "label": label,
+        "label_tree": index.label_tree(user_labels),
         "label_name": "Search" if query else current, "query": query, "widened": widened, "exact": exact, "within": within, "tabs": TABS if label == "INBOX" and not query else [],
         "tab": tab, "threads": threads, "next_token": next_token, "next_offset": next_offset, "offset": offset,
         "page_token": token, "total": total, "reader": reader, "open_id": open_id, "error": error,
@@ -260,6 +261,38 @@ def _safe_next(request, fallback):
             and nxt.startswith("/"):
         return nxt
     return fallback
+
+
+@mail_required
+@require_POST
+def label_edit(request, mailbox, client):
+    """Rename or delete one of the person's own labels (and the ones nested under it), in Gmail and here."""
+    back = _safe_next(request, reverse("crm:inbox"))
+    if not may_change(request, mailbox):
+        return redirect(back)
+    label_id, action = request.POST.get("label", ""), request.POST.get("action", "")
+    try:
+        if action == "rename":
+            old = MailLabel.objects.filter(mailbox=mailbox, gmail_id=label_id).values_list("name", flat=True).first()
+            name = mail_actions.rename_label(mailbox, client, label_id, request.POST.get("name", ""))
+            messages.success(request, f"Renamed {old} to {name}.")
+            shared.log(mailbox, request.user, "label", "", f"renamed {old} to {name}")
+        elif action == "delete":
+            old = MailLabel.objects.filter(mailbox=mailbox, gmail_id=label_id).values_list("name", flat=True).first()
+            n = mail_actions.delete_label(mailbox, client, label_id)
+            more = f" and {n - 1} label{'s' if n > 2 else ''} under it" if n > 1 else ""
+            messages.success(request, f"Deleted the label {old}{more}. The emails are still in your mailbox.")
+            shared.log(mailbox, request.user, "label", "", f"deleted {old}")
+            if f"label={label_id}" in back:
+                back = reverse("crm:inbox")
+        else:
+            messages.error(request, "Pick Rename or Delete.")
+    except mail_actions.ActionError as exc:
+        messages.error(request, str(exc))
+    except (MailboxError, requests.RequestException):
+        log.warning("Label change failed for %s", mailbox, exc_info=True)
+        messages.error(request, "Couldn't reach Gmail, so the label wasn't changed. Try again.")
+    return redirect(back)
 
 
 @mail_required

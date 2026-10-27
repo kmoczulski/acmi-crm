@@ -16,10 +16,34 @@
     {% endfor %}
     <a href="?label=ALL" class="{% if label == 'ALL' and not query %}on{% endif %}">All mail</a>
     <a href="{% url 'crm:inbox_files' %}">Files</a>
-    {% if user_labels %}<div class="mail-folders-head">Labels</div>{% endif %}
-    {% for lb in user_labels %}
-      <a href="?label={{ lb.gmail_id|urlencode }}" class="{% if lb.gmail_id == label and not query %}on{% endif %}"><span class="mail-dot" style="{% if lb.bg_color %}background:{{ lb.bg_color }}{% endif %}"></span>{{ lb.name }}</a>
-    {% endfor %}
+    {% if label_tree %}
+    <button type="button" class="mail-folders-head mail-labels-head" data-labels-toggle aria-expanded="true">Labels <span aria-hidden="true">▾</span></button>
+    <div class="mail-labels" data-labels>
+      {% for n in label_tree %}
+      <div class="mail-label-row{% if n.label and n.label.gmail_id == label and not query %} on{% endif %}" data-path="{{ n.name }}" style="--depth:{{ n.depth }}">
+        {% if n.children %}<button type="button" class="mail-twisty" data-twisty aria-expanded="true" aria-label="Collapse {{ n.leaf }}">▾</button>{% else %}<span class="mail-twisty"></span>{% endif %}
+        {% if n.label %}<a href="?label={{ n.label.gmail_id|urlencode }}" title="{{ n.name }}"><span class="mail-dot" style="{% if n.label.bg_color %}background:{{ n.label.bg_color }}{% endif %}"></span>{{ n.leaf }}</a>
+        {% else %}<span class="mail-label-group" title="{{ n.name }}">{{ n.leaf }}</span>{% endif %}
+        {% if can_change and n.label and not n.managed %}
+        <details class="mail-menu mail-label-menu"><summary aria-label="Edit the label {{ n.name }}" title="Rename or delete">⋯</summary>
+          <div class="mail-menu-pop">
+            <form method="post" action="{% url 'crm:inbox_label_edit' %}" class="mail-label-form">{% csrf_token %}
+              <input type="hidden" name="label" value="{{ n.label.gmail_id }}"><input type="hidden" name="next" value="{{ here }}">
+              <label class="lc-small">Name <input type="text" name="name" value="{{ n.name }}" maxlength="225" required></label>
+              <span class="muted lc-small">Use / to nest it, e.g. Deals/MEIH.</span>
+              <button class="btn btn-small" name="action" value="rename">Rename</button>
+            </form>
+            <form method="post" action="{% url 'crm:inbox_label_edit' %}" data-label-delete="{{ n.name }}"{% if n.children %} data-nested{% endif %}>{% csrf_token %}
+              <input type="hidden" name="label" value="{{ n.label.gmail_id }}"><input type="hidden" name="next" value="{{ here }}">
+              <button class="btn-link mail-label-delete" name="action" value="delete">Delete label{% if n.children %} and the ones under it{% endif %}</button>
+            </form>
+          </div>
+        </details>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
     <p class="muted lc-small mail-folders-foot"><a href="{% url 'crm:mail_settings' %}">Mail in the hub</a> · filters stay in Gmail</p>
   </nav>
 
@@ -359,6 +383,59 @@
     initFrames(); initLatest(); initFiles(); initOutline(); initFind(); initSummarize(); initFileTo();
   }
   initReader();
+  // Labels: collapse the whole group or one label's sub-labels (remembered in this browser); confirm a delete.
+  (function () {
+    const group = document.querySelector('[data-labels]');
+    if (!group) return;
+    const KEY = 'mail-labels-collapsed';
+    let saved = {};
+    try { saved = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch (e) { /* private window */ }
+    const store = () => { try { localStorage.setItem(KEY, JSON.stringify(saved)); } catch (e) {} };
+    const rows = [...group.querySelectorAll('[data-path]')];
+    const head = document.querySelector('[data-labels-toggle]');
+    function draw() {
+      const shut = Object.keys(saved).filter(k => k !== '' && saved[k]);
+      rows.forEach(r => {
+        r.hidden = shut.some(p => r.dataset.path.startsWith(p + '/'));
+        const t = r.querySelector('[data-twisty]');
+        if (t) {
+          const closed = !!saved[r.dataset.path];
+          t.textContent = closed ? '▸' : '▾';
+          t.setAttribute('aria-expanded', closed ? 'false' : 'true');
+          t.setAttribute('aria-label', (closed ? 'Expand ' : 'Collapse ') + r.dataset.path);
+        }
+      });
+      group.hidden = !!saved[''];
+      head.setAttribute('aria-expanded', saved[''] ? 'false' : 'true');
+      head.querySelector('span').textContent = saved[''] ? '▸' : '▾';
+    }
+    head.addEventListener('click', () => { saved[''] = !saved['']; store(); draw(); });
+    group.addEventListener('click', e => {
+      const t = e.target.closest('[data-twisty]');
+      if (!t) return;
+      const path = t.closest('[data-path]').dataset.path;
+      saved[path] = !saved[path];
+      store(); draw();
+    });
+    // The menu floats beside its label (the folder column is too narrow to hold it).
+    group.querySelectorAll('.mail-label-menu').forEach(menu => menu.addEventListener('toggle', () => {
+      if (!menu.open) return;
+      group.querySelectorAll('.mail-label-menu[open]').forEach(m => { if (m !== menu) m.open = false; });
+      const r = menu.querySelector('summary').getBoundingClientRect(), pop = menu.querySelector('.mail-menu-pop');
+      pop.style.left = Math.min(r.right + 6, window.innerWidth - 250) + 'px';
+      pop.style.top = Math.max(8, Math.min(r.top - 8, window.innerHeight - pop.offsetHeight - 8)) + 'px';
+      const input = pop.querySelector('input[name=name]');
+      if (input) input.focus();
+    }));
+    document.addEventListener('click', e => {
+      group.querySelectorAll('.mail-label-menu[open]').forEach(m => { if (!m.contains(e.target)) m.open = false; });
+    });
+    group.querySelectorAll('[data-label-delete]').forEach(form => form.addEventListener('submit', e => {
+      const more = form.hasAttribute('data-nested') ? ' and the labels under it' : '';
+      if (!confirm(`Delete the label “${form.dataset.labelDelete}”${more}? It comes off its emails in Gmail too. No email is deleted.`)) e.preventDefault();
+    }));
+    draw();
+  })();
   // Folders on a phone.
   document.querySelectorAll('[data-folders-toggle]').forEach(btn => btn.addEventListener('click', () => {
     document.getElementById('mail-folders').classList.toggle('open');
