@@ -183,6 +183,20 @@ loose to-do cards each held part of it):
   dates. That way they appear in the Critical dates feed, the calendar and the alerts, and an extension moves them
   everywhere at once.
 
+## Full-history fetch, 2026-10-26
+
+Kellen ran `trello_fetch.py` at the laptop: 15 boards into `data/imports/trello/2026-10-26/` (gitignored), every
+action back to each board's start. Comments per board: Properties-Prospecting 1,661 (the export had 186),
+Properties-General 688, Federal-Pursuits 581, Properties-NSIH 521, Group-Communications Calendar 490, Federal-General
+198, Properties-Campus Pursuits 185, AMP 128, Maryland / MEIH 118 (same as the export), Exploration Park 97 (closed),
+Group - Indiana 74, Capitalization 41, MEIH (a second board, 21 cards) 34, Project Volare 22 (closed), Federal-Airport
+Commerce Prospects 1 (closed).
+
+**Kellen, 2026-10-26: not imported:** AMP, Group-Communications Calendar, Federal-Pursuits, Properties-Exploration
+Park, Properties-Project Volare, Federal-Airport Commerce Prospects. Not yet decided: Federal-General, Group - Indiana,
+Properties-Capitalization, Properties-Campus Pursuits, Properties-NSIH and the second MEIH board. No import command
+exists yet (`boards-import` isn't built); nothing has been written to the database.
+
 ## Needs Kellen's decision
 
 1. **Full history.** The exports lack 89–92% of comments on Prospecting and General. Options: run
