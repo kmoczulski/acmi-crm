@@ -60,6 +60,8 @@ HEADLESS = {"week", "critical"}
 # like the dashboard"). One layout per person, for every company.
 COMPANY_WIDGETS = {
     "facts": ("At a glance", 12, 0, "Stage, owner, last touch, next meeting, fit and campus interest."),
+    "summary": ("AI overview", 8, 0, "Claude's rundown of where things stand: the headline, how it got here, what "
+                                     "happened lately, and the next step."),
     "overview": ("Overview", 8, 0, "What the company is, in its own words: the description, with sector, HQ, website "
                                    "and LinkedIn, and its categories and flags."),
     "feed": ("Activity", 8, 0, "Comments, notes, meeting notes and email in one list, newest first."),
@@ -68,7 +70,6 @@ COMPANY_WIDGETS = {
     "actions": ("Action items and tasks", 4, 0, "Open items from meeting notes, and the company's tasks."),
     "people": ("Who we know", 4, 0, "People at the company, most recently in touch first."),
     "deals": ("Open deals", 4, 0, "Tenant deals in progress, with their next step."),
-    "summary": ("Claude's summary", 4, 0, "The written summary of where things stand."),
     "files": ("Files", 4, 0, "The Google Drive folder and documents."),
     "team": ("Team connections", 4, 0, "Who on our side knows them, and how well."),
     "lists": ("Boards and lists", 4, 0, "Board cards and lists this company is on."),

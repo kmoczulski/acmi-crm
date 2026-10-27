@@ -117,6 +117,17 @@
 {% block scripts %}
 {% if tab == 'overview' %}<script src="{% static 'crm/dashboard.js' %}?v={{ ASSET_VERSION }}"></script>{% endif %}
 <script>
+  // A meeting in the feed jumps to its card in the Meetings widget and lights it up (scroll-margin keeps it out from
+  // under the sticky tabs). A card that isn't on this page opens on the Meetings tab instead.
+  document.querySelectorAll('[data-jump]').forEach(a => a.addEventListener('click', e => {
+    const href = a.getAttribute('href');
+    const target = href.startsWith('#') && document.getElementById(href.slice(1));
+    if (!target) return;
+    e.preventDefault();
+    target.scrollIntoView({behavior: 'smooth', block: 'start'});
+    target.classList.remove('mcard-flash'); void target.offsetWidth; target.classList.add('mcard-flash');
+    history.replaceState(null, '', href);
+  }));
   // The feed's chips show one kind of entry at a time (comments and notes, meetings, email).
   document.querySelectorAll('[data-feed-filter]').forEach(btn => btn.addEventListener('click', () => {
     const kinds = btn.dataset.feedFilter.split(' ').filter(Boolean);

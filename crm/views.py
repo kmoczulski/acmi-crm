@@ -570,8 +570,9 @@ def company_detail(request, pk):
         if "feed" in grid["shown"]:
             conversation = recent_activity(activities.exclude(kind__in=company_page.FEED_ECHOES),
                                            limit=company_page.FEED_LIMIT, include_sent=True)
+            on_page = {c["m"].pk for c in ctx["latest_meetings"]} if "meetings" in grid["shown"] else set()
             ctx["feed"] = company_page.feed(ctx["comments"], ctx["notes"], ctx["all_meetings"], ctx["meeting_tasks"],
-                                            conversation)
+                                            conversation, on_page=on_page)
     return render(request, "crm/company_detail.html", ctx)
 
 

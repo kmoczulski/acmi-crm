@@ -7,6 +7,8 @@ The overview's Activity widget is one list, newest first, of comments, notes, me
 and the conversation (Kellen, 2026-10-26: "like Trello, where comments and meeting updates/notes are in
 chronological order").
 """
+import re
+
 from django.core.paginator import Paginator
 from django.db.models import Count
 from django.utils import timezone
@@ -105,10 +107,29 @@ def meeting_context(company, request, tab):
     return ctx
 
 
-def feed(comments, notes, meeting_list, tasks, activities, limit=FEED_LIMIT):
+def gist(summary, limit=220):
+    """A meeting's notes as one plain line for the feed: no headings, bullets or bold, the first `limit` characters
+    at a word break. Each line of the notes reads as a sentence."""
+    pieces = []
+    for raw in (summary or "").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        line = re.sub(r"^[-*]\s+", "", line).replace("**", "").replace("\\", "").strip()
+        if line:
+            pieces.append(line if line[-1] in ".!?:" else line + ".")
+    text = " ".join(pieces)
+    if len(text) <= limit:
+        return text
+    cut = text[:limit].rsplit(" ", 1)[0]
+    return cut.rstrip(".,;:") + "…"
+
+
+def feed(comments, notes, meeting_list, tasks, activities, limit=FEED_LIMIT, on_page=()):
     """The overview's Activity widget: [{when, kind, obj}] newest first. kind is comment (a Comment), note (a Note),
-    meeting (a card, as _cards makes), or email / call / change (an Activity). `activities` is the conversation
-    already filtered (no background rows, no FEED_ECHOES); meeting cards are built only for the meetings kept."""
+    meeting (a card, as _cards makes, plus "gist" and "on_page": its card is in the Meetings widget on this page, so
+    the entry jumps to it), or email / call / change (an Activity). `activities` is the conversation already
+    filtered (no background rows, no FEED_ECHOES); meeting cards are built only for the meetings kept."""
     items = [(c.created_at, "comment", c) for c in comments]
     items += [(n.created_at, "note", n) for n in notes]
     items += [(a.occurred_at, "email" if a.kind in EMAIL_KINDS else "call" if a.kind == Activity.Kind.CALL else "change", a)
@@ -117,4 +138,10 @@ def feed(comments, notes, meeting_list, tasks, activities, limit=FEED_LIMIT):
     items.sort(key=lambda t: t[0], reverse=True)
     items = items[:limit]
     cards = {c["m"].pk: c for c in _cards([obj for _, kind, obj in items if kind == "meeting"], tasks)}
-    return [{"when": when, "kind": kind, "obj": cards[obj.pk] if kind == "meeting" else obj} for when, kind, obj in items]
+    out = []
+    for when, kind, obj in items:
+        entry = {"when": when, "kind": kind, "obj": obj}
+        if kind == "meeting":
+            entry.update(obj=cards[obj.pk], gist=gist(meetings.summary_without_actions(obj.summary)), on_page=obj.pk in on_page)
+        out.append(entry)
+    return out

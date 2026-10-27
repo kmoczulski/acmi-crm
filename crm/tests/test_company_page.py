@@ -64,7 +64,12 @@ class CompanyPageTests(TestCase):
         self.assertEqual(order, sorted(order))  # upcoming meeting, then the comment, the note, yesterday's email, the held meeting
         self.assertEqual(feed.count('data-kind="meeting"'), 2)
         self.assertEqual(feed.count('data-kind="email"'), 1)
-        self.assertIn("Send the Fayetteville site brief", feed)  # the meeting's action items ride along
+        # A meeting is a gist and a line of action items, and its title jumps to the card on this page.
+        self.assertIn("Wants 40 acres near Huntsville. Budget $60M.", feed)
+        self.assertIn("2 open of 2 action items: Send the Fayetteville site brief; Intro to the county EDC", feed)
+        self.assertIn(f'href="#meeting-{self.held.pk}" data-jump', feed)
+        self.assertNotIn("Make task", feed)
+        self.assertContains(r, f'id="meeting-{self.held.pk}"')  # the card it jumps to, in the Meetings widget
         self.assertContains(r, 'data-feed-filter="comment note"')
         self.assertContains(r, "Customize page")
 
@@ -90,7 +95,7 @@ class CompanyPageTests(TestCase):
         self.co.website, self.co.hq_location, self.co.categories = "https://www.acme.test", "Huntsville, AL", ["R&D"]
         self.co.save()
         r = self.client.get(self.url)
-        self.assertEqual([w["id"] for w in r.context["grid"]["layout"]][:2], ["facts", "overview"])
+        self.assertEqual([w["id"] for w in r.context["grid"]["layout"]][:3], ["facts", "summary", "overview"])
         html = r.content.decode().split('data-widget="overview"', 1)[1].split('data-widget="feed"', 1)[0]
         self.assertIn("<p>Employee-owned since 1979.</p>", html)
         self.assertIn("<h4>What they do</h4>", html)
@@ -102,6 +107,24 @@ class CompanyPageTests(TestCase):
         self.co.save()
         self.assertContains(self.client.get(self.url), "No description yet")
         self.assertContains(self.client.get(self.url, {"tab": "people"}), "<dt>Description</dt>", count=0)
+
+    def test_a_meeting_whose_card_is_not_on_the_page_opens_on_the_meetings_tab(self):
+        import json
+
+        now = timezone.now()
+        for days in (10, 20, 30):  # the Meetings widget shows the next meeting and the last three
+            m = Meeting.objects.create(source="calendar", external_id=f"calendar:old{days}", title=f"Catch-up {days}",
+                                       start=now - timedelta(days=days))
+            m.companies.add(self.co)
+        r = self.client.get(self.url)
+        feed = r.content.decode().split('id="comments"', 1)[1].split("Full timeline", 1)[0]
+        old = Meeting.objects.get(title="Catch-up 30")
+        self.assertIn(f'href="?tab=meetings#meeting-{old.pk}" data-jump', feed)
+        self.assertIn(f'href="#meeting-{self.held.pk}" data-jump', feed)
+        # With the Meetings widget hidden, every meeting opens on the tab.
+        self.client.post(reverse("crm:prefs_save"), {"key": "company", "value": json.dumps([{"id": "feed", "w": 12}])})
+        feed = self.client.get(self.url).content.decode()
+        self.assertIn(f'href="?tab=meetings#meeting-{self.held.pk}" data-jump', feed)
 
     def test_the_other_tabs_keep_the_details_column(self):
         r = self.client.get(self.url, {"tab": "people"})

@@ -47,21 +47,16 @@ meeting notes (and their action items) and the email. feed = company_page.feed(.
       </div>
     </article>{% endwith %}
     {% elif e.kind == 'meeting' %}{% with c=e.obj m=e.obj.m %}
+    {# High level only: the title jumps to the meeting's card in the Meetings widget (or the Meetings tab when the card isn't on this page). #}
     <article class="feed-item feed-meeting{% if c.upcoming %} feed-upcoming{% endif %}" data-kind="meeting">
       <span class="feed-avatar feed-icon" title="Meeting" aria-hidden="true">📅</span>
       <div class="feed-main">
-        <div class="feed-head"><strong>{{ m.title }}</strong> {% if c.upcoming %}<span class="pill pill-good">Upcoming</span>{% else %}meeting{% endif %}
-          <span class="muted">· {{ m.start|date:"D, M j, Y, g:i A" }}{% if c.outside %} · with {{ c.outside|slice:":4"|join:", " }}{% if c.outside|length > 4 %} and {{ c.outside|length|add:"-4" }} more{% endif %}{% endif %}</span>
-          <span class="feed-links">{% if m.url %}<a href="{{ m.url }}" target="_blank" rel="noopener">{% if m.source == 'granola' %}Granola{% else %}Calendar{% endif %} ↗</a>{% endif %}<a href="{% qs_set tab='meetings' %}#meeting-{{ m.pk }}">Open</a></span>
+        <div class="feed-head"><a class="feed-meeting-link" href="{% if e.on_page %}#meeting-{{ m.pk }}{% else %}{% qs_set tab='meetings' %}#meeting-{{ m.pk }}{% endif %}" data-jump><strong>{{ m.title }}</strong></a> {% if c.upcoming %}<span class="pill pill-good">Upcoming</span>{% else %}meeting{% endif %}
+          <span class="muted">· {{ m.start|date:"D, M j, g:i A" }}{% if c.outside %} · with {{ c.outside|slice:":3"|join:", " }}{% if c.outside|length > 3 %} and {{ c.outside|length|add:"-3" }} more{% endif %}{% endif %}</span>
+          <span class="feed-links">{% if m.url %}<a href="{{ m.url }}" target="_blank" rel="noopener">{% if m.source == 'granola' %}Granola{% else %}Calendar{% endif %} ↗</a>{% endif %}<a href="{% if e.on_page %}#meeting-{{ m.pk }}{% else %}{% qs_set tab='meetings' %}#meeting-{{ m.pk }}{% endif %}" data-jump>{% if e.on_page %}Jump to meeting ↓{% else %}Open{% endif %}</a></span>
         </div>
-        {% if c.summary_html %}<div class="feed-body granola clamp" data-clamp>{{ c.summary_html }}</div><button type="button" class="btn-link btn-small clamp-toggle" hidden>Show full summary</button>
-        {% elif not c.upcoming %}<div class="feed-body muted">No notes for this meeting.</div>{% endif %}
-        {% if c.items %}
-        <div class="feed-actions">
-          <h5 class="co-sub">Action items <span class="muted">{{ c.open_items }} open of {{ c.items|length }}</span></h5>
-          {% for i in c.items %}{% include "crm/partials/action_item.html" with compact=True %}{% endfor %}
-        </div>
-        {% endif %}
+        {% if e.gist %}<div class="feed-body">{{ e.gist }}</div>{% elif not c.upcoming %}<div class="feed-body muted">No notes for this meeting.</div>{% endif %}
+        {% if c.items %}<div class="feed-meta">{{ c.open_items }} open of {{ c.items|length }} action item{{ c.items|length|pluralize }}: {% for i in c.items|slice:":3" %}{{ i.title }}{% if not forloop.last %}; {% endif %}{% endfor %}{% if c.items|length > 3 %}; …{% endif %}</div>{% endif %}
       </div>
     </article>{% endwith %}
     {% else %}{% with a=e.obj %}
