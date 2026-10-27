@@ -49,7 +49,7 @@
     <tbody>{% for p in preview %}{% with e=p.entry %}
       <tr><td><a href="{{ e.person.get_absolute_url }}">{{ e.person }}</a> <span class="muted">{{ e.person.email }}</span></td>
         <td>{% if e.person.company %}<a href="{{ e.person.company.get_absolute_url }}">{{ e.person.company.name }}</a>{% endif %}</td>
-        <td>{{ e.person.priority|default:e.person.company.priority|pill }}</td><td>{{ e.person.last_interaction_at|ago }}</td>
+        <td>{% if not e.person.priority and e.person.company %}{{ e.person.company.priority|pill }}{% else %}{{ e.person.priority|pill }}{% endif %}</td><td>{{ e.person.last_interaction_at|ago }}</td>
         <td>{{ e.person.touch_count }}</td><td>{{ e.template.template_id }}</td><td class="wrap">{{ p.subject|truncatechars:70 }}</td></tr>
     {% endwith %}{% empty %}<tr><td colspan="7" class="muted">Nobody is eligible right now.</td></tr>{% endfor %}</tbody>
   </table></div>

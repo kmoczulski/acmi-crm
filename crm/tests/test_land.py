@@ -1411,6 +1411,18 @@ class SiteTrimTests(TestCase):
 
 
 class FemaLayerLookupTests(TestCase):
+    def test_a_page_never_waits_on_fema(self):
+        from crm.land import sources
+
+        saved = dict(sources._fema_layer_cache)
+        self.addCleanup(lambda: (sources._fema_layer_cache.clear(), sources._fema_layer_cache.update(saved)))
+        sources._fema_layer_cache.clear()
+        with mock.patch("threading.Thread") as thread, mock.patch.object(sources.SESSION, "get") as get:
+            self.assertEqual(sources.fema_flood_layer_id(wait=False), sources.FEMA_FLOOD_LAYER_DEFAULT)
+            self.assertEqual(sources.fema_flood_layer_id(wait=False), sources.FEMA_FLOOD_LAYER_DEFAULT)
+        get.assert_not_called()  # the lookup runs in the background
+        self.assertEqual(thread.call_count, 1)  # once, not per page
+
     def test_a_failed_lookup_isnt_retried_on_every_page(self):
         from crm.land import sources
 

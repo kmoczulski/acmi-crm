@@ -66,6 +66,12 @@ class OutreachTests(TestCase):
         self.assertEqual((e.template.template_id, e.greeting), ("T2", "To whom it may concern"))
         self.assertIn("Hi there", compose(e.template, other, e.greeting)[1])  # {first_name} with no name
 
+    def test_page_with_a_queued_person_without_a_company(self):
+        # The queue takes people with no company; the page's priority column used to fail on them (server error).
+        Person.objects.create(first_name="Ann", email="ann@gmail.com", priority="")
+        self.client.force_login(self.user)
+        self.assertContains(self.client.get("/outreach/"), "ann@gmail.com")
+
     def test_skip_rules(self):
         now = timezone.now()
         cases = {

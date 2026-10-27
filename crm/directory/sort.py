@@ -20,7 +20,9 @@ from django.utils import timezone
 
 from ..contracts import ai
 from ..contracts.ai import Unavailable  # noqa: F401 - callers catch it from here
-from ..models import Activity, Company, DomainSort, Firm, FirmEmail, Mailbox, Meeting, Notification, UnmatchedEmail
+from ..models import (
+    Activity, Company, DomainSort, Firm, FirmEmail, Mailbox, MailFilter, Meeting, Notification, UnmatchedEmail,
+)
 from ..permissions import MANAGERS
 from . import logic
 
@@ -272,8 +274,17 @@ def sure(sort):
         sort.confidence == DomainSort.Confidence.MEDIUM and met(sort.domain))
 
 
+def taken(domain):
+    """Someone already decided this domain: a company owns it, or it's ignored or protected in Mail filters."""
+    return (Company.objects.filter(domains__icontains=f'"{domain}"').exists()
+            or MailFilter.objects.filter(pattern__iexact=domain).exists())
+
+
 def waiting(domain):
-    """Still unfiled: email in the queue, or a meeting with someone there and no firm owning the domain."""
+    """Still unfiled: email in the queue, or a meeting with someone there and no firm owning the domain. Never one
+    already added as a company or ignored, even if an older suggestion for it is still open."""
+    if taken(domain):
+        return False
     return UnmatchedEmail.objects.filter(domain=domain).exists() or (
         met(domain) and domain not in logic.firm_domains())
 

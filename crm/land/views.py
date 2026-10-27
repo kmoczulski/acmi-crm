@@ -118,7 +118,7 @@ def land_search(request):
         "counties": counties, "focus": focus, "totals": totals, "layer_counts": layers.layer_counts(),
         "statuses": Parcel.Status.choices, "zoning_classes": score.ZONING_CLASSES, "signal_filters": signals.FILTERS,
         "incentive_programs": __import__("crm.land.incentives", fromlist=["public"]).public(),
-        "fema_flood_layer": __import__("crm.land.sources", fromlist=["x"]).fema_flood_layer_id(),
+        "fema_flood_layer": __import__("crm.land.sources", fromlist=["x"]).fema_flood_layer_id(wait=False),
         "zoning_counts": dict(Parcel.objects.values_list("zoning_class").annotate(n=Count("id"))),
         "county_bounds": {c.fips: [[c.s, c.w], [c.nn, c.e]] for c in counties},
     })
@@ -1051,7 +1051,7 @@ def site_detail(request, pk):
     return render(request, "crm/land_site_detail.html", {
         "tracker": tr, "milestone_defs": LandSite.MILESTONES,
         "map_data": {"type": "FeatureCollection", "features": map_features},
-        "incentive_programs": incentives.public(), "fema_flood_layer": fema_flood_layer_id(),
+        "incentive_programs": incentives.public(), "fema_flood_layer": fema_flood_layer_id(wait=False),
         "site": site, "parcels": parcels, "acres": tr["total_acres"],
         "owners": len({d.parcel.owner_name for d in tr["included"]}), "milestones": site.milestone_rows(),
         "events": site.events.exclude(kind="note").select_related("user")[:100], "statuses": LandSite.Status.choices,

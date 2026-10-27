@@ -1622,7 +1622,9 @@ main { padding: 20px 28px 40px; max-width: 1680px; margin: 0 auto; }
 .widget-head h3 { margin: 0; font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
 .widget.headless:not(:where(.customizing *)) > .widget-head { display: none; }
 .widget-body { min-width: 0; }
-.widget[style*="--h"] > .widget-body { height: var(--h); overflow: auto; }
+/* A real (thin) scrollbar with its own gutter: Windows 11's overlay scrollbar drew over the dates at the right edge. */
+.widget[style*="--h"] > .widget-body { height: var(--h); overflow: auto; scrollbar-width: thin; scrollbar-color: #c3ccd8 transparent;
+  scrollbar-gutter: stable; }
 .widget[style*="--h"] .week-day { min-height: calc(var(--h) - 70px); }
 .widget .panel, .widget .week-panel { border: 0; padding: 0; margin: 0; background: none; }
 .widget .cards { margin-bottom: 0; }

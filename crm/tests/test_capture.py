@@ -363,6 +363,22 @@ class NeedsFilingTests(CaptureBase):
         self.assertFalse(m.firms.exists())
         self.assertEqual(m.unfiled_domains, ["harborpoint.test"])
 
+    def test_an_old_suggestion_isnt_filed_once_the_domain_is_a_company_or_ignored(self):
+        # The review found this: "Add selected as companies" or Ignore left Claude's medium suggestion open, and a
+        # later meeting filed the domain into the directory anyway.
+        for domain, decide in [("acme.test", lambda d: Company.objects.create(name="Acme", domains=[d])),
+                               ("noise.test", lambda d: MailFilter.objects.create(pattern=d, kind="ignore"))]:
+            self.queue(f"bob@{domain}", "Hello")
+            patch, _ = claude(result(domain, "directory", "vendor", domain, "medium", "Looks like a vendor."))
+            with patch:
+                sort.auto_sort()
+            decide(domain)
+            self.meeting(f"{domain} call", [{"email": f"bob@{domain}"}])
+            patch, _ = claude()
+            with patch:
+                self.assertEqual(sort.auto_sort()["filed in the directory"], 0, domain)
+        self.assertFalse(Firm.objects.exists())
+
     def test_a_domain_only_met_at_a_meeting_is_sorted_and_filed(self):
         self.meeting("Kickoff", [{"email": "jan@gfrlaw.test", "name": "Jan Ruiz"}])
         patch, stream = claude(result("gfrlaw.test", "directory", "law", "Gordon Feinblatt", "medium", "A law firm."))
