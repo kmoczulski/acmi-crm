@@ -1,0 +1,11 @@
+{# One company or contact in an import row. x: {pk, name, state, first, how, fields}; kind: "company" / "contact". #}
+{% if not x %}<span class="muted">—</span>
+{% elif x.first != row %}<span class="muted">Same {{ kind }} as row {{ x.first }}</span>
+{% else %}
+  {% if x.state == "new" %}<span class="pill pill-good">{% if done %}Created{% else %}New {{ kind }}{% endif %}</span>
+  {% elif x.state == "updated" %}<span class="pill">{% if done %}Updated{% else %}Matches{% endif %}</span>
+  {% else %}<span class="pill">Matches</span>{% endif %}
+  {% if x.pk and not undone or x.pk and x.state != "new" %}<a href="{% if kind == 'company' %}{% url 'crm:company_detail' x.pk %}{% else %}{% url 'crm:person_detail' x.pk %}{% endif %}" target="_blank">{{ x.name }}</a>{% else %}<strong>{{ x.name }}</strong>{% endif %}
+  {% if x.how and x.state != "new" %}<span class="muted lc-small">{{ x.how }}</span>{% endif %}
+  {% if x.fields and x.state != "new" %}<div class="muted lc-small">{% if mode == "update" %}{% if done %}Updated{% else %}Will update{% endif %}{% else %}{% if done %}Filled{% else %}Will fill{% endif %}{% endif %}: {{ x.fields|join:", " }}</div>{% endif %}
+{% endif %}

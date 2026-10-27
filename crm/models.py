@@ -1103,6 +1103,40 @@ class SavedView(models.Model):
         return self.name
 
 
+class ImportBatch(models.Model):
+    """One spreadsheet import (crm/sheet_import/): who ran it, what each row did, and what Undo has to put back.
+
+    `undo` holds {"companies": [pk], "people": [pk], "company_changes": {pk: {field: [old, new]}},
+    "person_changes": {...}, "added_domains": {pk: [domain]}, "added_phones": {pk: [phone]}, "list_entries": [pk],
+    "lists": [pk], "activities": [pk]}. The uploaded file itself is never kept."""
+
+    class Mode(models.TextChoices):
+        FILL = "fill", "Fill blanks only"
+        UPDATE = "update", "Update with the sheet's values"
+
+    filename = models.CharField(max_length=255)
+    sheet = models.CharField(max_length=120, blank=True)
+    mode = models.CharField(max_length=10, choices=Mode.choices, default=Mode.FILL)
+    rows_read = models.PositiveIntegerField(default=0)
+    counts = models.JSONField(default=dict, blank=True)
+    results = models.JSONField(default=list, blank=True, help_text="What each row did, for the results page")
+    undo = models.JSONField(default=dict, blank=True)
+    created_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    created_at = models.DateTimeField(auto_now_add=True)
+    undone_at = models.DateTimeField(null=True, blank=True)
+    undone_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+
+    class Meta:
+        ordering = ["-created_at"]
+        verbose_name_plural = "import batches"
+
+    def __str__(self):
+        return f"{self.filename} ({self.created_at:%Y-%m-%d})"
+
+    def get_absolute_url(self):
+        return reverse("crm:sheet_import_result", args=[self.pk])
+
+
 class PushSubscription(models.Model):
     """One browser on one device that turned on browser notifications (Web Push, crm/push.py)."""
 

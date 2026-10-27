@@ -11,6 +11,7 @@ from .dataroom import views as room_views
 from .directory import views as directory_views
 from .entitlements import views as entitlement_views
 from .tenants import views as tenant_views
+from .sheet_import import views as import_views
 from .land import assignment_views as asg_views
 from . import settings_views
 from .land import brief_views, comp_views, diligence_views, letter_views
@@ -35,6 +36,13 @@ urlpatterns = [
     path("companies/duplicates/", views.duplicates, name="duplicates"),
     path("companies/duplicates/merge/", views.duplicates_merge, name="duplicates_merge"),
     path("companies/duplicates/dismiss/", views.duplicates_dismiss, name="duplicates_dismiss"),
+    # Import from a spreadsheet (crm/sheet_import/).
+    path("import/", import_views.upload, name="sheet_import"),
+    path("import/map/", import_views.mapping, name="sheet_import_map"),
+    path("import/preview/", import_views.preview, name="sheet_import_preview"),
+    path("import/cancel/", import_views.cancel, name="sheet_import_cancel"),
+    path("import/<int:pk>/", import_views.result, name="sheet_import_result"),
+    path("import/<int:pk>/undo/", import_views.undo, name="sheet_import_undo"),
     path("people/", views.person_list, name="person_list"),
     path("people/new/", views.person_create, name="person_create"),
     path("people/<int:pk>/", views.person_detail, name="person_detail"),

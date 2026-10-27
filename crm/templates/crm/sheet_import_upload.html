@@ -1,0 +1,82 @@
+{% extends "crm/base.html" %}
+{% load crm_tags %}
+{% block title %}Import from a spreadsheet · ACMI CRM{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Import from a spreadsheet</h1>
+  <span class="spacer"></span>
+  <a class="btn" href="{% url 'crm:company_list' %}">Companies</a>
+  <a class="btn" href="{% url 'crm:person_list' %}">People</a>
+</div>
+
+{% if pending %}
+<div class="panel imp-pending">
+  <span><strong>{{ pending.file }}</strong> is waiting to be imported.</span>
+  <a class="btn btn-primary btn-small" href="{% url 'crm:sheet_import_map' %}">Carry on</a>
+  <form method="post" action="{% url 'crm:sheet_import_cancel' %}">{% csrf_token %}<button class="btn-small">Cancel it</button></form>
+</div>
+{% endif %}
+
+<div class="panel" style="max-width:760px">
+  <p style="margin-top:0">Companies and contacts from an Excel workbook or a CSV file. One row can hold a company, a contact, or both
+    (the usual case: a contact and the company they work at). Next you match the columns to CRM fields and see what every row
+    would do before anything is written.</p>
+  <form method="post" enctype="multipart/form-data" id="imp-form">{% csrf_token %}
+    <div class="dropzone" id="imp-drop">
+      <input type="file" name="file" id="imp-file" hidden accept=".xlsx,.xlsm,.xls,.csv,.txt,.tsv">
+      <div class="dz-target">
+        <div class="dz-icon" aria-hidden="true">⤓</div>
+        <div><b>Drop a spreadsheet here</b>
+          <div class="muted lc-small">.xlsx or .csv, up to {{ max_mb }} MB and {{ max_rows }} rows. An old .xls? Save it as .xlsx first.</div>
+        </div>
+        <button type="button" class="btn btn-small" id="imp-pick">Choose a file</button>
+      </div>
+    </div>
+  </form>
+  <p class="muted lc-small" style="margin-bottom:0">Matching: contacts by email, companies by name and then by a website or email
+    domain they already have. Gmail-type addresses never set a company's domain; a directory firm's domain is skipped.
+    The file isn't kept: only what you import is.</p>
+</div>
+
+{% if batches %}
+<div class="panel">
+  <h3>Recent imports</h3>
+  <table class="data">
+    <thead><tr><th>File</th><th>By</th><th>When</th><th class="num">New companies</th><th class="num">New contacts</th><th class="num">Updated</th><th class="num">Skipped</th><th></th></tr></thead>
+    <tbody>
+    {% for b in batches %}
+      <tr>
+        <td><a href="{{ b.get_absolute_url }}">{{ b.filename }}</a>{% if b.sheet and b.sheet != b.filename %} <span class="muted">· {{ b.sheet }}</span>{% endif %}</td>
+        <td>{{ b.created_by.get_full_name|default:b.created_by.username|default:"—" }}</td>
+        <td>{{ b.created_at|ago }}</td>
+        <td class="num">{{ b.counts.companies_new|default:0 }}</td>
+        <td class="num">{{ b.counts.people_new|default:0 }}</td>
+        <td class="num">{{ b.counts.companies_changed|add:b.counts.people_changed|default:0 }}</td>
+        <td class="num">{{ b.counts.skipped|default:0 }}</td>
+        <td>{% if b.undone_at %}<span class="pill">Undone</span>{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% endblock %}
+{% block scripts %}
+<script>
+  (function () {
+    const drop = document.getElementById('imp-drop'), input = document.getElementById('imp-file');
+    const form = document.getElementById('imp-form');
+    document.getElementById('imp-pick').addEventListener('click', () => input.click());
+    input.addEventListener('change', () => { if (input.files.length) form.submit(); });
+    ['dragenter', 'dragover'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.add('dz-over'); }));
+    ['dragleave', 'drop'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.remove('dz-over'); }));
+    drop.addEventListener('drop', e => {
+      if (!e.dataTransfer.files.length) return;
+      const dt = new DataTransfer();
+      dt.items.add(e.dataTransfer.files[0]);
+      input.files = dt.files;
+      form.submit();
+    });
+  })();
+</script>
+{% endblock %}

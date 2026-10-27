@@ -1,0 +1,32 @@
+{% extends "crm/base.html" %}
+{% load crm_tags %}
+{% block title %}{{ batch.filename }} · Import · ACMI CRM{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Imported {{ batch.filename }}</h1>
+  <span class="muted">{% if batch.sheet and batch.sheet != batch.filename %}{{ batch.sheet }} · {% endif %}{{ batch.rows_read }} row{{ batch.rows_read|pluralize }} · by {{ batch.created_by.get_full_name|default:batch.created_by.username|default:"—" }}, {{ batch.created_at|date:"M j, Y g:i a" }} · {{ batch.get_mode_display }}</span>
+  <span class="spacer"></span>
+  <a class="btn" href="{% url 'crm:sheet_import' %}">Import another file</a>
+</div>
+
+{% if batch.undone_at %}
+<div class="panel imp-undone">Undone by {{ batch.undone_by.get_full_name|default:batch.undone_by.username|default:"—" }} on {{ batch.undone_at|date:"M j, Y g:i a" }}: the records it created were deleted and the fields it filled were put back.</div>
+{% endif %}
+
+{% include "crm/partials/sheet_import_counts.html" with done=True %}
+
+{% if can_undo %}
+<div class="panel imp-undo">
+  {% if IS_MANAGER %}
+  <form method="post" action="{% url 'crm:sheet_import_undo' batch.pk %}">{% csrf_token %}
+    <button class="btn-danger" onclick="return confirm('Undo this import? The {{ counts.companies_new }} companies and {{ counts.people_new }} contacts it created are deleted{% if touched %}, with anything logged on them since{% endif %}, and the fields it filled on existing records are put back.')">Undo this import</button>
+    <span class="muted lc-small">Deletes only what this import created and puts back what it filled. Until {{ undo_until|date:"M j" }}.{% if touched %} {{ touched }} of the records it created have had emails or notes logged since: those go too.{% endif %}</span>
+  </form>
+  {% else %}
+  <span class="muted lc-small">A manager can undo this import until {{ undo_until|date:"M j" }}.</span>
+  {% endif %}
+</div>
+{% endif %}
+
+{% include "crm/partials/sheet_import_rows.html" with mode=batch.mode undone=batch.undone_at %}
+{% endblock %}

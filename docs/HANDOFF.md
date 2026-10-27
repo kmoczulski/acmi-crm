@@ -2455,3 +2455,45 @@ Branch `company-card`, no migration.
   Tab and filter changes on the same page update its entry, so Back goes to the previous page, not the previous tab; it
   uses the browser's own back when that's where it goes, so the scroll position comes back too.
 - Tests: `crm/tests/test_company_card.py` (3); 716 pass. Checked in the browser on a scratch database with made-up deals.
+
+## Built 2026-10-27: sheet-import (Kellen: "I want the ability to upload an excel sheet to the CRM - it should be able to create companies and add contacts")
+
+Branch `sheet-import`, migration `0071_import_batch` (the `ImportBatch` table). Code in `crm/sheet_import/`
+(`logic.py` reads, guesses, plans, runs and undoes; `views.py` is the pages).
+
+- **Where:** an Import button on Companies and on People, "Import from a spreadsheet" in the + New menu and in the
+  Ctrl K page list. `/import/` → match the columns → preview → import → results. `/import/` also lists recent imports.
+- **Files:** .xlsx (with several sheets, chips pick one), .csv (comma, semicolon or tab), and the HTML-table ".xls"
+  that old web viewers export. A real binary .xls is refused with "save it as .xlsx". Limits: 5 MB and 5,000 rows a
+  sheet. The file is never saved: its cells sit in the session between the steps and are dropped once it's imported.
+- **Columns** are guessed from the header (aliases, as in `crm/land/owners.py`): company name, website / domain,
+  sector, city, state, HQ location, priority, stage, owner, company LinkedIn, company notes; first / last / full name,
+  email, title, phone, LinkedIn, contact notes. Each can be changed or set to Ignore. A row can be a company, a contact
+  or both.
+- **Matching** (as `import_workbook` does): contacts on email (then their other emails; with no email, by name at a
+  matched company); companies on `normalize_key(name)`, then on a domain a company already has (from the website
+  column, else the contact's email unless it's free mail), and for a row with no company name, a domain that spells a
+  company's name. A contact with no company name and an unknown email domain is added without a company (no company
+  is guessed from an email domain); a website with no name makes a company named from the domain.
+- **Preview** writes nothing: counts at the top, then each row as New company / Matches X (by name, by website, by
+  email domain) / New contact / Matches X, with the fields it would fill, or Skipped with the reason. Skipped: a
+  directory firm's domain (never a company, and the contact isn't put on the firm either), a protected address (Mail
+  filters), an ACMI address. Flagged: an ignored domain (not added), an invalid email, the same email twice in the
+  file, a stage / priority / owner the CRM doesn't have, a domain already on another company, the sheet's name
+  differing from the company its domain found, a name close to another new company in the file. New companies whose
+  names look like existing ones (`merge.core_name`, the Possible duplicates check) get a dropdown to put the rows on
+  the existing company instead.
+- **Options:** Fill blanks only (the default; never changes a value the CRM has, and an existing person's name is left
+  alone if they have one) or Update with the sheet's values (notes are added to, never replaced; a contact at another
+  company moves). Owner, stage and priority for new companies when the row has none. Add the companies and / or the
+  contacts to an existing list or a new one.
+- **Import:** one transaction, history suppressed. Each new record gets a background "Imported from <file>" (Record
+  created) and each updated one "Updated from <file>: sector, title" (Field change), by the importer (the Activity
+  tab's "Show background" shows them, as it does "Company created").
+- **Undo** (Managers only, like every delete; for 7 days): deletes the companies and contacts the import created (and
+  anything logged on them since; the page says how many have some), its list entries, the lists it made if now empty,
+  the domains and phones it added, and puts back each field it filled unless someone has changed it since.
+- Partners never reach it (PartnerOnlyMiddleware sends them to the room; tested).
+- Tests: `crm/tests/test_import_sheet.py` (16); 805 pass. Checked in the browser on a scratch database with a made-up CSV:
+  upload, mapping, preview flags, the close-name pick, import, the timeline line, Undo.
+- **To run on the real database (Kellen's OK first; back up as "How to work in this repo" says):** `migrate crm`.
