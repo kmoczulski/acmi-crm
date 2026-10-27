@@ -1,4 +1,5 @@
 """Mail in the hub, step 5: new message, reply, reply all, forward, attachments, drafts, signature, sending."""
+import base64
 from datetime import timedelta
 from email import message_from_bytes, policy
 from unittest import mock
@@ -133,6 +134,34 @@ class ComposeTests(TestCase):
         self.assertIn("Here it is.", plain)
         self.assertIn("wrote:\n> Can you send the PDA?", plain)
         self.assertIn('<div class="gmail_quote">', msg.get_body(("html",)).get_content())
+
+    def test_formatting_goes_out_as_html_with_a_plain_copy(self):
+        rich = ('<div>Hi <b>Will</b>, <i>three</i> <u>things</u>:</div><ol><li>PDA</li><li>Site plan</li></ol>'
+                '<ul><li>see <a href="https://acmigroup.com">our site</a></li></ul>'
+                '<script>alert(1)</script><a href="javascript:alert(1)">bad</a>')
+        self.post(mode="new", to="will@firehawkaerospace.com", subject="PDA", body="ignored when html is there",
+                  body_html=rich)
+        _, msg = self.sent()
+        html = msg.get_body(("html",)).get_content()
+        for kept in ("<b>Will</b>", "<i>three</i>", "<u>things</u>", "<ol><li>PDA</li>", '<a href="https://acmigroup.com">'):
+            self.assertIn(kept, html)
+        self.assertNotIn("script", html)
+        self.assertNotIn("javascript:", html)
+        plain = msg.get_body(("plain",)).get_content()
+        self.assertIn("Hi Will, three things:\n1. PDA\n2. Site plan\n- see our site", plain)
+        self.assertNotIn("ignored", plain)
+        # An editor left empty falls back to the plain text, and a mistake brings the formatting back.
+        self.post(mode="new", to="will@firehawkaerospace.com", subject="x", body="Just text", body_html="<div><br></div>")
+        _, msg = self.sent()
+        self.assertIn("<p>Just text</p>", msg.get_body(("html",)).get_content())
+        r = self.post(mode="new", to="will@firehawk", subject="x", body="Hi", body_html="<b>Hi</b><script>x</script>")
+        self.assertContains(r, 'data-html="&lt;b&gt;Hi&lt;/b&gt;"', status_code=400)
+        # Drafts keep it too.
+        for extra in ({}, {"to": "will@firehawkaerospace.com"}):
+            r = self.client.post(reverse("crm:inbox_draft"), {"mode": "new", "subject": "Idea", "body": "x",
+                                                              "body_html": "<i>later</i>", **extra})
+            raw = base64.urlsafe_b64decode(self.fake.drafts[r.json()["draft"]]["raw"])
+            self.assertIn("<i>later</i>", message_from_bytes(raw, policy=policy.default).get_body(("html",)).get_content())
 
     def test_forward_keeps_only_the_ticked_original_files(self):
         self.post(mode="forward", reply_to_id="0a01", to="pat@shoreunitedbank.com", subject="Fwd: PDA",

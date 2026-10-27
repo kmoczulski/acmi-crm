@@ -2081,6 +2081,19 @@ a.mail-chip:hover { text-decoration: none; filter: brightness(.95); }
 .compose-more[open] > summary { margin-bottom: 6px; }
 .compose-more .compose-row { margin-bottom: 6px; }
 .compose-body { width: 100%; min-height: 220px; font: inherit; line-height: 1.45; resize: vertical; }
+.compose-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; padding: 3px; border: 1px solid var(--line);
+  border-bottom: 0; border-radius: var(--radius) var(--radius) 0 0; background: var(--bg); margin-bottom: -8px; }
+.compose-tool { min-width: 30px; height: 28px; padding: 0 6px; border: 1px solid transparent; border-radius: 4px; background: none;
+  color: var(--text); font-size: 14px; line-height: 1; cursor: pointer; }
+.compose-tool:hover { background: var(--panel); border-color: var(--line); }
+.compose-tool.on { background: var(--accent-soft); border-color: var(--accent-soft); color: var(--accent); }
+.compose-tool-gap { width: 1px; height: 18px; background: var(--line); margin: 0 4px; }
+.compose-editor { padding: 8px 10px; border: 1px solid var(--line); border-radius: 0 0 var(--radius) var(--radius); background: var(--panel);
+  overflow: auto; overflow-wrap: anywhere; outline: none; }
+.compose-editor:focus { border-color: var(--accent); }
+.compose-editor ul, .compose-editor ol { margin: 4px 0; padding-left: 26px; }
+.compose-editor blockquote { margin: 4px 0 4px 12px; }
+.compose-editor p { margin: 0 0 8px; }
 .compose-sig { margin: 0; }
 .compose-files { border: 1px solid var(--line); border-radius: var(--radius); padding: 6px 10px; display: flex; flex-direction: column; gap: 4px; }
 .compose-attach input { margin-left: 6px; max-width: 100%; }

@@ -34,7 +34,7 @@
   </div>
   {{ templates|json_script:"compose-templates" }}
   {% endif %}
-  <textarea name="body" rows="12" class="compose-body" aria-label="Message" {% if f.mode == "forward" %}autofocus{% endif %} data-first-name="{{ first_name }}">{{ body }}</textarea>
+  <textarea name="body" rows="12" class="compose-body" aria-label="Message" {% if f.mode == "forward" %}autofocus{% endif %} data-first-name="{{ first_name }}" data-html="{{ body_html }}">{{ body }}</textarea>
   {% if signature_html %}<div class="compose-sig"><span class="muted lc-small">Your signature goes under it · <a href="{% url 'crm:mail_settings' %}#signature">Change</a></span><div class="compose-sig-preview">{{ signature_html|safe }}</div></div>{% endif %}
   {% if original %}
   <details class="compose-original"><summary class="lc-small">{% if f.mode == "forward" %}Forwarding{% else %}Replying to{% endif %} {{ original.from_name }}, {{ original.date|date:"M j, g:i a" }}</summary>
