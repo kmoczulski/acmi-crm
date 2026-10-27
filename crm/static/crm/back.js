@@ -4,7 +4,7 @@
 (function () {
   var box = document.getElementById("hub-back");
   if (!box) return;
-  var KEY = "hubTrail", MAX = 30;
+  var KEY = window.top === window ? "hubTrail" : "hubTrail:side", MAX = 30;  // the split view's side keeps its own
   var here = { path: location.pathname, url: location.pathname + location.search + location.hash,
                title: (document.title || "").replace(/ · ACMI CRM$/, "").replace(/^ACMI CRM$/, "Home") };
   var trail = [];

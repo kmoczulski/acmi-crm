@@ -23,7 +23,7 @@
   // Top menus: one open at a time; on a wide screen with a mouse they open on hover, like CoStar's.
   const menus = [...document.querySelectorAll('.tn-menu, .menu-wrap')];
   menus.forEach(d => d.addEventListener('toggle', () => { if (d.open) menus.forEach(o => { if (o !== d) o.open = false; }); }));
-  const hoverable = () => matchMedia('(min-width: 1181px) and (hover: hover)').matches;
+  const hoverable = () => matchMedia('(min-width: 1181px) and (hover: hover)').matches && !root.classList.contains('split-narrow');
   document.querySelectorAll('.tn-menu').forEach(d => {
     let t = null;
     d.addEventListener('mouseenter', () => { if (!hoverable()) return; clearTimeout(t); t = setTimeout(() => { d.open = true; }, 80); });

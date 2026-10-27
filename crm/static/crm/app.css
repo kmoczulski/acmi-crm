@@ -2306,3 +2306,46 @@ body.times-resizing { user-select: none; cursor: ew-resize; }
 .reply-dismiss:hover { color: var(--bad); }
 /* Windows draws scrollbars over the content's edge: keep room for them in the inbox columns and the Times grid */
 .mail-folders, .mail-rows, .mail-reader, .times-picked { scrollbar-gutter: stable; scrollbar-width: thin; }
+
+/* Split view: another hub page beside this one (split.js). The side is a frame drawn without the top bar. */
+html.embedded { --topbar-h: 0px; }
+html.embedded .appbar { display: none; }
+html.split-on .shell { margin-right: var(--split-w, 560px); }
+html.split-on .times-panel { right: var(--split-w, 560px); }
+/* The main side narrower than 1180 px: the top menus fold into ☰, as they do on a narrow window. */
+html.split-narrow .appbar .nav-burger { display: block; }
+html.split-narrow .topnav { display: none; position: absolute; left: 0; right: 0; top: var(--topbar-h); height: auto; flex-direction: column;
+  background: var(--accent); padding: 8px; max-height: calc(100vh - var(--topbar-h)); overflow-y: auto; }
+html.split-narrow.nav-open .topnav { display: flex; }
+html.split-narrow .tn-link, html.split-narrow .tn-menu > summary { height: 42px; border: 0; }
+html.split-narrow .tn-menu { height: auto; }
+html.split-narrow .tn-drop { position: static; box-shadow: none; border-top: 0; border-radius: 8px; margin: 0 0 6px; min-width: 0; }
+html.split-narrow .appbar .search-trigger { width: auto; }
+html.split-narrow .appbar .search-trigger kbd, html.split-narrow .appbar .search-text { display: none; }
+/* The Land map in a side narrower than 900 px keeps its filters beside the map (hide them with ☰ Filters). */
+@media (min-width: 560px) and (max-width: 900px) {
+  html.embedded .land { grid-template-columns: 260px minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); height: 100vh; }
+  html.embedded .land.side-closed { grid-template-columns: 0 minmax(0, 1fr); }
+  html.embedded .land-side { max-height: none; }
+  html.embedded .land-work { grid-row: 2; }
+}
+.split-pane { position: fixed; top: 0; right: 0; bottom: 0; width: var(--split-w, 560px); z-index: 45; display: flex; flex-direction: column;
+  background: var(--panel); border-left: 1px solid var(--line); box-shadow: -4px 0 16px rgba(0,0,0,.06); }
+.split-pane[hidden] { display: none; }
+.split-handle { position: absolute; top: 0; bottom: 0; left: -5px; width: 10px; cursor: col-resize; z-index: 2; touch-action: none; }
+.split-handle::after { content: ""; position: absolute; top: 50%; left: 3px; width: 4px; height: 44px; margin-top: -22px; border-radius: 2px;
+  background: var(--line); }
+.split-handle:hover::after, .split-handle:focus-visible::after, .split-dragging .split-handle::after { background: var(--accent); }
+.split-bar { display: flex; align-items: center; gap: 4px; height: var(--topbar-h); padding: 0 8px 0 12px; background: var(--accent); color: #fff; flex: 0 0 auto; }
+.split-pick { max-width: 170px; height: 30px; font-size: 13px; }
+.split-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #dbe4f0; font-size: 13px; }
+.split-act { border: 0; background: none; color: #fff; font-size: 16px; padding: 4px 7px; border-radius: var(--radius); cursor: pointer; }
+.split-act:hover { background: rgba(255,255,255,.14); }
+.split-frame { flex: 1; width: 100%; border: 0; background: var(--bg); }
+.split-dragging, .split-dragging * { user-select: none; cursor: col-resize; }
+.split-dragging iframe { pointer-events: none; }  /* the frames would swallow the drag */
+@media (max-width: 900px) {
+  html.split-on .shell { margin-right: 0; }
+  html.split-on .times-panel { right: 0; }
+  .split-pane, .split-btn { display: none; }
+}

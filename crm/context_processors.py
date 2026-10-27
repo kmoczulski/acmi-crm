@@ -63,4 +63,11 @@ def app_context(request):
         # Managers-only buttons are hidden for everyone else (the views refuse them too).
         "IS_MANAGER": is_manager(getattr(request, "user", None)),
         "MAIL_ON": mail_on,  # Mail in the hub: the top bar's Mail link
+        "EMBED": is_embedded(request),
     }
+
+
+def is_embedded(request):
+    """The page is the other side of the split view (crm/static/crm/split.js): drawn without the top bar. The side's
+    first page asks with ?embed=1; pages opened from inside it are known by the browser's Sec-Fetch-Dest: iframe."""
+    return request.GET.get("embed") == "1" or request.headers.get("Sec-Fetch-Dest") == "iframe"

@@ -73,7 +73,8 @@
       // Drag the left edge to make the panel wider or narrower; remembered in this browser.
       panel.querySelector('[data-resize]').addEventListener('pointerdown', e => {
         e.preventDefault();
-        const move = ev => setWidth(window.innerWidth - ev.clientX);
+        const right = panel.getBoundingClientRect().right;  // not the window's edge when a split view is open (split.js)
+        const move = ev => setWidth(right - ev.clientX);
         const up = () => {
           window.removeEventListener('pointermove', move);
           window.removeEventListener('pointerup', up);
