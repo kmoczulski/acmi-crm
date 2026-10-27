@@ -347,7 +347,9 @@ late:** Title Objection Deadline (Sep 22) and Send ACMI Invoice to Prometheus (S
 4. **Exploration Park and Volare lists** (233 comments): skip, as their boards were (recommended), or put them in the
    archive board too?
 
-## Properties-Campus Pursuits and Properties-Capitalization: import plan (proposed 2026-10-27, waiting on Kellen)
+## Properties-Campus Pursuits and Properties-Capitalization: import plan (2026-10-27)
+
+**Imported 2026-10-27**: Kellen took all five recommended answers below (see HANDOFF "Trello history, Campus Pursuits and Capitalization"). With this, every board Kellen kept is imported.
 
 ### Properties-Campus Pursuits → a new team board, "Campus pursuits"
 
