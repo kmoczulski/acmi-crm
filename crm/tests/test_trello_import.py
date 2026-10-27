@@ -202,3 +202,60 @@ class MeihImportTests(TestCase):
         trello_import.import_meih(meih_data(), self.kellen)
         self.assertEqual(counts, (Card.objects.count(), Comment.objects.count(), CardAttachment.objects.count(),
                                   self.Firm.objects.count()))
+
+
+class NsihImportTests(TestCase):
+    def setUp(self):
+        from crm.models import Campus, Firm, Project
+
+        self.kellen = User.objects.create_user("Kellen", first_name="Kellen", last_name="Moczulski")
+        self.nsih = Campus.objects.create(code="NSIH", name="National Security Industrial Hub")
+        Project.objects.create(name="NSIH", campus=self.nsih)
+        self.prometheus = Opportunity.objects.create(name="Prometheus", stage="signed",
+                                                     company=Company.objects.create(name="Prometheus (Kratos / Rafael)"))
+        self.haskell = Firm.objects.create(name="Haskell", kind="contractor")
+        lists = [{"id": "t", "name": "Tenancy/Contracts", "closed": False, "pos": 1},
+                 {"id": "d", "name": "Design & Construction", "closed": False, "pos": 2},
+                 {"id": "p", "name": "Prospecting", "closed": True, "pos": 3}]
+
+        def card(cid, name, lst):
+            return {"id": cid, "shortLink": cid, "name": name, "desc": "", "idList": lst, "closed": False, "pos": 1,
+                    "idLabels": [], "idMembers": [], "checklists": [], "attachments": []}
+
+        self.data = {
+            "board": {"name": "Properties-NSIH", "lists": lists, "labels": [], "members": [KELLEN]},
+            "cards": [card("6a01", "Prometheus - DMA", "t"), card("6a02", "Architect - Haskell", "d"),
+                      card("6a03", "LOI - Kratos", "p"), card("6a04", "https://trello.com/c/xyz", "p")],
+            "checklists": [],
+            "actions": [{"id": "y1", "type": "commentCard", "date": "2026-02-01T10:00:00.000Z", "memberCreator": KELLEN,
+                         "data": {"text": "DMA signed", "card": {"id": "6a01"}}}],
+        }
+
+    def test_a_new_board_with_cards_on_their_deals_and_firms(self):
+        from crm.models import Board, Firm
+
+        imp = trello_import.import_nsih(self.data, self.kellen)
+        board = Board.objects.get(name="NSIH")
+        self.assertEqual(board.campus, self.nsih)
+        self.assertEqual(board.lists.get(feed="open_tasks").name, "Open tasks")
+        dma = Card.objects.get(source_key="trello:6a01")
+        self.assertEqual((dma.list.name, dma.opportunity), ("Tenants and leases", self.prometheus))
+        self.assertEqual(Comment.objects.get(card=dma).opportunity, self.prometheus)
+        self.assertEqual(Card.objects.get(source_key="trello:6a02").firm, self.haskell)
+        kratos = Card.objects.get(source_key="trello:6a03")
+        self.assertTrue(kratos.archived)
+        self.assertEqual(kratos.opportunity, self.prometheus)
+        self.assertFalse(Card.objects.filter(source_key="trello:6a04").exists())  # a link card
+        self.prometheus.refresh_from_db()
+        self.assertEqual(self.prometheus.campus, self.nsih)
+        self.assertTrue(Firm.objects.filter(name="Fortress", kind="investor").exists())
+        self.assertEqual(imp.counts["firms added to the directory"], 14)
+
+    def test_a_rerun_adds_nothing(self):
+        from crm.models import Board, Firm
+
+        trello_import.import_nsih(self.data, self.kellen)
+        counts = (Board.objects.count(), Card.objects.count(), Comment.objects.count(), Firm.objects.count())
+        trello_import.import_nsih(self.data, self.kellen)
+        self.assertEqual(counts, (Board.objects.count(), Card.objects.count(), Comment.objects.count(),
+                                  Firm.objects.count()))

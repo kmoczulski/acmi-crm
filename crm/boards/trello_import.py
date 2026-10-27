@@ -480,3 +480,138 @@ def import_meih(data, by=None):
     imp = MeihImporter(data, board, by)
     imp.run()
     return imp
+
+
+# ---------------------------------------------------------------------------
+# Properties-NSIH → a new NSIH board (docs/TRELLO_MAPPING.md, "Properties-NSIH", Kellen took the six recommended
+# answers on 2026-10-27): Trello's workstream lists kept, cards linked to the deals and directory firms they name.
+# ---------------------------------------------------------------------------
+
+PROMETHEUS = "Prometheus (Kratos / Rafael)"
+# (hub list, feed): the board's lists in order.
+NSIH_BOARD_LISTS = [("Administration", ""), ("Design & construction", ""), ("Due diligence", ""),
+                    ("Infrastructure / utilities", ""), ("Land contracts", ""), ("Parcel owners", ""),
+                    ("Tenants and leases", ""), ("Capitalization", ""), ("Models & decks", ""), ("Open tasks", "open_tasks")]
+# Trello list → (hub list, True to put all its cards there archived).
+NSIH_LISTS = {
+    "Administration": ("Administration", False),
+    "Design & Construction": ("Design & construction", False),
+    "Due Diligence": ("Due diligence", False),
+    "Infrastructure / Utilities": ("Infrastructure / utilities", False),
+    "Land Contracts": ("Land contracts", False),
+    "Parcel Owners": ("Parcel owners", False),
+    "Tenancy/Contracts": ("Tenants and leases", False),
+    "Capitalization": ("Capitalization", False),
+    "Models & Decks": ("Models & decks", False),
+    "Prospecting": ("Tenants and leases", True),
+}
+# Card name → (record kind, record name). Deals are found by their company's name; firms by name.
+NSIH_CARDS = {
+    "Insurance - Marsh": ("firm", "Marsh McLennan Agency"),
+    "Tax Incentives - Ryan LLC": ("firm", "Ryan LLC"),
+    "Legal - Drewry Simmons Vornehm": ("firm", "Drewry Simmons Vornehm"),
+    "Architect - Haskell": ("firm", "Haskell"),
+    "Scope Comparison - Haskell Contract and RFP": ("firm", "Haskell"),
+    "Change Orders - Haskell - Landscape & Interior Design": ("firm", "Haskell"),
+    "Design Deliverables - Haskell": ("firm", "Haskell"),
+    "Value Engineering - Haskell / P|W": ("firm", "Haskell"),
+    "CM - Pepper / Weddle": ("firm", "Pepper Construction"),
+    "Civil - Structurepoint": ("firm", "Structurepoint"),
+    "Schreifer Group": ("firm", "The Schreifer Group"),
+    "CMc Contract - Shiel Sexton": ("firm", "Shiel Sexton Company, Inc."),
+    "Ryan, LLC - Credits & Incentives": ("firm", "Ryan LLC"),
+    "Environmental Permitting - Earthsource": ("firm", "Earthsource"),
+    "Risk Management Plan - SMS Energetics": ("firm", "SMS Energetics"),
+    "Environmental - TRC Companies": ("firm", "TRC Companies"),
+    "Site Signage - Johnny's Signs": ("firm", "Johnny's Signs"),
+    "Fiber - Smithville": ("firm", "Smithville"),
+    "ROW Acquisition - First Group Engineering": ("firm", "First Group Engineering"),
+    "Solar - APT Solar Solutions": ("firm", "APT Solar Solutions"),
+    "Prometheus - Ground Lease": ("opportunity", PROMETHEUS),
+    "Prometheus - DMA": ("opportunity", PROMETHEUS),
+    "Prometheus Points of Contact Rules": ("opportunity", PROMETHEUS),
+    "Export Control (MLA) - Prometheus": ("opportunity", PROMETHEUS),
+    "Lease - Prometheus": ("opportunity", PROMETHEUS),
+    "Kratos": ("opportunity", PROMETHEUS),  # Kellen: the Kratos LOI cards belong to the Prometheus deal
+    "LOI - Kratos": ("opportunity", PROMETHEUS),
+    "Ground Lease - iRocket": ("opportunity", "iRocket"),
+    "Tenant - Spinner": ("opportunity", "Spinner"),
+    "CFIUS Review - Holland & Knight": ("firm", "Holland & Knight"),
+    "CTL Loan - CTL Capital": ("firm", "CTL Capital"),
+    "Strongbox Partnership": ("firm", "Strongbox"),
+    "Browning Partnership": ("firm", "Browning"),
+    "OneIM": ("firm", "OneIM"),
+    "Bain": ("firm", "Bain Capital"),
+    "Fortress": ("firm", "Fortress"),
+    "Cerebus": ("firm", "Cerberus"),
+}
+# Firms Kellen had added to the directory for these cards (2026-10-27).
+NSIH_NEW_FIRMS = [
+    ("Ryan LLC", "accounting"), ("Drewry Simmons Vornehm", "law"), ("Earthsource", "environmental"),
+    ("SMS Energetics", "consultant"), ("TRC Companies", "environmental"), ("Johnny's Signs", "vendor"),
+    ("APT Solar Solutions", "contractor"), ("Weddle", "contractor"), ("Fortress", "investor"), ("Strongbox", "investor"),
+    ("Browning", "investor"), ("OneIM", "investor"), ("Cerberus", "investor"), ("CTL Capital", "debt_fund"),
+]
+
+
+class NsihImporter(MeihImporter):
+    def record(self, kind, name):
+        if kind == "opportunity":  # prefer the NSIH deal when a company has deals on several campuses
+            qs = Opportunity.objects.filter(company__name=name)
+            return qs.filter(campus=self.board.campus).order_by("pk").first() or qs.order_by("pk").first()
+        return super().record(kind, name)
+
+    def run(self):
+        from ..models import Firm
+
+        for name, kind in NSIH_NEW_FIRMS:
+            if not Firm.objects.filter(name__iexact=name).exists():
+                Firm.objects.create(name=name, kind=kind)
+                self.counts["firms added to the directory"] += 1
+        # Kellen: the Prometheus deal is an NSIH deal (it had no campus).
+        if Opportunity.objects.filter(company__name=PROMETHEUS, campus=None).update(campus=self.board.campus):
+            self.counts["Prometheus deal set to NSIH"] += 1
+        hub, cards = {}, {c["id"]: c for c in self.data["cards"]}
+        list_pos = {i: l.get("pos") or 0 for i, l in self.lists.items()}
+        for tc in sorted(self.data["cards"], key=lambda c: (list_pos.get(c["idList"], 0), c.get("pos") or 0)):
+            tlist = self.lists.get(tc["idList"], {}).get("name", "")
+            if tc.get("cardRole") == "mirror" or tc.get("mirrorSourceId") or tc["name"].startswith("https://trello.com/c/"):
+                self.counts["mirror and link cards skipped"] += 1
+                continue
+            if tlist not in NSIH_LISTS:
+                self.counts[f"cards skipped (list {tlist})"] += 1
+                continue
+            hub_name, all_archived = NSIH_LISTS[tlist]
+            kind, rec_name = NSIH_CARDS.get(tc["name"], (None, None))
+            self.place(hub, tc, hub_name, kind, rec_name, archived=True if all_archived else None)
+        self.actions(hub, cards)
+        return self.counts
+
+
+def nsih_board(by=None):
+    """The NSIH board, made the first time with its lists and the team as members."""
+    from ..models import Campus, Project
+
+    campus = Campus.objects.filter(code="NSIH").first()
+    if campus is None:
+        return None
+    board = Board.objects.filter(campus=campus, name="NSIH").first()
+    if board is None:
+        board = logic.create_board("NSIH", by, kind=Board.Kind.CAMPUS, campus=campus,
+                                   project=Project.objects.filter(campus=campus, parent=None).order_by("pk").first(),
+                                   description="National Security Industrial Hub, Bloomfield, Indiana. The workstream "
+                                               "lists from the team's Properties-NSIH Trello board.")
+        for n, (name, feed) in enumerate(NSIH_BOARD_LISTS, 1):
+            BoardList.objects.create(board=board, name=name, position=n * logic.GAP, feed=feed)
+        board.members.add(*team_users().values())
+    return board
+
+
+@transaction.atomic
+def import_nsih(data, by=None):
+    board = nsih_board(by)
+    if board is None:
+        raise ValueError("No NSIH campus.")
+    imp = NsihImporter(data, board, by)
+    imp.run()
+    return imp
