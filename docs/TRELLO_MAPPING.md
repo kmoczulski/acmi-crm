@@ -347,6 +347,60 @@ late:** Title Objection Deadline (Sep 22) and Send ACMI Invoice to Prometheus (S
 4. **Exploration Park and Volare lists** (233 comments): skip, as their boards were (recommended), or put them in the
    archive board too?
 
+## Properties-Campus Pursuits and Properties-Capitalization: import plan (proposed 2026-10-27, waiting on Kellen)
+
+### Properties-Campus Pursuits → a new team board, "Campus pursuits"
+
+The ranked list of places ACMI might build next. 57 cards (36 live), **185 comments** (Simon 80, John Burer 45, Dave
+29, Paul 28, Kellen 2, Olivia Jaskula-Dybka 1), 8 checklists. Lists kept: **High priority**, **Medium priority**,
+**Low priority**, **Holding / overflow**; the archived lists' cards (Strategic Initiatives, 2025 ranking) come over
+archived. 2 mirror cards skipped.
+
+| Card | Linked to |
+|---|---|
+| TBD - Elbit America ("Project Dragon") | Elbit America / 26Defense deal |
+| Niron RFP | Niron Magnetics deal |
+| Thales - TBD location | Thales deal |
+| SAIC - South Carolina | SAIC deal |
+| MD - Johns Hopkins / APL | Johns Hopkins University deal |
+| Long Wall (Indiana Munitions Campus) | Long Wall · NSIH deal |
+| Minnesota / North Wind, Minnesota - Northwind, North Wind | North Wind deal |
+| Project: Saab (supplier campus in Michigan) | Saab deal |
+| Vulcan Forms & Specter Aerospace | Specter Aerospace deal |
+| Castelion | Castelion deal |
+| Everything else (IN - NSIH Indiana 17 comments, MD - Indian Head 23, Investor - Scaling Space 17, NC - Cumberland County 10, CA - California Forever 12, TX - Red River 7, Bee Cave, Metis Endeavor, Karman, UMKC, ORNL…) | plain cards |
+
+**Two cards are Exploration Park and Volare:** "TX - Exploration Park / Nassau Bay" (42 comments, 31 checklist items) and
+"VA - Project Volare (Avio)" (15 comments), plus the archived "Exploration Park" (1). They're the go / no-go history
+of those pursuits rather than the project boards that were skipped.
+
+### Properties-Capitalization → a new team board, "Capital partners"
+
+The equity and debt partner pipeline: 16 cards (15 live), **41 comments** (Kellen 36, Dave 5), 34 attachments
+(decks and term sheets). Lists kept as the pipeline: **Intro conversations**, **Active discussions**, **Term sheet /
+negotiation**, **Committed / closed**, **Passed / not a fit**. Labels kept: GP Capital, LP Capital, Programmatic JV,
+Lender, NSIH, MEIH, Virginia. Each card links to its directory firm:
+
+- Already in the directory: BGO, Montgomery Street Partners, Koch Real Estate, Bain Capital, OneIM, CTL Capital,
+  Cerberus, Fortress.
+- Not yet: Wellington, Temerity, Silver Peak, Davis Companies, L&B Capital, Blue Owl, JRE (added as investors).
+
+The hub's capital tracker (`CapitalSource`) is per project and per loan or raise (today: the two Forge construction
+loans), so these partner relationships are cards on firms rather than capital sources. A partner that makes an offer
+on a project becomes a capital source then. The NSIH board's Capitalization list (Fortress, Bain, OneIM, Cerberus,
+CTL…) stays as it is.
+
+### Kellen's decisions
+
+1. **Campus pursuits:** its own team board (recommended), or lists on "ACMI general"?
+2. **The Exploration Park / Nassau Bay and Project Volare (Avio) pursuit cards** (58 comments): bring them over
+   (recommended: they're the record of why those pursuits went the way they did, and sit on a live list), or skip
+   them like the Exploration Park and Volare boards?
+3. **Capital partners:** its own team board linked to directory firms (recommended), or capital sources?
+4. **Add the 7 missing investors** to the directory (recommended: yes).
+5. **Fortress:** rename the directory firm "Fortress" to **Fortress Investment Group** and make it the Fortress data
+   room's partner firm (the room has none today)? (Recommended: yes.)
+
 ## Needs Kellen's decision
 
 1. **Full history.** The exports lack 89–92% of comments on Prospecting and General. Options: run
