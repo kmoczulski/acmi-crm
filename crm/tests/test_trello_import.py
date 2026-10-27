@@ -318,3 +318,49 @@ class GeneralImportTests(TestCase):
         trello_import.import_general(self.data, self.kellen)
         self.assertEqual(counts, (Board.objects.count(), Card.objects.count(), Comment.objects.count(),
                                   CardAttachment.objects.count()))
+
+
+class PursuitsAndCapitalImportTests(TestCase):
+    def setUp(self):
+        from crm.models import DataRoom, Firm
+
+        self.kellen = User.objects.create_user("Kellen", first_name="Kellen", last_name="Moczulski")
+        self.saab = Opportunity.objects.create(name="Saab", stage="qualified", company=Company.objects.create(name="Saab"))
+        self.fortress = Firm.objects.create(name="Fortress", kind="investor")
+        self.room = DataRoom.objects.create(name="Fortress")
+
+    def board(self, name, lists, cards):
+        return {"board": {"name": name, "lists": [{"id": f"l{i}", "name": n, "closed": False, "pos": i} for i, n in enumerate(lists)],
+                          "labels": [], "members": [KELLEN]},
+                "cards": [{"id": cid, "shortLink": cid, "name": title, "desc": "", "idList": lst, "closed": False, "pos": 1,
+                           "idLabels": [], "idMembers": [], "checklists": [], "attachments": []} for cid, title, lst in cards],
+                "checklists": [],
+                "actions": [{"id": "q1", "type": "commentCard", "date": "2026-03-01T10:00:00.000Z", "memberCreator": KELLEN,
+                             "data": {"text": "hello", "card": {"id": cards[0][0]}}}]}
+
+    def test_pursuits_link_their_deals(self):
+        data = self.board("Properties-Campus Pursuits", ["Holding / Overflow"],
+                          [("8a01", "Project:\xa0Saab  (supplier campus in Michigan)", "l0"), ("8a02", "Florida", "l0")])
+        trello_import.import_pursuits(data, self.kellen)
+        saab = Card.objects.get(source_key="trello:8a01")
+        self.assertEqual((saab.list.board.name, saab.list.name, saab.opportunity),
+                         ("Campus pursuits", "Holding / overflow", self.saab))
+        self.assertEqual(Comment.objects.get(card=saab).opportunity, self.saab)
+        self.assertIsNone(Card.objects.get(source_key="trello:8a02").record())
+
+    def test_capital_cards_link_firms_and_fortress_becomes_the_rooms_partner(self):
+        from crm.models import Firm
+
+        data = self.board("Properties - Capitalization", ["Committed / Closed", "Intro Conversations"],
+                          [("9a01", "Fortress Investment Group", "l0"), ("9a02", "Blue Owl", "l1")])
+        imp = trello_import.import_capital(data, self.kellen)
+        self.fortress.refresh_from_db()
+        self.room.refresh_from_db()
+        self.assertEqual(self.fortress.name, "Fortress Investment Group")
+        self.assertEqual(self.room.partner, self.fortress)
+        card = Card.objects.get(source_key="trello:9a01")
+        self.assertEqual((card.list.name, card.firm), ("Committed / closed", self.fortress))
+        self.assertEqual(Card.objects.get(source_key="trello:9a02").firm, Firm.objects.get(name="Blue Owl"))
+        self.assertEqual(imp.counts["firms added to the directory"], 7)
+        trello_import.import_capital(data, self.kellen)  # a re-run adds nothing
+        self.assertEqual((Card.objects.count(), Firm.objects.count(), Comment.objects.count()), (2, 8, 1))

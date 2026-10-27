@@ -764,3 +764,132 @@ def import_general(data, by=None):
     imp = GeneralImporter(data, boards, by)
     imp.run()
     return imp
+
+
+# ---------------------------------------------------------------------------
+# Properties-Campus Pursuits → "Campus pursuits" and Properties-Capitalization → "Capital partners", two team boards
+# (docs/TRELLO_MAPPING.md; Kellen took the five recommended answers on 2026-10-27).
+# ---------------------------------------------------------------------------
+
+PURSUITS = "Campus pursuits"
+PURSUITS_LISTS = {  # Trello list → (hub list, True to put its cards there archived)
+    "Strategic Project Priority - High": ("High priority", False),
+    "Strategic Project Priority - Medium": ("Medium priority", False),
+    "Strategic Project Priority - Low": ("Low priority", False),
+    "Holding / Overflow": ("Holding / overflow", False),
+    "Strategic Initiatives": ("Holding / overflow", True),
+    "2025 Strategic Project Ranking Overall": ("Holding / overflow", True),
+}
+# Card name (as it starts) → the deal it's about, found by the deal's company.
+PURSUITS_DEALS = [
+    ("TBD - Elbit America", "Elbit America / 26Defense"), ("Niron RFP", "Niron Magnetics"),
+    ("Thales - TBD location", "Thales"), ("SAIC - South Carolina", "SAIC"),
+    ("MD - Johns Hopkins / APL", "Johns Hopkins University"), ("Long Wall (Indiana Munitions Campus)", "Long Wall"),
+    ("Minnesota / North Wind", "North Wind"), ("Minnesota - Northwind", "North Wind"), ("North Wind", "North Wind"),
+    ("Project:\xa0Saab", "Saab"), ("Project: Saab", "Saab"), ("Vulcan Forms & Specter Aerospace", "Specter Aerospace"),
+    ("Castelion", "Castelion"),
+]
+
+CAPITAL = "Capital partners"
+CAPITAL_LISTS = {
+    "Intro Conversations": ("Intro conversations", False),
+    "Acitive Discussions": ("Active discussions", False),
+    "Term Sheet / Negotiation": ("Term sheet / negotiation", False),
+    "Committed / Closed": ("Committed / closed", False),
+    "Passed / Not a Fit": ("Passed / not a fit", False),
+}
+FORTRESS = "Fortress Investment Group"
+CAPITAL_FIRMS = {  # card name → directory firm
+    "BGO": "BGO", "Wellington": "Wellington", "Montgomery Street Partners": "Montgomery Street Partners, Inc.",
+    "Koch Real Estate Advisors": "Koch Real Estate", "Temerity": "Temerity", "Silver Peak": "Silver Peak",
+    "Bain Capital": "Bain Capital", "OneIM": "OneIM", "CTL": "CTL Capital", "Davis Companies": "Davis Companies",
+    "L&B Capital": "L&B Capital", "Blue Owl": "Blue Owl", "Cerberus": "Cerberus", FORTRESS: FORTRESS, "JRE": "JRE",
+}
+CAPITAL_NEW_FIRMS = ["Wellington", "Temerity", "Silver Peak", "Davis Companies", "L&B Capital", "Blue Owl", "JRE"]
+
+
+def team_board(name, lists, by=None, description=""):
+    """A team board with these lists (made the first time, with the team as members)."""
+    board = Board.objects.filter(name=name, kind=Board.Kind.TEAM).first()
+    if board is None:
+        board = logic.create_board(name, by, kind=Board.Kind.TEAM, description=description)
+        for n, list_name in enumerate(lists, 1):
+            BoardList.objects.create(board=board, name=list_name, position=n * logic.GAP)
+        board.members.add(*team_users().values())
+    return board
+
+
+class TeamBoardImporter(NsihImporter):
+    """Trello lists onto a team board's lists (`list_map`); `link(card)` gives a card's (kind, record name)."""
+    skip_labels = {"High Value", "Medium Value", "Low Value"}
+    list_map = {}
+
+    def link(self, tc):
+        return None, None
+
+    def run(self):
+        hub, cards = {}, {c["id"]: c for c in self.data["cards"]}
+        list_pos = {i: l.get("pos") or 0 for i, l in self.lists.items()}
+        for tc in sorted(self.data["cards"], key=lambda c: (list_pos.get(c["idList"], 0), c.get("pos") or 0)):
+            tlist = self.lists.get(tc["idList"], {}).get("name", "")
+            if tc.get("cardRole") == "mirror" or tc.get("mirrorSourceId") or tc["name"].startswith("https://trello.com/c/"):
+                self.counts["mirror and link cards skipped"] += 1
+                continue
+            if tlist not in self.list_map:
+                self.counts[f"cards skipped (list {tlist})"] += 1
+                continue
+            list_name, all_archived = self.list_map[tlist]
+            kind, rec_name = self.link(tc)
+            self.place(hub, tc, list_name, kind, rec_name, archived=True if all_archived else None)
+        self.actions(hub, cards)
+        return self.counts
+
+
+class PursuitsImporter(TeamBoardImporter):
+    list_map = PURSUITS_LISTS
+
+    def link(self, tc):
+        deal = next((company for start, company in PURSUITS_DEALS if tc["name"].startswith(start)), None)
+        return ("opportunity", deal) if deal else (None, None)
+
+
+class CapitalImporter(TeamBoardImporter):
+    list_map = CAPITAL_LISTS
+
+    def link(self, tc):
+        firm = CAPITAL_FIRMS.get(tc["name"].strip())
+        return ("firm", firm) if firm else (None, None)
+
+    def run(self):
+        from ..models import DataRoom, Firm
+
+        # Kellen: the directory's "Fortress" is Fortress Investment Group, the Fortress data room's partner.
+        if not Firm.objects.filter(name=FORTRESS).exists() and Firm.objects.filter(name="Fortress").update(name=FORTRESS):
+            self.counts["Fortress renamed Fortress Investment Group"] += 1
+        for name in CAPITAL_NEW_FIRMS:
+            if not Firm.objects.filter(name__iexact=name).exists():
+                Firm.objects.create(name=name, kind="investor")
+                self.counts["firms added to the directory"] += 1
+        fortress = Firm.objects.filter(name=FORTRESS).first()
+        if fortress and DataRoom.objects.filter(name="Fortress", partner=None).update(partner=fortress):
+            self.counts["Fortress data room partner set"] += 1
+        return super().run()
+
+
+@transaction.atomic
+def import_pursuits(data, by=None):
+    board = team_board(PURSUITS, ["High priority", "Medium priority", "Low priority", "Holding / overflow"], by,
+                       "Where ACMI might build next, ranked: from the Properties-Campus Pursuits Trello board.")
+    imp = PursuitsImporter(data, board, by)
+    imp.run()
+    return imp
+
+
+@transaction.atomic
+def import_capital(data, by=None):
+    board = team_board(CAPITAL,[v[0] for v in CAPITAL_LISTS.values()], by,
+                       "Equity and debt partners, by stage: from the Properties-Capitalization Trello board. A "
+                       "partner's offer on a project goes in the capital tracker.")
+    imp = CapitalImporter(data, board, by)
+    imp.run()
+    return imp
