@@ -449,7 +449,7 @@ main:has(.land) { padding: 0; max-width: none; }
 
 /* Land search layout: filters | (toolbar / map + docked card / docked QD drawer) */
 .land { display: grid; grid-template-columns: 300px minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr);
-  height: calc(100vh - var(--topbar-h)); }  /* fills the window under the top bar, with no page scroll */
+  height: calc(var(--main-vh, 100vh) - var(--topbar-h)); }  /* fills the window under the top bar, with no page scroll */
 .land.side-closed { grid-template-columns: 0 minmax(0, 1fr); }
 .land.side-closed .land-side { visibility: hidden; border: 0; }
 .land-side { grid-row: 2; }
@@ -758,7 +758,7 @@ a.cite:hover { background: var(--accent); color: #fff; text-decoration: none; }
 .cr-docs .chip { background: #eef0f3; color: #3c4453; font-weight: 500; padding: 3px 8px; }
 .cr-docs .chip.active { background: var(--accent); color: #fff; }
 .cr-layout { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 16px; align-items: start; }
-.cr-side { position: sticky; top: calc(var(--topbar-h) + 12px); max-height: calc(100vh - var(--topbar-h) - 24px); overflow: auto; }
+.cr-side { position: sticky; top: calc(var(--topbar-h) + 12px); max-height: calc(var(--main-vh, 100vh) - var(--topbar-h) - 24px); overflow: auto; }
 /* Documents read like paper: letter-size sheets on a grey desk, one per page, 1-inch margins. */
 .cr-desk { background: #e4e7ec; border-radius: var(--radius); padding: 24px 16px; min-height: 60vh; }
 .cr-doc { display: grid; gap: 20px; justify-items: center; }
@@ -1756,7 +1756,7 @@ main { padding: 20px 28px 40px; max-width: 1680px; margin: 0 auto; }
 .bl-filters .chip-check { cursor: pointer; color: var(--text); }
 .bl-filters .chip-check.on { background: var(--accent-soft); border-color: var(--accent); }
 .bl-board { display: flex; gap: 12px; align-items: flex-start; overflow-x: auto; padding: 4px 2px 14px; min-height: 240px; }
-.bl-list { flex: 0 0 272px; width: 272px; background: #eceff3; border-radius: 10px; padding: 8px; display: flex; flex-direction: column; max-height: calc(100vh - 230px); }
+.bl-list { flex: 0 0 272px; width: 272px; background: #eceff3; border-radius: 10px; padding: 8px; display: flex; flex-direction: column; max-height: calc(var(--main-vh, 100vh) - 230px); }
 .bl-head { display: flex; align-items: center; gap: 6px; padding: 2px 6px 8px; }
 .bl-name { margin: 0; font-size: 14px; font-weight: 600; flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .bl-n { font-weight: 400; font-size: 12px; }
@@ -1899,7 +1899,7 @@ table.notify-kinds input[type=checkbox] { width: 18px; height: 18px; }
 /* Mail in the hub: the inbox (crm/templates/crm/inbox.html) */
 main:has(.mail-app) { max-width: none; padding: 12px 16px 16px; }
 .mail-app { display: grid; grid-template-columns: 190px minmax(300px, 400px) minmax(0, 1fr); gap: 0;
-  height: calc(100vh - var(--topbar-h) - 28px); min-height: 480px; background: var(--panel); border: 1px solid var(--line);
+  height: calc(var(--main-vh, 100vh) - var(--topbar-h) - 28px); min-height: 480px; background: var(--panel); border: 1px solid var(--line);
   border-radius: var(--radius); overflow: hidden; }
 .mail-folders { border-right: 1px solid var(--line); overflow-y: auto; padding: 8px 0; background: var(--bg); }
 .mail-folders a { display: flex; align-items: center; gap: 6px; padding: 6px 14px; color: var(--text); font-size: 13px; }
@@ -2014,7 +2014,7 @@ a.mail-chip:hover { text-decoration: none; filter: brightness(.95); }
 }
 @media (max-width: 760px) {
   main:has(.mail-app) { padding: 0; }
-  .mail-app { grid-template-columns: minmax(0, 1fr); height: calc(100vh - var(--topbar-h)); border: 0; border-radius: 0; }
+  .mail-app { grid-template-columns: minmax(0, 1fr); height: calc(var(--main-vh, 100vh) - var(--topbar-h)); border: 0; border-radius: 0; }
   .mail-app.has-reader .mail-list { display: none; }
   .mail-app:not(.has-reader) .mail-reader { display: none; }
   .mail-back { display: inline-block; }
@@ -2312,6 +2312,10 @@ html.embedded { --topbar-h: 0px; }
 html.embedded .appbar { display: none; }
 html.split-on .shell { margin-right: var(--split-w, 560px); }
 html.split-on .times-panel { right: var(--split-w, 560px); }
+/* Stacked (top and bottom, for a portrait monitor): the side is a bottom pane; pages sized to the window use what's left. */
+html.split-on.split-v { --main-vh: calc(100vh - var(--split-h, 50vh)); }
+html.split-on.split-v .shell { margin-right: 0; margin-bottom: var(--split-h, 50vh); }
+html.split-on.split-v .times-panel { right: 0; bottom: var(--split-h, 50vh); }
 /* The main side narrower than 1180 px: the top menus fold into ☰, as they do on a narrow window. */
 html.split-narrow .appbar .nav-burger { display: block; }
 html.split-narrow .topnav { display: none; position: absolute; left: 0; right: 0; top: var(--topbar-h); height: auto; flex-direction: column;
@@ -2332,6 +2336,10 @@ html.split-narrow .appbar .search-trigger kbd, html.split-narrow .appbar .search
 .split-pane { position: fixed; top: 0; right: 0; bottom: 0; width: var(--split-w, 560px); z-index: 45; display: flex; flex-direction: column;
   background: var(--panel); border-left: 1px solid var(--line); box-shadow: -4px 0 16px rgba(0,0,0,.06); }
 .split-pane[hidden] { display: none; }
+.split-pane.split-pane-v { top: auto; left: 0; width: auto; height: var(--split-h, 50vh); border-left: 0; border-top: 1px solid var(--line);
+  box-shadow: 0 -4px 16px rgba(0,0,0,.06); }
+.split-pane-v .split-handle { top: -5px; bottom: auto; left: 0; right: 0; width: auto; height: 10px; cursor: row-resize; }
+.split-pane-v .split-handle::after { top: 3px; left: 50%; width: 44px; height: 4px; margin: 0 0 0 -22px; }
 .split-handle { position: absolute; top: 0; bottom: 0; left: -5px; width: 10px; cursor: col-resize; z-index: 2; touch-action: none; }
 .split-handle::after { content: ""; position: absolute; top: 50%; left: 3px; width: 4px; height: 44px; margin-top: -22px; border-radius: 2px;
   background: var(--line); }
@@ -2343,9 +2351,11 @@ html.split-narrow .appbar .search-trigger kbd, html.split-narrow .appbar .search
 .split-act:hover { background: rgba(255,255,255,.14); }
 .split-frame { flex: 1; width: 100%; border: 0; background: var(--bg); }
 .split-dragging, .split-dragging * { user-select: none; cursor: col-resize; }
+.split-dragging.split-v, .split-dragging.split-v * { cursor: row-resize; }
 .split-dragging iframe { pointer-events: none; }  /* the frames would swallow the drag */
 @media (max-width: 900px) {
-  html.split-on .shell { margin-right: 0; }
-  html.split-on .times-panel { right: 0; }
+  html.split-on .shell { margin-right: 0; margin-bottom: 0 !important; }
+  html.split-on .times-panel { right: 0; bottom: 0 !important; }
+  html.split-on.split-v { --main-vh: 100vh; }
   .split-pane, .split-btn { display: none; }
 }

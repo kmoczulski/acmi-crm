@@ -1,10 +1,10 @@
 // Split view: a second hub page beside this one (Mail next to the Land map, say). The page you're on stays the page;
 // the other side is a same-origin frame of any hub page, drawn without the top bar (?embed=1, EMBED in
 // context_processors.py). Drag the divider to resize, ⇄ swaps the two pages, ⤢ keeps only the side page, ✕ closes
-// the side. Alt+click a link to open it in the other side. Remembered in this browser (localStorage hubSplit:
-// {open, url, w}); the head script in base.html applies it before the first paint. Phones get one page.
+// the side. ⬓ stacks them top and bottom (a portrait monitor). Alt+click a link to open it in the other side. Remembered in this browser (localStorage hubSplit:
+// {open, url, w, h, dir}); the head script in base.html applies it before the first paint. Phones get one page.
 (function () {
-  const KEY = 'hubSplit', MIN_SIDE = 320, MIN_MAIN = 360, WIDE = 900, NARROW = 1180;  // NARROW: app.css's ☰ width
+  const KEY = 'hubSplit', MIN_SIDE = 320, MIN_MAIN = 360, MIN_H = 200, WIDE = 900, NARROW = 1180;  // NARROW: app.css's ☰ width
   const root = document.documentElement;
   const here = () => location.pathname + location.search + location.hash;
   const strip = url => {
@@ -36,7 +36,7 @@
   const wide = () => innerWidth > WIDE;
 
   const load = () => { try { return JSON.parse(localStorage.getItem(KEY) || 'null') || {}; } catch (e) { return {}; } };
-  let state = Object.assign({open: false, url: '', w: Math.round(innerWidth * 0.45)}, load());
+  let state = Object.assign({open: false, url: '', w: Math.round(innerWidth * 0.45), h: Math.round(innerHeight * 0.5), dir: 'h'}, load());
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} };
 
   // Where the side frame is now (the inbox moves between conversations with pushState, so read it live).
@@ -53,10 +53,25 @@
   function clampW(w) {
     return Math.round(Math.max(MIN_SIDE, Math.min(w, innerWidth - MIN_MAIN)));
   }
+  const stacked = () => state.dir === 'v';
+  function clampH(h) {
+    return Math.round(Math.max(MIN_H, Math.min(h, innerHeight - MIN_H)));
+  }
   function setW(w) {
     state.w = clampW(w);
     root.style.setProperty('--split-w', state.w + 'px');
-    root.classList.toggle('split-narrow', innerWidth - state.w <= NARROW);
+    root.classList.toggle('split-narrow', !stacked() && innerWidth - state.w <= NARROW);
+  }
+  function setH(h) {
+    state.h = clampH(h);
+    root.style.setProperty('--split-h', state.h + 'px');
+  }
+  // Apply the current direction and size.
+  function layout() {
+    root.classList.toggle('split-v', stacked());
+    pane.classList.toggle('split-pane-v', stacked());
+    handle.setAttribute('aria-orientation', stacked() ? 'horizontal' : 'vertical');
+    setW(state.w); setH(state.h);
   }
   // Maps and other width-aware pages on the main side only hear about window resizes.
   let nudge = null;
@@ -66,7 +81,7 @@
     if (!wide()) { location.href = url; return; }  // a phone: one page at a time
     state.open = true;
     state.url = strip(url);
-    setW(state.w);
+    layout();
     root.classList.add('split-on');
     pane.hidden = false;
     const src = new URL(state.url, location.origin);
@@ -80,7 +95,7 @@
     state.open = false;
     save();
     pane.hidden = true;
-    root.classList.remove('split-on', 'split-narrow');
+    root.classList.remove('split-on', 'split-narrow', 'split-v');
     frame.removeAttribute('src');
     title.textContent = '';
     relayout();
@@ -132,7 +147,9 @@
     if (act === 'close') close();
     else if (act === 'reload') { try { frame.contentWindow.location.reload(); } catch (err) { show(state.url); } }
     else if (act === 'back') { try { frame.contentWindow.history.back(); } catch (err) {} }
-    else if (act === 'swap') {
+    else if (act === 'orient') {
+      state.dir = stacked() ? 'h' : 'v'; save(); layout(); relayout();
+    } else if (act === 'swap') {
       const side = sideUrl();
       state.url = strip(here()); state.open = true; save();
       leaving = true; location.href = side;
@@ -148,7 +165,7 @@
     e.preventDefault();
     handle.setPointerCapture(e.pointerId);
     root.classList.add('split-dragging');
-    const move = ev => { setW(innerWidth - ev.clientX); relayout(); };
+    const move = ev => { if (stacked()) setH(innerHeight - ev.clientY); else setW(innerWidth - ev.clientX); relayout(); };
     const up = () => {
       root.classList.remove('split-dragging');
       handle.removeEventListener('pointermove', move);
@@ -162,7 +179,11 @@
   });
   handle.addEventListener('keydown', e => {
     const step = e.shiftKey ? 80 : 20;
-    if (e.key === 'ArrowLeft') setW(state.w + step);
+    if (stacked()) {
+      if (e.key === 'ArrowUp') setH(state.h + step);
+      else if (e.key === 'ArrowDown') setH(state.h - step);
+      else return;
+    } else if (e.key === 'ArrowLeft') setW(state.w + step);
     else if (e.key === 'ArrowRight') setW(state.w - step);
     else return;
     e.preventDefault(); save(); relayout();
@@ -181,11 +202,11 @@
   // Too narrow for two pages: the side hides (and comes back when there's room again).
   addEventListener('resize', () => {
     if (!state.open) return;
-    if (!wide()) { pane.hidden = true; root.classList.remove('split-on', 'split-narrow'); }
-    else { if (pane.hidden) show(state.url); else setW(state.w); }
+    if (!wide()) { pane.hidden = true; root.classList.remove('split-on', 'split-narrow', 'split-v'); }
+    else { if (pane.hidden) show(state.url); else layout(); }
   });
   addEventListener('pagehide', remember);
 
   if (state.open && state.url && wide()) show(state.url);
-  else root.classList.remove('split-on', 'split-narrow');
+  else root.classList.remove('split-on', 'split-narrow', 'split-v');
 })();
