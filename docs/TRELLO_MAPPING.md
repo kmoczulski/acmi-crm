@@ -331,8 +331,7 @@ NFP Phase 1 dates) and **Critical dates – Hostetler PSA** (20 cards: feasibili
 title objection, closing with 0 / 1 / 2 extensions on Dec 21, Mar 22 and Jun 21, farming, timber, survival to Dec
 2028). Cards keep their due dates and done ticks; Trello's archived ones come over archived. The old "NSIH (Bloomfield,
 IN)" lists (2025, Phase 1) come over as archived cards on Administration. **Not ticked in Trello, so they'll show as
-late:** Title Objection Deadline (Sep 22), Send ACMI Invoice to Prometheus (Sep 1), and the three 2025 Phase 1
-feasibility dates.
+late:** Title Objection Deadline (Sep 22) and Send ACMI Invoice to Prometheus (Sep 1).
 
 ### Kellen's decisions for Properties-General
 
