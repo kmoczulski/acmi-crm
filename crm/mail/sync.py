@@ -33,6 +33,7 @@ from .imap import ImapClient, MailboxError, since_date
 from crm.names import clean_name, name_from_address, needs_name
 
 from .parse import NOT_INTERESTED_PHRASES, classify, new_text
+from . import signature_phones
 
 log = logging.getLogger(__name__)
 
@@ -132,6 +133,7 @@ class Recorder:
         self.person_ids = set()
         self.stage_updates = {}  # company_id -> strongest event seen this run
         self.thread_ids = set()  # threads to (re)tag as project / prospecting
+        self._team_numbers = None  # ACMI's own phone numbers, never put on a contact (loaded on first use)
 
     def teammate(self, address):
         if not hasattr(self, "_teammates"):
@@ -217,6 +219,13 @@ class Recorder:
             self.person_ids.add(person.pk)
             if event.kind == Activity.Kind.BOUNCE and person.email == event.address and person.email_valid is not False:
                 Person.objects.filter(pk=person.pk).update(email_valid=False)
+            if (event.kind in (Activity.Kind.EMAIL_RECEIVED, Activity.Kind.REPLY) and event.body
+                    and event.address in [person.email, *(person.other_emails or [])]):
+                # Phone numbers in the sender's own signature go on their record (added, never replacing).
+                if self._team_numbers is None:
+                    self._team_numbers = signature_phones.team_numbers()
+                if signature_phones.learn(person, event.body, self._team_numbers):
+                    self.stats["phones from signatures"] += 1
         if company:
             self.company_ids.add(company.pk)
             self._note_stage(company, event)
