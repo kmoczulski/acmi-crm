@@ -352,7 +352,7 @@ late:** Title Objection Deadline (Sep 22) and Send ACMI Invoice to Prometheus (S
 ### Properties-Campus Pursuits → a new team board, "Campus pursuits"
 
 The ranked list of places ACMI might build next. 57 cards (36 live), **185 comments** (Simon 80, John Burer 45, Dave
-29, Paul 28, Kellen 2, Olivia Jaskula-Dybka 1), 8 checklists. Lists kept: **High priority**, **Medium priority**,
+29, Paul 28, Kellen 2, Olivia Jaskula-Dybka 1), 9 checklists, 27 attachments. Lists kept: **High priority**, **Medium priority**,
 **Low priority**, **Holding / overflow**; the archived lists' cards (Strategic Initiatives, 2025 ranking) come over
 archived. 2 mirror cards skipped.
 
@@ -376,7 +376,7 @@ of those pursuits rather than the project boards that were skipped.
 
 ### Properties-Capitalization → a new team board, "Capital partners"
 
-The equity and debt partner pipeline: 16 cards (15 live), **41 comments** (Kellen 36, Dave 5), 34 attachments
+The equity and debt partner pipeline: 16 cards (15 live), **41 comments** (Kellen 36, Dave 5), 29 attachments
 (decks and term sheets). Lists kept as the pipeline: **Intro conversations**, **Active discussions**, **Term sheet /
 negotiation**, **Committed / closed**, **Passed / not a fit**. Labels kept: GP Capital, LP Capital, Programmatic JV,
 Lender, NSIH, MEIH, Virginia. Each card links to its directory firm:
