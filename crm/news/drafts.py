@@ -197,7 +197,8 @@ def _name_similarity(company, candidate):
     overlap = left & right
     if not left or not right or not overlap:
         return 0.0
-    coverage = len(overlap) / len(left)
+    distinctive = left - INDUSTRY_WORDS or left  # a subject that drops "Aerospace" still names the company
+    coverage = len(overlap & distinctive) / len(distinctive)
     ratio = SequenceMatcher(None, " ".join(sorted(left)), " ".join(sorted(right))).ratio()
     score = 0.65 * coverage + 0.35 * ratio
     if not (overlap - INDUSTRY_WORDS):
