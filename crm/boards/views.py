@@ -492,6 +492,9 @@ def attachment_edit(request, pk):
         f = request.FILES.get("file")
         if not url and not f:
             messages.error(request, "Add a link or choose a file.")
+        elif url and not url.lower().startswith(("http://", "https://")):
+            # The card prints the link as an href, so only web links: never javascript: or data:.
+            messages.error(request, "A link has to start with http:// or https://.")
         else:
             name = request.POST.get("name", "").strip() or (f.name if f else url.rstrip("/").rsplit("/", 1)[-1][:100] or "Link")
             CardAttachment.objects.create(card=card, name=name[:300], url=url[:1000], file=f, added_by=request.user)
