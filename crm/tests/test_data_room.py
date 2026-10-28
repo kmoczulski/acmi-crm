@@ -5,7 +5,7 @@ from datetime import timedelta
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import TestCase, override_settings
+from django.test import RequestFactory, TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
@@ -86,9 +86,10 @@ class PartnerAccountTests(DataRoomTestCase):
     def test_team_sign_in_refuses_partners_and_partner_sign_in_refuses_the_team(self):
         from crm.auth import PartnerBackend, PasswordBackend
 
+        room = RequestFactory().post(reverse("crm:room_login"))  # partners' passwords work only on the room's page
         self.assertIsNone(PasswordBackend().authenticate(None, username="pat@fortress.com", password=PASSWORD))
-        self.assertEqual(PartnerBackend().authenticate(None, username="pat@fortress.com", password=PASSWORD), self.partner)
-        self.assertIsNone(PartnerBackend().authenticate(None, username="Kellen", password="x"))
+        self.assertEqual(PartnerBackend().authenticate(room, username="pat@fortress.com", password=PASSWORD), self.partner)
+        self.assertIsNone(PartnerBackend().authenticate(room, username="Kellen", password="x"))
         self.client.logout()
         r = self.client.post(reverse("crm:room_login"), {"email": "Kellen", "password": "x"})
         self.assertContains(r, "match an active data room account")

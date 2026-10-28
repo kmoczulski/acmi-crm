@@ -42,6 +42,10 @@ class PartnerBackend(ModelBackend):
     def authenticate(self, request, username=None, password=None, **kwargs):
         from .permissions import is_partner
 
+        # Only the room's own sign-in page, which keeps the lockout and the "sign-in" log. Django's authenticate()
+        # tries every backend, so without this a partner's password would also work on /accounts/login/.
+        if request is None or not request.path.startswith("/room/"):
+            return None
         user = super().authenticate(request, username=username, password=password, **kwargs)
         if user is None or not is_partner(user):
             return None

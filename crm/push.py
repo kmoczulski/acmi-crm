@@ -11,7 +11,7 @@ UserPrefs.data["notify"] = {kind: {"hub": bool, "push": bool}}; a kind missing f
 """
 import json
 import logging
-import re
+from urllib.parse import urlsplit
 
 from django.conf import settings
 from django.db import transaction
@@ -74,11 +74,30 @@ def device_name(user_agent):
     return f"{browser} on {system}" if system else browser
 
 
+# The browsers' own push services: Chrome (and Opera, Samsung), Firefox, Edge, Safari. The server POSTs to whatever
+# endpoint is saved, so anything else is refused rather than letting it reach an address of someone's choosing.
+PUSH_HOSTS = ("fcm.googleapis.com", "push.services.mozilla.com", "notify.windows.com", "push.apple.com",
+              "web.push.apple.com")
+
+
+def push_service_endpoint(endpoint):
+    """True for an https:// URL on one of the browsers' push services (the host itself or a subdomain of it)."""
+    try:
+        parts = urlsplit(endpoint)
+        port = parts.port
+    except ValueError:
+        return False
+    host = (parts.hostname or "").lower()
+    if parts.scheme != "https" or port not in (None, 443) or parts.username or parts.password:
+        return False
+    return any(host == h or host.endswith("." + h) for h in PUSH_HOSTS)
+
+
 def subscribe(user, data, user_agent=""):
     """data: the browser's PushSubscription.toJSON(). Returns the saved row, or None if it's not usable."""
     endpoint = str(data.get("endpoint") or "")
     keys = data.get("keys") or {}
-    if is_partner(user) or not re.match(r"^https://", endpoint) or not keys.get("p256dh") or not keys.get("auth"):
+    if is_partner(user) or not push_service_endpoint(endpoint) or not keys.get("p256dh") or not keys.get("auth"):
         return None
     sub, _ = PushSubscription.objects.update_or_create(  # a browser someone else used before moves to this person
         endpoint=endpoint[:1000],
