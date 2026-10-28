@@ -5,6 +5,27 @@ Read this first when picking the project up in a new chat, along with
 
 ## Pick up here (2026-10-25)
 
+**Done on the laptop 2026-10-28 (branch `claude/beautiful-albattani-6xp3qi`, not yet on `main`):** steps 1, 2 and 4
+below, and W1–W13 in code (Kellen's instruction was to do W1–W13 on the hosted copy; they're code fixes, so they ship
+with the first deploy instead). Real database backed up to `backups/db-2026-10-28-before-review-merge.sqlite3`.
+- Merge of `main` (`dcc0b9e`): the 9 conflicts resolved as in worklist step 0; data room migration renumbered
+  `0072_data_room_login_attempts` (the read-only check showed it was never applied). CI green.
+- W1–W13, each with a test in `crm/tests/test_wl_g1.py` … `test_wl_g7.py`, each diff reviewed separately. Pipeline
+  table: the extra rule that picking the On hold or Lost stage still shows those deals. W11 still needs one real site
+  brief PDF rendered on the new `pypdf` / `pillow` pins.
+- **News and Granola from Drive** (Kellen chose a Drive folder for Granola): `ACMI_NEWS_DRIVE_FOLDER` makes the News
+  page list and import from that folder (`NewsScan.path` is `drive:<file id>`); `ACMI_GRANOLA_DRIVE_FOLDER` makes
+  `sync_all` import new Granola JSON files once each (`ImportBatch.sheet` `granola:<file id>`; a file that fails is
+  logged by name and tried again next run). With neither set, the laptop folders work as before. `cloudbuild.yaml`
+  passes them as `_NEWS_FOLDER` / `_GRANOLA_FOLDER` with `ACMI_DRIVE_ADC=true`; its header lists the one-time setup.
+  **The daily Granola task (acmiproperties account) has to save its JSON into that Drive folder.**
+- 901 tests green.
+- **Not done, needs Kellen:** fast-forward `main` and `migrate crm` on the real database (live data); `gcloud auth
+  login` has expired, so `ACMI_TOKEN_KEY` and the VAPID pair aren't in Secret Manager yet; the whole cutover in step 3.
+- Follow-ups the reviews raised: CSV exports in `crm/land` (`comp_views.py`, `letters.py`, `views.py`) have no formula
+  guard; Trello-imported attachment URLs aren't scheme-checked; old push subscriptions / card links that the new rules
+  would refuse are still stored; read-only mailbox grantees can still add CRM notes (Kellen's call).
+
 **NEXT, for the ACMI Claude on the laptop (2026-10-28): finish the review work in `docs/WORKLIST_2026-10-28.md`.**
 Kellen: "combine everything and check against what you found. Then update handoff and have my acmi claude finish the
 work". The worklist combines today's security audit and UI review, Gemini's report, the 10-26 review and the 10-22 UX
