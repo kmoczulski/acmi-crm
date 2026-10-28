@@ -1,6 +1,6 @@
 {% extends "crm/base.html" %}
 {% load crm_tags static %}
-{% block title %}{{ board.name }} · Boards · ACMI CRM{% endblock %}
+{% block title %}{{ board.name }} · Boards · ACMI Hub{% endblock %}
 {% block content %}
 <nav class="crumbs no-print" aria-label="Breadcrumb"><a href="{% url 'crm:boards' %}">Boards</a>{% if board.campus %} › {{ board.campus.code }}{% endif %}{% if board.project %} › <a href="{{ board.project.get_absolute_url }}">{{ board.project.name }}</a>{% endif %}</nav>
 <div class="page-head bl-pagehead">

@@ -1,6 +1,6 @@
 {% extends "crm/base.html" %}
 {% load crm_tags static %}
-{% block title %}{% if reader %}{{ reader.subject }} · {% endif %}{{ label_name }} · Mail · ACMI CRM{% endblock %}
+{% block title %}{% if reader %}{{ reader.subject }} · {% endif %}{{ label_name }} · Mail · ACMI Hub{% endblock %}
 {% block content %}
 <div class="mail-app{% if reader %} has-reader{% endif %}">
   <nav class="mail-folders" aria-label="Folders" id="mail-folders">

@@ -1,0 +1,59 @@
+{% load crm_tags humanize %}<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>{{ title }}</title><style>{{ css|safe }}</style></head>
+<body>
+{% if screen %}<div class="brief-toolbar no-print" style="max-width:8.5in; margin:14px auto">{% if note %}<span>{{ note }}</span>{% endif %}<span class="spacer"></span><a href="{% url 'crm:company_detail' company.pk %}">Back to {{ company.name }}</a><button type="button" onclick="window.print()">Print</button></div>{% endif %}
+<article class="brief co-brief">
+  <div class="brief-top">{% include "crm/partials/report_logo.html" with width="105" %}<span>Tenant overview · {% now "F j, Y" %}</span></div>
+  <h1>{{ company.name }}</h1>
+  <p class="sub">{% if company.sector %}{{ company.sector|capfirst }}{% endif %}{% if company.hq_location %}{% if company.sector %} · {% endif %}HQ <b>{{ company.hq_location }}</b>{% endif %}{% if company.website %} · {{ company.website }}{% endif %}</p>
+
+  <h2>Overview</h2>
+  {% if company.description.strip %}<div class="co-ov">{{ company.description|prose }}</div>{% else %}<p class="muted">No overview written yet.</p>{% endif %}
+
+  <h2>Tenant &amp; financials</h2>
+  <table class="co-facts">
+    {% for item, value, source in tenant %}<tr><th>{{ item }}</th><td>{% if value %}<b>{{ value }}</b>{% else %}<span class="pill-tag unchecked">Open</span>{% endif %}</td><td class="muted">{{ source }}</td></tr>{% endfor %}
+  </table>
+
+  {% if deals %}<h2>Deals with ACMI</h2>
+  <table class="co-deals">
+    <tr><th>Deal</th><th>Stage</th><th class="num">Size (sf)</th><th class="num">Acres</th><th class="num">Power (MW)</th><th class="num">Est. cost</th><th>Close / delivery</th></tr>
+    {% for d in deals %}{% with o=d.deal %}<tr>
+      <td><b>{{ o.name }}</b>{% if d.where %}<br><span class="muted">{{ d.where }}</span>{% endif %}{% if o.get_deal_type_display or o.get_asset_type_display %}<br><span class="muted">{{ o.get_deal_type_display }}{% if o.deal_type and o.asset_type %} · {% endif %}{{ o.get_asset_type_display }}</span>{% endif %}</td>
+      <td>{{ o.get_stage_display }}</td>
+      <td class="num">{% if o.sq_ft_need %}{{ o.sq_ft_need|intcomma }}{% else %}–{% endif %}</td>
+      <td class="num">{{ o.acreage_need|floatformat:0|default:"–" }}</td>
+      <td class="num">{{ o.power_need_mw|floatformat:"-1"|default:"–" }}</td>
+      <td class="num">{% if o.value %}${{ o.value|floatformat:0|intcomma }}{% else %}–{% endif %}</td>
+      <td>{% if o.target_close %}Close {{ o.target_close|date:"M Y" }}{% endif %}{% if o.est_delivery %}{% if o.target_close %}<br>{% endif %}Delivery {{ o.est_delivery|date:"M Y" }}{% elif o.timeline %}{% if o.target_close %}<br>{% endif %}{{ o.timeline }}{% endif %}{% if not o.target_close and not o.est_delivery and not o.timeline %}–{% endif %}</td>
+    </tr>{% if d.special or d.needs_notes or o.next_step %}<tr class="co-sub"><td colspan="7">{% if d.special %}<b>Site needs:</b> {{ d.special|join:", " }}{% if d.needs_notes %}. {% endif %}{% endif %}{{ d.needs_notes }}{% if o.next_step %}{% if d.special or d.needs_notes %}<br>{% endif %}<b>Next step:</b> {{ o.next_step }}{% if o.next_step_due %} (by {{ o.next_step_due|date:"M j" }}){% endif %}{% endif %}</td></tr>{% endif %}{% endwith %}{% endfor %}
+  </table>{% endif %}
+
+  {% for l in leases %}{% with t=l.terms %}<h2>Lease terms <span class="muted" style="text-transform:none; letter-spacing:0">{{ l.contract.title }} · {{ l.label }}</span></h2>
+  <div class="brief-cols"><table>
+    <tr><th>Premises</th><td>{% if t.premises_sf %}{{ t.premises_sf|intcomma }} sf{% endif %}{% if t.premises_sf and t.land_acres %} · {% endif %}{% if t.land_acres %}{{ t.land_acres|floatformat:"-2" }} ac{% endif %}{% if not t.premises_sf and not t.land_acres %}–{% endif %}</td></tr>
+    <tr><th>Term</th><td>{% if t.commencement or t.expiration %}{{ t.commencement|date:"M j, Y"|default:"?" }} to {{ t.expiration|date:"M j, Y"|default:"?" }}{% else %}–{% endif %}</td></tr>
+    <tr><th>Rent commencement</th><td>{{ t.rent_start|date:"M j, Y"|default:"–" }}</td></tr>
+    <tr><th>Base rent (annual)</th><td>{% if t.base_rent %}${{ t.base_rent|floatformat:0|intcomma }}{% else %}–{% endif %}</td></tr>
+  </table><table>
+    <tr><th>Escalation</th><td>{% if t.escalation_pct is not None %}{{ t.escalation_pct|floatformat:"-2" }}% / yr{% else %}–{% endif %}</td></tr>
+    <tr><th>Renewals</th><td>{% if t.renewals %}{{ t.renewals }} × {{ t.renewal_years|floatformat:"-1"|default:"?" }} yrs{% else %}–{% endif %}</td></tr>
+    <tr><th>TI allowance</th><td>{% if t.ti_allowance %}${{ t.ti_allowance|floatformat:0|intcomma }}{% else %}–{% endif %}</td></tr>
+    <tr><th>Security deposit / LC</th><td>{% if t.security_deposit %}${{ t.security_deposit|floatformat:0|intcomma }}{% else %}–{% endif %}</td></tr>
+  </table></div>{% endwith %}{% endfor %}
+
+  <h2>Relationship</h2>
+  <div class="brief-cols"><table>
+    {% for p in people %}<tr><th>{{ p.full_name|default:p.email }}</th><td>{{ p.title }}</td></tr>{% empty %}<tr><td class="muted">No contacts on file.</td></tr>{% endfor %}
+  </table><table>
+    <tr><th>Last contact</th><td>{{ company.last_interaction_at|date:"M j, Y"|default:"–" }}</td></tr>
+    <tr><th>Last reply</th><td>{{ company.last_reply_at|date:"M j, Y"|default:"–" }}</td></tr>
+    <tr><th>Next meeting</th><td>{% if next_meeting %}{{ next_meeting.start|date:"M j, Y" }}{% else %}–{% endif %}</td></tr>
+  </table></div>
+
+  {% if missing %}<h2>Still needed</h2>
+  <p class="small">{{ missing|join:"; " }}.</p>{% endif %}
+
+  <div class="brief-foot">Prepared by ACMI Properties from its records, {% now "F j, Y" %}. Open: not yet entered on the record. Confidential.</div>
+</article>
+</body></html>

@@ -3,13 +3,18 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Sign in · ACMI CRM</title>
+  <title>Sign in · ACMI Hub</title>
+  <link rel="manifest" href="{% url 'crm:web_manifest' %}">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="ACMI Hub">
+  <link rel="icon" type="image/png" sizes="32x32" href="{% static 'crm/icons/icon-light-32.png' %}">
+  <link rel="apple-touch-icon" sizes="180x180" href="{% static 'crm/icons/icon-light-180.png' %}">
   <link rel="stylesheet" href="{% static 'crm/app.css' %}?v={{ ASSET_VERSION }}">
 </head>
 <body>
 <div class="login">
   <div class="login-logo"><img src="{% static 'crm/logo.png' %}" alt="ACMI Properties"></div>
-  <h1>Sign in to the CRM</h1>
+  <h1>Sign in to ACMI Hub</h1>
   {% if GOOGLE_SIGNIN_ENABLED %}
     <a class="btn btn-primary" href="{% provider_login_url 'google' %}{% if redirect_field_value %}?next={{ redirect_field_value|urlencode }}{% endif %}">Sign in with Google</a>
     <p class="muted" style="font-size:12px;margin-bottom:0">Use your acmigroup.com account.</p>

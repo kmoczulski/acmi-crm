@@ -1,6 +1,6 @@
 {% extends "crm/base.html" %}
 {% load crm_tags humanize %}
-{% block title %}{{ opp.company.name }} · {{ opp.name }} · ACMI CRM{% endblock %}
+{% block title %}{{ opp.company.name }} · {{ opp.name }} · ACMI Hub{% endblock %}
 {% block content %}
 {% include "crm/partials/company_card_head.html" with company=opp.company tab="opportunities" crumb=opp.name deal_count=deal_count %}
 <div class="deal-in-company">

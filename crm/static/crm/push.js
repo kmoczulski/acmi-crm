@@ -17,7 +17,7 @@ document.addEventListener('DOMContentLoaded', function () {  // after alerts.js,
   }
 
   function problem() {
-    if (!window.isSecureContext) return 'Browser notifications need a secure (https) address. They work on the laptop at http://localhost now, and on phones once the hub is hosted at hub.acmigroup.com.';
+    if (!window.isSecureContext) return 'Browser notifications need a secure (https) address. They work on the laptop at http://localhost now, and on phones once the hub is hosted at hub.acmiproperties.com.';
     if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window))
       return 'This browser does not support browser notifications. On an iPhone, add the hub to the home screen first (Share, Add to Home Screen) and open it from there.';
     if (box.dataset.ready !== '1') return 'Browser notifications are not set up on the server yet (VAPID keys missing; see docs/HANDOFF.md).';

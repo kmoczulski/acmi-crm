@@ -6,7 +6,7 @@
   if (!box) return;
   var KEY = window.top === window ? "hubTrail" : "hubTrail:side", MAX = 30;  // the split view's side keeps its own
   var here = { path: location.pathname, url: location.pathname + location.search + location.hash,
-               title: (document.title || "").replace(/ · ACMI CRM$/, "").replace(/^ACMI CRM$/, "Home") };
+               title: (document.title || "").replace(/ · ACMI Hub$/, "").replace(/^ACMI Hub$/, "Home") };
   var trail = [];
   try { trail = JSON.parse(sessionStorage.getItem(KEY) || "[]"); } catch (e) { trail = []; }
   var top = trail[trail.length - 1];

@@ -1,6 +1,6 @@
 {% extends "crm/base.html" %}
 {% load crm_tags %}
-{% block title %}{{ person }} · ACMI CRM{% endblock %}
+{% block title %}{{ person }} · ACMI Hub{% endblock %}
 {% block content %}
 <nav class="crumbs no-print" aria-label="Breadcrumb"><a href="{% url 'crm:person_list' %}">People</a> ›{% if person.company %} <a href="{{ person.company.get_absolute_url }}">{{ person.company.name }}</a> ›{% endif %} <span>{{ person }}</span></nav>
 <div class="record-head">

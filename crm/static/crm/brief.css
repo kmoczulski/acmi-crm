@@ -92,3 +92,16 @@ table.method td.num { text-align: right; width: 34px; }
 .brief-team-only { border: 1px dashed #c9ced6; border-radius: 6px; padding: 4px 10px 8px; margin: 10px 0; }
 .sig-chip { display: inline-block; font-size: 11px; padding: 1px 6px; border-radius: 9px; background: #fff2d6; color: #8a5a00; margin: 1px 2px; }
 @media print { .brief-team-only { display: none !important; } }
+/* Tenant overview (company PDF): the written overview, the facts table and the deals table */
+.co-brief .co-ov h4 { font-size: 11.5px; margin: 6px 0 2px; color: #124b87; }
+.co-brief .co-ov p { margin: 0 0 5px; font-size: 11.5px; }
+.co-brief .co-ov ul { margin: 0 0 4px; }
+.co-brief .co-ov li { border: 0; padding: 1px 0 1px 12px; }
+.co-brief .co-ov li::before { top: 6px; width: 5px; height: 5px; }
+.co-brief table.co-facts th { width: 22%; }
+.co-brief table.co-facts td.muted { width: 38%; font-size: 10.5px; }
+.co-brief table.co-deals th { width: auto; background: #f4f6f9; white-space: normal; }
+.co-brief table.co-deals th.num { text-align: right; }
+.co-brief table.co-deals tr.co-sub td { font-size: 10.5px; color: #2b3644; border-bottom: 1px solid #dde2e8; }
+.co-brief table.co-deals tr:has(+ tr.co-sub) td { border-bottom: 0; }
+.co-brief table.co-deals td.num + td:not(.num), .co-brief table.co-deals th.num + th:not(.num) { padding-left: 14px; }

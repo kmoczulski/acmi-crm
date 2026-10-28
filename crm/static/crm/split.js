@@ -136,7 +136,7 @@
     if (pane.hidden) return;
     let doc = null;
     try { doc = frame.contentDocument; } catch (e) { doc = null; }
-    title.textContent = doc ? (doc.title || '').replace(/ · ACMI CRM$/, '') : '';
+    title.textContent = doc ? (doc.title || '').replace(/ · ACMI Hub$/, '') : '';
     title.title = title.textContent;
     remember();
   });
