@@ -46,6 +46,15 @@ two-column layout with the side panels (`team_panel.html`, `lists_panel.html` ar
 change is a fragment jump, not a reload). 731 tests green. Person and deal pages still have the old
 notes and comments panels; the same feed would fit them next.
 
+**Security audit and UI review of `main` 2026-10-28** (Kellen handed over the two Gemini prompts: "Ignore Gemini... pick up the task for me"; report only, no code
+changed; both against `main` at `b254b6d` on made-up data). `docs/AUDIT_REPORT_2026-10-28.md`: 11 verified findings,
+none above Medium. Findings 1, 2, 5 and 8 are already fixed on this branch; the new ones are formula injection in the
+Excel exports, a read-only shared-mailbox grantee who can file, partner passwords on the team sign-in, push endpoints
+and "Not a deal" working from a GET. `docs/UI_REVIEW_2026-10-28.md` (screenshots in `docs/ux-review-3/`): the parcel
+card 500s once the user who set a status is deleted, five inbox actions 500 when Google refuses the token, 23 phone
+pages are too wide (mostly `app.css:685`), and the pipeline table lists closed deals first under an open-deal count.
+The fixes are to be chosen with Kellen.
+
 **Code review and audit of the week's changes 2026-10-26** (Kellen: "review the changes made since 10/21, audit and
 optimize everything"; branch `claude/beautiful-albattani-6xp3qi`, not merged; findings and a checklist of what to try
 on the laptop in `docs/REVIEW_2026-10-26.md`). Fixed there, each with a test, 715 tests green: the data room lockout
