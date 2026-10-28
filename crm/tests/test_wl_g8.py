@@ -155,6 +155,19 @@ class GranolaFromDriveTests(TestCase):
         self.assertEqual(list(ImportBatch.objects.values_list("sheet", flat=True)), ["granola:granolaDay1"])
 
     @override_settings(GRANOLA_DRIVE_FOLDER=GRANOLA_FOLDER)
+    def test_a_file_the_import_cant_take_doesnt_hold_up_the_others(self):
+        # Valid JSON, so it gets past the first read, but the note has no start: the combined import fails.
+        self.data["noStartFile1"] = json.dumps([{"source": "granola", "id": "n2", "title": "x"}]).encode()
+        files = self.files + [drive_file("noStartFile1", "granola-2026-10-25.json")]
+        out, err, _ = self.sync(files)
+        self.assertIn("granola file granola-2026-10-25.json not imported", err)
+        self.assertEqual(Meeting.objects.get().external_id, "granola:n1")
+        self.assertEqual(list(ImportBatch.objects.values_list("sheet", flat=True)), ["granola:granolaDay1"])
+        self.sync(files)  # the bad one is tried again; the good one isn't read twice
+        self.assertEqual(self.fake.downloaded.count("granolaDay1"), 1)
+        self.assertEqual(ImportBatch.objects.count(), 1)
+
+    @override_settings(GRANOLA_DRIVE_FOLDER=GRANOLA_FOLDER)
     def test_drive_failing_never_fails_the_rest_of_the_sync(self):
         out, err, _ = self.sync(side_effect=RuntimeError("Drive API has not been used in project"))
         self.assertIn("granola import failed: Drive API has not been used in project", err)

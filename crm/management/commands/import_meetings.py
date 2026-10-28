@@ -88,11 +88,32 @@ def import_from_drive():
             good.append((f, path))
         if not good:
             return out
-        with transaction.atomic():
-            stats = meetings.import_meetings(meetings.load(*[p for _, p in good]))
-            counts = {k: v for k, v in stats.items() if k != "unmatched"}
-            for f, _ in good:
-                ImportBatch.objects.create(filename=f.name[:255], sheet=f"{DRIVE_MARK}{f.id}"[:120], counts=counts)
+        try:
+            stats = _import(good)
+        except Exception:  # noqa: BLE001 - one file the import can't take; try each alone so the rest still go in
+            stats, imported = None, []
+            for f, path in good:
+                try:
+                    one = _import([(f, path)])
+                except Exception as exc:  # noqa: BLE001 - reported, and tried again next run
+                    out["failed"].append((f.name, f"{exc.__class__.__name__}: {exc}"))
+                    continue
+                imported.append((f, path))
+                stats = one if stats is None else {
+                    k: (stats[k] + v if isinstance(v, int) else stats[k]) for k, v in one.items()}
+            good = imported
+    if not good:
+        return out
     out["files"], out["stats"] = [f.name for f, _ in good], stats
     note(stats)
     return out
+
+
+def _import(files):
+    """Import these (DriveFile, path) pairs in one transaction and record each file, or roll the lot back."""
+    with transaction.atomic():
+        stats = meetings.import_meetings(meetings.load(*[p for _, p in files]))
+        counts = {k: v for k, v in stats.items() if k != "unmatched"}
+        for f, _ in files:
+            ImportBatch.objects.create(filename=f.name[:255], sheet=f"{DRIVE_MARK}{f.id}"[:120], counts=counts)
+    return stats
