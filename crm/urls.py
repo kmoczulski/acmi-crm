@@ -1,7 +1,7 @@
 from django.urls import path
 from django.views.generic import RedirectView
 
-from . import campus_views, cards, prefs, push_views, search, views
+from . import campus_views, cards, company_pdf, prefs, push_views, search, views
 from .boards import views as board_views
 from .build import views as build_views
 from .capital import views as capital_views
@@ -32,6 +32,7 @@ urlpatterns = [
     path("companies/new/", views.company_create, name="company_create"),
     path("companies/<int:pk>/", views.company_detail, name="company_detail"),
     path("companies/<int:pk>/card/", cards.company_card, name="company_card"),
+    path("companies/<int:pk>/overview.pdf", company_pdf.company_overview_pdf, name="company_overview_pdf"),
     path("companies/<int:pk>/delete/", views.company_delete, name="company_delete"),
     path("companies/<int:pk>/merge/", views.company_merge_into, name="company_merge_into"),
     path("companies/duplicates/", views.duplicates, name="duplicates"),

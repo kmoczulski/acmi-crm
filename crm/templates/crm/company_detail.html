@@ -12,6 +12,7 @@
   <div class="no-print" style="margin-left:auto; display:flex; gap:12px; align-items:center; flex-wrap:wrap">
     <form method="post" action="{% url 'crm:assignments' %}" style="margin:0">{% csrf_token %}
       <input type="hidden" name="company_id" value="{{ company.pk }}"><button class="btn btn-small" title="Start a client land search for {{ company.name }}: candidate sites, a diligence report for each, and a link to share">+ Land search</button></form>
+    <a class="btn btn-small" href="{% url 'crm:company_overview_pdf' company.pk %}" title="Download a one-page tenant overview of {{ company.name }} as a PDF: the overview, signing entity, deals and what's still needed">PDF</a>
     {% include "crm/partials/record_nav.html" with detail_url="crm:company_detail" back_url=back_url %}
   </div>
 </div>
