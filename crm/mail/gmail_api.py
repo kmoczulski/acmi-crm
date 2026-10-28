@@ -25,7 +25,7 @@ from django.utils import timezone
 from crm import gcal
 
 from .imap import MailboxError, since_date
-from .parse import finish_text, parse_message
+from .parse import CALENDAR_TYPES, finish_text, parse_message
 
 API = "https://gmail.googleapis.com/gmail/v1/users/me"
 UPLOAD = "https://gmail.googleapis.com/upload/gmail/v1/users/me"
@@ -284,6 +284,10 @@ class GmailClient:
     def update_label(self, label_id, name):
         return self._request("patch", f"/labels/{label_id}", body={"name": name})
 
+    def delete_label(self, label_id):
+        """Remove a label: Gmail takes it off its emails; the emails themselves stay."""
+        return self._request("delete", f"/labels/{label_id}")
+
     def modify_thread(self, thread_id, add=(), remove=()):
         return self.post(f"/threads/{thread_id}/modify", {"addLabelIds": list(add), "removeLabelIds": list(remove)})
 
@@ -334,9 +338,13 @@ def parse_api_message(msg):
     if not any(h["name"].lower() == "date" for h in headers) and msg.get("internalDate"):
         email.occurred_at = datetime.fromtimestamp(int(msg["internalDate"]) / 1000, tz=dt_timezone.utc)
     plain = html_part = None
-    attachments = []
+    attachments, calendar = [], []
     for part in _walk(payload):
         mime, body = part.get("mimeType", ""), part.get("body") or {}
+        if (mime in CALENDAR_TYPES or part.get("filename", "").lower().endswith(".ics")) and body.get("data"):
+            ics = _decode(body["data"]).decode(_charset(part), errors="replace")
+            if "BEGIN:VEVENT" in ics and ics not in calendar:
+                calendar.append(ics)  # an invite (crm/invites.py); an attached .ics with no data inline is skipped
         if part.get("filename"):
             attachments.append((part["filename"], int(body.get("size") or 0), mime))
             continue
@@ -355,6 +363,7 @@ def parse_api_message(msg):
             plain = text
     email.body = finish_text(plain, html_part)
     email.attachments = attachments
+    email.calendar = calendar
     return email
 
 

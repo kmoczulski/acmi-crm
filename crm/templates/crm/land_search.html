@@ -152,6 +152,16 @@
           <label>Rail (mi)<select name="rail_mi"><option value="">Any</option><option>1</option><option>3</option><option>5</option></select></label>
         </div>
       </details>
+      <details class="lf-group"><summary>Off-market signals</summary>
+        <div class="lf-checks">{% for value, label in signal_filters %}
+          <label><input type="checkbox" name="signal" value="{{ value }}"> {{ label }}</label>{% endfor %}
+          <label><input type="checkbox" name="portfolio" value="1"> Owner holds other stored parcels (owner group)</label>
+        </div>
+        <div class="muted lc-small">Any ticked signal matches. Long hold needs a transfer date (not every county publishes one). No county publishes tax delinquency in its parcel data, so there's no filter for it.</div>
+      </details>
+      <label class="lf-status">Sort list by
+        <select name="sort"><option value="">Buy-box score</option><option value="motivation">Motivation (off-market signals)</option><option value="portfolio">Owner group size (acres)</option></select>
+      </label>
       <div class="lf-checks">
         <label><input type="checkbox" name="unincorporated" value="1"> Outside city/town limits</label>
         <label><input type="checkbox" name="out_of_state" value="1"> Out-of-state owner</label>
@@ -439,7 +449,7 @@
     let assembling = false;
     try { assembling = ASM.mode; } catch (err) {}
     if (assembling) {
-      ['min_acres', 'max_acres', 'min_score', 'max_ppa', 'no_killers'].forEach(k => params.delete(k));
+      ['min_acres', 'max_acres', 'min_score', 'max_ppa', 'no_killers', 'signal', 'portfolio', 'out_of_state'].forEach(k => params.delete(k));
       params.set('status', 'all');
     }
     const seq = ++loadSeq;
@@ -454,7 +464,7 @@
       <li data-id="${p.id}"${p.id === openId ? ' class="on"' : ''}>
         <span class="lr-score" style="background:${colorFor(p)}">${p.score}</span>
         <div><b>${p.acres.toLocaleString()} ac</b> · ${escapeHtml(p.owner || 'Unknown owner')}
-          <div class="muted lc-small">${escapeHtml(p.county)}${p.city ? ' · ' + escapeHtml(p.city) : ''}${p.use ? ' · ' + escapeHtml(p.use) : ''}${p.ppa ? ' · $' + p.ppa.toLocaleString() + '/ac' : ''}${p.status ? ' · <b>' + p.status + '</b>' : ''}</div></div>
+          <div class="muted lc-small">${escapeHtml(p.county)}${p.city ? ' · ' + escapeHtml(p.city) : ''}${p.use ? ' · ' + escapeHtml(p.use) : ''}${p.ppa ? ' · $' + p.ppa.toLocaleString() + '/ac' : ''}${p.status ? ' · <b>' + p.status + '</b>' : ''}</div>${(p.signals && p.signals.length) || p.group > 1 ? '<div class="sig-chips">' + (p.signals || []).map(s => '<span class="sig-chip">' + escapeHtml(s) + '</span>').join('') + (p.group > 1 ? '<span class="sig-chip" title="Owner group">' + p.group + ' parcels in group</span>' : '') + '</div>' : ''}</div>
       </li>`).join('') || '<li class="muted">Nothing matches in this view. Zoom out or loosen the filters.</li>';
   }
   results.addEventListener('click', e => {

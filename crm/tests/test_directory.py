@@ -100,7 +100,7 @@ class MailTests(DirectoryBase):
                                           subject="Rents")
         r = self.client.post("/directory/file-domain/", {"domain": "greystar.com", "name": "Greystar",
                                                          "kind": "re_broker"})
-        self.assertRedirects(r, "/mail/", fetch_redirect_response=False)
+        self.assertRedirects(r, "/needs-filing/", fetch_redirect_response=False)
         firm = Firm.objects.get(name="Greystar")
         self.assertEqual((firm.kind, firm.domains), ("re_broker", ["greystar.com"]))
         self.assertEqual(FirmEmail.objects.filter(provider=firm).count(), 2)
@@ -117,7 +117,7 @@ class MailTests(DirectoryBase):
         UnmatchedEmail.objects.create(mailbox=Mailbox.objects.create(user=self.user, email="kmo@acmigroup.com"),
                                       message_id="<q1>", occurred_at=at(self.today), kind="email_received",
                                       address="jo@greystar.com", domain="greystar.com")
-        self.assertContains(self.client.get("/mail/"), "File in directory")
+        self.assertContains(self.client.get("/needs-filing/"), "File in directory")
 
 
 class MoveTests(DirectoryBase):

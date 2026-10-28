@@ -32,7 +32,8 @@ class CalendarFirstMergeTests(TestCase):
     def test_note_takes_over_the_calendar_row(self):
         meetings.import_meetings([self.cal])
         cal_row = Meeting.objects.get()
-        task = Task.objects.create(title="Prep", meeting=cal_row)
+        task = Task.objects.create(title="Prep")
+        task.meetings.add(cal_row)
         meetings.import_meetings([self.note])
         m = Meeting.objects.get()
         self.assertEqual((m.pk, m.source, m.external_id, m.calendar_id), (cal_row.pk, "granola", "granola:n1", "evt1"))
@@ -58,7 +59,7 @@ class CalendarFirstMergeTests(TestCase):
         cal.companies.add(self.co)
         note = Meeting.objects.create(source="granola", external_id="granola:n1", title="Booz Allen / ACMI Intro",
                                       start=timezone.now(), summary=SUMMARY)
-        Task.objects.create(title="Prep", meeting=cal)
+        Task.objects.create(title="Prep").meetings.add(cal)
         for src, sid in ((Activity.Source.CALENDAR, "evt1:1"), (Activity.Source.GRANOLA, "n1:1")):
             Activity.objects.create(company=self.co, kind=Activity.Kind.MEETING, source=src, source_id=sid,
                                     summary="Booz Allen / ACMI intro", occurred_at=timezone.now())

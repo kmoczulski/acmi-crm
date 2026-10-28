@@ -24,7 +24,7 @@ from shapely.geometry import mapping, shape
 from shapely.ops import unary_union
 
 from ..models import LandCounty, Parcel
-from . import counties, layers, score
+from . import counties, layers, score, signals
 from .sources import arcgis_query, download, region_for, txgio_parcel_catalog
 
 DATA_DIR = Path(getattr(settings, "ACMI_LAND_DATA_DIR", settings.BASE_DIR / "data" / "land"))
@@ -66,7 +66,7 @@ LOADED_FIELDS = [
     "situs_address", "situs_city", "situs_zip", "legal_desc", "acres", "legal_acres", "land_value",
     "improvement_value", "market_value", "state_land_use", "local_land_use", "year_built", "tax_year", "geometry",
     "lat", "lon", "min_lat", "min_lon", "max_lat", "max_lon", "in_city", "zoning", "zoning_class", "overlays", "near", "owner_acres",
-    "owner_parcels", "score", "score_reasons", "killers",
+    "owner_parcels", "score", "score_reasons", "killers", "signals", "motivation",
 ]
 
 
@@ -98,7 +98,7 @@ def load_county(name_or_fips, *, min_acres=20, keep_zip=False, catalog=None, log
     """Load one county by name or FIPS. Returns the LandCounty."""
     md = counties.find(name_or_fips)
     if md:
-        return load_arcgis_county(md, min_acres=min_acres, log=log, force_prune=force_prune)
+        return after_load(load_arcgis_county(md, min_acres=min_acres, log=log, force_prune=force_prune), log)
     catalog = catalog or txgio_parcel_catalog()
     entry = catalog.get(str(name_or_fips).lower()) or next(
         (c for c in catalog.values() if c["fips"] == str(name_or_fips)), None)
@@ -118,6 +118,28 @@ def load_county(name_or_fips, *, min_acres=20, keep_zip=False, catalog=None, log
         shutil.rmtree(work, ignore_errors=True)
     if not keep_zip:
         zpath.unlink(missing_ok=True)
+    return after_load(county, log)
+
+
+def after_load(county, log=print):
+    """Last transfers (and Charles's mailing and values) from the county's sale source, signals, county comps and
+    owner groups. A sale source that doesn't answer leaves the load as it is: re-run `manage.py refresh_sales`."""
+    from . import portfolio, sales, signals
+
+    refreshed = False
+    if sales.source_for(county):
+        try:
+            stats = sales.refresh_county(county, log=log, rebuild_groups=False)
+            refreshed = True
+            log(f"{county.name}: last transfers for {stats['with_date']:,} parcels ({stats['with_price']:,} with a "
+                f"price), {stats.get('comps', 0):,} county comps")
+        except Exception as exc:  # noqa: BLE001 - the parcels are loaded; the sale data can follow
+            log(f"{county.name}: sale data not read ({exc}). Run manage.py refresh_sales {county.name} later.")
+    if not refreshed:
+        # Signals were scored before the parcels were saved, when the county had no land ZIPs to compare mail
+        # against, so "absentee" was never set on a first load. Recompute them now that the parcels are stored.
+        signals.apply_county(county)
+    portfolio.rebuild()
     return county
 
 
@@ -337,6 +359,7 @@ def _save(county, items, owner_totals, expected, log, prune=True, force_prune=Fa
     team work on them (TEAM_WORK), and only when the source didn't come back suspiciously short (PRUNE_FLOOR)."""
     existing = {p.key: p for p in Parcel.objects.filter(county=county)}
     layers.reset_cache()
+    signals.reset_cache()
     to_create, to_update, seen = [], [], set()
     for n, (k, fields, geoms) in enumerate(items, 1):
         geoms = [g if g.is_valid else make_valid(g) for g in geoms]
@@ -478,8 +501,10 @@ def rescore(queryset=None, remeasure=False, log=print):
     """Recompute scores (and optionally distances) after new layers, checks or buy-box changes."""
     qs = queryset if queryset is not None else Parcel.objects.all()
     layers.reset_cache()
+    signals.reset_cache()
     batch, n = [], 0
-    fields = ["score", "score_reasons", "killers", "zoning_class"] + (["near", "in_city"] if remeasure else [])
+    fields = ["score", "score_reasons", "killers", "zoning_class", "signals", "motivation"] + (
+        ["near", "in_city"] if remeasure else [])
     # By id, not the default -score order: SQLite doesn't isolate a running read from writes on the same connection,
     # so walking the score index while rewriting scores visited ~1,500 parcels twice (and miscounted).
     for p in qs.select_related("county").order_by("pk").iterator(chunk_size=1000):

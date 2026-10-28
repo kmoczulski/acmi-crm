@@ -1,0 +1,95 @@
+{% extends "crm/base.html" %}
+{% load crm_tags %}
+{% block title %}Match the columns · Import · ACMI CRM{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Match the columns</h1>
+  <span class="muted">{{ pending.file }}{% if pending.sheets|length > 1 %} · {{ sheet.name }}{% endif %} · {{ sheet.rows|length }} row{{ sheet.rows|length|pluralize }}</span>
+  <span class="spacer"></span>
+  <form method="post" action="{% url 'crm:sheet_import_cancel' %}">{% csrf_token %}<button class="btn">Cancel</button></form>
+</div>
+<ol class="imp-steps"><li class="done">Upload</li><li class="on">Match the columns</li><li>Preview</li><li>Import</li></ol>
+
+{% if pending.sheets|length > 1 %}
+<div class="chips">
+  <span class="muted" style="font-size:12.5px">Sheet:</span>
+  {% for s in pending.sheets %}<a class="{% if forloop.counter0 == pending.sheet %}on{% endif %}" href="?sheet={{ forloop.counter0 }}">{{ s.name }} <span class="muted">{% if s.too_big %}over {{ s.too_big|add:"-1" }}{% else %}{{ s.rows|length }}{% endif %}</span></a>{% endfor %}
+</div>
+{% endif %}
+
+{% if sheet.too_big %}
+<div class="panel"><p style="margin:0">This sheet has more than {{ sheet.too_big|add:"-1" }} rows, which is more than one import takes. Split it into smaller files{% if pending.sheets|length > 1 %} or pick another sheet{% endif %}.</p></div>
+{% elif not sheet.rows %}
+<div class="panel"><p style="margin:0">This sheet has a header row and nothing under it.{% if pending.sheets|length > 1 %} Pick another sheet.{% endif %}</p></div>
+{% else %}
+<form method="post" class="imp-map">{% csrf_token %}
+  <div class="panel">
+    <h3>Columns</h3>
+    <p class="muted lc-small" style="margin-top:0">Each column is matched to a CRM field from its header. Change any that's wrong, or set it to Ignore.</p>
+    <table class="data imp-cols">
+      <thead><tr><th>Column in the sheet</th><th>Examples</th><th style="width:260px">Goes into</th></tr></thead>
+      <tbody>
+      {% for c in columns %}
+        <tr class="{% if not c.field %}imp-ignored{% endif %}">
+          <td><strong>{{ c.header }}</strong></td>
+          <td class="imp-samples">{% for s in c.samples %}<span>{{ s|truncatechars:40 }}</span>{% empty %}<span class="muted">empty</span>{% endfor %}</td>
+          <td><select name="col_{{ c.i }}" data-col>
+            <option value="">Ignore</option>
+            {% for group, fields in groups %}<optgroup label="{{ group }}">{% for key, label in fields %}<option value="{{ key }}" {% if key == c.field %}selected{% endif %}>{{ label }}</option>{% endfor %}</optgroup>{% endfor %}
+          </select></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="panel fields imp-options">
+    <h3>Options</h3>
+    <div class="imp-opt-grid">
+      <div>
+        <label>When a company or contact is already in the CRM</label>
+        {% for value, label in modes %}<label class="imp-radio"><input type="radio" name="mode" value="{{ value }}" {% if options.mode|default:"fill" == value %}checked{% endif %}> {{ label }}</label>{% endfor %}
+        <span class="helptext">Fill blanks only never changes anything already in the CRM. Update writes the sheet's value over it (notes are added to, never replaced).</span>
+      </div>
+      <div>
+        <label for="imp-owner">Owner of new companies</label>
+        <select name="owner" id="imp-owner"><option value="">Nobody</option>{% for u in users %}<option value="{{ u.pk }}" {% if options.owner == u.pk|stringformat:"s" %}selected{% endif %}>{{ u.get_full_name|default:u.username }}</option>{% endfor %}</select>
+        <span class="helptext">Used when the sheet has no owner for the row.</span>
+      </div>
+      <div>
+        <label for="imp-status">Stage of new companies</label>
+        <select name="status" id="imp-status"><option value="">Prospect (the usual)</option>{% for v, l in statuses %}<option value="{{ v }}" {% if options.status == v %}selected{% endif %}>{{ l }}</option>{% endfor %}</select>
+      </div>
+      <div>
+        <label for="imp-priority">Priority of new companies</label>
+        <select name="priority" id="imp-priority"><option value="">None</option>{% for v, l in priorities %}<option value="{{ v }}" {% if options.priority == v %}selected{% endif %}>{{ l }}</option>{% endfor %}</select>
+      </div>
+      <div>
+        <label for="imp-clist">Add the companies to a list</label>
+        <select name="company_list" id="imp-clist" data-list><option value="">No list</option>{% for l in company_lists %}<option value="{{ l.pk }}" {% if options.company_list == l.pk %}selected{% endif %}>{{ l.name }}</option>{% endfor %}<option value="new" {% if options.company_list.new %}selected{% endif %}>A new list…</option></select>
+        <input name="company_list_new" placeholder="New list's name" value="{{ options.company_list.new|default:'' }}" {% if not options.company_list.new %}hidden{% endif %} maxlength="200">
+      </div>
+      <div>
+        <label for="imp-plist">Add the contacts to a list</label>
+        <select name="person_list" id="imp-plist" data-list><option value="">No list</option>{% for l in person_lists %}<option value="{{ l.pk }}" {% if options.person_list == l.pk %}selected{% endif %}>{{ l.name }}</option>{% endfor %}<option value="new" {% if options.person_list.new %}selected{% endif %}>A new list…</option></select>
+        <input name="person_list_new" placeholder="New list's name" value="{{ options.person_list.new|default:'' }}" {% if not options.person_list.new %}hidden{% endif %} maxlength="200">
+      </div>
+    </div>
+  </div>
+  <button class="btn-primary">Preview the import</button>
+  <span class="muted lc-small">Nothing is written until you confirm on the next page.</span>
+</form>
+{% endif %}
+{% endblock %}
+{% block scripts %}
+<script>
+  document.querySelectorAll('select[data-col]').forEach(s => s.addEventListener('change', () => {
+    s.closest('tr').classList.toggle('imp-ignored', !s.value);
+  }));
+  document.querySelectorAll('select[data-list]').forEach(s => s.addEventListener('change', () => {
+    const box = s.parentElement.querySelector('input');
+    box.hidden = s.value !== 'new';
+    if (!box.hidden) box.focus();
+  }));
+</script>
+{% endblock %}

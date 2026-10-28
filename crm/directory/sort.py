@@ -3,8 +3,10 @@ a consultant / vendor / lender for the directory, or neither), and which existin
 than prospects.
 
 After each mail sync (auto_sort): a domain Claude is sure is a directory firm is filed there, with its contacts from
-the signatures, and the Managers get a bell note with Undo; every other verdict is a suggestion on Mail review. Nothing
-here ever creates a Company, so nothing reaches outreach without a person deciding. Existing Companies are only
+the signatures, and the Managers get a bell note with Undo. "Sure" is high confidence, or medium when the team has met
+someone there (a meeting with an attendee at the domain). Every other verdict is the headline of the domain's card on
+Needs filing (crm/needs_filing.py). Domains that only turn up as meeting attendees are sorted too. Nothing here ever
+creates a Company, so nothing reaches outreach without a person deciding. Existing Companies are only
 flagged (review_companies); a Manager moves them with Move to directory."""
 import json
 import logging
@@ -18,7 +20,9 @@ from django.utils import timezone
 
 from ..contracts import ai
 from ..contracts.ai import Unavailable  # noqa: F401 - callers catch it from here
-from ..models import Activity, Company, DomainSort, Firm, FirmEmail, Mailbox, Notification, UnmatchedEmail
+from ..models import (
+    Activity, Company, DomainSort, Firm, FirmEmail, Mailbox, MailFilter, Meeting, Notification, UnmatchedEmail,
+)
 from ..permissions import MANAGERS
 from . import logic
 
@@ -98,17 +102,25 @@ def _squash(text):
 
 
 def domain_evidence(domain):
-    """What the review queue holds for a domain, as text for Claude."""
+    """What the review queue and the calendar hold for a domain, as text for Claude."""
     rows = list(UnmatchedEmail.objects.filter(domain=domain).order_by("-occurred_at"))
     people = {}
     for r in rows:
         people.setdefault(r.address, r.name)
+    meetings = list(Meeting.objects.filter(attendees__icontains=f"@{domain}").order_by("-start")[:EMAILS_PER_DOMAIN])
+    for m in meetings:
+        for a in m.attendees or []:
+            if (a.get("email") or "").lower().endswith(f"@{domain}"):
+                people.setdefault(a["email"].lower(), a.get("name", ""))
     lines = [f"Domain: {domain}", f"{len(rows)} emails waiting; people: "
              + "; ".join(f"{n} <{a}>" if n else a for a, n in list(people.items())[:8])]
     for r in rows[:EMAILS_PER_DOMAIN]:
         snippet = _squash(r.snippet)[:SNIPPET]
         lines.append(f"- {r.get_kind_display()} {r.occurred_at:%Y-%m-%d} from/to {r.name or r.address}: "
                      f"\"{_squash(r.subject)}\"" + (f" | {snippet}" if snippet else ""))
+    for m in meetings:
+        lines.append(f"- Meeting {m.start:%Y-%m-%d}: \"{_squash(m.title)}\" with "
+                     + ", ".join(a.get("name") or a.get("email", "") for a in m.outside_attendees[:6]))
     return "\n".join(lines)
 
 
@@ -189,6 +201,9 @@ def file(sort, user=None, alert=True):
         sort.status = DomainSort.Status.DONE if user else DomainSort.Status.FILED
         sort.decided_by, sort.decided_at = user, timezone.now()
         sort.save()
+        from .. import needs_filing
+
+        needs_filing.refresh_domain(sort.domain)  # its meetings now show the firm
     if user is None and alert:
         _alert([sort])
     return firm, moved
@@ -235,6 +250,9 @@ def undo(sort, user=None):
             firm.domains = [d for d in firm.domains if d != sort.domain]
             firm.contacts = [c for c in firm.contacts or [] if c not in sort.contacts]
             firm.save()
+            from .. import needs_filing
+
+            needs_filing.unlink_firm_domain(firm, sort.domain)  # its meetings are back to "no record"
             if (sort.created_firm and not firm.domains and not firm.sources.exists()
                     and not firm.team_roles.exists() and not firm.emails_log.exists()):
                 firm.delete()
@@ -243,16 +261,58 @@ def undo(sort, user=None):
     return True
 
 
+def met(domain):
+    """Has the team had a meeting with someone at the domain?"""
+    return Meeting.objects.filter(attendees__icontains=f"@{domain}").exists()
+
+
+def sure(sort):
+    """A directory verdict Claude files on its own: high confidence, or medium with a meeting there."""
+    if sort.verdict != DomainSort.Verdict.DIRECTORY:
+        return False
+    return sort.confidence == DomainSort.Confidence.HIGH or (
+        sort.confidence == DomainSort.Confidence.MEDIUM and met(sort.domain))
+
+
+def taken(domain):
+    """Someone already decided this domain: a company owns it, or it's ignored or protected in Mail filters."""
+    return (Company.objects.filter(domains__icontains=f'"{domain}"').exists()
+            or MailFilter.objects.filter(pattern__iexact=domain).exists())
+
+
+def waiting(domain):
+    """Still unfiled: email in the queue, or a meeting with someone there and no firm owning the domain. Never one
+    already added as a company or ignored, even if an older suggestion for it is still open."""
+    if taken(domain):
+        return False
+    return UnmatchedEmail.objects.filter(domain=domain).exists() or (
+        met(domain) and domain not in logic.firm_domains())
+
+
 def auto_sort(limit=PER_RUN, batch=BATCH):
-    """After a mail sync: sort the queue's domains Claude hasn't seen, busiest first, and file the sure directory
-    firms. Returns stats. Stops quietly when Claude is off or unavailable."""
+    """After a mail sync: sort the domains Claude hasn't seen (the queue's busiest first, then ones only met at
+    meetings), and file the sure directory firms. A medium verdict from an earlier run is filed once a meeting with
+    the domain turns up. Returns stats. Stops quietly when Claude is off or unavailable.
+
+    First, with or without Claude, the recent meetings are re-linked to known records (crm/needs_filing.py), so a
+    person or company added by hand since takes its meetings off Needs filing."""
+    from .. import needs_filing
+
+    needs_filing.refresh()
     stats = {"sorted": 0, "filed in the directory": 0}
     if not ai.enabled():
         return stats
+    filed = []
+    for old in DomainSort.objects.filter(company__isnull=True, status=DomainSort.Status.SUGGESTED,
+                                         verdict=DomainSort.Verdict.DIRECTORY, confidence=DomainSort.Confidence.MEDIUM):
+        if met(old.domain) and waiting(old.domain):
+            file(old, alert=False)
+            filed.append(old)
     seen = set(DomainSort.objects.filter(company__isnull=True).values_list("domain", flat=True))
     domains = [r["domain"] for r in UnmatchedEmail.objects.values("domain").annotate(n=Count("id"), last=Max("occurred_at"))
-               .order_by("-n", "-last") if r["domain"] not in seen][:limit]
-    filed = []
+               .order_by("-n", "-last") if r["domain"] not in seen]
+    domains += [d for d in needs_filing.open_domains() if d not in seen and d not in domains]
+    domains = domains[:limit]
     for i in range(0, len(domains), batch):
         chunk = domains[i:i + batch]
         try:
@@ -265,8 +325,7 @@ def auto_sort(limit=PER_RUN, batch=BATCH):
                 continue
             sort = _record(results[d], d)
             stats["sorted"] += 1
-            if (sort.verdict == DomainSort.Verdict.DIRECTORY and sort.confidence == DomainSort.Confidence.HIGH
-                    and UnmatchedEmail.objects.filter(domain=d).exists()):
+            if sure(sort) and waiting(d):
                 file(sort, alert=False)
                 filed.append(sort)
     stats["filed in the directory"] = len(filed)

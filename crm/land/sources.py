@@ -33,14 +33,28 @@ FEMA_RETRY_AFTER = 600  # after a failed lookup, use the last known id for 10 mi
 _fema_layer_cache = {}
 
 
-def fema_flood_layer_id():
-    """FEMA renumbers NFHL layers now and then (28 → 35 in Oct 2026): find "Flood Hazard Zones" by name."""
+def fema_flood_layer_id(wait=True):
+    """FEMA renumbers NFHL layers now and then (28 → 35 in Oct 2026): find "Flood Hazard Zones" by name.
+    wait=False (pages): answer at once with the last known id and look it up in the background, so a page never
+    waits on FEMA (its retries took 9 s when FEMA was down, up to a minute when it hung)."""
+    import threading
     import time
 
     hit = _fema_layer_cache.get("id")
     if hit and time.time() - hit[1] < 6 * 3600:
         return hit[0]
     fallback = hit[0] if hit else FEMA_FLOOD_LAYER_DEFAULT
+    if not wait:
+        if not _fema_layer_cache.get("looking"):
+            _fema_layer_cache["looking"] = True
+
+            def look():
+                try:
+                    fema_flood_layer_id()
+                finally:
+                    _fema_layer_cache.pop("looking", None)
+            threading.Thread(target=look, daemon=True).start()
+        return fallback
     # A page that shows the flood layer calls this: while FEMA is down, don't make every page wait on it again.
     if time.time() - _fema_layer_cache.get("failed", 0) < FEMA_RETRY_AFTER:
         return fallback

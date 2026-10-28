@@ -25,7 +25,7 @@ from PIL import Image, ImageDraw, ImageFont
 from pyproj import Transformer
 from shapely.geometry import shape
 
-from . import brief_options, listing as listing_mod, score, trim, zoning_ref
+from . import brief_options, comps as comps_mod, listing as listing_mod, score, signals, trim, zoning_ref
 from .lookup import checks_for, run_checks_many
 from .sources import STORED_LAYERS, fema_flood_url
 from .views import near_rows
@@ -449,7 +449,15 @@ def build(site, refresh=False):
             "address": p.situs_address, "map": maps_url(f"{p.lat:.6f},{p.lon:.6f}"),
         })
     biggest = max(parcels, key=lambda p: acres[p.pk])
+    # Recorded land sales nearby (outside-safe: no comps marked internal, no notes, no buyer or seller names) and
+    # the owners' off-market signals (team view only: the template keeps them off the PDF and the printout).
+    center_lat = sum(p.lat * acres[p.pk] for p in parcels) / (gross or 1)
+    center_lon = sum(p.lon * acres[p.pk] for p in parcels) / (gross or 1)
+    sale_comps = comps_mod.nearby(lat=center_lat, lon=center_lon, county=biggest.county, outside=True, limit=8,
+                                  exclude_parcels=[p.pk for p in parcels])
+    owner_signals = [(p, signals.chips(p)) for p in sorted(parcels, key=lambda p: -acres[p.pk]) if p.signals]
     return {
+        "sale_comps": sale_comps, "owner_signals": owner_signals,
         "parcel_rows": parcel_rows, "listing": listing_mod.display(site.listing),
         "map_url": maps_url(f"{biggest.lat:.6f},{biggest.lon:.6f}"), "hide": brief_options.hidden(site), "extras": brief_options.extras(site),
         "site": site, "parcels": parcels, "n_parcels": len(parcels), "gross": round(gross, 1), "net": net,

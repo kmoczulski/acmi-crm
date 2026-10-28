@@ -215,7 +215,8 @@ def join_owners(county, path, *, overrides=None, commit=False, log=print):
             p.owner_acres, p.owner_parcels = round(totals[0], 1), totals[1]
         score.apply(p)
     Parcel.objects.bulk_update(parcels, TEXT_FIELDS + NUMBER_FIELDS + ["owner_acres", "owner_parcels", "zoning_class",
-                                                                        "score", "score_reasons", "killers"], batch_size=500)
+                                                                        "score", "score_reasons", "killers", "signals",
+                                                                        "motivation"], batch_size=500)
     if not has_acres:  # no acreage column: count owners over the parcels stored here
         totals = _owner_totals((p.owner_name, p.acres) for p in parcels)
         for p in parcels:
@@ -223,4 +224,7 @@ def join_owners(county, path, *, overrides=None, commit=False, log=print):
             p.owner_acres, p.owner_parcels = (round(o[0], 1), o[1]) if o else (None, None)
         Parcel.objects.bulk_update(parcels, ["owner_acres", "owner_parcels"], batch_size=500)
     stats["owners_after"] = sum(1 for p in parcels if p.owner_name)
+    from . import portfolio
+
+    portfolio.rebuild()
     return stats

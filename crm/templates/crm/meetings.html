@@ -12,6 +12,7 @@
   <a class="btn {% if who == 'all' %}btn-primary{% endif %}" href="{% qs_set who='' %}">Everyone</a>
   <a class="btn {% if who == 'me' %}btn-primary{% endif %}" href="{% qs_set who='me' %}">Mine</a>
   <a class="btn {% if who == 'outside' %}btn-primary{% endif %}" href="{% qs_set who='outside' %}">With companies</a>
+  <a class="btn {% if who == 'unfiled' %}btn-primary{% endif %}" href="{% qs_set who='unfiled' %}" title="Outside attendees no person, company or firm knows yet">No record</a>
 </div>
 {% view_bar "meetings" %}
 
@@ -37,16 +38,18 @@
     <div class="cal-day {% if day.other %}other{% endif %} {% if day.today %}today{% endif %}">
       <div class="cal-date">{{ day.date.day }}</div>
       {% for m in day.meetings %}
-        <button type="button" class="cal-event {% if m.companies.all %}ext{% endif %} {% if m.summary %}notes{% endif %}" data-id="{{ m.pk }}"
-                title="{{ m.title }}">{{ m.start|time:"g:i" }} {{ m.title|truncatechars:34 }}</button>
+        <button type="button" class="cal-event {% if m.companies.all or m.firms.all %}ext{% endif %} {% if m.summary %}notes{% endif %}" data-id="{{ m.pk }}"
+                title="{{ m.title }}">{{ m.start|time:"g:i" }} {{ m.title|truncatechars:34 }}{% for f in m.firms.all|slice:":1" %}<span class="cal-firm">{{ f.name }} · {{ f.get_kind_display|lower }}</span>{% endfor %}</button>
+        {% if m.unfiled %}{% include "crm/partials/unfiled_marker.html" with compact=True %}{% endif %}
       {% endfor %}
     </div>
     {% endfor %}
   </div>
   {% endfor %}
 </div>
-<p class="muted" style="font-size:12px"><span class="cal-event ext" style="display:inline-block">blue</span> = with an outside company ·
-  <span class="cal-event notes" style="display:inline-block">📝</span> = has Granola notes. Click a meeting for the summary and action items.</p>
+<p class="muted cal-legend">Blue: with a company or a directory firm (its name and type show under the title) ·
+  📝: has Granola notes · “No record”: outside attendees nobody has filed yet, with a File link to Needs filing.
+  Click a meeting for the summary and action items.</p>
 
 {% include "crm/partials/meeting_dialog.html" %}
 {% endblock %}

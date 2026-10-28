@@ -1,11 +1,16 @@
 {% load humanize %}
-{% if "parcels" not in b.hide or "flyer" not in b.hide or "claims" not in b.hide %}<article class="brief brief-detail">
+{% if "parcels" not in b.hide or "flyer" not in b.hide or "claims" not in b.hide or "comps" not in b.hide or team_view and b.owner_signals %}<article class="brief brief-detail">
   <div class="brief-top">{% include "crm/partials/report_logo.html" with width="105" %}<span>{{ b.site.name|truncatechars:70 }} · parcels and listing details</span></div>
   {% if "parcels" not in b.hide %}<h2>Parcels in this site ({{ b.n_parcels }}, {{ b.gross|floatformat:1|intcomma }} ac)</h2>
   <table class="parcel-table">
     <tr><th>Parcel no.</th><th>Site address</th><th>Owner</th><th class="num">Acres</th><th>Zoning</th><th>Land use</th><th>Owner mails to</th><th class="num">Land value</th></tr>
     {% for r in b.parcel_rows %}<tr><td class="nowrap">{{ r.apn }}</td><td><a href="{{ r.map }}" target="_blank" rel="noopener">{{ r.address|default:"Open in Maps" }}</a></td><td>{{ r.owner|default:"Not listed" }}</td><td class="num">{{ r.acres|floatformat:1|intcomma }}</td><td class="nowrap"><b>{{ r.zoning }}</b>{% if r.authority %} <span class="muted">{{ r.authority|truncatechars:22 }}</span>{% endif %}</td><td>{{ r.use }}</td><td>{{ r.mail }}</td><td class="num">{% if r.value %}${{ r.value|intcomma }}{% else %}N/A{% endif %}</td></tr>{% endfor %}
   </table>{% endif %}
+  {% if "comps" not in b.hide %}{% include "crm/partials/brief_comps.html" with sc=b.sale_comps %}{% endif %}
+  {% if team_view and b.owner_signals %}<div class="brief-team-only no-print">
+    <h2>Off-market signals <span class="muted">· team only: not in the PDF or the printout</span></h2>
+    <table>{% for p, chips in b.owner_signals %}<tr><th>{{ p.owner_name|default:"Unknown owner" }} <span class="muted">· {{ p.prop_id|default:p.key }}</span></th><td>{% for code, label, detail in chips %}<span class="sig-chip sig-{{ code }}" title="{{ detail }}">{{ label }}</span> {% endfor %}</td></tr>{% endfor %}</table>
+  </div>{% endif %}
   {% with l=b.listing %}
   {% if "flyer" not in b.hide %}<h2>From the listing flyer <span class="muted">· {% if l.source %}{{ l.source }}{% else %}source N/A{% endif %}</span></h2>
   <div class="brief-cols">

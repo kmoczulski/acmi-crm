@@ -45,7 +45,9 @@ def site_brief(request, pk):
     brief = _build(site)
     if brief and request.GET.get("format") == "pdf":
         return _pdf(request, [brief], briefs.export_name(site.name), brief_options.page_hidden(request))
+    # team_view: the page in the app shows the owners' off-market signals (kept off the PDF and the printout).
     return render(request, "crm/land_site_brief.html", {"brief": brief, "site": site, "page_hide": brief_options.page_hidden(request),
+                                                         "team_view": True,
                                                          "definitions": briefs.definitions([brief]) if brief else [],
                                                          "method": score.methodology(),
                                                          "zoning": briefs.zoning_sections([brief]) if brief else {}})
@@ -70,6 +72,7 @@ def briefs_page(request):
     picker = [(s, s.pk in picked) for s in
               LandSite.objects.select_related("campus", "project").exclude(status=LandSite.Status.DROPPED)]
     return render(request, "crm/land_briefs.html", {"briefs": built, "ids": ",".join(str(b["site"].pk) for b in built),
+                                                     "team_view": True,
                                                      "picker": picker, "skipped": skipped, "cover_pages": brief_options.cover_pages(built), "page_hide": brief_options.page_hidden(request),
                                                      "cover_rows": brief_options.COVER_ROWS, "pages": brief_options.PAGES,
                                                      "hide_param": ",".join(sorted(brief_options.page_hidden(request))),

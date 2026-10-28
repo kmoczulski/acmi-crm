@@ -954,7 +954,7 @@ class SiteBriefTests(TestCase):
             form = self.client.get(f"/land/sites/{self.site.pk}/brief/customize/")
             self.assertContains(form, "Your own sections")
             resp = self.client.post(f"/land/sites/{self.site.pk}/brief/customize/", {
-                "show": ["maps", "ownership", "flags", "verify", "notes", "flyer", "claims"],  # power and parcels left out
+                "show": ["maps", "ownership", "flags", "verify", "notes", "flyer", "claims", "comps"],  # power and parcels left out
                 "extra_title_0": "Why ACMI likes it", "extra_body_0": "Next to the I-10 interchange."})
             self.assertRedirects(resp, f"/land/sites/{self.site.pk}/brief/")
             cut = self.client.get(f"/land/sites/{self.site.pk}/brief/")
@@ -1424,6 +1424,18 @@ class SiteTrimTests(TestCase):
 
 
 class FemaLayerLookupTests(TestCase):
+    def test_a_page_never_waits_on_fema(self):
+        from crm.land import sources
+
+        saved = dict(sources._fema_layer_cache)
+        self.addCleanup(lambda: (sources._fema_layer_cache.clear(), sources._fema_layer_cache.update(saved)))
+        sources._fema_layer_cache.clear()
+        with mock.patch("threading.Thread") as thread, mock.patch.object(sources.SESSION, "get") as get:
+            self.assertEqual(sources.fema_flood_layer_id(wait=False), sources.FEMA_FLOOD_LAYER_DEFAULT)
+            self.assertEqual(sources.fema_flood_layer_id(wait=False), sources.FEMA_FLOOD_LAYER_DEFAULT)
+        get.assert_not_called()  # the lookup runs in the background
+        self.assertEqual(thread.call_count, 1)  # once, not per page
+
     def test_a_failed_lookup_isnt_retried_on_every_page(self):
         from crm.land import sources
 

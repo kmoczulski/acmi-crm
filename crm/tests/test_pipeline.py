@@ -11,7 +11,7 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
-from crm import meetings, pipeline, pipeline_import
+from crm import meetings, pipeline, pipeline_import, prefs
 from crm.models import (
     Activity, Attachment, Campus, Company, CompanyStatus, Document, Opportunity, OpportunityContact, OpportunityStage,
     Person,
@@ -164,6 +164,27 @@ class PipelineLogicTests(TestCase):
         Activity.objects.create(kind=Activity.Kind.EMAIL_SENT, occurred_at=now - timedelta(hours=1), company=self.company,
                                 summary="Answer", thread_id="t1", source=Activity.Source.GMAIL, source_id="s")
         self.assertEqual(pipeline.awaiting_reply(self.user), [])
+
+    def test_a_waiting_reply_opens_the_email_or_comes_off_my_list(self):
+        now = timezone.now()
+        reply = Activity.objects.create(kind=Activity.Kind.REPLY, occurred_at=now - timedelta(hours=3),
+                                        company=self.company, summary="Reply", outcome="Responded", thread_id="t2",
+                                        message_id="<r-1@ara.com>", source=Activity.Source.GMAIL, source_id="r2")
+        self.client.force_login(self.user)
+        r = self.client.get(reverse("crm:home"))
+        if "my_day" in r.content.decode() or "Replies waiting on us" in r.content.decode():
+            self.assertContains(r, reverse("crm:inbox_open") + "?m=%3Cr-1%40ara.com%3E")
+            self.assertContains(r, reverse("crm:reply_dismiss", args=[reply.pk]))
+        r = self.client.post(reverse("crm:reply_dismiss", args=[reply.pk]), HTTP_X_REQUESTED_WITH="fetch")
+        self.assertEqual(r.json(), {"ok": True})
+        self.assertEqual(pipeline.awaiting_reply(self.user), [])
+        later = Activity.objects.create(kind=Activity.Kind.REPLY, occurred_at=now - timedelta(hours=1),
+                                        company=self.company, summary="Again", outcome="Responded", thread_id="t2",
+                                        source=Activity.Source.GMAIL, source_id="r3")
+        self.assertEqual(pipeline.awaiting_reply(self.user), [later])  # a new reply brings the thread back
+        other = User.objects.create_user("simon2", password="x")
+        self.assertEqual(self.client.get(reverse("crm:reply_dismiss", args=[reply.pk])).status_code, 405)
+        self.assertNotIn(reply.pk, prefs.get_prefs(other).get(pipeline.REPLIES_DISMISSED, []))
 
 
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp())

@@ -280,18 +280,18 @@ class MailViewTests(TestCase):
 
     @patch.dict("os.environ", {"ACMI_IMAP_PASSWORD_KELLEN": ""})
     def test_mail_page_and_setup(self):
-        self.assertEqual(self.client.get("/mail/").status_code, 200)
+        self.assertEqual(self.client.get("/needs-filing/").status_code, 200)
         self.client.post("/mail/setup/", {"email": ME, "backfill_days": "90"})
         mb = Mailbox.objects.get(user=self.user)
         self.assertEqual(mb.backfill_days, 90)
-        page = self.client.get("/mail/")
+        page = self.client.get("/needs-filing/")
         self.assertContains(page, "ACMI_IMAP_PASSWORD_KELLEN")
 
     def test_review_actions(self):
         mb = Mailbox.objects.create(user=self.user, email=ME)
         UnmatchedEmail.objects.create(mailbox=mb, message_id="<m>", occurred_at=timezone.now(), kind="email_sent",
                                       address="a@newco.com", domain="newco.com", subject="Hi")
-        self.assertContains(self.client.get("/mail/"), "newco.com")
+        self.assertContains(self.client.get("/needs-filing/"), "newco.com")
         self.client.post("/mail/review/approve/", {"domain": "newco.com", "name": "Newco"})
         self.assertTrue(Company.objects.filter(name="Newco", domains=["newco.com"]).exists())
 

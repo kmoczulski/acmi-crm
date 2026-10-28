@@ -4,7 +4,7 @@
 (function () {
   const POLL_MS = 30000;
   const root = document.getElementById('alerts-config');
-  if (!root) return;
+  if (!root || window.top !== window) return;  // the split view's side frame: the main page polls
   const pollUrl = root.dataset.poll;
   const pref = (k, d) => { try { const v = localStorage.getItem('alerts:' + k); return v === null ? d : v === '1'; } catch (e) { return d; } };
   const setPref = (k, on) => { try { localStorage.setItem('alerts:' + k, on ? '1' : '0'); } catch (e) {} };

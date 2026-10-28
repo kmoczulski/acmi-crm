@@ -236,10 +236,12 @@ VAPID_SUBJECT = env("ACMI_VAPID_SUBJECT", "https://hub.acmigroup.com")
 # --- Security headers ------------------------------------------------------
 # Scripts may only come from this site and the pinned unpkg files (which also carry integrity hashes). Inline scripts
 # are still allowed because the templates use them. Images, tiles and map-service requests are left open.
+# Pages may be framed by the hub itself (the split view, crm/static/crm/split.js) and by nothing else.
 CONTENT_SECURITY_POLICY = env(
     "ACMI_CSP",
-    "script-src 'self' 'unsafe-inline' https://unpkg.com; object-src 'none'; base-uri 'self'; frame-ancestors 'none'",
+    "script-src 'self' 'unsafe-inline' https://unpkg.com; object-src 'none'; base-uri 'self'; frame-ancestors 'self'",
 )
+X_FRAME_OPTIONS = "SAMEORIGIN"
 
 # --- Logging ---------------------------------------------------------------
 # Django's defaults print nothing when DEBUG is off, so a crash in production would leave no trace. Send errors to

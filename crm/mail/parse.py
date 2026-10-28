@@ -48,6 +48,7 @@ class ParsedEmail:
     labels: list = field(default_factory=list)
     headers: dict = field(default_factory=dict)  # lower-case name -> value, selected headers only
     attachments: list = field(default_factory=list)  # [(filename, approx bytes, mime type)]
+    calendar: list = field(default_factory=list)  # the text of each calendar part (.ics), for crm/invites.py
 
     @property
     def is_reply(self):
@@ -113,6 +114,23 @@ def _text_body(msg):
     return finish_text(plain, html_part)
 
 
+CALENDAR_TYPES = ("text/calendar", "application/ics")
+
+
+def calendar_parts(msg):
+    """The text of every calendar part (an invite's .ics, inline or attached, also inside a forwarded message)."""
+    out = []
+    for part in msg.walk() if msg.is_multipart() else [msg]:
+        name = (part.get_filename() or "").lower()
+        if part.get_content_type() not in CALENDAR_TYPES and not name.endswith(".ics"):
+            continue
+        payload = part.get_payload(decode=True) or b""
+        text = payload.decode(part.get_content_charset() or "utf-8", errors="replace")
+        if "BEGIN:VEVENT" in text and text not in out:
+            out.append(text)
+    return out
+
+
 def finish_text(plain, html_part):
     """The plain part, else the HTML part without tags; whitespace tidied and cut to BODY_LIMIT."""
     text = plain
@@ -148,6 +166,7 @@ def parse_message(raw, uid=0, thread_id="", labels=None):
         cc=[(n, _clean_addr(a)) for n, a in getaddresses([str(v) for v in msg.get_all("Cc", [])]) if a],
         subject=" ".join(str(msg.get("Subject", "")).split())[:500],
         body=_text_body(msg),
+        calendar=calendar_parts(msg),
         in_reply_to=str(msg.get("In-Reply-To", "")).strip(),
         references=str(msg.get("References", "")).split(),
         labels=list(labels or []),

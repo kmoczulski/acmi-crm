@@ -5,6 +5,7 @@
 <div class="page-head">
   <h1>People</h1>
   <span class="spacer"></span>
+  <a class="btn" href="{% url 'crm:sheet_import' %}" title="Companies and contacts from an Excel or CSV file">Import</a>
   <a class="btn btn-primary" href="{% url 'crm:person_create' %}">New person</a>
 </div>
 {% view_bar "person" %}

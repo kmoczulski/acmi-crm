@@ -116,15 +116,26 @@ def core_subject(subject):
 
 def other_parts(mailbox, client, gmail_id, subject, messages):
     """Threads with the same subject and some of the same people: the parts of a conversation Gmail split."""
+    from django.core.cache import cache
+
+    from crm.models import MailThread
+
     from . import index
 
     core = core_subject(subject)
     if len(messages) < SPLIT_AT or len(core) < 4:
         return []
+    key = f"mail-parts:{mailbox.pk}:{gmail_id}:{len(messages)}"  # a Gmail search each time is slow; parts change rarely
+    cached = cache.get(key)
+    if cached is not None:
+        rows = {t.gmail_id: t for t in MailThread.objects.filter(mailbox=mailbox, gmail_id__in=cached)}
+        return [rows[g] for g in cached if g in rows]
     people_here = {m["from_addr"] for m in messages}
     found, _, _ = index.page(mailbox, client, query=f'subject:"{core.replace(chr(34), "")}"')
-    return [t for t in found if t.gmail_id != gmail_id and core_subject(t.subject).lower() == core.lower()
+    parts = [t for t in found if t.gmail_id != gmail_id and core_subject(t.subject).lower() == core.lower()
             and people_here & {s[1] for s in t.senders}][:5]
+    cache.set(key, [t.gmail_id for t in parts], 600)
+    return parts
 
 
 def summaries_for(mailbox, client, gmail_id):

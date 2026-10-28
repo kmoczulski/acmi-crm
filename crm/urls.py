@@ -11,9 +11,10 @@ from .dataroom import views as room_views
 from .directory import views as directory_views
 from .entitlements import views as entitlement_views
 from .tenants import views as tenant_views
+from .sheet_import import views as import_views
 from .land import assignment_views as asg_views
 from . import settings_views
-from .land import brief_views, diligence_views, letter_views
+from .land import brief_views, comp_views, diligence_views, letter_views
 from .land import card_views as land_card_views
 from .land import views as land_views
 from .mail import compose_views, inbox_views
@@ -36,6 +37,13 @@ urlpatterns = [
     path("companies/duplicates/", views.duplicates, name="duplicates"),
     path("companies/duplicates/merge/", views.duplicates_merge, name="duplicates_merge"),
     path("companies/duplicates/dismiss/", views.duplicates_dismiss, name="duplicates_dismiss"),
+    # Import from a spreadsheet (crm/sheet_import/).
+    path("import/", import_views.upload, name="sheet_import"),
+    path("import/map/", import_views.mapping, name="sheet_import_map"),
+    path("import/preview/", import_views.preview, name="sheet_import_preview"),
+    path("import/cancel/", import_views.cancel, name="sheet_import_cancel"),
+    path("import/<int:pk>/", import_views.result, name="sheet_import_result"),
+    path("import/<int:pk>/undo/", import_views.undo, name="sheet_import_undo"),
     path("people/", views.person_list, name="person_list"),
     path("people/new/", views.person_create, name="person_create"),
     path("people/<int:pk>/", views.person_detail, name="person_detail"),
@@ -54,6 +62,7 @@ urlpatterns = [
     path("opportunities/contacts/<int:pk>/remove/", views.opportunity_contact_remove, name="opportunity_contact_remove"),
     path("opportunities/suggested/<int:company_id>/create/", views.suggestion_create, name="suggestion_create"),
     path("opportunities/suggested/<int:company_id>/dismiss/", views.suggestion_dismiss, name="suggestion_dismiss"),
+    path("my-day/replies/<int:pk>/dismiss/", views.reply_dismiss, name="reply_dismiss"),
     path("documents/add/", views.document_add, name="document_add"),
     path("documents/<int:pk>/delete/", views.document_delete, name="document_delete"),
     path("documents/<int:pk>/file/", views.document_file, name="document_file"),
@@ -130,6 +139,7 @@ urlpatterns = [
     path("meetings/sync/", views.calendar_sync_now, name="calendar_sync_now"),
     path("meetings/<int:pk>/panel/", views.meeting_panel, name="meeting_panel"),
     path("meetings/<int:pk>/task/", views.meeting_make_task, name="meeting_make_task"),
+    path("meetings/<int:pk>/tasks/", views.meeting_make_tasks, name="meeting_make_tasks"),
     path("meetings/<int:pk>/transcript.txt", views.meeting_transcript, name="meeting_transcript"),
     path("notes/add/", views.note_add, name="note_add"),
     path("lists/", views.list_index, name="list_index"),
@@ -139,10 +149,15 @@ urlpatterns = [
     path("lists/entries/<int:pk>/remove/", views.list_entry_remove, name="list_entry_remove"),
     path("views/save/", views.saved_view_save, name="saved_view_save"),
     path("views/<int:pk>/delete/", views.saved_view_delete, name="saved_view_delete"),
-    path("mail/", mail_views.mail_home, name="mail"),
+    path("mail/", mail_views.mail_home, name="mail"),  # was Mail review: redirects to Needs filing
+    path("needs-filing/", mail_views.needs_filing, name="needs_filing"),
+    path("needs-filing/act/", mail_views.needs_filing_act, name="needs_filing_act"),
+    path("needs-filing/same-person/<int:pk>/", mail_views.same_person, name="same_person"),
     path("inbox/", inbox_views.inbox, name="inbox"),
+    path("inbox/warm/", inbox_views.warm, name="inbox_warm"),
     path("inbox/files/", inbox_views.files, name="inbox_files"),
     path("inbox/act/", inbox_views.act, name="inbox_act"),
+    path("inbox/labels/edit/", inbox_views.label_edit, name="inbox_label_edit"),
     path("inbox/file/", inbox_views.file_to, name="inbox_file"),
     path("inbox/file/options/", inbox_views.file_options, name="inbox_file_options"),
     path("inbox/suggest/", inbox_views.suggest, name="inbox_suggest"),
@@ -158,6 +173,7 @@ urlpatterns = [
     path("mail-setup/shared/<int:pk>/log/", mail_views.shared_log, name="mail_shared_log"),
     path("inbox/compose/", compose_views.compose_page, name="inbox_compose"),
     path("inbox/compose/fields/", compose_views.reply_fields, name="inbox_reply_fields"),
+    path("inbox/compose/calendar/", compose_views.calendar_week, name="inbox_calendar"),
     path("inbox/draft/", compose_views.save_draft, name="inbox_draft"),
     path("inbox/draft/discard/", compose_views.discard_draft, name="inbox_draft_discard"),
     path("mail-setup/signature/", compose_views.save_signature, name="mail_signature"),
@@ -207,6 +223,11 @@ urlpatterns = [
     path("land/views/save/", land_views.view_save, name="land_view_save"),
     path("land/views/<int:pk>/delete/", land_views.view_delete, name="land_view_delete"),
     path("land/assemblage.json", land_views.assemblage_json, name="land_assemblage"),
+    path("land/comps/", comp_views.comps_page, name="land_comps"),
+    path("land/comps/new/", comp_views.comp_edit, name="land_comp_new"),
+    path("land/comps/<int:pk>/", comp_views.comp_edit, name="land_comp_edit"),
+    path("land/comps/<int:pk>/delete/", comp_views.comp_delete, name="land_comp_delete"),
+    path("land/comps/<int:pk>/flyer/", comp_views.comp_flyer, name="land_comp_flyer"),
     path("land/assignments/", asg_views.assignment_list, name="assignments"),
     path("land/assignments/<int:pk>/", asg_views.assignment_detail, name="assignment_detail"),
     path("land/assignments/<int:pk>/sites/<int:entry_pk>/", asg_views.assignment_report, name="assignment_report"),

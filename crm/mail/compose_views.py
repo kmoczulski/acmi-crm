@@ -41,6 +41,7 @@ def _fields_from_post(request):
         "bcc": compose.parse_recipients(post.get("bcc", ""), "Bcc"),
         "subject": post.get("subject", "").replace("\r", " ").replace("\n", " "),
         "body": post.get("body", ""),
+        "body_html": post.get("body_html", ""),
         "thread_id": post.get("thread_id", ""),
         "in_reply_to": post.get("in_reply_to", ""),
         "references": post.get("references", ""),
@@ -101,7 +102,7 @@ def _send(request, mailbox, client, original, mode):
                 files = compose.forwarded_files(mailbox, client, original, request.POST.getlist("forward_part")) + files
         raw, _ = compose.build(mailbox, request.user, f["to"], f["cc"], f["bcc"], f["subject"], f["body"], quote=quote,
                                in_reply_to=f["in_reply_to"], references=f["references"], files=files,
-                               sig=compose.signature_parts(request.user, mailbox, client))
+                               sig=compose.signature_parts(request.user, mailbox, client), body_html=f["body_html"])
         result = compose.send(mailbox, client, raw, thread_id=f["thread_id"] if mode in ("reply", "all") else "",
                               draft_id=request.POST.get("draft_id", ""), user=request.user)
         shared.log(mailbox, request.user, "send", result.get("threadId", ""), f["subject"])
@@ -134,7 +135,8 @@ def _form_again(request, mailbox, client, original, mode, error):
     fields.update({"mode": mode, "bcc": post.get("bcc", ""),
                    "forward_files": mail_render.attachments(original) if original and mode == "forward" else []})
     return render(request, "crm/compose.html", {
-        "f": fields, "body": post.get("body", ""), "error": error, "draft_id": post.get("draft_id", ""),
+        "f": fields, "body": post.get("body", ""), "body_html": compose.formatted(post.get("body_html", "")),
+        "error": error, "draft_id": post.get("draft_id", ""),
         "kept_parts": post.getlist("forward_part"),
         "original": mail_render.summary(original) if original else None,
         "signature_html": compose.signature_parts(request.user, mailbox, client)[1], "mailbox": mailbox,
@@ -167,6 +169,30 @@ def reply_fields(request, mailbox, client):
         "signature_html": compose.signature_parts(request.user, mailbox, client)[1],
         "sending_on": compose.settings.MAIL_SEND_ENABLED,
     })
+
+
+@team_only
+def calendar_week(request):
+    """Your calendar for a week (?start=YYYY-MM-DD, the first day shown) for the Times panel beside an email."""
+    from datetime import date, datetime, time
+
+    from django.utils import timezone
+
+    from crm import gcal
+
+    try:
+        day = date.fromisoformat(request.GET.get("start", ""))
+    except ValueError:
+        day = timezone.localdate()
+    start = timezone.make_aware(datetime.combine(day, time()))
+    try:
+        events = gcal.week(request.user, start)
+    except gcal.CalendarError as exc:
+        return JsonResponse({"error": str(exc)}, status=400)
+    except requests.RequestException:
+        log.warning("Calendar week failed for %s", request.user, exc_info=True)
+        return JsonResponse({"error": "Couldn't reach Google Calendar. Try again."}, status=502)
+    return JsonResponse({"start": day.isoformat(), "events": events})
 
 
 @mail_required

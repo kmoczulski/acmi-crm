@@ -14,12 +14,13 @@
   {% include "crm/partials/company_names_js.html" %}
   <div class="table-wrap" style="border:0">
     <table class="data">
-      <thead><tr><th>Search</th><th>Client</th><th class="num">Sites</th><th>Client link</th><th>Updated</th></tr></thead>
+      <thead><tr><th>Search</th><th>Client</th><th class="num">Sites</th><th>Client link</th><th>Updated</th><th></th></tr></thead>
       <tbody>{% for a in assignments %}
         <tr><td><a href="{{ a.get_absolute_url }}"><b>{{ a.name }}</b></a></td><td>{% if a.company %}<a href="{{ a.company.get_absolute_url }}?tab=sites">{{ a.client|default:a.company.name }}</a>{% else %}{{ a.client }}{% endif %}</td><td class="num">{{ a.entries.all|length }}</td>
           <td>{% if a.share_active %}<span class="pill pill-ok">On</span> <span class="muted lc-small">{{ a.guest_views }} view{{ a.guest_views|pluralize }}</span>{% else %}<span class="muted">Off</span>{% endif %}</td>
-          <td class="lc-small">{{ a.updated_at|date:"M j, Y" }}</td></tr>
-      {% empty %}<tr><td colspan="5" class="muted">No client searches yet.</td></tr>{% endfor %}
+          <td class="lc-small">{{ a.updated_at|date:"M j, Y" }}</td>
+          <td>{% include "crm/partials/assignment_delete.html" %}</td></tr>
+      {% empty %}<tr><td colspan="6" class="muted">No client searches yet.</td></tr>{% endfor %}
       </tbody>
     </table>
   </div>

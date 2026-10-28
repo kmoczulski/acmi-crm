@@ -24,14 +24,16 @@ def app_context(request):
     from django.utils import timezone
 
     from . import notify
-    from .models import NewsScan, Task, UnmatchedEmail
+    from .models import NewsScan, Task
 
     from . import prefs, search
 
     queue = news_open = unread = due = 0
     user_prefs, pages, new_items, mail_on = {}, [], [], False
     if getattr(request, "user", None) and request.user.is_authenticated:
-        queue = UnmatchedEmail.objects.values("domain").distinct().count()
+        from . import needs_filing
+
+        queue = needs_filing.count()  # organizations with email or meetings and no record: the Outreach badge
         news_open = NewsScan.objects.filter(status=NewsScan.Status.OPEN).count()
         today = str(timezone.localdate())
         if hasattr(request, "session") and request.session.get("due_sweep") != today:
@@ -61,4 +63,11 @@ def app_context(request):
         # Managers-only buttons are hidden for everyone else (the views refuse them too).
         "IS_MANAGER": is_manager(getattr(request, "user", None)),
         "MAIL_ON": mail_on,  # Mail in the hub: the top bar's Mail link
+        "EMBED": is_embedded(request),
     }
+
+
+def is_embedded(request):
+    """The page is the other side of the split view (crm/static/crm/split.js): drawn without the top bar. The side's
+    first page asks with ?embed=1; pages opened from inside it are known by the browser's Sec-Fetch-Dest: iframe."""
+    return request.GET.get("embed") == "1" or request.headers.get("Sec-Fetch-Dest") == "iframe"

@@ -80,6 +80,8 @@
     <label class="lc-small">Internal notes (never shown to the client)<textarea name="notes" rows="3" style="width:100%">{{ a.notes }}</textarea></label>
     <button class="btn btn-primary">Save details</button>
   </form>
+  {% if IS_MANAGER or a.created_by_id == request.user.pk %}<form method="post" style="margin-top:12px" onsubmit="return confirm('Delete this search and the reports written for it? The client link stops working. The sites stay in Land.')">{% csrf_token %}
+    <button class="btn btn-danger btn-small" name="action" value="delete">Delete this search</button></form>{% endif %}
 </section>
 <datalist id="company-names"></datalist>
 {% include "crm/partials/company_names_js.html" %}

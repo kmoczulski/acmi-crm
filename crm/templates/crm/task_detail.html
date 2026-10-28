@@ -35,7 +35,7 @@
         {% if task.company %}<dt>Company</dt><dd><a href="{{ task.company.get_absolute_url }}">{{ task.company.name }}</a></dd>{% endif %}
         {% if task.opportunity %}<dt>Deal</dt><dd><a href="{{ task.opportunity.get_absolute_url }}">{{ task.opportunity.name }}</a></dd>{% endif %}
         {% if task.person %}<dt>Person</dt><dd><a href="{{ task.person.get_absolute_url }}">{{ task.person }}</a></dd>{% endif %}
-        {% if task.meeting %}<dt>Meeting</dt><dd><a href="{{ task.meeting.get_absolute_url }}">{{ task.meeting.title }}</a> <span class="muted">{{ task.meeting.start|date:"M j" }}</span></dd>{% endif %}
+        {% with ms=task.meetings.all %}{% if ms %}<dt>Meeting{{ ms|length|pluralize }}</dt><dd>{% for x in ms %}<a href="{{ x.get_absolute_url }}">{{ x.title }}</a> <span class="muted">{{ x.start|date:"M j" }}</span>{% if not forloop.last %}<br>{% endif %}{% endfor %}</dd>{% endif %}{% endwith %}
         <dt>Created</dt><dd>{{ task.created_at|date:"M j, Y" }}{% if task.created_by %} by {{ task.created_by|username }}{% endif %}</dd>
       </dl>
     </div>

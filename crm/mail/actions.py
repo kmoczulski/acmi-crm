@@ -14,7 +14,7 @@ from django.utils import timezone
 from crm.models import MailLabel, MailSnooze
 
 from . import index, render
-from .gmail_api import parallel_map
+from .gmail_api import NotFound, parallel_map
 
 log = logging.getLogger(__name__)
 
@@ -87,6 +87,58 @@ def snooze_until(choice, custom=""):
             return None
         return when if when > timezone.now() else None
     return None
+
+
+def managed(name):
+    """The hub's own labels (ACMI/...): the CRM labels and Snoozed, which the hub would only put back."""
+    return name == "ACMI" or name.startswith("ACMI/")
+
+
+def _own_label(mailbox, label_id):
+    row = MailLabel.objects.filter(mailbox=mailbox, gmail_id=label_id, system=False).first()
+    if row is None:
+        raise ActionError("Pick one of your labels.")
+    if managed(row.name):
+        raise ActionError("ACMI labels are kept by the hub. Switch them off on Mail in the hub instead.")
+    return row
+
+
+def _family(mailbox, row):
+    """The label and the ones nested under it (Gmail nests by "/" in the name)."""
+    return [row] + list(MailLabel.objects.filter(mailbox=mailbox, system=False, name__startswith=row.name + "/"))
+
+
+def rename_label(mailbox, client, label_id, new_name):
+    """Rename a label in Gmail; the labels nested under it move with it. Returns the new name."""
+    row = _own_label(mailbox, label_id)
+    new_name = "/".join(part.strip() for part in (new_name or "").strip().strip("/").split("/") if part.strip())[:225]
+    if not new_name:
+        raise ActionError("Give the label a name.")
+    if managed(new_name):
+        raise ActionError("Names starting ACMI/ are kept for the hub's own labels.")
+    if new_name == row.name:
+        return new_name
+    if MailLabel.objects.filter(mailbox=mailbox, name__iexact=new_name).exclude(pk=row.pk).exists():
+        raise ActionError(f"There's already a label called {new_name}.")
+    for lb in _family(mailbox, row):
+        name = new_name + lb.name[len(row.name):]
+        client.update_label(lb.gmail_id, name)
+        MailLabel.objects.filter(pk=lb.pk).update(name=name)
+    return new_name
+
+
+def delete_label(mailbox, client, label_id):
+    """Delete a label and the ones nested under it. Gmail takes them off their emails; no email is deleted.
+    Returns how many labels went."""
+    row = _own_label(mailbox, label_id)
+    family = _family(mailbox, row)
+    for lb in sorted(family, key=lambda x: -len(x.name)):  # the deepest first
+        try:
+            client.delete_label(lb.gmail_id)
+        except NotFound:
+            pass  # already gone in Gmail
+        lb.delete()
+    return len(family)
 
 
 def _changes(action, label):

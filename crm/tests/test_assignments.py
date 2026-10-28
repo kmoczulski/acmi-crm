@@ -95,6 +95,37 @@ class AssignmentTests(TestCase):
         for tail in ("", "edit/"):
             self.assertEqual(self.client.get(f"/land/assignments/{self.a.pk}/sites/{e.pk}/{tail}").status_code, 200)
 
+    def test_delete_keeps_the_sites_and_returns_to_the_page(self):
+        company = Company.objects.create(name="Elbit Systems")
+        self.a.company = company
+        self.a.save()
+        page = f"{company.get_absolute_url()}?tab=sites"
+        self.assertContains(self.client.get(page), "Delete")
+        self.assertContains(self.client.get(company.get_absolute_url()), "+ Land search")
+        self.assertContains(self.client.get("/land/assignments/"), "Delete")
+        r = self.client.post(self.a.get_absolute_url(), {"action": "delete", "next": page})
+        self.assertRedirects(r, page, fetch_redirect_response=False)
+        self.assertFalse(Assignment.objects.filter(pk=self.a.pk).exists())
+        self.assertFalse(AssignmentSite.objects.exists())
+        self.assertEqual(LandSite.objects.count(), 3)
+        # An outside next falls back to the list.
+        other = Assignment.objects.create(name="Second", created_by=self.user)
+        r = self.client.post(other.get_absolute_url(), {"action": "delete", "next": "https://evil.example/"})
+        self.assertRedirects(r, "/land/assignments/", fetch_redirect_response=False)
+
+    def test_only_creator_or_manager_deletes(self):
+        mine = Assignment.objects.create(name="Mine", created_by=self.user)
+        other = get_user_model().objects.create_user("simon", password="x")
+        c = Client()
+        c.force_login(other)
+        self.assertNotContains(c.get(self.a.get_absolute_url()), "Delete this search")
+        c.post(self.a.get_absolute_url(), {"action": "delete"})
+        c.post(mine.get_absolute_url(), {"action": "delete"})
+        self.assertEqual(Assignment.objects.count(), 2)
+        theirs = Assignment.objects.create(name="Theirs", created_by=other)
+        c.post(theirs.get_absolute_url(), {"action": "delete"})
+        self.assertFalse(Assignment.objects.filter(pk=theirs.pk).exists())
+
     def test_guest_link_lifecycle_and_redaction(self):
         self.save_report("Lawton", {"land": "low"}, summary="A strong site.")
         guest = Client()

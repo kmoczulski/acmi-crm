@@ -21,7 +21,7 @@ from django.views.decorators.http import require_POST
 
 from crm import prefs
 from crm.ai import enabled as ai_enabled
-from crm.models import Company, MailFiling, MailSnooze, MailThread, Mailbox, Project, UnmatchedEmail
+from crm.models import Company, MailFiling, MailLabel, MailSnooze, MailThread, Mailbox, Project, UnmatchedEmail
 
 from . import actions as mail_actions, comments as mail_comments, connect, filing as mail_filing, index, shared
 from . import render as mail_render, search as mail_search, summary as mail_summary, threads as mail_threads
@@ -120,6 +120,11 @@ def inbox(request, mailbox, client):
     if within and within != "ALL":
         label = within
     gmail_query, widened = (query, []) if exact else mail_search.expand(query)
+    thread_base = "?" + urlencode({k: v for k, v in [("label", label), ("q", query), ("exact", "1" if exact else ""),
+                                                     ("in", within), ("tab", tab if tab != "all" else ""),
+                                                     ("t", open_id)] if v})
+    if open_id and request.headers.get("X-Mail-Pane"):
+        return _pane(request, mailbox, client, open_id, label, query, tab, thread_base)
     error, threads, next_token, total, next_offset = "", [], "", 0, None
     try:
         system, user_labels = index.labels(mailbox, client)
@@ -133,8 +138,8 @@ def inbox(request, mailbox, client):
             threads, next_token, total = index.page(
                 mailbox, client, label=None if (query and not within) or label == "ALL" else label, query=gmail_query,
                 page_token=token)
-        index.retag(mailbox, threads)
         chips = index.chips(mailbox, threads)
+        index.retag(mailbox, threads, chips)
         for t in threads:
             t.chips = chips.get(t.gmail_id, [])
         reader = None
@@ -150,6 +155,7 @@ def inbox(request, mailbox, client):
     current = {lb.gmail_id: lb.name for lb in [*system, *user_labels]}.get(label, "All mail" if label == "ALL" else label)
     return render(request, "crm/inbox.html", {
         "mailbox": mailbox, "system_labels": system, "user_labels": user_labels, "label": label,
+        "label_tree": index.label_tree(user_labels),
         "label_name": "Search" if query else current, "query": query, "widened": widened, "exact": exact, "within": within, "tabs": TABS if label == "INBOX" and not query else [],
         "tab": tab, "threads": threads, "next_token": next_token, "next_offset": next_offset, "offset": offset,
         "page_token": token, "total": total, "reader": reader, "open_id": open_id, "error": error,
@@ -161,11 +167,39 @@ def inbox(request, mailbox, client):
         "snoozed": dict(MailSnooze.objects.filter(mailbox=mailbox, gmail_id__in=[t.gmail_id for t in threads])
                         .values_list("gmail_id", "until")),
         "here": request.get_full_path(),
-        "thread_base": "?" + urlencode({k: v for k, v in [("label", label), ("q", query), ("exact", "1" if exact else ""),
-                                                          ("in", within),
-                                                          ("tab", tab if tab != "all" else ""),
-                                                          ("t", open_id)] if v}),
+        "thread_base": thread_base,
     })
+
+
+def _pane(request, mailbox, client, open_id, label, query, tab, thread_base):
+    """Just the reading pane, for a conversation opened in place from the list: no list from Gmail, no page around
+    it. A Gmail failure answers 502 and the page falls back to loading normally."""
+    try:
+        _, user_labels = index.labels(mailbox, client)
+        reader = reader_for(request, mailbox, client, open_id)
+    except NotFound:
+        raise Http404("That conversation isn't in your mailbox.")
+    except (MailboxError, requests.RequestException) as exc:
+        log.warning("Reading pane failed for %s: %s", mailbox, exc)
+        return HttpResponse(status=502)
+    return render(request, "crm/partials/mail_reader.html", {
+        "mailbox": mailbox, "user_labels": user_labels, "label": label, "query": query, "tab": tab,
+        "reader": reader, "open_id": open_id, "can_change": shared.can_change(request.user, mailbox),
+        "snooze_choices": mail_actions.snooze_choices(), "here": request.get_full_path(), "thread_base": thread_base,
+    })
+
+
+@mail_required
+def warm(request, mailbox, client):
+    """Read a conversation from Gmail into the cache while the mouse rests on it, so it opens at once when clicked.
+    Only reads: nothing is marked read and nothing is logged."""
+    gmail_id = request.GET.get("t", "")[:40]
+    if gmail_id:
+        try:
+            mail_render.thread_texts(mailbox, client, gmail_id)
+        except (NotFound, MailboxError, requests.RequestException):
+            pass
+    return HttpResponse(status=204)
 
 
 def reader_for(request, mailbox, client, gmail_id, threads=()):
@@ -184,10 +218,9 @@ def reader_for(request, mailbox, client, gmail_id, threads=()):
         or MailThread.objects.filter(mailbox=mailbox, gmail_id=gmail_id).first()
     groups, hidden = mail_threads.group(mail_threads.files_of(msgs))
     unread = [m for m in msgs if m["unread"]]
-    texts, labels = {}, set()  # for Find in this thread; the thread's labels for the toolbar
+    texts, message_ids = mail_render.thread_texts(mailbox, client, gmail_id)  # Find in this thread; team notes
+    labels = set()  # the thread's labels for the toolbar
     for raw in mail_render.get_thread(mailbox, client, gmail_id).get("messages", []):
-        email = parse_api_message(raw)
-        texts[raw["id"]] = f"{email.from_name} {email.body}".lower() if email else ""
         labels |= set(raw.get("labelIds") or [])
     if unread and shared.can_change(request.user, mailbox):
         mark_read(mailbox, client, gmail_id, row)
@@ -199,14 +232,14 @@ def reader_for(request, mailbox, client, gmail_id, threads=()):
         "filings": mail_filing.filings_for(mailbox, gmail_id),
         "queued_domains": sorted(set(UnmatchedEmail.objects.filter(domain__in=sender_domains)
                                      .values_list("domain", flat=True))),
-        "comments": mail_comments.for_thread(request.user, mail_render.get_thread(mailbox, client, gmail_id)),
+        "comments": mail_comments.for_thread(request.user, None, ids=message_ids),
         "labels": labels, "in_inbox": "INBOX" in labels, "starred": "STARRED" in labels,
         "in_trash": "TRASH" in labels, "snoozed_until": snooze.until if snooze else None,
         "id": gmail_id, "subject": subject, "order": order,
         "messages": msgs if order == "newest" else list(reversed(msgs)),
         "latest": next((m["id"] for m in msgs if not m["draft"]), msgs[0]["id"] if msgs else ""),
         "first_unread": unread[-1]["id"] if unread else "",
-        "chips": index.chips(mailbox, [row]).get(gmail_id, []) if row else [],
+        "chips": (row.chips if hasattr(row, "chips") else index.chips(mailbox, [row]).get(gmail_id, [])) if row else [],
         "file_groups": groups, "files_hidden": hidden,
         "file_types": sorted({g["type"] for g in groups}, key=list(mail_threads.TYPE_NAMES).index),
         "outline": mail_threads.outline(msgs), "people": mail_threads.people(msgs),
@@ -234,6 +267,38 @@ def _safe_next(request, fallback):
             and nxt.startswith("/"):
         return nxt
     return fallback
+
+
+@mail_required
+@require_POST
+def label_edit(request, mailbox, client):
+    """Rename or delete one of the person's own labels (and the ones nested under it), in Gmail and here."""
+    back = _safe_next(request, reverse("crm:inbox"))
+    if not may_change(request, mailbox):
+        return redirect(back)
+    label_id, action = request.POST.get("label", ""), request.POST.get("action", "")
+    try:
+        if action == "rename":
+            old = MailLabel.objects.filter(mailbox=mailbox, gmail_id=label_id).values_list("name", flat=True).first()
+            name = mail_actions.rename_label(mailbox, client, label_id, request.POST.get("name", ""))
+            messages.success(request, f"Renamed {old} to {name}.")
+            shared.log(mailbox, request.user, "label", "", f"renamed {old} to {name}")
+        elif action == "delete":
+            old = MailLabel.objects.filter(mailbox=mailbox, gmail_id=label_id).values_list("name", flat=True).first()
+            n = mail_actions.delete_label(mailbox, client, label_id)
+            more = f" and {n - 1} label{'s' if n > 2 else ''} under it" if n > 1 else ""
+            messages.success(request, f"Deleted the label {old}{more}. The emails are still in your mailbox.")
+            shared.log(mailbox, request.user, "label", "", f"deleted {old}")
+            if f"label={label_id}" in back:
+                back = reverse("crm:inbox")
+        else:
+            messages.error(request, "Pick Rename or Delete.")
+    except mail_actions.ActionError as exc:
+        messages.error(request, str(exc))
+    except (MailboxError, requests.RequestException):
+        log.warning("Label change failed for %s", mailbox, exc_info=True)
+        messages.error(request, "Couldn't reach Gmail, so the label wasn't changed. Try again.")
+    return redirect(back)
 
 
 @mail_required

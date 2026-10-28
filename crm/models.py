@@ -721,8 +721,9 @@ class Task(models.Model):
     repeat = models.CharField(max_length=10, choices=Repeat.choices, blank=True,
                               help_text="When this is ticked done, the next one is created")
     repeat_until = models.DateField(null=True, blank=True, help_text="Stop repeating after this date")
-    meeting = models.ForeignKey("Meeting", null=True, blank=True, on_delete=models.SET_NULL, related_name="tasks",
-                                help_text="The meeting whose action item this came from")
+    meetings = models.ManyToManyField("Meeting", blank=True, related_name="tasks",
+                                      help_text="The meetings whose action item this came from (the same item on two "
+                                                "meetings is one task)")
     created_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -752,6 +753,11 @@ class Task(models.Model):
 
     def record(self):
         return self.opportunity or self.person or self.company or self.site
+
+    @property
+    def meeting(self):
+        """The first meeting the task came from (most have one)."""
+        return min(self.meetings.all(), key=lambda m: m.start, default=None)
 
     def get_absolute_url(self):
         return reverse("crm:task_detail", args=[self.pk])
@@ -784,7 +790,8 @@ class Task(models.Model):
 class Meeting(models.Model):
     """One meeting from Granola notes and/or Google Calendar; shown on the Meetings calendar."""
 
-    source = models.CharField(max_length=20, choices=[("granola", "Granola"), ("calendar", "Google Calendar")])
+    source = models.CharField(max_length=20, choices=[("granola", "Granola"), ("calendar", "Google Calendar"),
+                                                      ("invite", "Emailed invite")])
     external_id = models.CharField(max_length=255, unique=True)
     calendar_id = models.CharField(max_length=255, blank=True, help_text="Calendar event merged into this meeting")
     title = models.CharField(max_length=500)
@@ -795,7 +802,15 @@ class Meeting(models.Model):
     action_items = models.JSONField(default=list, blank=True, help_text="[{title, owner, detail, task_id}]")
     attendees = models.JSONField(default=list, blank=True, help_text="[{name, email}]")
     companies = models.ManyToManyField(Company, blank=True, related_name="meetings")
+    firms = models.ManyToManyField("Firm", blank=True, related_name="meetings",
+                                   help_text="Directory firms at the meeting, by attendee domain or contact email")
     team = models.ManyToManyField(User, blank=True, related_name="meetings")
+    # Outside attendees no record knows (no person, company or firm, not free mail, not ignored): the calendar's
+    # "no record" marker and the Needs filing cards. Kept up to date by crm/needs_filing.py.
+    unfiled = models.JSONField(default=list, blank=True, help_text="[{name, email}] of outside attendees with no record")
+    unfiled_domains = models.JSONField(default=list, blank=True)
+    invite_version = models.CharField(max_length=40, blank=True,
+                                      help_text="An emailed invite's SEQUENCE and DTSTAMP: an older copy never wins")
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
@@ -810,6 +825,10 @@ class Meeting(models.Model):
     @property
     def outside_attendees(self):
         return [a for a in self.attendees if not a.get("email", "").lower().endswith("@acmigroup.com")]
+
+    @property
+    def unfiled_emails(self):
+        return {a["email"].lower() for a in self.unfiled or []}
 
 
 class CampusUpdate(models.Model):
@@ -1082,6 +1101,40 @@ class SavedView(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class ImportBatch(models.Model):
+    """One spreadsheet import (crm/sheet_import/): who ran it, what each row did, and what Undo has to put back.
+
+    `undo` holds {"companies": [pk], "people": [pk], "company_changes": {pk: {field: [old, new]}},
+    "person_changes": {...}, "added_domains": {pk: [domain]}, "added_phones": {pk: [phone]}, "list_entries": [pk],
+    "lists": [pk], "activities": [pk]}. The uploaded file itself is never kept."""
+
+    class Mode(models.TextChoices):
+        FILL = "fill", "Fill blanks only"
+        UPDATE = "update", "Update with the sheet's values"
+
+    filename = models.CharField(max_length=255)
+    sheet = models.CharField(max_length=120, blank=True)
+    mode = models.CharField(max_length=10, choices=Mode.choices, default=Mode.FILL)
+    rows_read = models.PositiveIntegerField(default=0)
+    counts = models.JSONField(default=dict, blank=True)
+    results = models.JSONField(default=list, blank=True, help_text="What each row did, for the results page")
+    undo = models.JSONField(default=dict, blank=True)
+    created_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    created_at = models.DateTimeField(auto_now_add=True)
+    undone_at = models.DateTimeField(null=True, blank=True)
+    undone_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+
+    class Meta:
+        ordering = ["-created_at"]
+        verbose_name_plural = "import batches"
+
+    def __str__(self):
+        return f"{self.filename} ({self.created_at:%Y-%m-%d})"
+
+    def get_absolute_url(self):
+        return reverse("crm:sheet_import_result", args=[self.pk])
 
 
 class PushSubscription(models.Model):
@@ -1518,6 +1571,65 @@ class UnmatchedEmail(models.Model):
         return f"{self.address}: {self.subject}"
 
 
+class InviteCancel(models.Model):
+    """An emailed invite that was cancelled (one occurrence, or the whole meeting): a copy of the original invite
+    forwarded later doesn't put the meeting back."""
+
+    external_id = models.CharField(max_length=255, unique=True, help_text="invite:<UID>[:<RECURRENCE-ID>]")
+    version = models.CharField(max_length=40, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.external_id
+
+
+class FilingSnooze(models.Model):
+    """"Not now" on a Needs filing card: the domain's card stays out of the inbox (and its count) until the date."""
+
+    domain = models.CharField(max_length=255, unique=True)
+    until = models.DateField()
+    created_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.domain} until {self.until}"
+
+
+class AddressSuggestion(models.Model):
+    """A free-mail sender (gmail.com and the like) whose display name matches a Person: "Same person, add this
+    address". The email waits here until someone says yes (the address goes on the person and the email on their
+    timeline) or no."""
+
+    class Status(models.TextChoices):
+        OPEN = "open", "Waiting"
+        ADDED = "added", "Address added"
+        DISMISSED = "dismissed", "Not them"
+
+    person = models.ForeignKey(Person, on_delete=models.CASCADE, related_name="address_suggestions")
+    address = models.EmailField(max_length=255, db_index=True)
+    name = models.CharField(max_length=255, blank=True)
+    mailbox = models.ForeignKey(Mailbox, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    message_id = models.CharField(max_length=500)
+    thread_id = models.CharField(max_length=100, blank=True)
+    occurred_at = models.DateTimeField()
+    kind = models.CharField(max_length=20, choices=Activity.Kind.choices)
+    outcome = models.CharField(max_length=60, blank=True)
+    subject = models.CharField(max_length=500, blank=True)
+    snippet = models.TextField(blank=True)
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.OPEN, db_index=True)
+    decided_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-occurred_at"]
+        constraints = [
+            models.UniqueConstraint(fields=["message_id", "address"], name="address_suggestion_once_per_message"),
+        ]
+
+    def __str__(self):
+        return f"{self.address} → {self.person}"
+
+
 # ---------------------------------------------------------------------------
 # Weekly news review (replaces Desktop/Prospecting/news_review). See crm/news/.
 # ---------------------------------------------------------------------------
@@ -1818,6 +1930,23 @@ class Parcel(models.Model):
     near = models.JSONField(default=dict, blank=True, help_text="{layer: {miles, name, ...}}")
     owner_acres = models.FloatField(null=True, blank=True, help_text="Same owner's total acres in this county")
     owner_parcels = models.PositiveIntegerField(null=True, blank=True)
+    # Owner group (crm/land/portfolio.py): stored parcels whose owners share a name in the county, or a mailing
+    # address anywhere. Blank = no other stored parcel in the group.
+    portfolio_key = models.CharField(max_length=24, blank=True, db_index=True)
+    portfolio_parcels = models.PositiveIntegerField(null=True, blank=True)
+    portfolio_acres = models.FloatField(null=True, blank=True)
+    # Last transfer, where the county publishes it (crm/land/sales.py). Price stays empty where it isn't published
+    # (Texas never publishes it).
+    last_sale_date = models.DateField(null=True, blank=True)
+    last_sale_price = models.BigIntegerField(null=True, blank=True)
+    last_sale_type = models.CharField(max_length=80, blank=True, help_text="How it was conveyed, as the county says")
+    last_sale_arms_length = models.BooleanField(null=True, blank=True, help_text="Blank = the county doesn't say")
+    last_sale_deed = models.CharField(max_length=60, blank=True, help_text="Deed book / page or document number")
+    last_sale_source = models.CharField(max_length=120, blank=True)
+    # Off-market signals (crm/land/signals.py): codes with a space either side, e.g. " long_hold estate ".
+    signals = models.CharField(max_length=120, blank=True)
+    motivation = models.PositiveSmallIntegerField(default=0, db_index=True,
+                                                  help_text="Weighted count of off-market signals (not the buy-box score)")
     # Live lookups (crm/land/lookup.py), run on demand and cached here.
     checks = models.JSONField(default=dict, blank=True)
     checked_at = models.DateTimeField(null=True, blank=True)
@@ -2071,6 +2200,54 @@ class SiteParcelDeal(models.Model):
     def status_for_milestones(self):
         reached = [st for key, _, st in LandSite.MILESTONES if (self.milestones or {}).get(key)]
         return min(reached, key=lambda st: LandSite.STATUS_ORDER.index(st)) if reached else None
+
+
+class SaleComp(models.Model):
+    """A land sale used as a comparable: from county records where they publish a price and the sale looks
+    arms-length (crm/land/sales.py sync_comps), or entered by the team (Texas publishes no prices)."""
+
+    class Source(models.TextChoices):
+        COUNTY = "county", "County record"
+        TEAM = "team", "Entered by the team"
+
+    source = models.CharField(max_length=10, choices=Source.choices, default=Source.TEAM, db_index=True)
+    record_key = models.CharField(max_length=120, blank=True, help_text="County comps: parcel key(s) and sale date")
+    county = models.ForeignKey(LandCounty, null=True, blank=True, on_delete=models.SET_NULL, related_name="sale_comps")
+    parcel = models.ForeignKey(Parcel, null=True, blank=True, on_delete=models.SET_NULL, related_name="sale_comps")
+    site = models.ForeignKey(LandSite, null=True, blank=True, on_delete=models.SET_NULL, related_name="sale_comps")
+    sale_date = models.DateField(db_index=True)
+    price = models.BigIntegerField()
+    acres = models.FloatField()
+    price_per_acre = models.FloatField(editable=False, db_index=True)
+    place = models.CharField(max_length=200, blank=True, help_text="Address or description of the land")
+    buyer = models.CharField(max_length=255, blank=True)
+    seller = models.CharField(max_length=255, blank=True)
+    arms_length = models.BooleanField(null=True, blank=True, help_text="Blank = not known")
+    conveyance = models.CharField(max_length=80, blank=True)
+    deed = models.CharField(max_length=60, blank=True)
+    improved = models.BooleanField(default=False, help_text="Buildings on it: the price isn't land alone")
+    parcels_count = models.PositiveSmallIntegerField(default=1, help_text="Parcels the one price covered")
+    lat = models.FloatField(null=True, blank=True, db_index=True)
+    lon = models.FloatField(null=True, blank=True)
+    source_note = models.CharField(max_length=255, blank=True, help_text="Where the figure came from (broker, deed...)")
+    notes = models.TextField(blank=True, help_text="Internal: never printed on a brief")
+    internal_only = models.BooleanField(default=False, help_text="Keep off outside reports (e.g. broker intel under NDA)")
+    flyer = models.FileField("broker flyer", upload_to="comps/%Y/%m/", blank=True)
+    created_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-sale_date"]
+        constraints = [models.UniqueConstraint(fields=["county", "record_key"], condition=models.Q(source="county"),
+                                               name="salecomp_county_record_unique")]
+
+    def __str__(self):
+        return f"{self.sale_date:%Y-%m-%d} · {self.acres:,.0f} ac · ${self.price:,}"
+
+    def save(self, *args, **kwargs):
+        self.price_per_acre = round(self.price / self.acres, 2) if self.acres else 0
+        super().save(*args, **kwargs)
 
 
 class Assignment(models.Model):
@@ -3413,7 +3590,7 @@ class DomainSort(models.Model):
     """Claude's read of who's behind an email domain, from the mail itself (signatures, subjects, the domain): a
     prospect (a Company), a firm for the directory (with its type) or neither. For a domain waiting in the mail review
     queue, a clear directory firm is filed automatically (status Filed, with Undo); anything else is a suggestion on
-    Mail review. For an existing Company (company set), a suggestion that it's really a vendor, which a Manager acts
+    Needs filing. For an existing Company (company set), a suggestion that it's really a vendor, which a Manager acts
     on with Move to directory."""
 
     class Verdict(models.TextChoices):

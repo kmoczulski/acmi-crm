@@ -16,7 +16,7 @@ from email.utils import formataddr, formatdate, getaddresses, make_msgid
 from django.conf import settings
 
 from crm import prefs
-from crm.news.drafts import text_to_html
+from crm.news.drafts import html_to_text, sanitize_html, text_to_html
 
 from . import render
 from .gmail_api import decimal_thread_id, parse_api_message, uid_of
@@ -166,9 +166,10 @@ def quoted(mailbox, msg, mode):
 
 
 def build(mailbox, user, to, cc=(), bcc=(), subject="", body="", quote=("", ""), in_reply_to="", references="",
-          files=(), sig=None):
+          files=(), sig=None, body_html=""):
     """The email as bytes and its Message-ID. files: [(name, bytes, mime type)]; sig: (plain, html), by default the
-    person's chosen signature without Gmail's (which needs a Gmail client)."""
+    person's chosen signature without Gmail's (which needs a Gmail client). body_html: the body as formatted in the
+    editor (bold, lists, links); when it's there it is what the HTML part shows, and the plain part is made from it."""
     if not to and not cc and not bcc:
         raise ComposeError("Add at least one recipient.")
     if len(to) + len(cc) + len(bcc) > MAX_RECIPIENTS:
@@ -194,8 +195,11 @@ def build(mailbox, user, to, cc=(), bcc=(), subject="", body="", quote=("", ""),
     except ValueError as exc:  # a line break in a name, an address or a threading header (headers can't hold one)
         raise ComposeError("A recipient's name or a header has a line break in it. Take it out and try again.") from exc
     plain_quote, html_quote = quote
+    rich_body = formatted(body_html)
+    if rich_body:
+        body = plain_text(rich_body)
     plain = (body or "").rstrip() + (f"\n\n{sig_plain}" if sig_plain else "") + plain_quote
-    rich = text_to_html(body or "") + (f'<br><div class="gmail_signature">{sig_html}</div>' if sig_html else "") \
+    rich = (rich_body or text_to_html(body or "")) + (f'<br><div class="gmail_signature">{sig_html}</div>' if sig_html else "") \
         + html_quote
     msg.set_content(plain)
     msg.add_alternative(f'<div dir="ltr">{rich}</div>', subtype="html")
@@ -203,6 +207,22 @@ def build(mailbox, user, to, cc=(), bcc=(), subject="", body="", quote=("", ""),
         maintype, _, subtype = (mime or mimetypes.guess_type(name)[0] or "application/octet-stream").partition("/")
         msg.add_attachment(data, maintype=maintype, subtype=subtype or "octet-stream", filename=name)
     return msg.as_bytes(), msg["Message-ID"]
+
+
+def formatted(body_html):
+    """The editor's HTML, cleaned (only formatting tags and safe links), or "" when it has no text in it."""
+    clean = sanitize_html(body_html or "")
+    return clean if html_to_text(clean) else ""
+
+
+def plain_text(body_html):
+    """The plain-text version of the editor's HTML, numbered lists numbered."""
+    def number(m):
+        items = re.split(r"<\s*li\b[^>]*>", m.group(1), flags=re.I)[1:]
+        items = [re.sub(r"<\s*/\s*li\s*>", "", item, flags=re.I) for item in items]
+        return "".join(f"<div>{i}. {item}</div>" for i, item in enumerate(items, 1))
+
+    return html_to_text(re.sub(r"<\s*ol\b[^>]*>(.*?)<\s*/\s*ol\s*>", number, body_html or "", flags=re.I | re.S))
 
 
 def forwarded_files(mailbox, client, original, parts):
@@ -259,7 +279,8 @@ def save_draft(mailbox, client, user, fields, draft_id=""):
     if fields["to"] or fields["cc"] or fields["bcc"]:
         raw, _ = build(mailbox, user, fields["to"], fields["cc"], fields["bcc"], fields["subject"], fields["body"],
                        quote=fields.get("quote", ("", "")), in_reply_to=fields.get("in_reply_to", ""),
-                       references=fields.get("references", ""), sig=signature_parts(user, mailbox, client))
+                       references=fields.get("references", ""), sig=signature_parts(user, mailbox, client),
+                       body_html=fields.get("body_html", ""))
     else:
         raw = _draft_without_recipients(mailbox, user, fields)
     answer = client.save_draft(raw, draft_id=draft_id, thread_id=fields.get("thread_id", ""))
@@ -270,5 +291,8 @@ def _draft_without_recipients(mailbox, user, fields):
     msg = EmailMessage()
     msg["From"] = formataddr((user.get_full_name() or "", mailbox.email))
     msg["Subject"] = " ".join((fields["subject"] or "").split())[:500]
-    msg.set_content(fields["body"] or "")
+    rich = formatted(fields.get("body_html", ""))
+    msg.set_content(plain_text(rich) if rich else (fields["body"] or ""))
+    if rich:
+        msg.add_alternative(f'<div dir="ltr">{rich}</div>', subtype="html")
     return msg.as_bytes()

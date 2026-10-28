@@ -169,6 +169,21 @@ def labels(mailbox, client, max_age=timedelta(minutes=10)):
     return system, sorted((r for r in rows if not r.system), key=lambda r: r.name.lower())
 
 
+def label_tree(user_labels):
+    """The person's labels as Gmail nests them ("Deals/MEIH" under "Deals"), in order, for the folder pane:
+    [{name, leaf, depth, label (None for a parent that's only part of a name), children}]."""
+    by_name = {lb.name: lb for lb in user_labels}
+    names = set(by_name)
+    for name in list(names):
+        parts = name.split("/")
+        names.update("/".join(parts[:i]) for i in range(1, len(parts)))
+    ordered = sorted(names, key=lambda n: [p.lower() for p in n.split("/")])
+    from .actions import managed
+
+    return [{"name": n, "leaf": n.rsplit("/", 1)[-1], "depth": n.count("/"), "label": by_name.get(n),
+             "children": any(o.startswith(n + "/") for o in names), "managed": managed(n)} for n in ordered]
+
+
 # ---------------------------------------------------------------------------
 # CRM tags: which company, deal, project or directory firm a thread is about
 # ---------------------------------------------------------------------------
@@ -196,7 +211,7 @@ def chips(mailbox, threads):
     """{gmail thread id: [(kind, name, url), ...]} for these threads. Kinds: project, deal, company, firm, new.
 
     From the timeline (what the sync logged for the thread: its company, deal and projects), the directory's filed
-    mail, and the senders' domains; "new" marks a sender whose domain waits in Mail review."""
+    mail, and the senders' domains; "new" marks a sender whose domain waits in Needs filing."""
     from django.urls import reverse
 
     by_dec = {_decimal(t.gmail_id): t for t in threads}
@@ -234,25 +249,31 @@ def chips(mailbox, threads):
                 pk, name = firms[domain]
                 add(t, "firm", name, reverse("crm:firm", args=[pk]))
             elif domain in queued:
-                add(t, "new", "New sender", reverse("crm:mail"))
+                add(t, "new", "New sender", reverse("crm:needs_filing"))
     order = {"project": 0, "deal": 1, "company": 2, "firm": 3, "new": 4}
     return {k: sorted(v, key=lambda c: order[c[0]]) for k, v in out.items()}
 
 
-def crm_flags(mailbox, gmail_ids, senders_by_id):
-    """{gmail id: {is_tenant, is_project, is_firm}} for the split-inbox tabs, from the same tags as chips()."""
-    fake = [MailThread(mailbox=mailbox, gmail_id=g, senders=senders_by_id.get(g, [])) for g in gmail_ids]
+def flags_from(found):
+    """{gmail id: {is_tenant, is_project, is_firm}} from chips() output."""
     out = {}
-    for gid, found in chips(mailbox, fake).items():
-        kinds = {c[0] for c in found}
+    for gid, tags in found.items():
+        kinds = {c[0] for c in tags}
         out[gid] = {"is_tenant": bool(kinds & {"deal", "company"}), "is_project": "project" in kinds,
                     "is_firm": "firm" in kinds}
     return out
 
 
-def retag(mailbox, threads):
-    """Bring the stored tab flags up to date (the timeline may have learned about a thread since it was indexed)."""
-    flags = crm_flags(mailbox, [t.gmail_id for t in threads], {t.gmail_id: t.senders for t in threads})
+def crm_flags(mailbox, gmail_ids, senders_by_id):
+    """{gmail id: {is_tenant, is_project, is_firm}} for the split-inbox tabs, from the same tags as chips()."""
+    fake = [MailThread(mailbox=mailbox, gmail_id=g, senders=senders_by_id.get(g, [])) for g in gmail_ids]
+    return flags_from(chips(mailbox, fake))
+
+
+def retag(mailbox, threads, found=None):
+    """Bring the stored tab flags up to date (the timeline may have learned about a thread since it was indexed).
+    found: chips() for these threads when the caller already has them."""
+    flags = flags_from(found) if found is not None else         crm_flags(mailbox, [t.gmail_id for t in threads], {t.gmail_id: t.senders for t in threads})
     for t in threads:
         f = flags.get(t.gmail_id, {})
         if any(getattr(t, k) != v for k, v in f.items()):

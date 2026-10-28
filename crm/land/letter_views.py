@@ -62,7 +62,17 @@ def _page(request, site, rows, templates, template, body, sender, day, picked, d
         "sender_fields": [(key, label, sender.get(key, "")) for key, label, _ in letters.SENDER_FIELDS],
         "fields": letters.FIELDS, "methods": LandownerLetter.Method.choices, "today": timezone.localdate(),
         "history": history, "mailable": sum(1 for r in rows if r["mailable"]),
+        "by_group": getattr(request, "letters_by_group", False),
+        "groups_here": _shared_groups(rows),
     })
+
+
+def _shared_groups(rows):
+    """How many owner groups span more than one of these letters (so grouping would send fewer)."""
+    from collections import Counter
+
+    seen = Counter(k for r in rows for k in {p.portfolio_key for p in r["parcels"]} if k)
+    return sum(1 for n in seen.values() if n > 1)
 
 
 def _pdf_or_page(request, template, ctx, filename):
@@ -85,7 +95,10 @@ def site_letters(request, pk):
         return _delete(request, site)
     letters.ensure_builtins()
     templates = list(LetterTemplate.objects.all())
-    rows = letters.recipients(site)
+    # ?group=1: one letter per owner group (same owner name in the county or same mailing address), not per owner.
+    by_group = bool(request.POST.get("group") if request.method == "POST" else request.GET.get("group"))
+    rows = letters.recipients(site, by_group=by_group)
+    request.letters_by_group = by_group
     if request.method != "POST":
         template = _template(templates, request.GET.get("template"))
         new = {r["key"] for r in rows if not r["letters"]}  # owners not written to yet; all of them for a follow-up

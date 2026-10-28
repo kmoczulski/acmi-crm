@@ -175,9 +175,16 @@ def my_companies(user):
     ).distinct()
 
 
+REPLIES_DISMISSED = "my_day_replies_dismissed"  # UserPrefs key: reply Activity ids this person said need no answer
+
+
 def awaiting_reply(user, days=21):
-    """Replies to this user (or on their companies) that nobody on the team has answered yet."""
+    """Replies to this user (or on their companies) that nobody on the team has answered yet, less the ones they
+    dismissed (a later reply on the same thread is a new Activity, so it shows again)."""
+    from . import prefs
+
     since = timezone.now() - timedelta(days=days)
+    dismissed = set(prefs.get_prefs(user).get(REPLIES_DISMISSED, []))
     mine = my_companies(user).values("pk")
     replies = (Activity.objects.filter(kind=Activity.Kind.REPLY, occurred_at__gte=since, company__isnull=False)
                .exclude(outcome__in=NEGATIVE_REPLIES)
@@ -189,6 +196,8 @@ def awaiting_reply(user, days=21):
         if key in seen:
             continue
         seen.add(key)
+        if r.pk in dismissed:
+            continue
         out.append(r)
     # Everything we sent since, once, instead of one lookup per reply: a reply is answered when something went out
     # on its thread (or, for a reply with no thread, to its company) after it.

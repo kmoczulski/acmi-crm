@@ -72,3 +72,34 @@ class ProjectTaggingTests(TestCase):
         self.assertContains(page, "Energetics Technology Center")
         self.assertEqual(self.client.get("/projects/").status_code, 200)
         self.assertContains(self.client.get(f"/companies/?project={self.meih.pk}"), "Energetics Technology Center")
+
+
+class ProjectStatsTests(TestCase):
+    """The campus line and project rows: emails only, "last" in the past, upcoming meetings as "next meeting"."""
+
+    def test_upcoming_meeting_is_next_not_last(self):
+        from datetime import timedelta
+        from crm.models import Campus
+        campus = Campus.objects.create(code="MEIH", name="Maryland Energetics Innovation Hub")
+        home = Project.objects.create(name="MEIH", campus=campus, keywords=["MEIH"])
+        etc = Company.objects.create(name="Energetics Technology Center")
+        now = timezone.now()
+        sent = email("email_sent", "MEIH site", etc, "s1")
+        sent.occurred_at = now - timedelta(days=3)
+        sent.save()
+        for kind, when in [("meeting", now - timedelta(days=1)), ("meeting", now + timedelta(days=45)),
+                           ("meeting", now + timedelta(days=60)), ("bounce", now - timedelta(days=2))]:
+            a = Activity.objects.create(kind=kind, occurred_at=when, company=etc, source="test",
+                                        source_id=f"{kind}-{when:%j}", summary=kind)
+            a.projects.add(home)
+        sent.projects.add(home)
+        self.client.force_login(get_user_model().objects.create(username="kellen"))
+        page = self.client.get("/projects/")
+        home_stats = page.context["groups"][0]["home"]
+        self.assertEqual(home_stats["emails"], 1)
+        self.assertLessEqual(home_stats["last"], now)
+        self.assertEqual(home_stats["next"].date(), (now + timedelta(days=45)).date())
+        self.assertContains(page, "next meeting")
+        self.assertNotContains(page, "from now")
+        detail = self.client.get(f"/projects/{home.pk}/")
+        self.assertLessEqual(detail.context["companies"][0].last, now)

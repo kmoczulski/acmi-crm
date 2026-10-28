@@ -203,9 +203,29 @@ def frame_policy(show_images):
             "allow-popups-to-escape-sandbox")
 
 
+def thread_texts(mailbox, client, gmail_id):
+    """({message id: "sender body" lowercased} for Find in this thread, [Message-IDs] for team notes), each message
+    parsed once and kept as long as the thread is."""
+    from .gmail_api import parse_api_message
+
+    key = _key(mailbox, "texts", gmail_id)
+    found = cache.get(key)
+    if found is None:
+        texts, ids = {}, []
+        for raw in get_thread(mailbox, client, gmail_id).get("messages", []):
+            email = parse_api_message(raw)
+            texts[raw["id"]] = f"{email.from_name} {email.body}".lower() if email else ""
+            if email and email.message_id and not email.message_id.startswith("<uid-"):
+                ids.append(email.message_id)
+        found = (texts, ids)
+        cache.set(key, found, CACHE_SECONDS)
+    return found
+
+
 def forget(mailbox, gmail_id):
     """Drop a thread from the cache after it changed (read, labels, Trash), so the pane shows it as it is now."""
     data = cache.get(_key(mailbox, "thread", gmail_id))
     cache.delete(_key(mailbox, "thread", gmail_id))
+    cache.delete(_key(mailbox, "texts", gmail_id))
     for m in (data or {}).get("messages", []):
         cache.delete(_key(mailbox, "msg", m["id"]))

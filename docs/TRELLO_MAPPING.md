@@ -183,6 +183,226 @@ loose to-do cards each held part of it):
   dates. That way they appear in the Critical dates feed, the calendar and the alerts, and an extension moves them
   everywhere at once.
 
+## Full-history fetch, 2026-10-26
+
+Kellen ran `trello_fetch.py` at the laptop: 15 boards into `data/imports/trello/2026-10-26/` (gitignored), every
+action back to each board's start. Comments per board: Properties-Prospecting 1,661 (the export had 186),
+Properties-General 688, Federal-Pursuits 581, Properties-NSIH 521, Group-Communications Calendar 490, Federal-General
+198, Properties-Campus Pursuits 185, AMP 128, Maryland / MEIH 118 (same as the export), Exploration Park 97 (closed),
+Group - Indiana 74, Capitalization 41, MEIH (a second board, 21 cards) 34, Project Volare 22 (closed), Federal-Airport
+Commerce Prospects 1 (closed).
+
+**Kellen, 2026-10-26: not imported:** AMP, Group-Communications Calendar, Federal-Pursuits, Properties-Exploration
+Park, Properties-Project Volare, Federal-Airport Commerce Prospects, Federal-General, Group - Indiana. **To import:**
+Properties-Prospecting, Maryland / MEIH, the second MEIH board, Properties-NSIH, Properties-General, Properties-Campus Pursuits and Properties-Capitalization. 
+
+**Imported 2026-10-26: Properties-Prospecting** (`manage.py import_trello`, see HANDOFF "Trello history, Prospecting"): 1,661 comments, 200 checklists, 175 attachments, 807 history entries onto the Tenant pipeline board; decision 6 below taken as recommended (New Leads and Cold as unbound lists, cards linked to their company). The other boards still need their mapping.
+
+## The two MEIH boards: import plan (2026-10-27)
+
+**Imported 2026-10-27** (Maryland / MEIH only; see HANDOFF "Trello history, Maryland / MEIH"). **Kellen's answers:** 1 and 2 yes; Lewis Place is **Bryans Road Assemblage**; 4390 is The Forge; NSWC - IHD is managing the relationship with the base, so it's a plain card on Consultants; the ARA date cards are skipped until Kellen uploads the final PDA (their history went onto Contact List & Agreement); 5 yes (the three firms added); 6 no: **the second MEIH board is skipped**. The plan as proposed follows.
+
+### Maryland / MEIH → the hub's MEIH board (board 2, from `boards_setup`; its 7 lists are empty today)
+
+73 cards, 118 comments (Kellen 109, Simon 6, Dave 1, David 1, Joe Don Bowling 1), 55 checklists, 58 attachments.
+Every comment comes over with its author and date. A card linked to a site, contract or deal also puts its comments on
+that record's page. The CRM wins on names, statuses and dates, as on Prospecting.
+
+| Hub list | Trello cards | Linked to |
+|---|---|---|
+| **Land sites** (feed) | Lake Acton Business Park; County Land; Rosewick Development Site; 4390 Indian Head and ETC Building (archived); Billingsley Assemblage; NSWC - IHD; Lewis Place | Lake Acton (site 2); **County Land → Airport Land – 4075 Livingston Rd (County)**; **Rosewick → Rosewick Road** (the site with the Rosewick Road PSA, not Bardon – 9622 Rosewick Rd); 4390 Indian Head Hwy (ETC); Billingsley WCD Assemblage. NSWC - IHD and Lewis Place have no site: plain cards at the end of the list |
+| Land sites, **archived** | COLD - Land Sites: CA Billingsley, Berry Pointe, Berry Rd Assemblage, Copart, Indian Head / Maryland (8 comments); Garner Land | Their sites (all Dropped, except Copart, which is Outreach). Indian Head / Maryland has none. The comments show on each site's page |
+| **Critical dates** (feed) | "4390 Indian Head Highway PSA" (1 attachment) and the 1 comment on "Feasibility Period Expiration" become one card for the 4390 PSA | Contract: 4390 Indian Head Hwy PSA. **The other 10 date cards aren't imported:** Trello still has the pre-extension dates (Oct 22 / Nov 1 / Dec 11 / Dec 21); the hub has the extended ones (Feb 19 to Apr 20, 2027) |
+| **The Forge – 4390 / ETC** | 4390 / ETC - Deal and Design (7): PSA & ETC Lease, Design Meetings / Plans, GC RFP (30 items), Powers Brown B101, Survey Completion Date, "4390 Indian Head Hwy", Survey (archived); plus "4390 IHH - Design Meetings / Plans", which sat in the LABP list | PSA & ETC Lease → the 4390 PSA; "4390 Indian Head Hwy" → its site; the rest plain cards |
+| **ARA Facility – deal** | ARA (16): Contact List & Agreement, Action Items (17 items), certificates of insurance, invoices Month 1-5, budget updates, lease negotiation start / finish, non-renewal notice, PDA initial term expiry | The ARA deal. Dates stay as card due dates, done where Trello ticked them. **Not ticked in Trello, so they'll show as late:** Invoice Month 3 (Aug 17), Complete lease negotiations (Oct 12), Invoice Month 4 (Oct 14), Non-renewal notice (Oct 16). Still ahead: Invoice Month 5 (Nov 16), PDA initial term expires (Nov 15) |
+| **ARA Facility – sites and design** | County Land - Deal and Design (3), LABP - Deal and Design (PSA Negotiation, LABP design archived), ARA Building (4: Design, Design Meetings, GC RFP, MBI B101), Land Use (PGM / Permitting) | County Land PSA and County Land → Airport Land site; PSA Negotiation → Lake Acton site |
+| **Consultants** | Contacts and Consultants (7): Cozen O'Connor (Engaged), Kimley Horn, Maryland Department of Commerce, Transaction Attorney, Land Use Attorney, Contractors, Construction Attorney - Firm Options; archived: Land Use Attorney (6 comments, 12 items), "Respond to counsel on County land PSA", ARA - Architect RFP | Cozen → the firm. Kimley Horn and Maryland Department of Commerce link once they're in the directory (below) |
+| Archived on The Forge | Land Sites' old task cards: Groundbreaking, Civl Engineering (6 comments), Architectural RFP (6 comments), Prometheus extension notice | none |
+
+Labels: Critical Date, Deal Info, Legal, Program/Procurement, Civil and Architecture go onto the board's own categories;
+Ongoing, To Do and Contact Information onto the three labels `boards_setup` added. Members: Kellen, Simon, Dave, David.
+
+### The second "MEIH" board → its own board, "MEIH program"
+
+It isn't a property board. It tracks the MEIH program's milestone deliverables to the funder: MS#1 kickoff to MS#11 Year 1
+final report, quarterly technical and business status reports, quick-win plans. Its members are Paul Kadzielski, John
+Burer, Melissa Guerrero, Ken Rothaermel and Todd Catlin; Kellen isn't one. 21 cards, 34 comments (Joe Don Bowling 31,
+Todd Catlin 2, Ken Rothaermel 1), 11 checklists of 6 items, 23 attachments.
+
+- **Recommended: a separate board, "MEIH program"** (campus MEIH), with Trello's lists kept: Project Background,
+  Upcoming Deliverables, Action Items (RAIL), Blockers, Management Concerns, Campus Engagement, Completed Deliverables
+  (Graveyard is empty and is dropped). Milestones keep their due dates and done ticks (MS#6, due Sep 7 and not ticked,
+  will show late; MS#9-11 are due Dec 18, Mar 19 and Mar 30). Paul is the board's member; the other four aren't in
+  the hub, so their names stay in the comments. Putting it on the MEIH board instead would mix funder reporting into
+  the deal and design lists.
+
+### Kellen's decisions for these two boards
+
+1. County Land = **Airport Land – 4075 Livingston Rd (County)**? (recommended: yes)
+2. Rosewick Development Site = **Rosewick Road** (the one with the PSA)? (recommended: yes)
+3. NSWC - IHD, Lewis Place and Indian Head / Maryland: plain cards (recommended), or make them sites?
+4. ARA dates: card due dates (recommended for now), or make the ARA PDA a contract first so they reach the critical
+   dates calendar and alerts?
+5. Add **Kimley Horn**, **Maryland Department of Commerce** and **Powers Brown** to the directory so the cards link?
+   (recommended: yes)
+6. The second board: its own "MEIH program" board (recommended), lists on the MEIH board, or skip?
+
+## Properties-NSIH: import plan (2026-10-27)
+
+**Imported 2026-10-27**: Kellen took all six recommended answers below (see HANDOFF "Trello history, Properties-NSIH").
+
+David DeNardo's working board for the Bloomfield, Indiana campus. 121 cards on 10 open lists and 6 archived
+ones, **521 comments** (David DeNardo 455, Simon 43, Patrick Dillmann 18, Kellen 2, Olivia Jaskula-Dybka 2, Eli
+Miller 1), 42 checklists, 61 attachments. Comments by list: Design & Construction 218 (Haskell alone 57, Pepper /
+Weddle 31, Prometheus change orders 29, Structurepoint 27), Administration 99, Infrastructure / Utilities 52, Due
+Diligence 41, Land Contracts 26, Parcel Owners 25, Tenancy / Contracts 24, Prospecting (archived) 18, Capitalization 15.
+
+**What the hub has for NSIH:** the campus and one project (NSIH), 38 tenant deals, no land sites, no contracts, no
+entitlements, no board. So, unlike MEIH, there's little for feeds to show, and the board keeps Trello's workstream
+lists.
+
+### A new NSIH board (campus NSIH, project NSIH)
+
+| # | Hub list | From Trello | Links |
+|---|---|---|---|
+| 1 | Administration | Administration (19; 9 archived: Deal Summary 28 comments, Financial Model 11, Investor Deck 9, PSA, Schedule, FAQ…) | Insurance - Marsh → Marsh McLennan Agency. Tax Incentives - Ryan LLC, Legal - Drewry Simmons Vornehm: not in the directory |
+| 2 | Design & construction | Design & Construction (20; 11 archived) | Architect - Haskell → Haskell; CM - Pepper / Weddle → Pepper Construction; Civil - Structurepoint → Structurepoint; Schreifer Group → The Schreifer Group; CMc Contract - Shiel Sexton → Shiel Sexton Company. Architect - Haskell keeps its Nov 16 due date |
+| 3 | Due diligence | Due Diligence (9; Survey and Wetlands archived) | Geotech, gas wells, loggers, Earthsource, SMS Energetics, TRC, Johnny's Signs: none are in the directory |
+| 4 | Infrastructure / utilities | Infrastructure / Utilities (12) | Fiber - Smithville → Smithville; ROW Acquisition → First Group Engineering. The utilities (UDWI & Hoosier, Eastern Heights, Greene County, Midwest, INRD, INDOT, APT Solar) aren't in the directory |
+| 5 | Land contracts | Land Contracts (5): Land PSA - NFP, Land PSA - Hostetler, offers to Sullivan & Myers (archived) and Prometheus, Kelly - neighbor | none: the hub has no NSIH contracts |
+| 6 | Parcel owners | Parcel Owners (25 landowner cards, Royal Family 16 comments) | Plain cards. Landowners never become companies (Kellen, 2026-10-19) |
+| 7 | Tenants and leases | Tenancy / Contracts (7 + 1 mirror skipped) | Prometheus Ground Lease, DMA, Points of Contact, Export Control (archived) → the Prometheus (Kratos / Rafael) deal; Ground Lease - iRocket → iRocket; Tenant - Spinner → Spinner; CFIUS Review → Holland & Knight |
+| 8 | Capitalization | Capitalization (10): CTL Loan, Scaling Space HNW, Prospective LPs, Strongbox, Browning, OneIM, Bain (×2), Fortress, Cerberus | Bain → Bain Capital. The rest aren't in the directory |
+| 9 | Models & decks | Models & Decks (2) | none |
+| 10 | Open tasks (feed) | (new) | NSIH's open tasks |
+| — | Archived on Tenants and leases | Prospecting, an archived list: Lease - Prometheus, Kratos, LOI - Kratos → the Prometheus deal; VTS, Lauth Partnership plain (6 mirror cards skipped) | |
+
+Labels: the board uses none. Members: David, Simon, Kellen, Dave, Paul, John (Melissa Guerrero and Patrick Dillmann
+aren't in the hub). Properties-General's "Critical Dates - NSIH" and "Critical Dates - Hostetler / NSIH" lists will
+join this board when General is imported.
+
+### Kellen's decisions for NSIH
+
+1. **Board layout:** keep Trello's workstream lists as above (recommended), or the MEIH layout (sites, dates, project
+   lists, consultants)? The MEIH layout needs NSIH sites and contracts that don't exist yet.
+2. **Land PSAs (NFP, Hostetler) and the Prometheus ground lease / DMA:** plain cards now (recommended), linked once
+   the documents are uploaded as contracts, or upload them first?
+3. **Directory:** add the firms the cards name that aren't there yet, so the cards link? Services: Ryan LLC, Drewry
+   Simmons Vornehm, Earthsource, SMS Energetics, TRC Companies, Johnny's Signs, APT Solar Solutions, Weddle. Capital:
+   Fortress, Strongbox, Browning, OneIM, Cerberus, CTL Capital. Utilities (UDWI, Hoosier, Eastern Heights, Midwest
+   Gas, INRD, INDOT) stay plain cards. (Recommended: yes for services and capital.)
+4. **Kratos / LOI - Kratos** (archived, 2025): onto the Prometheus (Kratos / Rafael) deal (recommended), or the
+   separate "Kratos · NSIH" deal?
+5. **The Prometheus deal has no campus.** Set it to NSIH? (Recommended: yes; it's a one-field change.)
+6. **Patrick Dillmann** (18 comments, a board member): outside the team, name kept in his comments (recommended), or
+   does he need a hub account?
+
+## Properties-General: import plan (2026-10-27)
+
+**Imported 2026-10-27** (see HANDOFF "Trello history, Properties-General"). Kellen's answers: 1 changed: the NSIH and Hostetler date cards wait for the PSA and related documents ("I can upload the PSA and related docs"); their comments and attachments went onto the NSIH board's agreement cards. 2, 3 and 4 as recommended.
+
+334 cards on 31 lists (9 open, 22 archived), **688 comments** (Kellen 326, David DeNardo 245, Simon 101, Olivia
+Jaskula-Dybka 7, a few from others). It's three things at once: the team's live general lists, the NSIH critical
+dates, and the history of old campuses and projects. Comments by group:
+
+| Group | Trello lists | Comments | Goes to |
+|---|---|---|---|
+| Team lists (open) | Press / Postings (12), Administrative (8), Other Markets (23), Airport Commerce (11) | 146 | A new team board, **"ACMI general"** |
+| NSIH dates | Critical Dates - NSIH (19 + 1 mirror), Critical Dates - Hostetler / NSIH (20), and the archived "NSIH (Bloomfield, IN)" (11) and its Critical Dates [David] (4) | 28 | The **NSIH** board |
+| Deals | Project North Star - Niron Magnetics (5, archived list), MEIH - ARA's one real card (ARA - Lease Negotiation) | 5 | Niron's cards go on "ACMI general" in an archived list, linked to the Niron deal; the ARA card goes on the MEIH board, archived, linked to the ARA deal |
+| Old campuses and projects (archived) | Avio (15) and Critical Dates - Avio (3), Strategic (34), RRAD (5), Propulsion Park (Tasks 7, Critical Dates 7), Precision Park (9, 5), King Ranch - Aurora (7), TexAmericas (2), U.S. Army Enterprise Strategic Capital Partnership (2 + 1 mirror), Prospecting (7), Tenant Followups (1) | 276 (Avio 158, Strategic 48, Propulsion Park 34) | An archived board, **"Properties-General archive"** |
+| Exploration Park and Volare (archived) | Exploration Park (30), its Critical Dates (19), Exploration Park - Archive (37), Project Volare (4) | 233 | **Skipped**, as the Exploration Park and Volare boards were |
+| Mirrors and empty lists | 4390 Indian Head Hwy - Critcal Dates (11 mirrors of MEIH cards), MEIH - ARA's 13 mirrors, Project Dragon - Elbit, Volare (Hurt, VA), Press Releases (empty) | 0 | Skipped |
+
+### "ACMI general" (team board)
+
+Lists kept as in Trello: **Press / postings**, **Administrative**, **Other markets**, **Airport Commerce**, and the
+archived **Project North Star – Niron**. Links: Spinner Modifications (22 comments) and Airport Commerce: Spinner
+Questions → the Spinner deal; Supernova Modifications → the Supernova deal; Vendor: The Schreifer Group → that firm;
+Niron's five cards → the Niron Magnetics deal. Everything else is a plain card (Denver MSA, iMarket - Taylor TX,
+Berkeley Space Center, Prince 10 - Tucson…). Press cards keep their due dates (Prometheus permits and grading, the NYC
+office, the sign at Harvest Church…). Labels: Ongoing and On-Going merge, To Do and To-Do merge; Tentative, Follow Up,
+PR/Postings, Information and the campus labels (NSIH, Exploration Park, Precision Park, Project Volare, BAHAP,
+Houston Space Center, Ground Lease) are kept as labels.
+
+### NSIH dates on the NSIH board
+
+Two new lists: **Critical dates – Prometheus / NFP** (Critical Dates - NSIH: the Phase 2 feasibility and extension
+dates out to 2030, the monthly project-control report and invoice to Prometheus, the ground-lease extensions, the
+NFP Phase 1 dates) and **Critical dates – Hostetler PSA** (20 cards: feasibility and its two extensions, deposits,
+title objection, closing with 0 / 1 / 2 extensions on Dec 21, Mar 22 and Jun 21, farming, timber, survival to Dec
+2028). Cards keep their due dates and done ticks; Trello's archived ones come over archived. The old "NSIH (Bloomfield,
+IN)" lists (2025, Phase 1) come over as archived cards on Administration. **Not ticked in Trello, so they'll show as
+late:** Title Objection Deadline (Sep 22) and Send ACMI Invoice to Prometheus (Sep 1).
+
+### Kellen's decisions for Properties-General
+
+1. **NSIH and Hostetler dates:** import them as dated cards on the NSIH board now (recommended: the hub has no
+   Hostetler or Prometheus contract, and the Hostetler closing is Dec 21), or skip them until the PSA and agreements
+   are uploaded as contracts, as with ARA?
+2. **The team lists:** a new "ACMI general" team board (recommended), or onto an existing board?
+3. **Old campuses and projects:** one archived "Properties-General archive" board with Avio, Strategic, RRAD,
+   Propulsion Park, Precision Park, King Ranch, TexAmericas, the Army partnership, Prospecting and Tenant Followups (276
+   comments; recommended, so the history is searchable), or skip them?
+4. **Exploration Park and Volare lists** (233 comments): skip, as their boards were (recommended), or put them in the
+   archive board too?
+
+## Properties-Campus Pursuits and Properties-Capitalization: import plan (2026-10-27)
+
+**Imported 2026-10-27**: Kellen took all five recommended answers below (see HANDOFF "Trello history, Campus Pursuits and Capitalization"). With this, every board Kellen kept is imported.
+
+### Properties-Campus Pursuits → a new team board, "Campus pursuits"
+
+The ranked list of places ACMI might build next. 57 cards (36 live), **185 comments** (Simon 80, John Burer 45, Dave
+29, Paul 28, Kellen 2, Olivia Jaskula-Dybka 1), 9 checklists, 27 attachments. Lists kept: **High priority**, **Medium priority**,
+**Low priority**, **Holding / overflow**; the archived lists' cards (Strategic Initiatives, 2025 ranking) come over
+archived. 2 mirror cards skipped.
+
+| Card | Linked to |
+|---|---|
+| TBD - Elbit America ("Project Dragon") | Elbit America / 26Defense deal |
+| Niron RFP | Niron Magnetics deal |
+| Thales - TBD location | Thales deal |
+| SAIC - South Carolina | SAIC deal |
+| MD - Johns Hopkins / APL | Johns Hopkins University deal |
+| Long Wall (Indiana Munitions Campus) | Long Wall · NSIH deal |
+| Minnesota / North Wind, Minnesota - Northwind, North Wind | North Wind deal |
+| Project: Saab (supplier campus in Michigan) | Saab deal |
+| Vulcan Forms & Specter Aerospace | Specter Aerospace deal |
+| Castelion | Castelion deal |
+| Everything else (IN - NSIH Indiana 17 comments, MD - Indian Head 23, Investor - Scaling Space 17, NC - Cumberland County 10, CA - California Forever 12, TX - Red River 7, Bee Cave, Metis Endeavor, Karman, UMKC, ORNL…) | plain cards |
+
+**Two cards are Exploration Park and Volare:** "TX - Exploration Park / Nassau Bay" (42 comments, 31 checklist items) and
+"VA - Project Volare (Avio)" (15 comments), plus the archived "Exploration Park" (1). They're the go / no-go history
+of those pursuits rather than the project boards that were skipped.
+
+### Properties-Capitalization → a new team board, "Capital partners"
+
+The equity and debt partner pipeline: 16 cards (15 live), **41 comments** (Kellen 36, Dave 5), 29 attachments
+(decks and term sheets). Lists kept as the pipeline: **Intro conversations**, **Active discussions**, **Term sheet /
+negotiation**, **Committed / closed**, **Passed / not a fit**. Labels kept: GP Capital, LP Capital, Programmatic JV,
+Lender, NSIH, MEIH, Virginia. Each card links to its directory firm:
+
+- Already in the directory: BGO, Montgomery Street Partners, Koch Real Estate, Bain Capital, OneIM, CTL Capital,
+  Cerberus, Fortress.
+- Not yet: Wellington, Temerity, Silver Peak, Davis Companies, L&B Capital, Blue Owl, JRE (added as investors).
+
+The hub's capital tracker (`CapitalSource`) is per project and per loan or raise (today: the two Forge construction
+loans), so these partner relationships are cards on firms rather than capital sources. A partner that makes an offer
+on a project becomes a capital source then. The NSIH board's Capitalization list (Fortress, Bain, OneIM, Cerberus,
+CTL…) stays as it is.
+
+### Kellen's decisions
+
+1. **Campus pursuits:** its own team board (recommended), or lists on "ACMI general"?
+2. **The Exploration Park / Nassau Bay and Project Volare (Avio) pursuit cards** (58 comments): bring them over
+   (recommended: they're the record of why those pursuits went the way they did, and sit on a live list), or skip
+   them like the Exploration Park and Volare boards?
+3. **Capital partners:** its own team board linked to directory firms (recommended), or capital sources?
+4. **Add the 7 missing investors** to the directory (recommended: yes).
+5. **Fortress:** rename the directory firm "Fortress" to **Fortress Investment Group** and make it the Fortress data
+   room's partner firm (the room has none today)? (Recommended: yes.)
+
 ## Needs Kellen's decision
 
 1. **Full history.** The exports lack 89–92% of comments on Prospecting and General. Options: run

@@ -64,6 +64,10 @@ def file_queued(firm):
                       "snippet": row.snippet})
         moved += created
         row.delete()
+    from .. import needs_filing
+
+    for domain in firm.domains or []:  # its meetings now show the firm, and leave Needs filing
+        needs_filing.refresh_domain(domain)
     return moved
 
 
@@ -101,8 +105,9 @@ def emails(firm, since=None, limit=40):
 
 
 def meetings(firm, since=None, limit=40, until=None):
-    """Meetings with the firm: an attendee from its domains or one of its contacts, or its name in the title."""
-    q = Q()
+    """Meetings with the firm: linked to it (crm/needs_filing.py), an attendee from its domains or one of its
+    contacts, or its name in the title."""
+    q = Q(firms=firm)
     for domain in firm.domains or []:
         q |= Q(attendees__icontains=f"@{domain.lower()}")
     for email in firm.emails:
@@ -110,8 +115,6 @@ def meetings(firm, since=None, limit=40, until=None):
     name = short_name(firm.name)
     if name:
         q |= Q(title__iregex=rf"(^|[^A-Za-z]){re.escape(name)}([^A-Za-z]|$)")
-    if not q:
-        return []
     qs = Meeting.objects.filter(q).distinct().order_by("-start")
     if since:
         qs = qs.filter(start__date__gte=since)
@@ -122,6 +125,12 @@ def meetings(firm, since=None, limit=40, until=None):
 
 def upcoming_meetings(firm, limit=3):
     return list(reversed(meetings(firm, since=timezone.localdate(), limit=limit)))[:limit]
+
+
+def upcoming_with(firm_ids, limit=5):
+    """The next meetings linked to any of these firms (a project's lenders, its team), soonest first."""
+    return list(Meeting.objects.filter(firms__in=list(firm_ids), start__gte=timezone.now()).distinct()
+                .order_by("start").prefetch_related("firms")[:limit])
 
 
 def last_emails():

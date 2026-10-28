@@ -28,9 +28,9 @@
 
 {% if view == 'table' %}
 <div class="table-wrap"><table class="data">
-  <thead><tr><th>Deal</th><th>Stage</th><th>Site</th><th class="num">Size (sf)</th><th class="num">Acres</th><th class="num">Project cost</th><th class="num">Weighted</th><th>Owner</th><th>Next step</th><th>Last touch</th></tr></thead>
+  <thead><tr><th>Company · deal</th><th>Stage</th><th>Site</th><th class="num">Size (sf)</th><th class="num">Acres</th><th class="num">Project cost</th><th class="num">Weighted</th><th>Owner</th><th>Next step</th><th>Last touch</th></tr></thead>
   <tbody>{% for o in deals %}
-    <tr><td><a href="{{ o.get_absolute_url }}">{{ o.name }}</a>{% if o.investor_report %} <span class="tag" title="On the investor report">IR</span>{% endif %}</td>
+    <tr><td><a href="{{ o.get_absolute_url }}"><b>{{ o.company.name }}</b></a>{% if o.name != o.company.name %}<div class="muted lc-small">{{ o.name }}</div>{% endif %}{% if o.investor_report %} <span class="tag" title="On the investor report">IR</span>{% endif %}</td>
       <td><span class="stage stage-{{ o.stage }}">{{ o.get_stage_display }}</span></td><td>{{ o.site_label }}</td>
       <td class="num">{{ o.sq_ft_need|default_if_none:""|intcomma }}</td><td class="num">{{ o.acreage_need|default_if_none:""|floatformat:"-2" }}</td>
       <td class="num">{{ o.value|money }}</td><td class="num">{{ o.weighted_value|money }}</td><td>{{ o.owner|username }}</td>
@@ -49,7 +49,8 @@
     {% else %}
     {% for o in col.items %}
     <div class="kcard" draggable="true" data-url="{% url 'crm:opportunity_set_stage' o.pk %}">
-      <a href="{{ o.get_absolute_url }}">{{ o.name }}</a>
+      <a class="kco" href="{{ o.get_absolute_url }}">{{ o.company.name }}</a>
+      {% if o.name != o.company.name %}<div class="kdeal">{{ o.name }}</div>{% endif %}
       <div class="sub">{% if o.value %}{{ o.value|money }} · {% endif %}{% if o.sq_ft_need %}{{ o.sq_ft_need|intcomma }} sf · {% endif %}{% if o.acreage_need %}{{ o.acreage_need|floatformat:"-2" }} ac · {% endif %}{{ o.owner|username|default:"No owner" }}</div>
       {% if o.next_step %}<div class="next">→ {{ o.next_step|truncatechars:70 }}{% if o.next_step_due %} <span class="muted">{{ o.next_step_due|date:"M j" }}</span>{% endif %}</div>{% endif %}
       {% if o.risk %}<div class="risk">{{ o.risk|join:" · " }}</div>{% endif %}

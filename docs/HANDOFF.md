@@ -104,6 +104,32 @@ map overlays asked for every region on every move (and the Huntsville parcel lay
 server). Details and a checklist in the report's "Second pass" section. 726 tests green.
 **Merge:** CI, then `git merge --ff-only`, back up the real database and `manage.py migrate crm`.
 
+**Split view 2026-10-27** (Kellen: "run the email client at the same time I have my land map open... being able to open any component of the web app at the same time"): ◫ in the top bar opens a second hub page beside the one you're on (`crm/static/crm/split.js`, markup at the end of `base.html`). The side is a same-origin frame of the page drawn without the top bar: `?embed=1`, and pages opened inside it are known by the browser's `Sec-Fetch-Dest: iframe` (`context_processors.is_embedded`, `EMBED`; a head script also hides the bar whenever a page is framed). Pick any page in the side's dropdown, or **Alt+click** a link to open it on the other side. Drag the divider (or arrow keys on it) to resize; ⇄ swaps the two pages, ⤢ keeps only the side page, ✕ closes the side, ← and ↻ act on the side. Remembered per browser (`localStorage.hubSplit`); the main side folds its menus into ☰ under 1180 px (`html.split-narrow`); a side Land map keeps its filters beside the map down to 560 px; phones (900 px and under) show one page. Framing: `X_FRAME_OPTIONS = "SAMEORIGIN"` and the CSP's `frame-ancestors 'self'` (both were "deny"); the side runs the same middleware, so sign-in, partner-only and manager rules apply. Only the main page polls for alerts; the side keeps its own Back trail. Checked in a browser on a local test database (Land beside Tasks, Boards, swap, resize, close, Alt+click, phone); **the live inbox beside the map isn't checked against real Gmail**, only by Django tests (`crm/tests/test_split_view.py`). No migration.
+
+**Mail and home fixes 2026-10-27** (Kellen's feedback): the Times panel is wider (drag its left edge; remembered), stretches 7 AM to 8 PM to the panel height and wraps event titles; scrollbars keep their own room (`scrollbar-gutter`) in the Times grid and the inbox columns. Each message has Reply / Reply all / Forward buttons and a bar under the thread replies to the latest (the reply box opens there). The formatting bar has text colour and highlight (inline styles, kept by the sanitizer). My day: a waiting reply links to the email (`inbox_open?m=`) and × takes it off your list (UserPrefs `my_day_replies_dismissed`; a new reply on the thread brings it back). Dashboard: a dragged widget now lands above or below another depending on which half it's dropped on (it used to always go on top), and ↑ ↓ on ⠿ step past the next widget. No migration.
+
+**Offer meeting times from an email 2026-10-27** (Kellen: "have my calendar pop on the side so I can pick timeslots for a meeting that then get added to my email"): the formatting bar on the compose page and the reply box has 📅 Times. It opens a side panel with your week from Google Calendar (`gcal.week`, read live with the calendar.readonly permission the Meetings sync already has, nothing stored; free and declined events left out), weekdays 7 AM to 8 PM, with a length picker, weekends and week paging. Click free time to pick a slot (a slot over a meeting is flagged). Insert puts "Would any of these times work for you?" and the slots as a list, in your time zone, where the cursor was. Route `inbox/compose/calendar/?start=YYYY-MM-DD`. No migration.
+
+**Labels in the inbox 2026-10-27** (Kellen: "collapse labels, delete them, or modify them"): the folder pane shows labels as Gmail nests them (`index.label_tree`), each parent and the whole Labels group collapsible (remembered in the browser). The ⋯ menu on a label renames it (`actions.rename_label`; labels nested under it follow) or deletes it (`actions.delete_label`, after a confirm; it and its sub-labels come off their emails in Gmail, no email deleted). The hub's own ACMI/ labels can't be changed there. Route `inbox/labels/edit/`. No migration.
+
+**Faster inbox 2026-10-27** (Kellen: "the email component is slow"): clicking a conversation opens it in the reading pane without reloading the page (`X-Mail-Pane` answers `crm/partials/mail_reader.html` only, so Gmail isn't asked for the list again; the page's reader scripts re-run via `initReader()` and compose.js `initInlineReply()`; anything failing falls back to a normal load). Resting the mouse on a row for 150 ms reads that conversation into the cache (`/inbox/warm/`, read only, nothing marked read). Each message is parsed once per thread (`render.thread_texts`, cached with the thread), the CRM tags are worked out once per page, and the "other parts of this conversation" Gmail search is cached 10 minutes. Measured on the real mailbox: opening a conversation went from 1.5 to 2.8 s to 0.12 to 0.18 s cached, about 0.9 s when Gmail must send it.
+
+**Email formatting 2026-10-27** (Kellen: "I should have the tools to adjust the body of the email so italics, bold, numbering etc."): the compose page and the reading pane's reply box have a formatting bar over the body (bold, italic, underline, strikethrough, bulleted and numbered lists, indent, link with Ctrl+K, clear formatting) in `crm/static/crm/compose.js`. It posts `body_html`; `compose.formatted` cleans it with the news-draft sanitizer and `compose.plain_text` makes the plain part (numbered lists numbered). Drafts keep the formatting; an empty editor falls back to the plain `body`. No migration.
+
+**Trello history, Campus Pursuits and Capitalization 2026-10-27: the Trello import is finished** (Kellen took the five recommended answers in `docs/TRELLO_MAPPING.md`; merged fast-forward `6f9d242`, CI green, 810 tests, no migration; applied on the real database, backup `backups/db-2026-10-27-before-trello-pursuits-capital.sqlite3`): `import_trello <folder> --board pursuits` made the **Campus pursuits** team board (High / Medium / Low priority, Holding / overflow; 55 cards, 185 comments, 12 cards on their deals: Elbit, Niron, Thales, SAIC, Johns Hopkins, Long Wall, North Wind, Saab, Specter, Castelion; the Exploration Park / Nassau Bay and Volare (Avio) pursuit cards came over). `--board capital` made the **Capital partners** team board (Intro conversations, Active discussions, Term sheet / negotiation, Committed / closed, Passed; 16 cards, all on directory firms, 41 comments, 29 attachments). Wellington, Temerity, Silver Peak, Davis Companies, L&B Capital, Blue Owl and JRE added as investors. **The directory's "Fortress" is now "Fortress Investment Group" and is the Fortress data room's partner firm.** All seven boards Kellen kept are in (Prospecting, Maryland / MEIH, NSIH, General, Campus Pursuits, Capitalization; the second MEIH board skipped): about 3,000 Trello comments with their authors and dates. `import_trello` is safe to re-run against a newer fetch: it adds only what isn't there.
+
+**Trello history, Properties-General 2026-10-27** (Kellen took the recommended answers in `docs/TRELLO_MAPPING.md`, "Properties-General", except the NSIH dates: "I can upload the PSA and related docs"; merged fast-forward `8c73905`, CI green, 791 tests, no migration; applied on the real database, backup `backups/db-2026-10-27-before-trello-general.sqlite3`): `import_trello <folder> --board general` made the **ACMI general** team board (Press / postings, Administrative, Other markets, Airport Commerce, and an archived Project North Star – Niron list; 59 cards, Spinner and Supernova cards on their deals, Niron's on the Niron deal) and an archived **Properties-General archive** board (102 cards: Avio, Strategic, RRAD, Propulsion Park, Precision Park, King Ranch, TexAmericas, the Army partnership, Prospecting, Tenant Followups). The 2025 "NSIH (Bloomfield, IN)" cards went onto the NSIH board's Administration (archived) and ARA - Lease Negotiation onto MEIH's ARA list (archived). 455 comments, 41 checklists, 145 attachments, 314 history entries. **The 43 NSIH and Hostetler date cards weren't imported**; their 5 comments and 54 attachments went onto the NSIH board's Land PSA - Hostetler, Land PSA - NFP, Prometheus - Ground Lease and Prometheus - DMA cards. **Kellen: upload the Hostetler PSA, the NFP / Prometheus agreements and the ARA PDA** as contracts so their dates reach the calendar. Exploration Park and Volare lists skipped (87 cards, 233 comments), 31 mirror cards skipped. **Next:** Campus Pursuits and Capitalization.
+
+**Trello history, Properties-NSIH 2026-10-27** (Kellen took the six recommended answers in `docs/TRELLO_MAPPING.md`, "Properties-NSIH"; merged fast-forward `eca3056`, CI green, 776 tests, no migration; applied on the real database, backup `backups/db-2026-10-27-before-trello-nsih.sqlite3`): `import_trello <folder> --board nsih` made a new **NSIH** board (campus and project NSIH; lists Administration, Design & construction, Due diligence, Infrastructure / utilities, Land contracts, Parcel owners, Tenants and leases, Capitalization, Models & decks, and an Open tasks feed; the team as members) with 113 cards and all 521 comments (David DeNardo 455; Patrick Dillmann 18, Olivia Jaskula-Dybka 2 and Eli Miller 1 named in their comments), 42 checklists, 61 attachments, 180 history entries. 9 cards link to the Prometheus, iRocket and Spinner deals (the archived Kratos LOI cards onto Prometheus), 29 to directory firms. 14 firms added: Ryan LLC, Drewry Simmons Vornehm, Earthsource, SMS Energetics, TRC Companies, Johnny's Signs, APT Solar Solutions, Weddle (services); Fortress, Strongbox, Browning, OneIM, Cerberus (investors), CTL Capital (lender). **The Prometheus (Kratos / Rafael) deal is now on campus NSIH** (it had none). The land PSAs (NFP, Hostetler) and the Prometheus ground lease / DMA are plain cards until they're uploaded as contracts. 8 mirror and link cards skipped. **Next:** Properties-General (its two NSIH critical-dates lists join this board), Campus Pursuits, Capitalization.
+
+**Trello history, Maryland / MEIH 2026-10-27** (Kellen took the plan in `docs/TRELLO_MAPPING.md`, "The two MEIH boards", with changes: Lewis Place is Bryans Road, NSWC - IHD is the base relationship (a Consultants card), ARA's dates wait for the final PDA, the second MEIH board is skipped; merged fast-forward `576fdaf`, CI green, 773 tests, no migration; applied on the real database, backup `backups/db-2026-10-27-before-trello-meih.sqlite3`): `import_trello <folder> --board meih` put 50 of the 73 cards on the MEIH board (Land sites, Critical dates, The Forge, ARA Facility deal and sites and design, Consultants), placed by hand (`MEIH_CARDS` in `crm/boards/trello_import.py`) and linked to 17 sites, the 4390 PSA, the ARA deal and 4 directory firms; all 118 comments (44 also on site pages, 6 on the 4390 PSA, 3 on the ARA deal), 55 checklists, 58 attachments, 97 history entries. The 10 4390 date cards (pre-extension dates) and ARA's 13 invoice / lease / PDA date cards weren't imported; their comments and attachments went onto the 4390 PSA and ARA "Contact List & Agreement" cards. **Kellen: upload the final ARA PDA** as a contract so its dates reach the calendar. Kimley Horn (engineer), Maryland Department of Commerce (agency) and Powers Brown (architect) added to the directory. **Next:** NSIH, General, Campus Pursuits, Capitalization, each with a mapping first.
+
+**Trello history, Prospecting 2026-10-26** (Kellen: "pull all the comments and boards from trello"; merged fast-forward `195d697`, CI green, 718 tests, no migration; applied on the real database, backup `backups/db-2026-10-26-before-trello-prospecting.sqlite3`): Kellen ran `trello_fetch.py` (15 boards, full history, `data/imports/trello/2026-10-26/`). `manage.py import_trello <folder> [--apply]` (`crm/boards/trello_import.py`, dry run by default) put Properties-Prospecting onto the Tenant pipeline board: all 1,661 comments with their author and date (1,132 on 103 deal cards, also on the deal page; 361 on cards linked to a company, also on the company page; 168 on cards with no record), 200 checklists (564 items), 175 attachment links, 807 card-history entries, 12 labels, 260 cards for Trello cards with no deal on 15 unbound lists (New Leads, Cold, Partners, Outreach Summary / Admin open; Targets and the old lists archived). The CRM wins: deal cards keep their title, stage, description and dates; only labels and members were added. Outsiders (Joe Don Bowling 96, Olivia Jaskula-Dybka 30, four others) have their name at the start of the comment. Nobody was notified; a re-run adds nothing. 13 mirror cards skipped. **Next:** the other boards (both MEIH boards, NSIH, General, Campus Pursuits, Capitalization), each with a mapping for Kellen first; skipped boards are in `docs/TRELLO_MAPPING.md`.
+
+**Fortress data room started 2026-10-26** (Kellen: "build out the room so it can be seen"): room 1 "Fortress" on the real database (backup `backups/db-2026-10-26-before-fortress-room.sqlite3`), active, costs shown, win % off, every campus, no partner firm (Fortress isn't in the directory). It shows all 27 investor-report deals; none has a partner note yet, no files, no partner invited. Manager page `/data-rooms/1/`, preview `/room/?room=1` (not logged); both render on the real data.
+
+**Client searches 2026-10-26** (Kellen: "I can't delete a client search"; merged fast-forward `56d3693`, CI green, 712 tests, no migration): **Delete** on the search page and on each row of Client searches and a company's Site searches tab, for the search's creator or a Manager. Its reports go with it; the sites stay in Land. A **+ Land search** button in the company page header starts one for that company.
+
 **David walkthrough fixes 2026-10-26** (Kellen: "start on bugs 1-9 from the David review in a worktree"; branch
 `worktree-david-review-fixes`, migration `0067_assignment_company`. **Merged 2026-10-26** fast-forward `4101657`, CI
 green, 710 tests; real DB migrated through 0067, backup `backups/db-2026-10-26-before-david-review-fixes.sqlite3`;
@@ -315,29 +341,16 @@ the redirect URI has to be added in Google Cloud first. **Step 8
    - A direct sync from the CRM, with no Claude in the middle, needs the Granola API, which needs Granola's Business
      or Enterprise plan ([docs](https://docs.granola.ai/help-center/sharing/integrations/granola-api)). That's
      Kellen's call.
-2. **Trello boards, the next steps** (design in the last section of this file; `boards-core` is merged):
-   `boards-bound` (bound and feed lists; the Tenant pipeline and Sites Board tabs on the boards component; Lists → Boards
-   migration and redirects; the My cards widget), then `boards-import` (the Trello JSON export), then `boards-polish`.
-   - **Kellen, 2026-10-21:** review every Trello board he can access, restructure them to the hub's layout as they come
-     in (in the hub only; nothing changes in Trello), and bring over every comment, timestamp and the rest of the
-     history, attributed to the team. The data comes from `scripts/trello_fetch.py` (read-only, the news-review app's
-     key; Kellen runs it at the laptop, because auto mode won't let Claude use another app's key, and the Trello
-     connector didn't load in the session that was already running when he connected it). The review and
-     `import_trello` read its output in `data/imports/trello/<date>/`. Report the per-board mapping to Kellen before
-     writing anything, and decide with him whether `boards-bound` goes first.
-   - **Attribution by full name**, never `pipeline_import.TEAM`: its usernames are the old lowercase ones (from when
-     "dave" was DeNardo), so its `get_or_create(username=...)` would create six duplicate users today. Kellen
-     Moczulski → `Kellen`, Simon Shewmaker → `Simon`, David DeNardo → `David`, David Dowell → `Dave`, Paul Kadzielski →
-     `Paul`, John Burer → `John`. Comments keep their Trello author and date; people outside the team keep their name
-     in the text.
+2. **Trello boards:** the import is done (2026-10-27; boards-core, boards-bound and boards-import merged). What's left is `boards-polish` (design at the end of this file). To pick up later Trello activity, re-run `scripts/trello_fetch.py` at the laptop and `import_trello <new folder> --board <name>` for each board; it only adds what's new. Attribution is by full name, never `pipeline_import.TEAM` (its old lowercase usernames would make duplicate users).
 3. **UX second pass fixes** (`docs/UX_REVIEW.md`, "Second pass"; Kellen took the defaults): one branch per area in this
    order: capture gaps and Granola; duplicates and undo; accessibility, phone, states and wording; roles, outside-facing
    output, rough edges.
 4. **Sale comps per area, and off-market signals** (long holds, estates, tax-delinquent where counties publish it):
-   the rest of roadmap item 7.
-5. **Owner-data gaps:** Hays has values for 42% of parcels and Charles has mailing addresses for 66%. Fill them from
-   assessor files with `load_owners`. This matters for landowner letters: an owner with no mailing address can't be
-   written to.
+   the rest of roadmap item 7. Built on branch `land-sales` (2026-10-26, see its section at the end); merge, migrate
+   and run `refresh_sales` on the real database.
+5. **Owner-data gaps:** Charles mailing addresses and values come from the statewide MD layer on branch `land-sales`
+   (`refresh_sales Charles`). Hays market value stays blank where Hays CAD has none (don't derive it; land value is on
+   99%). This matters for landowner letters: an owner with no mailing address can't be written to.
 6. **Go-live once billing is on:** Cloud Run jobs and Scheduler, Cloud Storage, hub.acmigroup.com (`docs/ROADMAP.md`
    section 1).
 
@@ -348,8 +361,6 @@ the redirect URI has to be added in Google Cloud first. **Step 8
 
 **Waiting on Kellen**
 - Connect Granola and set up the daily task, on the acmiproperties Claude account (above).
-- Run `.venv/Scripts/python -I scripts/trello_fetch.py` at the laptop (read-only, a few minutes): every board Kellen
-  can see, with its full history, into `data/imports/trello/<date>/`. The Trello review and import start from there.
 - Who "Dave" is in the tracker's Lead column: 9 deals are owned by David DeNardo and 1 by David Dowell, because the
   Oct 14 import read "Dave" as DeNardo. The hub's `Dave` account is David Dowell.
 - Confirm who stays a Manager (Admin › Groups). Everyone with an account is one today.
@@ -974,6 +985,11 @@ Grande and I-10/I-8 Business Park, Eloy = Pinal) plus Greene County, IN (NSWC Cr
   layer lacks; owner totals use the enriched owners (`parcels._enrichment_records`).
 - Hoke / Greene / east Pinal owner data needs the assessor's bulk file or a paid parcel dataset (Regrid, Dynamo Spatial,
   Land Records); a file could be joined by parcel number with a small `enrich`-style loader.
+- **Update 2026-10-26 (branch `land-sales`):** real-DB coverage before it (owner / mailing / market / land value):
+  Charles 2148 / 1409 / 0 / 0, Hays 2897 / 2841 / 1237 / 2895, the rest fine. `refresh_sales Charles` fills Charles's
+  mailing and values from the statewide MD layer (2,460 of 2,465 of its 16+ acre records have a whole mailing
+  address, 2,359 a value). Hays's blank market values are blank at Hays CAD too and are left blank (its market figure
+  isn't land + improvements, so it can't be derived).
 
 ### load_owners: join an owner file onto loaded parcels (2026-10-16)
 
@@ -2353,3 +2369,224 @@ Branch `mail-outreach-api`, no migration. `crm/mail/outbound.py`.
   first (today that's Kellen, already on). Then: Google Account › Security › App passwords › remove the hub's; and
   delete the `ACMI_IMAP_PASSWORD_KELLEN` line from `.env` (Claude can do that part). Anyone without Mail on would
   then fall back to IMAP and fail, with a message saying so.
+
+
+## Built 2026-10-26: ux-capture (UX second pass area 1)
+
+Branch `ux-capture`, migration `0068_ux_capture` (may be renumbered at merge). Findings C1–C5 and the code part of G1
+in `docs/UX_REVIEW.md` "Second pass", with decisions 2 and 3 as recommended. `crm/needs_filing.py`, `crm/invites.py`.
+
+- **Needs filing (C1)** at `/needs-filing/` replaces Mail review (`/mail/` redirects there; the menu item, search
+  page link and badge are renamed). One card per unknown domain joining its queued emails, its meetings (by attendee
+  domain, 90 days back to 60 ahead) and its emailed invites. Claude's domain verdict is the headline with one primary
+  action: "Looks like a bank. File Harbor Point Bank as a lender on Project Anvil?". **Accept** files the firm (or
+  adds the company, or ignores the domain), links its meetings, and for a bank, debt fund or broker adds an
+  Identified capital source on the project. **Change** opens the same choices by hand (directory type, project,
+  company or existing company, ignore, name). **Not now** hides the card 14 days (`FilingSnooze`); **Never** is the
+  Ignore filter. The project guess: project names and keywords in subjects and meeting titles, then the projects
+  the same threads are tagged or filed with, then the projects the other firms and companies at its meetings work
+  on. Cards with a meeting come first, then Claude's surest verdicts, then the latest. 25 per page; `?domain=` shows
+  one card (the calendar's File link). Mailbox setup, team mailboxes and filters moved to the bottom of the page.
+  Undo works as before for what Claude filed on its own, and now also takes the firm off its meetings.
+- **Claude files more on its own (decision 2):** a directory verdict at high confidence, or at medium once the team
+  has met someone at the domain (a medium verdict from an earlier run is filed when a meeting turns up). Domains seen
+  only as meeting attendees are sorted too, with the meetings in the evidence. Still never a Company.
+- **Firms on meetings (C2):** `Meeting.firms`, filled at import, from invites and after any filing by attendee domain
+  or firm contact email (`needs_filing.link`; companies are linked the same way). Firm chips with the type on
+  calendar rows, the pop-up and the week widget; "Coming up" meetings on the firm page, a project's Capital page (its
+  providers) and Build page (its team). The firm page's meeting list also reads the links.
+- **"No record" marker (C3):** `Meeting.unfiled` / `unfiled_domains`: outside attendees no person, company or firm
+  knows (free mail and ignored domains don't count). "2 outside attendees, no record · File" on the calendar, the week
+  widget and the pop-up (attendees tagged No record); a "No record" filter on the calendar. Counted in the Outreach
+  badge (the Needs filing count) and a once-a-day bell note to Managers from the due sweep ("Needs filing: 3 meetings
+  this week with outside people and no record; 12 organizations waiting"). The links are refreshed for the window
+  at the start of every `sort_domains` run (every 15 minutes), with or without Claude.
+- **Emailed invites (C4):** the mail sync keeps calendar parts (`ParsedEmail.calendar`, both readers; an attached
+  .ics with no data inline is skipped) and reads them to RFC 5545 (folding, quoted CN, TZID including Outlook's
+  Windows zone names, alarms), or Google's "Invitation: Title @ Thu Oct 29, 2026 2pm - 3pm (EDT)" subject when there's
+  no calendar part. Forwarded ones too. The meeting is source "invite" (`invite:<UID>`); a meeting already within 15
+  minutes with a similar title or a shared outside attendee just gains the guests; a later calendar event or Granola
+  note takes over an invite row the same way. Cancellations remove an unclaimed invite row; replies never add one;
+  ACMI-only invites are left to the calendar sync. An odd invite never fails the sync.
+- **Same person (C5):** a free-mail sender whose display name (two words or more) is exactly one Person's name is
+  held as `AddressSuggestion`, shown on Needs filing: "Same person, add this address" puts the address in
+  `other_emails` and the waiting email on their timeline; "Not them" stops it for that address. **Search** now finds
+  queue senders and unfiled meeting attendees (group "Not filed yet", badge "Not filed yet") and firm contacts (group
+  "Directory contacts": they are filed, on a firm, so they aren't called unfiled).
+- **Action items (G1, code only):** `Task.meeting` became `Task.meetings` (the migration copies each link over and
+  back; `task.meeting` still reads the first one). The owner comes from the name in brackets, `(Simon)` or `[Simon]`;
+  "by Friday", "tomorrow", "end of week", "next week", "end of month", "by Oct 30", "by 10/30" are read as the due
+  date from the meeting's day (prefilled in the form). The same title and owner within 7 days is one task (the other
+  meeting joins it; the item shows "also from …"). "Make tasks for all N items" on the pop-up. `import_meetings` was
+  already idempotent by Granola id (tested now); it prints and posts one bell note per run to Managers: "Granola
+  import: 5 meetings (3 new, 2 updated), 4 transcripts; 2 meetings need filing" (`--quiet` for none). No scheduled
+  task or connector was set up: that goes on the acmiproperties Claude account.
+- **Backfill:** `manage.py link_meetings` (dry run; `--apply` writes) links every existing meeting to its firms and
+  companies and marks who has no record.
+- **Files:** `crm/needs_filing.py`, `crm/invites.py`, `crm/management/commands/link_meetings.py`,
+  `crm/templates/crm/needs_filing.html` (replaces `mail.html`), partials `mail_setup.html`, `firm_chip.html`,
+  `unfiled_marker.html`, `upcoming_meetings.html`; changes in `crm/meetings.py`, `crm/directory/sort.py` and
+  `logic.py`, `crm/mail/sync.py`, `parse.py`, `gmail_api.py`, `views.py`, `crm/search.py`, `crm/notify.py`,
+  `crm/views.py`, the calendar, week widget, pop-up, firm, Capital and Build templates.
+- **Tests:** `crm/tests/test_capture.py` (27, the invite is made up to the standard); 737 pass. Checked in a
+  browser on a scratch database: the cards and Accept, firm chips and the marker on the calendar and week widget,
+  the pop-up's "Make tasks for all", the page at phone width. The migration was run forward and back on a scratch
+  copy with a task linked to a meeting.
+- **On the laptop, after a backup:** `manage.py migrate crm`, then `manage.py link_meetings` (read the counts) and
+  `manage.py link_meetings --apply`. Then look at Needs filing (expect more cards than Mail review had: meeting-only
+  domains are new), a lender meeting on the calendar, and the next `sort_domains` log line for what Claude filed at
+  medium with a meeting.
+- **Left out:** the attendee-based merge of calendar and Granola duplicates (D1, area 2: invites use it, calendar ↔
+  Granola still compares titles); reading an .ics that is only an attachment with no inline copy (needs one more
+  Gmail call per message); undo for a card someone accepted by hand (as before, only Claude's own filings undo); the
+  scheduled Granola task itself.
+
+## Built 2026-10-26: land-sales (sale comps, off-market signals, Charles and Hays owner data)
+
+Branch `land-sales`, migration `0069_land_sales` (depends on `0067_assignment_company`; another branch takes `0068_`,
+so re-chain it at merge). Kellen asked for it the same day; the owner groups and the value range were added mid-build
+(Kellen approved both). Code: `crm/land/sales.py`, `signals.py`, `portfolio.py`, `comps.py`, `comp_views.py`;
+`manage.py refresh_sales`.
+
+- **Last transfer on every parcel** (`Parcel.last_sale_date / _price / _type / _arms_length / _deed / _source`), from
+  each county's own records (table below). Never a derived price: Texas never has one. Blanks never overwrite; a
+  different transfer replaces all of the old one (its price doesn't carry over). `load_parcels` now runs it after a
+  load (`parcels.after_load`; a sale source that's down leaves the load as it is), and
+  `manage.py refresh_sales <county ...> | --all [--commit]` re-reads it without geometry (dry run by default).
+- **Charles mailing and values:** the statewide MD iMAP layer (`mdgeodata.md.gov/imap/.../MD_ParcelBoundaries/
+  MapServer/0`, SDAT data, joined on ACCTID, `JURSCODE = 'CHAR'`; geodata.md.gov shows a maintenance page) gives the
+  owner mailing address (`OWNADD1/2`, `OWNCITY`, `OWNSTATE`, `OWNERZIP`) and values (`NFMLNDVL`, `NFMIMPVL`,
+  `NFMTTLVL`). It has no owner names: those stay the county layer's. `KEEP_IF_BLANK` keeps the filled fields through a
+  Charles reload.
+- **Hays:** Hays County's own layer (`services5.arcgis.com/bVphnK8rPe5MHUSr/.../Hays_County_Parcels/FeatureServer/0`,
+  Hays CAD data, keyed `prop_id`) gives the deed date and volume / page or document number. It has several rows per
+  parcel (deed history): the latest is kept. Its `market` is blank on the same parcels as StratMap and isn't land +
+  improvements, so market value isn't filled or derived. hayscad.com refuses scripts (403); not worked around.
+- **Sale comps** (`SaleComp`): county comps come from parcels whose last transfer has a price of $1,000+ and looks
+  arms-length (the county marks it so; Maricopa, which never says, counts unless marked otherwise). SDAT
+  multiple-account sales (code 3) are left out (the price covers accounts we may not store). Parcels on one sale (same
+  date and deed, or same date and price) make one comp with their acres added. `improved` = buildings worth $25k+ and
+  10%+ of the value. They're re-made on every refresh; ones that no longer qualify go, unless the team put notes, a
+  site or a flyer on them; their figures can't be edited. **Team comps** (/land/comps/new/, "+ Add a comp" on the card
+  and site page): date, price, acres ($/acre worked out), buyer, seller, arms-length, deed, county or location,
+  parcel / site link, source note, team notes, broker flyer, "keep off outside reports".
+- **Comps page** /land/comps/: a county, a site or a parcel (?parcel=) with a radius (15 mi default), acreage band,
+  date range, arms-length (default leaves out non-arms-length; "confirmed" only; all), land only. Table, map pins,
+  count, median and quartile $/acre; `?format=csv`. Texas pages say why there are only team comps.
+- **Panels:** "Sale comps nearby" on the parcel card, the site page (`#comps`) and the site brief (page 2, section
+  `comps`, which the customize page can switch off). The brief shows no buyer, seller or notes and no comp marked
+  internal, and gives "County record" or "ACMI research" as the source. It keeps the ACMI logo.
+- **Value range (team only):** low / base / high $/acre = lower quartile / median / upper quartile of nearby land comps
+  (within 15 mi, or comps without a location in the same county; a third to three times the acres; last 5 years, 10
+  when that gives under 3; no buildings; not marked non-arms-length), with the count, the date span and a link to
+  exactly those comps. Under 3 comps it says "Not enough comps". It's on the parcel card and the site page only: never
+  the brief, the PDF, guest views, the data room or letters. Never from asking prices or assessed values.
+- **Off-market signals** (`Parcel.signals`, `motivation`; worked out in `score.apply`, so every load, owner-file join
+  and `score_parcels` updates them; the buy-box score is unchanged): long hold (last transfer 20+ years ago: "Owned
+  since YYYY"), estate / heirs / life estate / deceased, family (ET AL / ET UX), trust, out-of-state owner, absentee
+  (mails from outside the 3-digit ZIP areas of the county's own situs addresses), inherited / non-arms-length last
+  transfer (where the county marks it: SDAT code 4, Madison's will / estate / gift / quitclaim deeds). Public owners get
+  none. Chips on the card and the land-search list; a Signals filter and "Sort list by Motivation" on land search. In
+  the brief they show only on the app's own page (class `no-print`, never in the PDF or a printout). `motivation`
+  weights: estate 3; long hold, non-arms-length, out-of-state 2; absentee, family, trust 1. The old "Out-of-state
+  owner" checkbox compared every county to TX; it now compares to the land's own state.
+- **Tax-delinquent: none.** No loaded county publishes delinquency in its parcel service (Pinal's TaxParcels has
+  tax-due fields, all empty for 20+ acre parcels, and they're bills, not arrears). Tax-sale lists exist as PDFs or
+  newspaper notices (Charles County's annual tax sale, Maricopa's lien sale) and aren't loaded. So there's no signal
+  and no filter for it.
+- **Owner groups** (`Parcel.portfolio_key / _parcels / _acres`; `portfolio.rebuild()` runs after every load, owner-file
+  join and refresh). The rule: two stored parcels are one group when the owner names match after normalising and
+  they're in the same county, or when the owners mail to the same address anywhere (street + 5-digit ZIP; case,
+  punctuation, suite / unit numbers and street-word spellings ignored). An address doesn't link when its c/o line is a
+  tax service, bank, law firm or accountant, when more than 5 different owner names use it (a registered agent, a
+  manager), or, for a PO box, more than 3. Links chain. The card shows "Same owner group: N parcels, X ac across
+  <counties>" with the others; land search has an owner-group filter and a sort by group acres. **Landowner letters**
+  have "One letter per owner group instead" (`?group=1`): one letter to the owner and address of the group's largest
+  parcel, with "Some of this land is held as A and B." after the paragraph about the land (or wherever
+  `{other_owners}` is in the letter). No LLC / Secretary of State tracing (not now).
+- **Tests:** `crm/tests/test_land_sales.py` (21; every county service mocked); 731 pass. A live read-only check of each
+  sale source's query on 2026-10-26 (no database) found these records with a transfer date at 16+ ac: Charles 2,233 of
+  2,465 (1,186 with a price), Hays 3,434 of 3,699, Madison 9,379, Morgan 4,729 (1,487 with a price), Harnett 4,956,
+  Hoke 18,124, Pinal 57,524 (32,620 with a price; the full-window area adds small parcels). Not checked in a browser.
+
+**Sale and deed fields by county (checked 2026-10-26 with `?f=json` and sample queries)**
+
+| County | Layer | Transfer date | Price | Arms-length / type | Deed |
+|---|---|---|---|---|---|
+| Charles MD | MD iMAP statewide (SDAT) | `TRADATE` | `CONSIDR1` | `CONVEY1`: 1 arms-length improved, 2 vacant, 3 multiple accounts, 4 not arms-length (MD Assessment Procedure Manual) | `GR1LIBR1` / `GR1FOLO1` liber / folio |
+| Hays TX | Hays County parcels (Hays CAD) | `Deed_Date` | none (Texas) | none | `Volume` / `Page`, else `Number` |
+| Bastrop, Blanco, Caldwell, Comal, Guadalupe TX | TxGIO StratMap | none (`DATE_ACQ` is when TxGIO got the file, the same on every record) | none | none | none |
+| Limestone AL | Huntsville combined parcels | none | none | none | `Book1` / `Page1` exist but aren't labelled as the deed: not used |
+| Madison AL | City of Madison copy | `DeedDate` | none | `DeedType` (WARR, SURV, DEED, QTCL, LIFE, PREP, WILL, GIFT, EXEC, DIST, AFFD, FORC...) | `DeedBook` / `DeedPage` |
+| Morgan AL | Huntsville combined parcels | `LastSalesDate` | `SoldTotalPrice` | `UseOnSales` (1 = used in the assessor's sales study) | `LastDeed` |
+| Cumberland NC | NC OneMap | none | none | none | `sourceref` "Deed Book/Page" |
+| Harnett NC | NC OneMap | `saledatetx` (month and year) | none | none | `sourceref` |
+| Moore NC | NC OneMap | `saledate` (602 of 5,095 big parcels; the rest a 1900 fill value) | none | none | `sourceref` |
+| Hoke NC | Hoke County GIS | `DEED_DATE` | none | none | `DEED_BOOK` / `DEED_PAGE` |
+| Maricopa AZ | County Assessor | `DEED_DATE`, `SALE_DATE` | `SALE_PRICE` (only when the sale is the latest deed, within 90 days) | not given | `DEED_NUMBER` |
+| Pinal AZ | County TaxParcels | `SALEDATE` | `SALEPRICE` | `REASONTOEXCLUDE` (blank = used in the assessor's study; the codes aren't published, so excluded = not known) | `RECEPTIONNO` (mostly blank) |
+| Greene IN | IndianaMap + WTHGIS table | none | none | none | none |
+
+NC OneMap's `transfdate` is the date NC OneMap got the county's file, not a sale. No NC layer has a price field (no
+excise-stamp figure in any loaded layer).
+
+**To run on the real database (Kellen's OK first; back up as "How to work in this repo" says):**
+1. Re-chain `0069_land_sales` onto whatever `0068_` lands, then `manage.py migrate crm`.
+2. `manage.py refresh_sales Charles Hays` (dry run), then the same with `--commit`.
+3. `manage.py refresh_sales --all` (dry run), then with `--commit`: the other counties' transfers, signals on every
+   county (including the ones with no sale source), county comps and owner groups.
+
+## Built 2026-10-26: deals live in the company card, and a Back button (Kellen: "Everything should live in the company card. Also make it easier to go back")
+
+Branch `company-card`, no migration.
+
+- **Tenant pipeline** cards and table rows lead with the company name; the deal name sits underneath (hidden when it's the same).
+- **A deal opens inside its company card:** the deal page now carries the company's header, breadcrumb (Companies › company › Deals › deal)
+  and tab bar with Deals active, plus the company's other deals (`partials/company_card_head.html`). Same URL
+  (`/opportunities/<pk>/`), so every existing link (board, report, search, alerts) lands there. The old "Back to board" link is gone.
+- **← Back to <page>** above every page (`static/crm/back.js`): the hub page you came from, per browser tab (sessionStorage).
+  Tab and filter changes on the same page update its entry, so Back goes to the previous page, not the previous tab; it
+  uses the browser's own back when that's where it goes, so the scroll position comes back too.
+- Tests: `crm/tests/test_company_card.py` (3); 716 pass. Checked in the browser on a scratch database with made-up deals.
+
+## Built 2026-10-27: sheet-import (Kellen: "I want the ability to upload an excel sheet to the CRM - it should be able to create companies and add contacts")
+
+Branch `sheet-import`, migration `0071_import_batch` (the `ImportBatch` table). Code in `crm/sheet_import/`
+(`logic.py` reads, guesses, plans, runs and undoes; `views.py` is the pages).
+
+- **Where:** an Import button on Companies and on People, "Import from a spreadsheet" in the + New menu and in the
+  Ctrl K page list. `/import/` → match the columns → preview → import → results. `/import/` also lists recent imports.
+- **Files:** .xlsx (with several sheets, chips pick one), .csv (comma, semicolon or tab), and the HTML-table ".xls"
+  that old web viewers export. A real binary .xls is refused with "save it as .xlsx". Limits: 5 MB and 5,000 rows a
+  sheet. The file is never saved: its cells sit in the session between the steps and are dropped once it's imported.
+- **Columns** are guessed from the header (aliases, as in `crm/land/owners.py`): company name, website / domain,
+  sector, city, state, HQ location, priority, stage, owner, company LinkedIn, company notes; first / last / full name,
+  email, title, phone, LinkedIn, contact notes. Each can be changed or set to Ignore. A row can be a company, a contact
+  or both.
+- **Matching** (as `import_workbook` does): contacts on email (then their other emails; with no email, by name at a
+  matched company); companies on `normalize_key(name)`, then on a domain a company already has (from the website
+  column, else the contact's email unless it's free mail), and for a row with no company name, a domain that spells a
+  company's name. A contact with no company name and an unknown email domain is added without a company (no company
+  is guessed from an email domain); a website with no name makes a company named from the domain.
+- **Preview** writes nothing: counts at the top, then each row as New company / Matches X (by name, by website, by
+  email domain) / New contact / Matches X, with the fields it would fill, or Skipped with the reason. Skipped: a
+  directory firm's domain (never a company, and the contact isn't put on the firm either), a protected address (Mail
+  filters), an ACMI address. Flagged: an ignored domain (not added), an invalid email, the same email twice in the
+  file, a stage / priority / owner the CRM doesn't have, a domain already on another company, the sheet's name
+  differing from the company its domain found, a name close to another new company in the file. New companies whose
+  names look like existing ones (`merge.core_name`, the Possible duplicates check) get a dropdown to put the rows on
+  the existing company instead.
+- **Options:** Fill blanks only (the default; never changes a value the CRM has, and an existing person's name is left
+  alone if they have one) or Update with the sheet's values (notes are added to, never replaced; a contact at another
+  company moves). Owner, stage and priority for new companies when the row has none. Add the companies and / or the
+  contacts to an existing list or a new one.
+- **Import:** one transaction, history suppressed. Each new record gets a background "Imported from <file>" (Record
+  created) and each updated one "Updated from <file>: sector, title" (Field change), by the importer (the Activity
+  tab's "Show background" shows them, as it does "Company created").
+- **Undo** (Managers only, like every delete; for 7 days): deletes the companies and contacts the import created (and
+  anything logged on them since; the page says how many have some), its list entries, the lists it made if now empty,
+  the domains and phones it added, and puts back each field it filled unless someone has changed it since.
+- Partners never reach it (PartnerOnlyMiddleware sends them to the room; tested).
+- Tests: `crm/tests/test_import_sheet.py` (16); 805 pass. Checked in the browser on a scratch database with a made-up CSV:
+  upload, mapping, preview flags, the close-name pick, import, the timeline line, Undo.
+- **To run on the real database (Kellen's OK first; back up as "How to work in this repo" says):** `migrate crm`.

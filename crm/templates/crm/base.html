@@ -1,14 +1,33 @@
 {% load static %}<!doctype html>
-<html lang="en">
+<html lang="en"{% if EMBED %} class="embedded"{% endif %}>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}ACMI CRM{% endblock %}</title>
   <link rel="stylesheet" href="{% static 'crm/app.css' %}?v={{ ASSET_VERSION }}">
+  <script>
+    // Split view (split.js): inside the side frame the page drops its top bar; on top, an open split keeps its width
+    // from the first paint, so the page doesn't jump when split.js runs.
+    (function (h) {
+      if (window.top !== window) { h.classList.add('embedded'); return; }
+      try {
+        var s = JSON.parse(localStorage.getItem('hubSplit') || 'null');
+        if (s && s.open && s.url && innerWidth > 900) {
+          h.classList.add('split-on');
+          if (s.dir === 'v') { h.classList.add('split-v'); h.style.setProperty('--split-h', (s.h || Math.round(innerHeight * 0.5)) + 'px'); }
+          else {
+            h.style.setProperty('--split-w', (s.w || 560) + 'px');
+            if (innerWidth - (s.w || 560) <= 1180) h.classList.add('split-narrow');
+          }
+        }
+      } catch (e) {}
+    })(document.documentElement);
+  </script>
 </head>
 <body>
 <div class="shell">
   {% with p=request.path %}
+  {% if not EMBED %}
   <header class="appbar no-print">
     <a class="brand" href="{% url 'crm:home' %}">{% if LOGO %}<img src="{% static LOGO %}?v={{ ASSET_VERSION }}" alt="ACMI Properties">{% else %}ACMI CRM{% endif %}</a>
     <button type="button" class="appbar-icon nav-burger" data-nav-toggle aria-label="Menu">☰</button>
@@ -59,11 +78,11 @@
         </div>
       </details>
 
-      <details class="tn-menu {% if '/outreach/' in p or '/mail/' in p or '/news/' in p or '/reports/weekly' in p %}active{% endif %}">
+      <details class="tn-menu {% if '/outreach/' in p or '/needs-filing/' in p or '/news/' in p or '/reports/weekly' in p %}active{% endif %}">
         <summary>Outreach{% if mail_queue_count or news_open_count %} <span class="tn-dot" title="Items to review"></span>{% endif %}</summary>
         <div class="tn-drop">
           <a href="{% url 'crm:outreach_home' %}" class="{% if p == '/outreach/' or '/batches/' in p %}on{% endif %}"><strong>Send queue</strong><span>Outreach emails ready to go</span></a>
-          <a href="{% url 'crm:mail' %}" class="{% if '/mail/' in p %}on{% endif %}"><strong>Mail review{% if mail_queue_count %} <span class="tag">{{ mail_queue_count }}</span>{% endif %}</strong><span>Email from senders we don't know yet</span></a>
+          <a href="{% url 'crm:needs_filing' %}" class="{% if '/needs-filing/' in p %}on{% endif %}"><strong>Needs filing{% if mail_queue_count %} <span class="tag">{{ mail_queue_count }}</span>{% endif %}</strong><span>Emails and meetings with people we don't know yet</span></a>
           <a href="{% url 'crm:news_home' %}" class="{% if '/news/' in p %}on{% endif %}"><strong>News review{% if news_open_count %} <span class="tag">{{ news_open_count }}</span>{% endif %}</strong><span>News that could start a conversation</span></a>
           <a href="{% url 'crm:template_list' %}" class="{% if '/outreach/templates' in p %}on{% endif %}"><strong>Email templates</strong><span></span></a>
           <a href="{% url 'crm:weekly_report' %}" class="{% if '/reports/weekly' in p %}on{% endif %}"><strong>Weekly report</strong><span></span></a>
@@ -95,6 +114,7 @@
         {% for n in NEW_ITEMS %}<a href="{{ n.url }}"><strong>{{ n.label }}</strong>{% if n.hint %}<span class="muted">{{ n.hint }}</span>{% endif %}</a>{% endfor %}
       </div>
     </details>
+    {% if user.is_authenticated %}<button type="button" class="appbar-icon split-btn" data-split-toggle title="Open a page beside this one (or Alt+click any link)" aria-label="Open a page beside this one">◫</button>{% endif %}
     <a href="{% url 'crm:notification_list' %}" class="appbar-icon bell {% if unread_notifications %}has-unread{% endif %}" title="Notifications" aria-label="Notifications">🔔{% if unread_notifications %}<span class="count">{{ unread_notifications }}</span>{% endif %}</a>
     <details class="menu-wrap user-menu">
       <summary class="avatar" title="{{ user.get_full_name|default:user.username }}">{{ user.first_name|default:user.username|slice:":1"|upper }}{{ user.last_name|slice:":1"|upper }}</summary>
@@ -108,14 +128,32 @@
       </div>
     </details>
   </header>
+  {% endif %}
   {% endwith %}
   <div class="main-col">
   <main>
+    {% if request.user.is_authenticated %}<div id="hub-back" class="hub-back no-print" hidden></div>{% endif %}
     {% if messages %}<ul class="messages">{% for m in messages %}<li class="{{ m.tags }}">{{ m }}</li>{% endfor %}</ul>{% endif %}
     {% block content %}{% endblock %}
   </main>
   </div>
 </div>
+{% if user.is_authenticated and not EMBED %}
+<aside class="split-pane no-print" id="split-pane" hidden aria-label="Page beside">
+  <div class="split-handle" role="separator" aria-orientation="vertical" aria-label="Drag to resize" tabindex="0" title="Drag to resize"></div>
+  <div class="split-bar">
+    <select class="split-pick" aria-label="Open a page in this side"><option value="">Open a page…</option></select>
+    <span class="split-title muted"></span>
+    <button type="button" class="split-act" data-split="back" title="Back">←</button>
+    <button type="button" class="split-act" data-split="reload" title="Reload">↻</button>
+    <button type="button" class="split-act" data-split="orient" title="Side by side or top and bottom">⬓</button>
+    <button type="button" class="split-act" data-split="swap" title="Swap the two sides">⇄</button>
+    <button type="button" class="split-act" data-split="only" title="Keep only this page (close the other side)">⤢</button>
+    <button type="button" class="split-act" data-split="close" title="Close this side">✕</button>
+  </div>
+  <iframe class="split-frame" name="hub-side" title="Page beside"></iframe>
+</aside>
+{% endif %}
 <dialog class="palette" id="palette" aria-label="Search">
   <div class="palette-box">
     <input type="search" id="palette-input" placeholder="Type a company, deal, person, site or page…" autocomplete="off" spellcheck="false">
@@ -128,6 +166,8 @@
 <div id="nav-config" hidden data-search="{% url 'crm:search' %}" data-prefs="{% url 'crm:prefs_save' %}"></div>
 <script src="{% static 'crm/nav.js' %}?v={{ ASSET_VERSION }}"></script>
 <script src="{% static 'crm/views.js' %}?v={{ ASSET_VERSION }}"></script>
+<script src="{% static 'crm/back.js' %}?v={{ ASSET_VERSION }}"></script>
+{% if user.is_authenticated %}<script src="{% static 'crm/split.js' %}?v={{ ASSET_VERSION }}"></script>{% endif %}
 <script>
   // Long lists (.clist[data-limit]) show the first N items with "Show N more" / "Show less".
   document.querySelectorAll('.clist[data-limit]').forEach(list => {
@@ -194,7 +234,7 @@
   document.querySelectorAll('dialog[data-open-on-load]').forEach(d => d.showModal());
 </script>
 {% block scripts %}{% endblock %}
-{% if request.user.is_authenticated %}<div id="alerts-config" hidden data-poll="{% url 'crm:notification_poll' %}" data-icon="{% static 'crm/logo_blue.png' %}"></div>
+{% if request.user.is_authenticated and not EMBED %}<div id="alerts-config" hidden data-poll="{% url 'crm:notification_poll' %}" data-icon="{% static 'crm/logo_blue.png' %}"></div>
 <script src="{% static 'crm/alerts.js' %}?v={{ ASSET_VERSION }}"></script>{% endif %}
 </body>
 </html>

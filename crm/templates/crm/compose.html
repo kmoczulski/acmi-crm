@@ -10,7 +10,7 @@
 {% if error %}<p class="mail-error">{{ error }}</p>{% endif %}
 {% if not sending_on %}<p class="mail-error">Sending is switched off on this hub (ACMI_MAIL_SEND). You can still save drafts.</p>{% endif %}
 <form class="panel compose" method="post" enctype="multipart/form-data" action="{% url 'crm:inbox_compose' %}" data-compose
-      data-draft-url="{% url 'crm:inbox_draft' %}">
+      data-draft-url="{% url 'crm:inbox_draft' %}" data-calendar-url="{% url 'crm:inbox_calendar' %}">
   {% csrf_token %}
   <input type="hidden" name="mode" value="{{ f.mode }}">
   <input type="hidden" name="reply_to_id" value="{{ f.reply_to_id }}">
@@ -34,7 +34,7 @@
   </div>
   {{ templates|json_script:"compose-templates" }}
   {% endif %}
-  <textarea name="body" rows="12" class="compose-body" aria-label="Message" {% if f.mode == "forward" %}autofocus{% endif %} data-first-name="{{ first_name }}">{{ body }}</textarea>
+  <textarea name="body" rows="12" class="compose-body" aria-label="Message" {% if f.mode == "forward" %}autofocus{% endif %} data-first-name="{{ first_name }}" data-html="{{ body_html }}">{{ body }}</textarea>
   {% if signature_html %}<div class="compose-sig"><span class="muted lc-small">Your signature goes under it · <a href="{% url 'crm:mail_settings' %}#signature">Change</a></span><div class="compose-sig-preview">{{ signature_html|safe }}</div></div>{% endif %}
   {% if original %}
   <details class="compose-original"><summary class="lc-small">{% if f.mode == "forward" %}Forwarding{% else %}Replying to{% endif %} {{ original.from_name }}, {{ original.date|date:"M j, g:i a" }}</summary>
@@ -55,5 +55,6 @@
   </div>
 </form>
 <script src="{% static 'crm/compose.js' %}?v={{ ASSET_VERSION }}"></script>
+<script src="{% static 'crm/attach.js' %}?v={{ ASSET_VERSION }}"></script>
 <script src="{% static 'crm/recipients.js' %}?v={{ ASSET_VERSION }}" data-url="{% url 'crm:inbox_suggest' %}"></script>
 {% endblock %}

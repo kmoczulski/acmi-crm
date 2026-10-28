@@ -8,6 +8,7 @@ SECTIONS = [  # (key, label, page)
     ("power", "Power, roads and utilities", "Page 1"),
     ("verify", "Still to verify", "Page 1"),
     ("notes", "Source and broker notes", "Page 1"),
+    ("comps", "Recorded land sales nearby", "Page 2"),
     ("parcels", "Parcel table", "Page 2"),
     ("flyer", "Listing flyer facts, brokers, market", "Page 2"),
     ("claims", "Flyer claims against the app's data", "Page 2"),
