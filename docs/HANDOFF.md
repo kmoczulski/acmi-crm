@@ -20,8 +20,12 @@ with the first deploy instead). Real database backed up to `backups/db-2026-10-2
   passes them as `_NEWS_FOLDER` / `_GRANOLA_FOLDER` with `ACMI_DRIVE_ADC=true`; its header lists the one-time setup.
   **The daily Granola task (acmiproperties account) has to save its JSON into that Drive folder.**
 - 901 tests green.
-- **Not done, needs Kellen:** fast-forward `main` and `migrate crm` on the real database (live data); `gcloud auth
-  login` has expired, so `ACMI_TOKEN_KEY` and the VAPID pair aren't in Secret Manager yet; the whole cutover in step 3.
+- **Not done, needs Kellen:** fast-forward `main` and `migrate crm` on the real database (live data); the whole
+  cutover in step 3.
+- **Secret Manager is Mel's** (Kellen, 10-28). Neither ACMI project (`sincere-passage-511621-j3`, which has the OAuth
+  client, or `acmi-properties-web-app`) has billing or Secret Manager on. `docs/FOR_MEL_SECRET_MANAGER.md` lists what
+  Mel sets up. Once Mel gives Kellen Secret Manager Admin, Claude on the laptop uploads `ACMI_TOKEN_KEY` and the
+  VAPID pair from `.env` (piped, never printed) and compares checksums.
 - Follow-ups the reviews raised: CSV exports in `crm/land` (`comp_views.py`, `letters.py`, `views.py`) have no formula
   guard; Trello-imported attachment URLs aren't scheme-checked; old push subscriptions / card links that the new rules
   would refuse are still stored; read-only mailbox grantees can still add CRM notes (Kellen's call).
