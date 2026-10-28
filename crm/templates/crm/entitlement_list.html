@@ -26,7 +26,7 @@
     {% for g in groups %}
     <section class="panel">
       <h3>{{ g.campus }}{% if g.label and g.label != g.campus %} · {{ g.label }}{% endif %}</h3>
-      <table class="data compact">
+      <div class="table-wrap" style="border:0"><table class="data compact">
         <thead><tr><th>Approval</th><th>Agency / case</th><th>Status</th><th>Next</th><th>Ball</th><th>Needed by</th><th>Runs it</th></tr></thead>
         <tbody>{% for a in g.rows %}
           <tr>
@@ -40,7 +40,7 @@
             <td class="lc-small">{{ a.owner|username|default:"–" }}</td>
           </tr>
         {% endfor %}</tbody>
-      </table>
+      </table></div>
     </section>
     {% empty %}
     <section class="panel"><p class="muted" style="margin:0">No approvals yet. Start a permit matrix for a project or land site, or add one approval at a time.</p></section>

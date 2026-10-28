@@ -23,7 +23,7 @@
 {% for campus_code, rows in roll.groups %}
 <section class="panel">
   <h3>{{ campus_code }}</h3>
-  <table class="data compact">
+  <div class="table-wrap" style="border:0"><table class="data compact">
     <thead><tr><th>Tenant</th><th class="num">Sf</th><th>Rent starts</th><th>Expires</th><th class="num">Rent today</th><th class="num">$/sf</th><th class="num">Bumps</th><th>Options</th><th>Renewal notice</th></tr></thead>
     <tbody>{% for r in rows %}<tr>
       <td class="wrap"><a href="{{ r.contract.get_absolute_url }}#lease"><b>{{ r.tenant }}</b></a><div class="muted lc-small">{{ r.contract.title }}</div></td>
@@ -38,7 +38,7 @@
       <td class="lc-small {% if r.notice_soon %}overdue{% endif %}">{{ r.notice|date:"M j, Y"|default:"–" }}</td>
       {% else %}<td colspan="8" class="muted lc-small">No terms yet: open the lease to type them in or have Claude read them.</td>{% endif %}
     </tr>{% endfor %}</tbody>
-  </table>
+  </table></div>
 </section>
 {% empty %}
 <section class="panel"><p class="muted" style="margin:0">No signed leases yet. A lease shows here once its contract is marked Signed.</p></section>
