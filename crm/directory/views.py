@@ -73,8 +73,15 @@ def firm_detail(request, pk):
                 i = int(request.POST.get("i", ""))
             except ValueError:
                 i = -1
-            firm.contacts = [c for n, c in enumerate(firm.contacts or []) if n != i]
-            firm.save()
+            # The index comes from the page, which may be out of date (another tab removed someone first), so it
+            # only counts when the contact still there has the name and email the page showed.
+            contacts = firm.contacts or []
+            seen = [(request.POST.get(k) or "").strip() for k in ("name", "email")]
+            if 0 <= i < len(contacts) and [(contacts[i].get(k) or "").strip() for k in ("name", "email")] == seen:
+                firm.contacts = contacts[:i] + contacts[i + 1:]
+                firm.save()
+            else:
+                messages.error(request, "That list changed. Nothing was removed.")
             return redirect(firm.get_absolute_url() + "#contacts")
         elif action == "delete":
             if not is_manager(request.user):
