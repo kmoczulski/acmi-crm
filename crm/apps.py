@@ -4,7 +4,7 @@ from django.apps import AppConfig
 class CrmConfig(AppConfig):
     default_auto_field = "django.db.models.BigAutoField"
     name = "crm"
-    verbose_name = "ACMI CRM"
+    verbose_name = "ACMI Hub"
 
     def ready(self):
         from . import choices, signals, tokens  # noqa: F401

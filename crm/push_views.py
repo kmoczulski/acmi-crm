@@ -43,6 +43,15 @@ def service_worker(request):
     return response
 
 
+def web_manifest(request):
+    """The home-screen app (Add to Home Screen on an iPhone, Install on a computer): name, icon and full-screen display."""
+    icons = [{"src": static(f"crm/icons/icon-light-{size}.png"), "sizes": f"{size}x{size}", "type": "image/png",
+              "purpose": "any"} for size in (192, 512)]
+    body = {"name": "ACMI Hub", "short_name": "ACMI Hub", "start_url": "/", "scope": "/", "display": "standalone",
+            "background_color": "#f6f7f9", "theme_color": "#0a1a2e", "icons": icons}
+    return JsonResponse(body, content_type="application/manifest+json")
+
+
 def notification_settings(request):
     if request.method == "POST":
         push.save_choices(request.user, request.POST)

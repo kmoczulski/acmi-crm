@@ -7,9 +7,10 @@ from django.shortcuts import redirect
 
 _current_user = ContextVar("current_user", default=None)
 
-# /sw.js is the browser-notification service worker (crm/push.py): browsers fetch it without following a sign-in.
+# /sw.js is the browser-notification service worker (crm/push.py) and /manifest.webmanifest the home-screen app's
+# name and icon: browsers fetch both without following a sign-in.
 PUBLIC_PREFIXES = ("/accounts/", "/static/", "/admin/login/", "/healthz", "/internal/", "/g/", "/room/login/",
-                   "/room/invite/", "/sw.js")
+                   "/room/invite/", "/sw.js", "/manifest.webmanifest")
 # The capital partners' data room (crm/dataroom/): its own sign-in page, and the only pages a partner can open.
 ROOM_PREFIX = "/room/"
 # Password pages that only make sense while username / password sign-in is on.

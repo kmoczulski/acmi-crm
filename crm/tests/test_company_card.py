@@ -28,7 +28,7 @@ class CompanyCardTests(TestCase):
         self.assertContains(page, '<nav class="tabs co-tabs"')
         self.assertContains(page, f'href="{self.rtx.get_absolute_url()}?tab=opportunities" class="active"')
         self.assertContains(page, "NSIH - Rocket motors")  # the company's other deal
-        self.assertContains(page, "<title>RTX · MEIH - Energetics plant · ACMI CRM</title>", html=False)
+        self.assertContains(page, "<title>RTX · MEIH - Energetics plant · ACMI Hub</title>", html=False)
 
     def test_back_slot_on_pages(self):
         self.assertContains(self.client.get("/opportunities/"), 'id="hub-back"')

@@ -63,10 +63,10 @@ class TemplateCopyTitleTests(TestCase):
         self.client.force_login(make_manager(User.objects.create_user("kellen")))
         builtin = ContractTemplate.objects.create(key="lease", name="Lease abstract")
         r = self.client.get(reverse("crm:contract_template_edit", args=[builtin.pk]))
-        self.assertContains(r, "<title>Copy of Lease abstract · ACMI CRM</title>")
+        self.assertContains(r, "<title>Copy of Lease abstract · ACMI Hub</title>")
         self.assertContains(r, "<h1>Copy of Lease abstract</h1>")
         # A new one is still "New template".
-        self.assertContains(self.client.get(reverse("crm:contract_template_new")), "<title>New template · ACMI CRM</title>")
+        self.assertContains(self.client.get(reverse("crm:contract_template_new")), "<title>New template · ACMI Hub</title>")
 
 
 class DealBreadcrumbTests(TestCase):

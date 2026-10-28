@@ -1,6 +1,6 @@
 {% extends "crm/base.html" %}
 {% load static %}
-{% block title %}{% if f.mode == "forward" %}Forward{% elif f.mode == "new" %}New message{% else %}Reply{% endif %} · Mail · ACMI CRM{% endblock %}
+{% block title %}{% if f.mode == "forward" %}Forward{% elif f.mode == "new" %}New message{% else %}Reply{% endif %} · Mail · ACMI Hub{% endblock %}
 {% block content %}
 <div class="page-head">
   <h1>{% if f.mode == "forward" %}Forward{% elif f.mode == "all" %}Reply all{% elif f.mode == "reply" %}Reply{% else %}New message{% endif %}</h1>

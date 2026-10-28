@@ -3,16 +3,47 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}ACMI CRM{% endblock %}</title>
+  <title>{% block title %}ACMI Hub{% endblock %}</title>
   <link rel="stylesheet" href="{% static 'crm/app.css' %}?v={{ ASSET_VERSION }}">
+  {# Home-screen app (Add to Home Screen on an iPhone): the gear icon, navy in light mode and black in dark mode. #}
+  <link rel="manifest" href="{% url 'crm:web_manifest' %}">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="ACMI Hub">
+  <meta name="theme-color" content="#f6f7f9">
+  <link rel="icon" type="image/png" sizes="32x32" href="{% static 'crm/icons/icon-light-32.png' %}"
+        data-light="{% static 'crm/icons/icon-light-32.png' %}" data-dark="{% static 'crm/icons/icon-dark-32.png' %}">
+  <link rel="apple-touch-icon" sizes="180x180" href="{% static 'crm/icons/icon-light-180.png' %}"
+        data-light="{% static 'crm/icons/icon-light-180.png' %}" data-dark="{% static 'crm/icons/icon-dark-180.png' %}">
   <script>
     // Dark mode (the "Dark mode" button in the profile menu): the choice is kept in this browser; with none made, the
-    // computer's own setting decides. Set before first paint so the page doesn't flash white.
+    // phone's or computer's own setting decides. Set before first paint so the page doesn't flash white, and set again
+    // whenever it may have gone stale: a page restored by Back (phones keep it frozen as it was), a change made in
+    // another tab, or the system switching between light and dark. The bar colour and app icon follow it.
     (function (h) {
-      var t = null;
-      try { t = localStorage.getItem('hubTheme'); } catch (e) {}
-      if (!t && window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches) t = 'dark';
-      if (t === 'dark') h.setAttribute('data-theme', 'dark');
+      var mq = window.matchMedia ? matchMedia('(prefers-color-scheme: dark)') : null;
+      var saved = function () { try { return localStorage.getItem('hubTheme'); } catch (e) { return null; } };
+      var apply = function () {
+        var t = saved(), dark = t ? t === 'dark' : !!(mq && mq.matches);
+        if (dark !== (h.getAttribute('data-theme') === 'dark')) {
+          if (dark) h.setAttribute('data-theme', 'dark'); else h.removeAttribute('data-theme');
+        }
+        var bar = document.querySelector('meta[name="theme-color"]');
+        if (bar) bar.setAttribute('content', dark ? '#1c1d20' : '#f6f7f9');
+        document.querySelectorAll('link[data-dark]').forEach(function (l) {
+          var href = l.getAttribute(dark ? 'data-dark' : 'data-light');
+          if (l.getAttribute('href') !== href) l.setAttribute('href', href);
+        });
+        document.dispatchEvent(new Event('acmi-theme'));
+      };
+      window.acmiTheme = {
+        apply: apply,
+        set: function (dark) { try { localStorage.setItem('hubTheme', dark ? 'dark' : 'light'); } catch (e) {} apply(); },
+      };
+      apply();
+      if (mq) (mq.addEventListener ? mq.addEventListener('change', apply) : mq.addListener(apply));
+      addEventListener('pageshow', function (e) { if (e.persisted) apply(); });
+      addEventListener('storage', function (e) { if (e.key === 'hubTheme') apply(); });
     })(document.documentElement);
   </script>
   <script>
@@ -39,7 +70,7 @@
   {% with p=request.path %}
   {% if not EMBED %}
   <header class="appbar no-print">
-    <a class="brand" href="{% url 'crm:home' %}">{% if LOGO %}<img src="{% static LOGO %}?v={{ ASSET_VERSION }}" alt="ACMI Properties">{% else %}ACMI CRM{% endif %}</a>
+    <a class="brand" href="{% url 'crm:home' %}">{% if LOGO %}<img src="{% static LOGO %}?v={{ ASSET_VERSION }}" alt="ACMI Properties">{% else %}ACMI Hub{% endif %}</a>
     <button type="button" class="appbar-icon nav-burger" data-nav-toggle aria-label="Menu">☰</button>
     <nav class="topnav" aria-label="Main">
       <a href="{% url 'crm:home' %}" class="tn-link {% if p == '/' %}active{% endif %}">Home</a>

@@ -136,6 +136,7 @@ urlpatterns = [
     path("notifications/push/test/", push_views.push_test, name="push_test"),
     path("notifications/push/<int:pk>/remove/", push_views.push_device_remove, name="push_device_remove"),
     path("sw.js", push_views.service_worker, name="service_worker"),
+    path("manifest.webmanifest", push_views.web_manifest, name="web_manifest"),
     path("meetings/", views.meeting_list, name="meeting_list"),
     path("meetings/sync/", views.calendar_sync_now, name="calendar_sync_now"),
     path("meetings/<int:pk>/panel/", views.meeting_panel, name="meeting_panel"),
