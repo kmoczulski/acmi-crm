@@ -550,15 +550,19 @@ def unfile(request, mailbox, client, pk):
 @mail_required
 @require_POST
 def comment_add(request, mailbox, client):
+    nxt = _safe_next(request, reverse("crm:inbox"))
     gmail_id = request.POST.get("t", "")
     try:
         thread = mail_render.get_thread(mailbox, client, gmail_id)
+        subject = mail_render.thread_view(mailbox, client, gmail_id)[0]
     except NotFound:
         raise Http404()
-    subject = mail_render.thread_view(mailbox, client, gmail_id)[0]
+    except (MailboxError, requests.RequestException) as exc:  # the note needs the thread, so it waits for Gmail
+        messages.error(request, gmail_error(exc))
+        return redirect(nxt)
     if mail_comments.add(request.user, thread, subject, request.POST.get("body", "")):
         messages.success(request, "Note added.")
-    return redirect(_safe_next(request, reverse("crm:inbox")))
+    return redirect(nxt)
 
 
 @mail_required
