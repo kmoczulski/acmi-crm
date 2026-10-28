@@ -1,7 +1,7 @@
 {% comment %}The company card's header and tabs on a page that lives inside it (a deal). `company`, `tab` (the active one).{% endcomment %}
 {% load crm_tags %}
 {% with url=company.get_absolute_url %}
-<nav class="crumbs no-print" aria-label="Breadcrumb"><a href="{% url 'crm:company_list' %}">Companies</a> › <a href="{{ url }}">{{ company.name }}</a> › <a href="{{ url }}?tab=opportunities">Deals</a>{% if crumb %} › <span>{{ crumb }}</span>{% endif %}</nav>
+<nav class="crumbs no-print" aria-label="Breadcrumb"><a href="{% url 'crm:company_list' %}">Companies</a> › <a href="{{ url }}">{{ company.name }}</a> › <a href="{{ url }}?tab=opportunities">Deals</a>{% if crumb and crumb != company.name %} › <span>{{ crumb }}</span>{% endif %}</nav>
 <div class="record-head">
   <h1><a href="{{ url }}" style="color:inherit">{{ company.name }}</a></h1>
   <span class="stage stage-{{ company.status }}">{{ company.get_status_display }}</span>
