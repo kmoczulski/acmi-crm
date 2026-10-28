@@ -285,7 +285,7 @@ class ContractPagesTests(TestCase):
         self.upload(c, "PSA draft 2.txt", b"The Deposit is $250,000.", kind="draft", dated="2026-01-20",
                     sent_by="them")
         page = self.client.get(c.get_absolute_url())
-        self.assertContains(page, "compare with previous")
+        self.assertContains(page, "Compare with previous")
         a, b = ContractDocument.objects.order_by("dated")
         r = self.client.get(f"/contracts/{c.pk}/compare/?a={a.pk}&b={b.pk}")
         self.assertContains(r, "<del data-x>$100,000.</del>")
@@ -452,7 +452,7 @@ class ClaudeTests(TestCase):
         self.assertIsNone(proposed[2].source_start)  # quote not found: shown as unverified
         page = self.client.get(self.c.get_absolute_url())
         self.assertContains(page, "Claude found these")
-        self.assertContains(page, "quote (not found in the text)")
+        self.assertContains(page, "Quote (not found in the text)")
 
         self.client.post(self.c.get_absolute_url(), {"action": "date_keep", "date_id": [proposed[0].pk, proposed[1].pk]})
         self.assertEqual(ContractDate.objects.filter(confirmed=False).count(), 1)

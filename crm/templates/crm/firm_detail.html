@@ -6,7 +6,7 @@
   <div>
     <div class="muted lc-small"><a href="{% url 'crm:directory' %}">Directory</a> › <a href="{% url 'crm:directory' %}?group={{ group }}">{% for k, label in groups.items %}{% if k == group %}{{ label }}{% endif %}{% endfor %}</a></div>
     <h1>{{ p.name }} <span class="tag">{{ p.get_kind_display }}</span></h1>
-    <div class="muted">{% if p.domains %}{{ p.domains|join:", " }}{% else %}No email domain yet{% endif %}{% if p.website %} · <a href="{{ p.website }}" target="_blank" rel="noopener">website</a>{% endif %}
+    <div class="muted">{% if p.domains %}{{ p.domains|join:", " }}{% else %}No email domain yet{% endif %}{% if p.website %} · <a href="{{ p.website }}" target="_blank" rel="noopener">Website</a>{% endif %}
       · not a CRM company, never in outreach</div>
     {% for s in filings %}<form method="post" action="{% url 'crm:firm_sort_action' s.pk %}" class="lc-small" style="margin-top:4px" onsubmit="return confirm('Put {{ s.domain|escapejs }} back in Needs filing?')">{% csrf_token %}<input type="hidden" name="action" value="undo">
       Claude filed {{ s.domain }} here from email on {{ s.decided_at|date:"M j" }}: {{ s.reason }} <button class="btn-link lc-small">Undo</button></form>{% endfor %}

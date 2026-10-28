@@ -7,7 +7,7 @@
   </div>
   <table style="width:100%;border-collapse:separate;border-spacing:8px;margin:8px -8px">
     <tr>
-      <td style="background:#f6f7f9;border-radius:6px;padding:10px"><div style="font-size:11px;color:#6b7280">EMAILS SENT</div><div style="font-size:22px;font-weight:bold">{{ r.emails }}</div><div style="font-size:11px;color:#6b7280">campaign{% if r.news_emails %} + {{ r.news_emails }} news{% endif %}</div></td>
+      <td style="background:#f6f7f9;border-radius:6px;padding:10px"><div style="font-size:11px;color:#6b7280">EMAILS SENT</div><div style="font-size:22px;font-weight:bold">{{ r.emails }}</div><div style="font-size:11px;color:#6b7280">Campaign{% if r.news_emails %} + {{ r.news_emails }} news{% endif %}</div></td>
       <td style="background:#f6f7f9;border-radius:6px;padding:10px"><div style="font-size:11px;color:#6b7280">COMPANIES</div><div style="font-size:22px;font-weight:bold">{{ r.companies }}</div></td>
       {% for t in r.tiers %}<td style="background:#f6f7f9;border-radius:6px;padding:10px"><div style="font-size:11px;color:#6b7280">{{ t.tier|upper }}</div><div style="font-size:22px;font-weight:bold">{{ t.emails }}</div><div style="font-size:11px;color:#6b7280">{{ t.companies }} companies</div></td>{% endfor %}
       <td style="background:#f6f7f9;border-radius:6px;padding:10px"><div style="font-size:11px;color:#6b7280">POSITIVE RESPONSE RATE</div><div style="font-size:22px;font-weight:bold">{{ r.response_rate }}%</div></td>

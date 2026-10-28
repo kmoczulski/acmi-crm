@@ -10,7 +10,7 @@
       {% if contract.site %} · <a href="{% url 'crm:land_site_detail' contract.site.pk %}">{{ contract.site.name }}</a>{% endif %}
       {% if contract.opportunity %} · <a href="{{ contract.opportunity.get_absolute_url }}">{{ contract.opportunity.company.name }} deal</a>{% endif %}
       {% if contract.price %} · <a href="#ask" data-ask="What is the purchase price, how is it paid, and can it change (per-acre adjustments, credits, prorations)?">{{ contract.price|money }}</a>{% endif %}{% if contract.acres %} · <a href="#ask" data-ask="How much land does this cover, how is the acreage determined, and does the price adjust with a survey?">{{ contract.acres|floatformat:1|intcomma }} ac</a>{% endif %}
-      {% if contract.effective_date %} · <a href="{% url 'crm:contract_timeline' contract.pk %}">effective {{ contract.effective_date|date:"M j, Y" }}</a>{% endif %}</div>
+      {% if contract.effective_date %} · <a href="{% url 'crm:contract_timeline' contract.pk %}">Effective {{ contract.effective_date|date:"M j, Y" }}</a>{% endif %}</div>
   </div>
   <div class="record-nav">
     {% if compare_pair|length == 2 %}<a class="btn" href="{% url 'crm:contract_compare' contract.pk %}?a={{ compare_pair.0.pk }}&b={{ compare_pair.1.pk }}">Redline</a>{% endif %}
@@ -110,11 +110,11 @@
           <div>{% if d == executed %}<span class="tag ct-exec" title="The final, signed version">✓ Final executed</span>{% else %}<span class="tag">{{ d.get_kind_display }}</span>{% endif %} {% if d.text %}<a href="{% url 'crm:contract_reader' contract.pk d.pk %}"><b>{{ d.title }}</b></a>{% else %}<b>{{ d.title }}</b>{% endif %}
             {% with n=comment_counts|get_item:d.pk %}{% if n %}<a class="ct-ccount" href="{% url 'crm:contract_reader' contract.pk d.pk %}" title="Open comments">💬 {{ n }}</a>{% endif %}{% endwith %}</div>
           <div class="muted lc-small">{% if d.dated %}{{ d.dated|date:"M j, Y" }}{% else %}undated{% endif %}{% if d.pages %} · {{ d.pages }} page{{ d.pages|pluralize }}{% endif %}
-            {% if d.text_status == "scan" %} · <span title="Claude can read the PDF; the reader can't">scan</span>{% elif d.text_status and d.text_status != "ok" %} · {{ d.get_text_status_display }}{% endif %}
+            {% if d.text_status == "scan" %} · <span title="Claude can read the PDF; the reader can't">Scan</span>{% elif d.text_status and d.text_status != "ok" %} · {{ d.get_text_status_display }}{% endif %}
             {% if d.superseded_by %} · replaced by {{ d.superseded_by.title }}{% endif %}
-            {% if d.tracked %} · <a href="{% url 'crm:contract_compare' contract.pk %}?b={{ d.pk }}&view=tracked"><b>redline</b> ({{ d.tracked|length }} tracked)</a>{% endif %}
-            {% if d.prev %} · <a href="{% url 'crm:contract_compare' contract.pk %}?a={{ d.prev.pk }}&b={{ d.pk }}&view=compare">compare with previous</a>{% endif %}
-            {% if d.href %} · <a href="{{ d.href }}" target="_blank" rel="noopener">file</a>{% endif %}</div>
+            {% if d.tracked %} · <a href="{% url 'crm:contract_compare' contract.pk %}?b={{ d.pk }}&view=tracked"><b>Redline</b> ({{ d.tracked|length }} tracked)</a>{% endif %}
+            {% if d.prev %} · <a href="{% url 'crm:contract_compare' contract.pk %}?a={{ d.prev.pk }}&b={{ d.pk }}&view=compare">Compare with previous</a>{% endif %}
+            {% if d.href %} · <a href="{{ d.href }}" target="_blank" rel="noopener">File</a>{% endif %}</div>
           {% if d.summary %}<div class="lc-small">{{ d.summary }}</div>{% endif %}
           {% include "crm/partials/contract_doc_edit.html" %}
         </li>
@@ -126,9 +126,9 @@
           <div><span class="tag ct-from-{{ d.sent_by|default:'none' }}">{% if d.sent_by %}{{ d.get_sent_by_display }}{% else %}Draft{% endif %}</span> {% if d.text %}<a href="{% url 'crm:contract_reader' contract.pk d.pk %}">{{ d.title }}</a>{% else %}{{ d.title }}{% endif %}
             {% with n=comment_counts|get_item:d.pk %}{% if n %}<a class="ct-ccount" href="{% url 'crm:contract_reader' contract.pk d.pk %}" title="Open comments">💬 {{ n }}</a>{% endif %}{% endwith %}</div>
           <div class="muted lc-small">{% if d.made_by %}by {{ d.made_by }} · {% endif %}{% if d.dated %}sent {{ d.dated|date:"M j, Y" }}{% endif %}{% if d.tracked %} · {{ d.tracked|length }} tracked change{{ d.tracked|length|pluralize }}{% endif %}{% if d.pages %} · {{ d.pages }} page{{ d.pages|pluralize }}{% endif %}
-            {% if d.tracked %} · <a href="{% url 'crm:contract_compare' contract.pk %}?b={{ d.pk }}&view=tracked"><b>redline</b> ({{ d.tracked|length }} tracked)</a>{% endif %}
-            {% if d.prev %} · <a href="{% url 'crm:contract_compare' contract.pk %}?a={{ d.prev.pk }}&b={{ d.pk }}&view=compare">compare with previous</a>{% endif %}
-            {% if d.href %} · <a href="{{ d.href }}" target="_blank" rel="noopener">file</a>{% endif %}</div>
+            {% if d.tracked %} · <a href="{% url 'crm:contract_compare' contract.pk %}?b={{ d.pk }}&view=tracked"><b>Redline</b> ({{ d.tracked|length }} tracked)</a>{% endif %}
+            {% if d.prev %} · <a href="{% url 'crm:contract_compare' contract.pk %}?a={{ d.prev.pk }}&b={{ d.pk }}&view=compare">Compare with previous</a>{% endif %}
+            {% if d.href %} · <a href="{{ d.href }}" target="_blank" rel="noopener">File</a>{% endif %}</div>
           {% if d.summary %}<div class="lc-small">{{ d.summary }}</div>{% endif %}
           {% include "crm/partials/contract_doc_edit.html" %}
         </li>
@@ -155,7 +155,7 @@
           <tr><td><input type="checkbox" name="date_id" value="{{ d.pk }}" checked></td>
             <td>{% if d.date %}{{ d.date|date:"M j, Y" }}{% else %}<span class="muted">not fixed</span>{% endif %}</td>
             <td class="wrap">{{ d.label }}{% if d.amount %} · {{ d.amount|money }}{% endif %}<div class="muted lc-small">{{ d.rule }}</div>
-              {% if d.quote %}<details class="lc-small"><summary>{% if d.source_href %}<a href="{{ d.source_href }}">source</a>{% else %}quote (not found in the text){% endif %}</summary><q>{{ d.quote }}</q></details>{% endif %}</td></tr>
+              {% if d.quote %}<details class="lc-small"><summary>{% if d.source_href %}<a href="{{ d.source_href }}">Source</a>{% else %}Quote (not found in the text){% endif %}</summary><q>{{ d.quote }}</q></details>{% endif %}</td></tr>
         {% endfor %}</table>
         <div class="inline-form"><button class="btn btn-primary btn-small" name="action" value="date_keep">Keep ticked</button>
           <button class="btn btn-small" name="action" value="date_discard" formnovalidate onclick="return confirm('Discard all of Claude\'s suggestions?')">Discard all</button></div>
@@ -170,9 +170,9 @@
             {% if d.rule %}<div class="muted lc-small">{{ d.rule }}</div>{% endif %}
             {% if d.how %}<div class="muted lc-small" title="Counts from another date: it moves when that one does">↻ {{ d.how }}</div>{% endif %}
             {% if d.kind == "extension" and not d.done %}<a class="lc-small" href="{% url 'crm:contract_timeline' contract.pk %}#extensions">{% if d.extends %}Exercise it…{% else %}Set what it extends{% endif %}</a>{% endif %}
-            {% if d.history %}<details class="lc-small"><summary class="muted">moved {{ d.history|length }}×</summary>{% for h in d.history %}<div>{% if h.to %}{% if h.from %}{{ h.from }} → {% endif %}{{ h.to }}{% else %}exercised {{ h.exercised }}{% endif %} · {{ h.why }}{% if h.by %} · {{ h.by }}{% endif %}</div>{% endfor %}</details>{% endif %}
-            {% if d.source_href %}<a class="lc-small" href="{{ d.source_href }}" title="{{ d.quote|truncatechars:300 }}">source</a>{% endif %}
-            <details class="lc-small ct-edit"><summary>edit</summary>
+            {% if d.history %}<details class="lc-small"><summary class="muted">Moved {{ d.history|length }}×</summary>{% for h in d.history %}<div>{% if h.to %}{% if h.from %}{{ h.from }} → {% endif %}{{ h.to }}{% else %}exercised {{ h.exercised }}{% endif %} · {{ h.why }}{% if h.by %} · {{ h.by }}{% endif %}</div>{% endfor %}</details>{% endif %}
+            {% if d.source_href %}<a class="lc-small" href="{{ d.source_href }}" title="{{ d.quote|truncatechars:300 }}">Source</a>{% endif %}
+            <details class="lc-small ct-edit"><summary>Edit</summary>
               <form method="post" class="fields">{% csrf_token %}<input type="hidden" name="action" value="date_edit"><input type="hidden" name="date_id" value="{{ d.pk }}">
                 <label>Type <select name="kind">{% for v, l in date_kinds|offer:d.kind %}<option value="{{ v }}"{% if v == d.kind %} selected{% endif %}>{{ l }}</option>{% endfor %}</select></label>
                 <label>Label <input name="label" value="{{ d.label }}"></label>
@@ -187,7 +187,7 @@
                   <label>Unit <select name="unit"><option value="">–</option>{% for v, l in units %}<option value="{{ v }}"{% if v == d.unit %} selected{% endif %}>{{ l }}</option>{% endfor %}</select></label>
                   <label>Extension: pushes out <input name="extends" value="{{ d.extends }}" placeholder="e.g. feasibility_end"></label>
                   <label>by <input name="extend_by" type="number" value="{{ d.extend_by|default_if_none:'' }}"></label>
-                  <label>unit <select name="extend_unit"><option value="">–</option>{% for v, l in units %}<option value="{{ v }}"{% if v == d.extend_unit %} selected{% endif %}>{{ l }}</option>{% endfor %}</select></label>
+                  <label>Unit <select name="extend_unit"><option value="">–</option>{% for v, l in units %}<option value="{{ v }}"{% if v == d.extend_unit %} selected{% endif %}>{{ l }}</option>{% endfor %}</select></label>
                 </details>
                 <button class="btn btn-small btn-primary">Save</button>
                 <button class="btn-link lc-small" name="action" value="date_delete" formnovalidate onclick="return confirm('Delete this date?')">Delete</button>

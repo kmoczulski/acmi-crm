@@ -1,5 +1,5 @@
 {% load crm_tags humanize %}{# Dashboard widget: recent activity (recent, activity_days) #}
-<span class="widget-link muted" id="recent">last {{ activity_days }} days · {{ recent|length }} item{{ recent|length|pluralize }}</span>
+<span class="widget-link muted" id="recent">Last {{ activity_days }} days · {{ recent|length }} item{{ recent|length|pluralize }}</span>
       <ul class="timeline clist" data-limit="10">
         {% for a in recent %}
         <li>

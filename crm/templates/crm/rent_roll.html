@@ -17,7 +17,7 @@
   <div><div class="label">Leases</div><div class="value">{{ roll.totals.count }}</div></div>
   <div><div class="label">Leased</div><div class="value">{{ roll.totals.sf|intcomma }} sf</div></div>
   <div><div class="label">Annual base rent</div><div class="value">{{ roll.totals.rent|dollars|default:"–" }}</div><div class="muted lc-small">today, with escalations</div></div>
-  <div><div class="label">WALT</div><div class="value">{% if roll.totals.walt is not None %}{{ roll.totals.walt }} yrs{% else %}–{% endif %}</div><div class="muted lc-small">weighted by rent</div></div>
+  <div><div class="label">WALT</div><div class="value">{% if roll.totals.walt is not None %}{{ roll.totals.walt }} yrs{% else %}–{% endif %}</div><div class="muted lc-small">Weighted by rent</div></div>
 </div>
 
 {% for campus_code, rows in roll.groups %}

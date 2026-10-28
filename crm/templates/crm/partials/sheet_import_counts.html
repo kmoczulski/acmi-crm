@@ -1,9 +1,9 @@
 {# The import's totals: counts (logic.Plan.counts); done: after the import. #}
 <div class="sites-stats">
   <div><b>{{ counts.companies_new }}</b><span>{% if done %}companies created{% else %}new companies{% endif %}</span></div>
-  <div><b>{{ counts.companies_matched }}</b><span>companies matched{% if counts.companies_changed %}, {{ counts.companies_changed }} {% if done %}updated{% else %}to update{% endif %}{% endif %}</span></div>
+  <div><b>{{ counts.companies_matched }}</b><span>Companies matched{% if counts.companies_changed %}, {{ counts.companies_changed }} {% if done %}updated{% else %}to update{% endif %}{% endif %}</span></div>
   <div><b>{{ counts.people_new }}</b><span>{% if done %}contacts created{% else %}new contacts{% endif %}</span></div>
-  <div><b>{{ counts.people_matched }}</b><span>contacts matched{% if counts.people_changed %}, {{ counts.people_changed }} {% if done %}updated{% else %}to update{% endif %}{% endif %}</span></div>
-  <div><b>{{ counts.flagged }}</b><span>rows flagged</span></div>
-  <div><b>{{ counts.skipped }}</b><span>rows skipped</span></div>
+  <div><b>{{ counts.people_matched }}</b><span>Contacts matched{% if counts.people_changed %}, {{ counts.people_changed }} {% if done %}updated{% else %}to update{% endif %}{% endif %}</span></div>
+  <div><b>{{ counts.flagged }}</b><span>Rows flagged</span></div>
+  <div><b>{{ counts.skipped }}</b><span>Rows skipped</span></div>
 </div>

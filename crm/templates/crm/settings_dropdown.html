@@ -14,7 +14,7 @@
       <tr class="{% if r.hidden %}dd-hidden{% endif %}">
         <td><input type="hidden" name="order" value="{{ r.value }}"><button type="button" class="btn-link" data-move="-1" aria-label="Move up">▲</button> <button type="button" class="btn-link" data-move="1" aria-label="Move down">▼</button></td>
         <td><input name="label_{{ r.value }}" value="{{ r.label }}" maxlength="200" required></td>
-        <td class="muted lc-small">{% if r.added %}<span class="tag tag-open">added</span>{% if r.like %} works like {{ r.like }}{% endif %}{% else %}{{ r.default }}{% endif %} <code>{{ r.value }}</code></td>
+        <td class="muted lc-small">{% if r.added %}<span class="tag tag-open">Added</span>{% if r.like %} works like {{ r.like }}{% endif %}{% else %}{{ r.default }}{% endif %} <code>{{ r.value }}</code></td>
         <td class="num">{{ r.used }}</td>
         <td><input type="checkbox" name="hidden_{{ r.value }}"{% if r.hidden %} checked{% endif %} aria-label="Hide {{ r.label }}"></td>
         <td>{% if r.added %}<input type="checkbox" name="remove_{{ r.value }}" aria-label="Remove {{ r.label }}"{% if r.used %} disabled title="In use: hide it instead"{% endif %}>{% endif %}</td>

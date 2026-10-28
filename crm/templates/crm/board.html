@@ -58,9 +58,9 @@
 
 <form method="get" class="bl-filters" data-filters aria-label="Filter cards">
   <label class="chip-check{% if request.GET.mine == '1' %} on{% endif %}"><input type="checkbox" name="mine" value="1" {% if request.GET.mine == '1' %}checked{% endif %}> Mine</label>
-  <label>Member <select name="member"><option value="">anyone</option>{% for u in users %}<option value="{{ u.pk }}" {% if request.GET.member == u.pk|stringformat:"s" %}selected{% endif %}>{{ u|username }}</option>{% endfor %}</select></label>
-  <label>Label <select name="label"><option value="">any</option>{% for l in board.labels.all %}<option value="{{ l.pk }}" {% if request.GET.label == l.pk|stringformat:"s" %}selected{% endif %}>{{ l.name }}</option>{% endfor %}</select></label>
-  <label>Due <select name="due"><option value="">any</option><option value="late" {% if request.GET.due == 'late' %}selected{% endif %}>Overdue</option><option value="week" {% if request.GET.due == 'week' %}selected{% endif %}>Next 7 days</option><option value="none" {% if request.GET.due == 'none' %}selected{% endif %}>No date</option><option value="done" {% if request.GET.due == 'done' %}selected{% endif %}>Done</option></select></label>
+  <label>Member <select name="member"><option value="">Anyone</option>{% for u in users %}<option value="{{ u.pk }}" {% if request.GET.member == u.pk|stringformat:"s" %}selected{% endif %}>{{ u|username }}</option>{% endfor %}</select></label>
+  <label>Label <select name="label"><option value="">Any</option>{% for l in board.labels.all %}<option value="{{ l.pk }}" {% if request.GET.label == l.pk|stringformat:"s" %}selected{% endif %}>{{ l.name }}</option>{% endfor %}</select></label>
+  <label>Due <select name="due"><option value="">Any</option><option value="late" {% if request.GET.due == 'late' %}selected{% endif %}>Overdue</option><option value="week" {% if request.GET.due == 'week' %}selected{% endif %}>Next 7 days</option><option value="none" {% if request.GET.due == 'none' %}selected{% endif %}>No date</option><option value="done" {% if request.GET.due == 'done' %}selected{% endif %}>Done</option></select></label>
   <label>Find <input type="search" name="q" value="{{ request.GET.q }}" placeholder="Title or description" size="18"></label>
   <button class="btn-small">Filter</button>
   {% if filtered %}<a class="btn-small btn" href="{{ request.path }}?_v=all">Clear</a>{% endif %}

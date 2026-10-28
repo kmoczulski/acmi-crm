@@ -24,8 +24,8 @@
 
 <div class="dd-strip">
   <div><div class="label">Amount</div>
-    {% if s.amount_committed %}<div class="value">{{ s.amount_committed|money }}</div><div class="muted lc-small">committed{% if s.amount_sought %} of {{ s.amount_sought|money }} sought{% endif %}</div>
-    {% elif s.amount_sought %}<div class="value">{{ s.amount_sought|money }}</div><div class="muted lc-small">sought</div>
+    {% if s.amount_committed %}<div class="value">{{ s.amount_committed|money }}</div><div class="muted lc-small">Committed{% if s.amount_sought %} of {{ s.amount_sought|money }} sought{% endif %}</div>
+    {% elif s.amount_sought %}<div class="value">{{ s.amount_sought|money }}</div><div class="muted lc-small">Sought</div>
     {% else %}<div class="value muted">–</div>{% endif %}</div>
   <div><div class="label">Ball in court</div>
     {% if s.waiting_on %}<div class="value">{{ s.get_waiting_on_display }}</div><div class="lc-small {% if s.waiting_days and s.waiting_days >= 14 %}overdue{% else %}muted{% endif %}">{% if s.waiting_since %}since {{ s.waiting_since|date:"M j" }}{% if s.waiting_days is not None %} ({{ s.waiting_days }} day{{ s.waiting_days|pluralize }}){% endif %}{% endif %}</div>
@@ -53,7 +53,7 @@
         <div class="muted lc-small">{% if t.dated %}{{ t.dated|date:"M j, Y" }}{% endif %}{% if t.pages %} · {{ t.pages }} page{{ t.pages|pluralize }}{% elif t.text_status == "scan" %} · scan{% endif %}{% if t.read_at %} · read by Claude {{ t.read_at|date:"M j" }}{% endif %}{% if t.added_by %} · added by {{ t.added_by|username }}{% endif %}</div>
         {% if t.terms %}<dl class="cap-terms">{% for f, label, value, src in t.terms %}
           <dt>{{ label|capfirst }}</dt><dd>{{ value|linebreaksbr }}{% if src.quote %} <details style="display:inline" class="lc-small"><summary class="muted" style="display:inline;cursor:pointer">source{% if src.page %} p. {{ src.page }}{% endif %}</summary>
-            <div class="muted"><q>{{ src.quote|truncatechars:500 }}</q>{% if src.note %}<div>Note: {{ src.note }}</div>{% endif %}{% if t.href and src.page %} <a href="{{ t.href }}#page={{ src.page }}" target="_blank" rel="noopener">open page</a>{% endif %}</div></details>{% endif %}</dd>
+            <div class="muted"><q>{{ src.quote|truncatechars:500 }}</q>{% if src.note %}<div>Note: {{ src.note }}</div>{% endif %}{% if t.href and src.page %} <a href="{{ t.href }}#page={{ src.page }}" target="_blank" rel="noopener">Open page</a>{% endif %}</div></details>{% endif %}</dd>
         {% endfor %}</dl>{% else %}<p class="muted lc-small">No terms recorded yet.</p>{% endif %}
         {% if t.notes %}<div class="lc-small">{{ t.notes|linebreaksbr }}</div>{% endif %}
         <div class="inline-form" style="margin-top:6px">

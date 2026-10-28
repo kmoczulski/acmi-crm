@@ -140,7 +140,7 @@ class TimelineTests(TestCase):
         page = self.client.get(self.c.get_absolute_url())  # the history shows on the contract page
         self.assertContains(page, "2026-05-31 → 2026-06-30")
         self.assertContains(page, "exercised 2026-05-10")
-        self.assertContains(self.client.get(f"/contracts/{self.c.pk}/timeline/"), "moved 1×")
+        self.assertContains(self.client.get(f"/contracts/{self.c.pk}/timeline/"), "Moved 1×")
 
     def test_push_by_hand_and_what_if(self):
         feas = self.add(kind="feasibility", label="Feasibility ends", date=date(2026, 5, 31),
@@ -506,4 +506,4 @@ class WordRedlineTests(TestCase):
         self.assertContains(page, f"Compared with {v1.title}")
         detail = self.client.get(self.c.get_absolute_url())
         self.assertContains(detail, "(2 tracked)")
-        self.assertContains(detail, "compare with previous")
+        self.assertContains(detail, "Compare with previous")

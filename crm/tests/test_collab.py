@@ -228,7 +228,7 @@ class DashboardTests(TestCase):
         self.assertContains(r, "Show 7 more days")
         r = self.client.get(reverse("crm:home") + "?days=14")
         self.assertContains(r, "Reply from Ken: last week")
-        self.assertContains(r, "last 14 days")
+        self.assertContains(r, "Last 14 days")
 
 
 class TaskTimeAndLiveAlertTests(TestCase):

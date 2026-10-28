@@ -43,7 +43,7 @@
     {% for mb in mailboxes %}
       <div style="display:flex;justify-content:space-between;border-bottom:1px solid var(--line);padding:4px 0">
         <span>{% if mb.shared %}{{ mb.label }} <span class="tag">Shared</span>{% else %}{{ mb.user|username }}{% endif %} <span class="muted">{{ mb.email }}</span></span>
-        <span class="muted" style="font-size:12px">{% if mb.last_error %}<span class="overdue">error</span>{% else %}{{ mb.last_synced_at|date:"M j, g:i a"|default:"never synced" }}{% endif %}</span>
+        <span class="muted" style="font-size:12px">{% if mb.last_error %}<span class="overdue">Error</span>{% else %}{{ mb.last_synced_at|date:"M j, g:i a"|default:"never synced" }}{% endif %}</span>
       </div>
     {% empty %}<p class="muted">No one has connected yet.</p>{% endfor %}
     <p class="muted" style="font-size:12px">Only emails with outside contacts are logged. Mail between ACMI addresses, newsletters and protected addresses never is.</p>

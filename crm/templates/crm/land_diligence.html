@@ -23,7 +23,7 @@
   <div><div class="label">Progress</div><div class="value">{{ s.cleared }} of {{ s.count }} cleared</div>
     <div class="muted lc-small">{% if s.issues %}<span class="overdue">{{ s.issues|length }} issue{{ s.issues|length|pluralize }}</span> · {% endif %}{{ s.open|length }} open</div></div>
   <div><div class="label">Budget</div><div class="value">{% if s.budget %}{{ s.budget|money }}{% else %}–{% endif %}</div>
-    <div class="muted lc-small">invoiced {{ s.invoiced|money|default:"$0" }} · committed {{ s.committed|money|default:"$0" }}</div></div>
+    <div class="muted lc-small">Invoiced {{ s.invoiced|money|default:"$0" }} · committed {{ s.committed|money|default:"$0" }}</div></div>
   <div id="decision"><div class="label">Decision</div>
     {% if s.contract and s.contract.decision %}<div class="value">{{ s.contract.get_decision_display }}</div>
       <div class="muted lc-small">{{ s.contract.decision_on|date:"M j" }}{% if s.contract.decision_by %} · {{ s.contract.decision_by|username }}{% endif %}{% if s.contract.decision_note %} · {{ s.contract.decision_note|truncatechars:80 }}{% endif %}</div>
@@ -71,7 +71,7 @@
             <select name="status" class="dd-status" onchange="this.form.submit()">{% for v, l in statuses|offer:i.status %}<option value="{{ v }}"{% if v == i.status %} selected{% endif %}>{{ l }}</option>{% endfor %}</select></form>
           <span class="print-only">{{ i.get_status_display }}</span>
           {% if i.owner %}<div class="muted lc-small">{{ i.owner|username }}</div>{% endif %}</td>
-        <td class="wrap lc-small">{{ i.consultant|default:"–" }}{% if i.ordered_on %}<div class="muted">ordered {{ i.ordered_on|date:"M j" }}</div>{% endif %}</td>
+        <td class="wrap lc-small">{{ i.consultant|default:"–" }}{% if i.ordered_on %}<div class="muted">Ordered {{ i.ordered_on|date:"M j" }}</div>{% endif %}</td>
         <td class="lc-small">{% if i.due_on %}<span class="{% if i.late or i.after_deadline %}overdue{% elif i.is_open and i.days_left <= 7 %}soon{% endif %}">{{ i.due_on|date:"M j" }}</span>{% if i.after_deadline %}<div class="overdue">after feasibility</div>{% endif %}{% else %}–{% endif %}</td>
         <td class="lc-small">{{ i.received_on|date:"M j"|default:"–" }}</td>
         <td class="num">{{ i.budget|money }}</td>
@@ -84,7 +84,7 @@
           {% if i.sources %}<details class="ct-sources"><summary>{{ i.sources|length }} source{{ i.sources|pluralize }}</summary>
             <ol>{% for src in i.sources %}<li value="{{ src.n }}"><a href="{{ src.href }}" target="_blank" rel="noopener">{% if src.page %}p. {{ src.page }}{% else %}report{% endif %}</a> <q>{{ src.quote|truncatechars:300 }}</q></li>{% endfor %}</ol></details>{% endif %}
         </details>{% endif %}
-        <details class="ct-edit lc-small"><summary>edit</summary>
+        <details class="ct-edit lc-small"><summary>Edit</summary>
           <form method="post" enctype="multipart/form-data" class="dd-form">{% csrf_token %}<input type="hidden" name="action" value="edit"><input type="hidden" name="item" value="{{ i.pk }}">
             <label>Item <input name="name" value="{{ i.name }}" required></label>
             <label>Group <input name="block" value="{{ i.block }}" required></label>

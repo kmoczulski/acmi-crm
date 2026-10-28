@@ -13,7 +13,7 @@
             <button class="ct-check" name="status" value="{% if i.status == 'done' %}open{% else %}done{% endif %}" title="{% if i.status == 'done' %}Mark open{% else %}Mark done{% endif %}">{% if i.status == "done" %}✓{% elif i.status == "na" %}–{% else %}○{% endif %}</button></form>
           <span class="cl-name">{{ i.name }}{% if i.responsible %} <span class="muted lc-small">· {{ i.responsible }}</span>{% endif %}{% if i.notes %}<div class="muted lc-small">{{ i.notes }}</div>{% endif %}</span>
           <span class="lc-small {% if i.late %}overdue{% else %}muted{% endif %}">{% if i.status == "done" %}{{ i.done_on|date:"M j" }}{% elif i.due_on %}{{ i.due_on|date:"M j" }}{% endif %}</span>
-          <details class="ct-edit lc-small"><summary>edit</summary>
+          <details class="ct-edit lc-small"><summary>Edit</summary>
             <form method="post" class="fields">{% csrf_token %}<input type="hidden" name="action" value="closing_edit"><input type="hidden" name="item" value="{{ i.pk }}">
               <label>Item <input name="name" value="{{ i.name }}"></label>
               <label>Side <select name="side">{% for v, l in closing_sides|offer:i.side %}<option value="{{ v }}"{% if v == i.side %} selected{% endif %}>{{ l }}</option>{% endfor %}</select></label>

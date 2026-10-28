@@ -8,7 +8,7 @@
   {% endif %}
   {% endwith %}
   {% if lease.sources %}<details class="ct-sources"><summary>{{ lease.sources|length }} term{{ lease.sources|length|pluralize }} read by Claude</summary>
-    <ul>{% for s in lease.sources %}<li><b>{{ s.label }}</b>{% if s.href %} <a href="{{ s.href }}">source</a>{% endif %}<q>{{ s.quote|truncatechars:240 }}</q>{% if s.note %}<span class="muted">{{ s.note }}</span>{% endif %}</li>{% endfor %}</ul></details>{% endif %}
+    <ul>{% for s in lease.sources %}<li><b>{{ s.label }}</b>{% if s.href %} <a href="{{ s.href }}">Source</a>{% endif %}<q>{{ s.quote|truncatechars:240 }}</q>{% if s.note %}<span class="muted">{{ s.note }}</span>{% endif %}</li>{% endfor %}</ul></details>{% endif %}
   {% if reads and ai_ready %}<form method="post" data-busy="Reading the lease… about a minute" style="margin:8px 0">{% csrf_token %}<input type="hidden" name="action" value="lease_read">
     <button class="btn btn-small">Read the terms with Claude</button> <span class="muted lc-small">fills only blank fields, each with its source</span></form>{% endif %}
   <details class="ct-add"{% if not lease.terms %} open{% endif %}><summary class="btn btn-small">{% if lease.terms %}Edit terms{% else %}Enter the terms{% endif %}</summary>

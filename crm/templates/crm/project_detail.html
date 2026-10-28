@@ -39,7 +39,7 @@
       {% else %}
         {% with m=build.schedule.next %}{% if m %}<div class="row-line"><span>Next: <b>{{ m.name }}</b></span><span class="lc-small">{% firstof m.forecast|date:"M j, Y" m.baseline|date:"M j, Y" %}{% if m.slip and m.slip > 0 %} <span class="overdue">+{{ m.slip }} d</span>{% endif %}</span></div>{% endif %}{% endwith %}
         {% if build.gc %}<div class="row-line"><span>GC</span><span class="lc-small">{{ build.gc }}</span></div>{% elif build.bids %}<div class="row-line"><span>GC selection</span><span class="lc-small">{{ build.bids_in|length }} proposal{{ build.bids_in|length|pluralize }} in</span></div>{% endif %}
-        {% with t=build.budget.totals %}{% if build.budget.lines %}<div class="row-line"><span>Budget {{ t.current|money }}</span><span class="lc-small {% if t.variance > 0 %}overdue{% endif %}">forecast {{ t.forecast_total|money }}</span></div>{% endif %}{% endwith %}
+        {% with t=build.budget.totals %}{% if build.budget.lines %}<div class="row-line"><span>Budget {{ t.current|money }}</span><span class="lc-small {% if t.variance > 0 %}overdue{% endif %}">Forecast {{ t.forecast_total|money }}</span></div>{% endif %}{% endwith %}
         {% if build.pending %}<div class="row-line"><span>Change orders pending</span><span class="lc-small">{{ build.pending|length }} · {{ build.pending_total|money }}</span></div>{% endif %}
       {% endif %}
     </section>

@@ -14,12 +14,12 @@
   </header>
   <div class="pk-body">
     <div class="scard-facts pk-facts">
-      <div><b>{{ open_deals|length }}</b><span>open deal{{ open_deals|length|pluralize }}</span></div>
-      <div><b>{% if pipeline %}{{ pipeline|money }}{% else %}–{% endif %}</b><span>pipeline</span></div>
+      <div><b>{{ open_deals|length }}</b><span>Open deal{{ open_deals|length|pluralize }}</span></div>
+      <div><b>{% if pipeline %}{{ pipeline|money }}{% else %}–{% endif %}</b><span>Pipeline</span></div>
       <div><b>{{ people_count }}</b><span>{{ people_count|pluralize:"person,people" }}</span></div>
       <div><b>{% if company.last_interaction_at %}{{ company.days_since_touch }}d{% else %}–{% endif %}</b><span>since last touch</span></div>
-      <div><b>{% if next_meeting %}{{ next_meeting.start|date:"M j" }}{% else %}–{% endif %}</b><span>next meeting</span></div>
-      <div><b>{% if company.fit_score %}{{ company.fit_score }}/5{% else %}–{% endif %}</b><span>fit</span></div>
+      <div><b>{% if next_meeting %}{{ next_meeting.start|date:"M j" }}{% else %}–{% endif %}</b><span>Next meeting</span></div>
+      <div><b>{% if company.fit_score %}{{ company.fit_score }}/5{% else %}–{% endif %}</b><span>Fit</span></div>
     </div>
     <div class="pk-cols">
       <div class="pk-main">

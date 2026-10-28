@@ -13,12 +13,12 @@
   <div class="scard-body">
     <main class="scard-main">
       <div class="scard-facts">
-        <div><b>{{ acres|floatformat:1|intcomma }}</b><span>acres</span></div>
-        <div><b>{% if net is not None %}{{ net|floatformat:0|intcomma }}{% else %}–{% endif %}</b><span>net usable</span></div>
-        <div><b>{{ n_parcels }}</b><span>parcel{{ n_parcels|pluralize }}</span></div>
-        <div><b>{{ owners|length }}</b><span>owner{{ owners|length|pluralize }}</span></div>
-        <div><b>{% if score is not None %}{{ score }}{% else %}–{% endif %}</b><span>best score</span></div>
-        <div><b>{% if clock %}{{ clock.days }}d{% else %}–{% endif %}</b><span>deal clock</span></div>
+        <div><b>{{ acres|floatformat:1|intcomma }}</b><span>Acres</span></div>
+        <div><b>{% if net is not None %}{{ net|floatformat:0|intcomma }}{% else %}–{% endif %}</b><span>Net usable</span></div>
+        <div><b>{{ n_parcels }}</b><span>Parcel{{ n_parcels|pluralize }}</span></div>
+        <div><b>{{ owners|length }}</b><span>Owner{{ owners|length|pluralize }}</span></div>
+        <div><b>{% if score is not None %}{{ score }}{% else %}–{% endif %}</b><span>Best score</span></div>
+        <div><b>{% if clock %}{{ clock.days }}d{% else %}–{% endif %}</b><span>Deal clock</span></div>
       </div>
 
       <section class="scard-sec scard-ai">

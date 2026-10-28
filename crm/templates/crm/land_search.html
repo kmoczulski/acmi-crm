@@ -1014,7 +1014,7 @@
         <td><input data-f="newqd" inputmode="decimal" data-commas value="${acmiNum.format(b.newqd || 0)}" style="width:90px"></td>
         <td class="num nowrap">${r.max_newqd == null ? `<span class="muted" title="${escapeHtml(r.max_by || 'Open a parcel to work this out')}">–</span>`
           : `<span title="Limited by ${escapeHtml(r.max_by)}">${r.max_newqd.toLocaleString()}${r.max_by === 'table limit' ? '+' : ''}</span>`
-            + (r.max_newqd > 0 && r.max_newqd !== +b.newqd ? ` <button type="button" class="btn-link" data-use-max="${r.max_newqd}" title="Set NEWQD to this">use</button>` : '')}</td>
+            + (r.max_newqd > 0 && r.max_newqd !== +b.newqd ? ` <button type="button" class="btn-link" data-use-max="${r.max_newqd}" title="Set NEWQD to this">Use</button>` : '')}</td>
         <td><select data-f="pes"${b.hd === 'HD 1.1' ? '' : ' disabled'}>${opt(PES, b.pes)}</select></td>
         <td><input data-f="barricaded" type="checkbox"${b.barricaded ? ' checked' : ''}${b.hd === 'HD 1.1' ? '' : ' disabled'}></td>
         <td><input data-f="mce" inputmode="decimal" data-commas value="${acmiNum.format(b.mce || 0)}" style="width:70px"${['HD 1.2.1', 'HD 1.2.3'].includes(b.hd) ? '' : ' disabled'}></td>
@@ -1190,9 +1190,9 @@
     VIEWS.list = d.views;
     const mine = d.views.filter(v => v.mine), team = d.views.filter(v => !v.mine);
     const row = v => `<div class="view-row" data-view="${v.id}">
-        <a href="#" data-apply>${escapeHtml(v.name)}</a>${v.is_default ? ' <span class="tag">default</span>' : ''}${v.shared && v.mine ? ' <span class="muted lc-small">shared</span>' : ''}
-        ${v.mine ? `<span class="view-actions"><a href="#" data-update title="Save what you see now into this view">update</a>
-          ${v.is_default ? '' : '<a href="#" data-default>make default</a>'}<a href="#" data-del title="Delete">✕</a></span>` : `<span class="muted lc-small">${escapeHtml(v.owner)}</span>`}
+        <a href="#" data-apply>${escapeHtml(v.name)}</a>${v.is_default ? ' <span class="tag">Default</span>' : ''}${v.shared && v.mine ? ' <span class="muted lc-small">Shared</span>' : ''}
+        ${v.mine ? `<span class="view-actions"><a href="#" data-update title="Save what you see now into this view">Update</a>
+          ${v.is_default ? '' : '<a href="#" data-default>Make default</a>'}<a href="#" data-del title="Delete">✕</a></span>` : `<span class="muted lc-small">${escapeHtml(v.owner)}</span>`}
       </div>`;
     viewsList.innerHTML = (mine.map(row).join('') || '<span class="muted lc-small">None yet.</span>')
       + (team.length ? '<div class="ml-h">Shared by the team</div>' + team.map(row).join('') : '');

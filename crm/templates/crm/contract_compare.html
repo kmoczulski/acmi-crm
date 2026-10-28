@@ -26,7 +26,7 @@
 </form>{% endif %}
 {% if authors %}<div class="rl-legend lc-small"><b>Redlined by</b>
   {% for au in authors %}<span class="rl-key {{ au.cls }}"><span class="rl-swatch"></span>{{ au.name }} <span class="muted">· {{ au.count }} change{{ au.count|pluralize }}</span></span>{% endfor %}
-  <span class="muted">· <del>struck</del> = removed, <ins>underlined</ins> = added</span>
+  <span class="muted">· <del>Struck</del> = removed, <ins>underlined</ins> = added</span>
 </div>{% endif %}
 
 <div class="cr-layout">

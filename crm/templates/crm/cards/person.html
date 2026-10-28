@@ -15,10 +15,10 @@
   </header>
   <div class="pk-body">
     <div class="scard-facts pk-facts">
-      <div><b>{{ person.touch_count }}</b><span>outreach email{{ person.touch_count|pluralize }}</span></div>
-      <div><b>{% if person.last_interaction_at %}{{ person.last_interaction_at|date:"M j" }}{% else %}–{% endif %}</b><span>last touch</span></div>
-      <div><b>{% if person.last_reply_at %}{{ person.last_reply_at|date:"M j" }}{% else %}–{% endif %}</b><span>last reply</span></div>
-      <div><b>{{ deals|length }}</b><span>deal{{ deals|length|pluralize }}</span></div>
+      <div><b>{{ person.touch_count }}</b><span>Outreach email{{ person.touch_count|pluralize }}</span></div>
+      <div><b>{% if person.last_interaction_at %}{{ person.last_interaction_at|date:"M j" }}{% else %}–{% endif %}</b><span>Last touch</span></div>
+      <div><b>{% if person.last_reply_at %}{{ person.last_reply_at|date:"M j" }}{% else %}–{% endif %}</b><span>Last reply</span></div>
+      <div><b>{{ deals|length }}</b><span>Deal{{ deals|length|pluralize }}</span></div>
     </div>
     <div class="pk-cols">
       <div class="pk-main">

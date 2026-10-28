@@ -38,7 +38,7 @@
       <thead><tr><th>#</th><th>Site</th><th class="num">Net ac</th><th class="num">Headroom</th><th class="num">Elev.</th><th class="num">Mod.</th><th class="num">ROM net</th><th>Checklist</th><th colspan="2">Pin to # · client visibility</th><th></th></tr></thead>
       <tbody>{% for pos, c, pinned in ranked %}
         <tr>
-          <td><b>{{ pos }}</b>{% if pinned %} <span class="muted lc-small" title="Position set by hand">pinned</span>{% endif %}</td>
+          <td><b>{{ pos }}</b>{% if pinned %} <span class="muted lc-small" title="Position set by hand">Pinned</span>{% endif %}</td>
           <td class="wrap"><a href="{% url 'crm:assignment_report' a.pk c.entry.pk %}"><b>{{ c.site.name }}</b></a>
             <div><span class="dd-pill {{ c.tone }}">{{ c.verdict }}</span></div></td>
           <td class="num">{% if c.net_acres %}{{ c.net_acres|floatformat:0|intcomma }}{% else %}–{% endif %}</td>

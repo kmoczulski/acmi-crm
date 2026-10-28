@@ -3,7 +3,7 @@
   <span class="vb-label">Views</span>
   <a class="vb-view {% if not query %}on{% endif %}" href="{{ path }}?_v=all">All</a>
   {% for v in views %}
-    <span class="vb-view-wrap"><a class="vb-view {% if current == v %}on{% endif %}" href="{{ path }}?{{ v.query }}" title="{% if v.shared %}Shared with the team{% else %}Only you see this view{% endif %}{% if v.is_default and v.owner_id == user.pk %} · opens by default{% endif %}">{% if v.is_default and v.owner_id == user.pk %}★ {% endif %}{{ v.name }}{% if v.shared %} <span class="vb-shared">shared</span>{% endif %}</a>{% if v.owner_id == user.pk %}<form method="post" action="{% url 'crm:saved_view_delete' v.pk %}" class="vb-del">{% csrf_token %}<input type="hidden" name="next" value="{{ path }}"><button title="Delete this view" aria-label="Delete view {{ v.name }}">×</button></form>{% endif %}</span>
+    <span class="vb-view-wrap"><a class="vb-view {% if current == v %}on{% endif %}" href="{{ path }}?{{ v.query }}" title="{% if v.shared %}Shared with the team{% else %}Only you see this view{% endif %}{% if v.is_default and v.owner_id == user.pk %} · opens by default{% endif %}">{% if v.is_default and v.owner_id == user.pk %}★ {% endif %}{{ v.name }}{% if v.shared %} <span class="vb-shared">Shared</span>{% endif %}</a>{% if v.owner_id == user.pk %}<form method="post" action="{% url 'crm:saved_view_delete' v.pk %}" class="vb-del">{% csrf_token %}<input type="hidden" name="next" value="{{ path }}"><button title="Delete this view" aria-label="Delete view {{ v.name }}">×</button></form>{% endif %}</span>
   {% endfor %}
   <span class="spacer"></span>
   <details class="menu-wrap">

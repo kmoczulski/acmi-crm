@@ -53,7 +53,7 @@
       <td>{{ c.buyer|truncatechars:30 }}</td><td>{{ c.seller|truncatechars:30 }}</td>
       <td>{% if c.arms_length %}Yes{% elif c.arms_length is False %}No{% else %}<span class="muted">Not known</span>{% endif %}</td>
       <td>{{ c.conveyance|truncatechars:36 }}</td>
-      <td>{{ c.get_source_display }}{% if c.flyer %} · <a href="{% url 'crm:land_comp_flyer' c.pk %}" target="_blank" rel="noopener">flyer</a>{% endif %}{% if c.internal_only %} <span class="team-only-tag">internal</span>{% endif %}</td>
+      <td>{{ c.get_source_display }}{% if c.flyer %} · <a href="{% url 'crm:land_comp_flyer' c.pk %}" target="_blank" rel="noopener">Flyer</a>{% endif %}{% if c.internal_only %} <span class="team-only-tag">Internal</span>{% endif %}</td>
       <td><a href="{{ r.url }}">{% if c.source == "team" %}Edit{% else %}Open{% endif %}</a></td>
     </tr>{% endwith %}{% empty %}<tr><td colspan="13" class="muted">No comps match.{% if texas %} Add the ones you know from deeds, brokers or flyers.{% endif %}</td></tr>{% endfor %}
   </table>

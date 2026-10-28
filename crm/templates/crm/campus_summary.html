@@ -42,7 +42,7 @@
           </div>
         </form>
         <form method="post" style="margin-top:6px">{% csrf_token %}<button class="btn-link btn-small" name="action" value="draft_report">Re-draft with Claude</button>
-          <span class="muted lc-small">drafted {{ report.generated_at|date:"M j, g:i a" }}; your edits are replaced</span></form>
+          <span class="muted lc-small">Drafted {{ report.generated_at|date:"M j, g:i a" }}; your edits are replaced</span></form>
       {% elif ai_ready %}
         <form method="post">{% csrf_token %}<button class="btn btn-primary" name="action" value="draft_report" onclick="this.textContent='Drafting… about a minute'">Draft this week's update with Claude</button></form>
         <p class="muted lc-small" style="margin-bottom:0">Claude writes one line per item from this tab, using only what's here. Edit it, then a manager sends it from their Gmail.</p>

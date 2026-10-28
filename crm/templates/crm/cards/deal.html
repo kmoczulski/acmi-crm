@@ -14,11 +14,11 @@
   </header>
   <div class="pk-body">
     <div class="scard-facts pk-facts">
-      <div><b>{{ opp.value|money|default:"–" }}</b><span>value</span></div>
-      <div><b>{{ opp.win_probability }}%</b><span>win</span></div>
-      <div><b>{% if opp.sq_ft_need %}{{ opp.sq_ft_need|intcomma }}{% else %}–{% endif %}</b><span>sq ft</span></div>
-      <div><b>{% if opp.acreage_need %}{{ opp.acreage_need|floatformat:"-1"|intcomma }}{% else %}–{% endif %}</b><span>acres</span></div>
-      <div><b>{{ opp.target_close|date:"M j"|default:"–" }}</b><span>target close</span></div>
+      <div><b>{{ opp.value|money|default:"–" }}</b><span>Value</span></div>
+      <div><b>{{ opp.win_probability }}%</b><span>Win</span></div>
+      <div><b>{% if opp.sq_ft_need %}{{ opp.sq_ft_need|intcomma }}{% else %}–{% endif %}</b><span>Sq ft</span></div>
+      <div><b>{% if opp.acreage_need %}{{ opp.acreage_need|floatformat:"-1"|intcomma }}{% else %}–{% endif %}</b><span>Acres</span></div>
+      <div><b>{{ opp.target_close|date:"M j"|default:"–" }}</b><span>Target close</span></div>
       <div><b>{{ days_in_stage }}d</b><span>in stage</span></div>
     </div>
     <div class="pk-cols">

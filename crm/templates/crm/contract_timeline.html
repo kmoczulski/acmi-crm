@@ -39,7 +39,7 @@
     <div class="tl-ext-head"><b>{{ o.ext.label }}</b>{% if o.ext.amount %} · {{ o.ext.amount|money }}{% endif %}
       {% if o.exercised or o.ext.done %}<span class="pill ct-signed">Exercised{% if o.exercised %} {{ o.exercised|date:"M j, Y" }}{% endif %}</span>
       {% elif o.ext.date %}<span class="pill {% if o.ext.date < today %}tl-late{% else %}tl-soon{% endif %}">Notice due {{ o.ext.date|date:"M j, Y" }}</span>{% endif %}
-      {% if o.ext.source_id and o.ext.source_start is not None %}<a class="lc-small" href="{% url 'crm:contract_reader' contract.pk o.ext.source_id %}?hl={{ o.ext.source_start }}-{{ o.ext.source_end }}#hl">source</a>{% endif %}</div>
+      {% if o.ext.source_id and o.ext.source_start is not None %}<a class="lc-small" href="{% url 'crm:contract_reader' contract.pk o.ext.source_id %}?hl={{ o.ext.source_start }}-{{ o.ext.source_end }}#hl">Source</a>{% endif %}</div>
     {% if o.ext.rule %}<div class="muted lc-small">{{ o.ext.rule }}</div>{% endif %}
     {% if not o.exercised and not o.ext.done %}
       {% if not o.target %}
@@ -52,7 +52,7 @@
           <div class="tl-move-row main"><span>{{ o.target.label }}</span><span class="tl-from">{{ o.target.date|date:"M j, Y" }}</span><span class="tl-arrow">→</span>
             <span class="tl-to">{% if o.new %}{{ o.new|date:"M j, Y" }}{% else %}?{% endif %}</span>
             <span class="muted lc-small">{% if o.ext.extend_by %}+{{ o.ext.extend_by }} {{ o.ext.get_extend_unit_display|default:"days" }}{% endif %}</span></div>
-          {% for x, nw in o.follow %}<div class="tl-move-row"><span>{{ x.label }}</span><span class="tl-from">{{ x.date|date:"M j, Y" }}</span><span class="tl-arrow">→</span><span class="tl-to">{{ nw|date:"M j, Y" }}</span><span class="muted lc-small">counts from it</span></div>{% endfor %}
+          {% for x, nw in o.follow %}<div class="tl-move-row"><span>{{ x.label }}</span><span class="tl-from">{{ x.date|date:"M j, Y" }}</span><span class="tl-arrow">→</span><span class="tl-to">{{ nw|date:"M j, Y" }}</span><span class="muted lc-small">Counts from it</span></div>{% endfor %}
           {% for x, nw, same in o.also %}<label class="tl-move-row opt"><span><input type="checkbox" name="also" value="{{ x.pk }}"{% if same %} checked{% endif %}> {{ x.label }}</span><span class="tl-from">{{ x.date|date:"M j, Y" }}</span><span class="tl-arrow">→</span><span class="tl-to">{{ nw|date:"M j, Y" }}</span><span class="muted lc-small">{% if same %}same day{% else %}move too?{% endif %}</span></label>{% endfor %}
         </div>
         <div class="inline-form tl-ext-go">
@@ -88,10 +88,10 @@
           <div class="tl-when">{% if r.when %}<b>{{ r.when|date:"j" }}</b><span>{{ r.when|date:"D" }}</span>{% else %}<span>–</span>{% endif %}</div>
           <div class="tl-body">
             <div class="tl-label">{% if r.done %}✓ {% endif %}{{ r.label }}{% if r.amount %} · {{ r.amount|money }}{% endif %}
-              {% if r.when and not r.done %}{% if r.late %}<span class="pill tl-late">{{ r.late }} day{{ r.late|pluralize }} late</span>{% elif r.left == 0 %}<span class="pill tl-soon">today</span>{% elif r.left <= 14 %}<span class="pill tl-soon">in {{ r.left }} day{{ r.left|pluralize }}</span>{% endif %}{% endif %}</div>
+              {% if r.when and not r.done %}{% if r.late %}<span class="pill tl-late">{{ r.late }} day{{ r.late|pluralize }} late</span>{% elif r.left == 0 %}<span class="pill tl-soon">Today</span>{% elif r.left <= 14 %}<span class="pill tl-soon">in {{ r.left }} day{{ r.left|pluralize }}</span>{% endif %}{% endif %}</div>
             <div class="muted lc-small">{% if r.rule %}{{ r.rule }}{% elif r.how %}{{ r.how }}{% endif %}{% if r.computed %} <span title="Worked out from the rule">↻</span>{% endif %}
-              {% if r.href %} · <a href="{{ r.href }}">source</a>{% endif %}</div>
-            {% if r.history %}<details class="lc-small"><summary class="muted">moved {{ r.history|length }}×</summary>{% for h in r.history %}<div>{% if h.to %}{% if h.from %}{{ h.from }} → {% endif %}{{ h.to }}{% else %}exercised {{ h.exercised }}{% endif %} · {{ h.why }}{% if h.by %} · {{ h.by }}{% endif %}</div>{% endfor %}</details>{% endif %}
+              {% if r.href %} · <a href="{{ r.href }}">Source</a>{% endif %}</div>
+            {% if r.history %}<details class="lc-small"><summary class="muted">Moved {{ r.history|length }}×</summary>{% for h in r.history %}<div>{% if h.to %}{% if h.from %}{{ h.from }} → {% endif %}{{ h.to }}{% else %}exercised {{ h.exercised }}{% endif %} · {{ h.why }}{% if h.by %} · {{ h.by }}{% endif %}</div>{% endfor %}</details>{% endif %}
           </div>
         </li>{% endfor %}</ol>
     </li>{% endfor %}</ol>
@@ -105,7 +105,7 @@
     <thead><tr><th>Date</th>{% for v in shown %}<th>{{ v.label|truncatechars:34 }}{% if v.who %}<div class="muted lc-small">{{ v.who }}{% if v.dated %} · {{ v.dated|date:"M j" }}{% endif %}</div>{% endif %}</th>{% endfor %}</tr></thead>
     <tbody>{% for row in table %}
       <tr class="{% if row.changed %}tl-changed{% endif %}">
-        <td><span class="tl-k tl-k-{{ row.kind }}"></span><b>{{ row.label }}</b>{% if row.changed %} <span class="pill tl-diff">changed</span>{% endif %}</td>
+        <td><span class="tl-k tl-k-{{ row.kind }}"></span><b>{{ row.label }}</b>{% if row.changed %} <span class="pill tl-diff">Changed</span>{% endif %}</td>
         {% for c in row.cells %}<td>{% if c %}
           {% if c.href %}<a href="{{ c.href }}" class="tl-cell" title="{{ c.quote|truncatechars:300 }}">{% endif %}{% if c.when %}<b>{{ c.when|date:"M j, Y" }}</b>{% else %}<span class="muted">not fixed</span>{% endif %}{% if c.amount %} · {{ c.amount|money }}{% endif %}{% if c.href %}</a>{% endif %}
           <div class="muted lc-small">{% if c.done %}✓ done · {% endif %}{% if c.how %}{{ c.how }}{% elif c.rule %}{{ c.rule|truncatechars:80 }}{% endif %}</div>

@@ -335,7 +335,7 @@ class CompTests(TestCase):
             self.comp(ppa)
         card = self.client.get(f"/land/parcel/{self.subject.pk}/")
         self.assertContains(card, "Sale comps nearby")
-        self.assertContains(card, "team only")
+        self.assertContains(card, "Team only")
         self.assertContains(card, "$5,000")
         tx = make_parcel(self.hays, "T", -97.9, 30.0)
         tx_card = self.client.get(f"/land/parcel/{tx.pk}/")

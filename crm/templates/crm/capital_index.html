@@ -32,11 +32,11 @@
           <tr>
             <td class="wrap"><a href="{{ s.get_absolute_url }}"><b>{{ s.provider }}</b></a><div class="muted lc-small">{{ s.label|default:s.get_kind_display }}</div></td>
             <td><span class="pill cap-{{ s.status }}">{{ s.get_status_display }}</span>{% if s.status_since %}<div class="muted lc-small">since {{ s.status_since|date:"M j" }}</div>{% endif %}</td>
-            <td class="num lc-small">{% if s.amount_committed %}<b>{{ s.amount_committed|money }}</b><div class="muted">committed</div>{% elif s.amount_sought %}{{ s.amount_sought|money }}<div class="muted">sought</div>{% else %}–{% endif %}</td>
+            <td class="num lc-small">{% if s.amount_committed %}<b>{{ s.amount_committed|money }}</b><div class="muted">Committed</div>{% elif s.amount_sought %}{{ s.amount_sought|money }}<div class="muted">Sought</div>{% else %}–{% endif %}</td>
             <td class="wrap lc-small">{% if s.ts %}<a href="{{ s.ts.get_absolute_url }}">{{ s.ts.get_kind_display }} v{{ s.ts.version }}</a>{% if s.ts.amount %} · {{ s.ts.amount|money }}{% endif %}{% if s.ts.rate %} · {{ s.ts.rate }}{% endif %}{% if s.ts.ltc_pct %} · {{ s.ts.ltc_pct|floatformat:"-1" }}% LTC{% endif %}
                 {% if s.expiring_in is not None %}<div class="{% if s.expiring_in < 0 %}overdue{% elif s.expiring_in <= 14 %}soon{% else %}muted{% endif %}">{% if s.expiring_in < 0 %}expired{% else %}expires{% endif %} {{ s.ts.expires_on|date:"M j" }}</div>{% endif %}
               {% else %}<span class="muted">–</span>{% endif %}</td>
-            <td class="lc-small">{% if s.touch_on %}<span class="{% if s.quiet %}overdue{% endif %}">{{ s.touch_on|date:"M j" }}</span><div class="muted">{{ s.touch_what }}</div>{% else %}<span class="{% if s.is_active %}overdue{% else %}muted{% endif %}">none</span>{% endif %}</td>
+            <td class="lc-small">{% if s.touch_on %}<span class="{% if s.quiet %}overdue{% endif %}">{{ s.touch_on|date:"M j" }}</span><div class="muted">{{ s.touch_what }}</div>{% else %}<span class="{% if s.is_active %}overdue{% else %}muted{% endif %}">None</span>{% endif %}</td>
             <td class="wrap lc-small">{% if s.waiting_on %}{{ s.get_waiting_on_display }}{% if s.waiting_days is not None %} <span class="{% if s.waiting_days >= 14 %}overdue{% else %}muted{% endif %}">· {{ s.waiting_days }} d</span>{% endif %}{% endif %}
               {% if s.next_step %}<div>{{ s.next_step|truncatechars:70 }}{% if s.next_step_on %} <span class="{% if s.next_left < 0 %}overdue{% elif s.next_left <= 7 %}soon{% else %}muted{% endif %}">· {{ s.next_step_on|date:"M j" }}</span>{% endif %}</div>{% endif %}
               {% if not s.waiting_on and not s.next_step %}–{% endif %}</td>

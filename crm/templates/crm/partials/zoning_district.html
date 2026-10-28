@@ -1,6 +1,6 @@
 {% with d=ref.district %}
 <div class="zd">
-  <div class="zd-head"><b>{{ ref.code }}</b>{% if d.name and d.name != ref.code %} · {{ d.name }}{% endif %} <span class="muted">· {{ ref.jurisdiction }}{% if d.section %} · {{ d.section }}{% endif %}</span>{% if ref.mirror %} <span class="pill-tag warn" title="The text came from a third-party copy of the code: check the official code before relying on it">check source</span>{% endif %}</div>
+  <div class="zd-head"><b>{{ ref.code }}</b>{% if d.name and d.name != ref.code %} · {{ d.name }}{% endif %} <span class="muted">· {{ ref.jurisdiction }}{% if d.section %} · {{ d.section }}{% endif %}</span>{% if ref.mirror %} <span class="pill-tag warn" title="The text came from a third-party copy of the code: check the official code before relying on it">Check source</span>{% endif %}</div>
   {% if d.purpose %}<p class="zd-p">{{ d.purpose }}</p>{% endif %}
   {% if d.permitted_uses %}<div class="zd-h">Permitted uses</div><ul class="zd-ul">{% for u in d.permitted_uses %}<li>{{ u }}</li>{% endfor %}</ul>{% else %}<div class="zd-h">Permitted uses</div><p class="zd-p muted">Not captured: see the code section above.</p>{% endif %}
   {% if d.conditional_uses %}<div class="zd-h">Conditional / special-permit uses</div><ul class="zd-ul">{% for u in d.conditional_uses %}<li>{{ u }}</li>{% endfor %}</ul>{% endif %}

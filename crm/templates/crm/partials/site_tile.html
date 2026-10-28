@@ -9,9 +9,9 @@
   <h3 class="sc-name"><a href="{% url 'crm:land_site_detail' r.site.pk %}" data-open-card>{{ r.site.name }}</a></h3>
   <div class="sc-where">{{ r.counties|join:", " }}{% if r.zoning %} &middot; {{ r.zoning|join:", " }}{% endif %}{% if r.has_qd %} &middot; QD plan{% endif %}</div>
   <div class="sc-metrics">
-    <div><b>{{ r.acres|floatformat:1|intcomma }}</b><span>acres</span></div>
-    <div><b>{% if r.net is not None %}{{ r.net|floatformat:0|intcomma }}{% else %}&ndash;{% endif %}</b><span>net usable</span></div>
-    <div><b>{{ r.parcels }}</b><span>parcel{{ r.parcels|pluralize }}</span></div>
+    <div><b>{{ r.acres|floatformat:1|intcomma }}</b><span>Acres</span></div>
+    <div><b>{% if r.net is not None %}{{ r.net|floatformat:0|intcomma }}{% else %}&ndash;{% endif %}</b><span>Net usable</span></div>
+    <div><b>{{ r.parcels }}</b><span>Parcel{{ r.parcels|pluralize }}</span></div>
   </div>
   {% if r.progress %}<div class="sites-progress" title="{% for b in r.progress %}{{ b.label }}: {{ b.acres|floatformat:'-1'|intcomma }} ac ({{ b.parcels }}){% if not forloop.last %} &middot; {% endif %}{% endfor %}">{% for b in r.progress %}<span class="acq-seg site-{{ b.stage }}" style="width:{{ b.pct }}%"></span>{% endfor %}</div>{% endif %}
   <div class="sc-owners">{% for o, ac in r.owners|slice:":2" %}<div>{{ o|title }} <span class="muted">{{ ac|floatformat:0 }} ac</span></div>{% endfor %}{% if r.owners|length > 2 %}<div class="muted">+{{ r.owners|length|add:"-2" }} more owner{{ r.owners|length|add:"-2"|pluralize }}</div>{% endif %}{% if not r.owners %}<div class="muted">No parcels mapped</div>{% endif %}</div>

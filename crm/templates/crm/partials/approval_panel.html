@@ -4,7 +4,7 @@
   {% for a in approvals %}
     <div class="row-line"><span><a href="{{ a.get_absolute_url }}">{{ a.title }}</a> <span class="pill en-{{ a.status }}">{{ a.get_status_display }}</span>
       {% if a.open_conditions %}<span class="muted lc-small">{{ a.open_conditions|length }} open condition{{ a.open_conditions|length|pluralize }}</span>{% endif %}</span>
-      <span class="lc-small">{% if a.missed %}<span class="overdue">{{ a.missed.0.label }} {{ a.missed.0.date|date:"M j" }}: outcome?</span>{% elif a.next %}<span class="{% if a.next.left <= 7 %}soon{% endif %}">{{ a.next.label }} · {{ a.next.date|date:"M j" }}</span>{% elif a.expiring_in is not None and a.expiring_in <= 60 %}<span class="soon">lapses {{ a.expires_on|date:"M j" }}</span>{% endif %}</span></div>
+      <span class="lc-small">{% if a.missed %}<span class="overdue">{{ a.missed.0.label }} {{ a.missed.0.date|date:"M j" }}: outcome?</span>{% elif a.next %}<span class="{% if a.next.left <= 7 %}soon{% endif %}">{{ a.next.label }} · {{ a.next.date|date:"M j" }}</span>{% elif a.expiring_in is not None and a.expiring_in <= 60 %}<span class="soon">Lapses {{ a.expires_on|date:"M j" }}</span>{% endif %}</span></div>
   {% empty %}
     {% if show_matrix %}<p class="muted lc-small" style="margin:0 0 6px">Start from the usual permit matrix:</p>
       {% include "crm/partials/approval_matrix_form.html" %}

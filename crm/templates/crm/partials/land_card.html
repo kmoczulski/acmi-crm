@@ -43,7 +43,7 @@
 
   <section>
     <h3>Sale comps nearby <a class="lc-small" href="{% url 'crm:land_comps' %}?parcel={{ p.pk }}" style="float:right;text-transform:none;letter-spacing:0">All comps</a></h3>
-    {% with vr=value_range %}<div class="lc-small"><b>Value range</b><span class="team-only-tag">team only</span>
+    {% with vr=value_range %}<div class="lc-small"><b>Value range</b><span class="team-only-tag">Team only</span>
       {% if vr.enough %}<div class="lc-range">
         <a href="{% url 'crm:land_comps' %}?{{ vr.query }}" title="Lower quartile of the comps">Low<b>${{ vr.low|intcomma }}</b>/ac</a>
         <a href="{% url 'crm:land_comps' %}?{{ vr.query }}" title="Median of the comps">Base<b>${{ vr.base|intcomma }}</b>/ac</a>
@@ -88,7 +88,7 @@
       <form method="post" action="{% url 'crm:land_parcel_check' p.pk %}" data-card-form style="display:inline">{% csrf_token %}<button class="btn-link lc-small">Re-check</button></form></h3>
     {% with stale=checks|stale_checks %}{% if stale %}<p class="muted lc-small">Didn't respond on the last re-check, so earlier results are shown: {{ stale|join:", " }}.</p>{% endif %}{% endwith %}
     <table class="lc-table">
-      {% with e=checks.electric %}{% if e %}<tr><th>Electric provider</th><td>{% if e.error %}<span class="muted">Unavailable: {{ e.error|truncatechars:60 }}</span>{% else %}{% for x in e.providers %}<div>{{ x.name }} <span class="muted">· {{ x.kind }}{% if x.grid %} · {{ x.grid }}{% endif %}{% if x.phone %} · {{ x.phone }}{% endif %}</span>{% if x.website %} <a href="{{ x.website }}" target="_blank" rel="noopener">site</a>{% endif %}</div>{% empty %}<span class="muted">None mapped</span>{% endfor %}{% endif %}</td></tr>{% endif %}{% endwith %}
+      {% with e=checks.electric %}{% if e %}<tr><th>Electric provider</th><td>{% if e.error %}<span class="muted">Unavailable: {{ e.error|truncatechars:60 }}</span>{% else %}{% for x in e.providers %}<div>{{ x.name }} <span class="muted">· {{ x.kind }}{% if x.grid %} · {{ x.grid }}{% endif %}{% if x.phone %} · {{ x.phone }}{% endif %}</span>{% if x.website %} <a href="{{ x.website }}" target="_blank" rel="noopener">Site</a>{% endif %}</div>{% empty %}<span class="muted">None mapped</span>{% endfor %}{% endif %}</td></tr>{% endif %}{% endwith %}
       {% for row in near_rows %}<tr><th>{{ row.label }}</th><td><b>{{ row.miles|floatformat:1 }} mi</b> <span class="muted">{{ row.name }}</span></td></tr>{% endfor %}
       {% for key, what, c in ccn_rows %}<tr><th>{{ what }} (CCN)</th><td>{% if c.error %}<span class="muted">Unavailable</span>{% else %}{% for d in c.details %}<div>{{ d.name }} <span class="muted">· {{ d.pct|floatformat:0 }}% of parcel{% if d.ccn %} · CCN {{ d.ccn }}{% endif %}</span></div>{% empty %}<span class="muted">No {{ what|lower }} CCN: {% if key == 'water' %}well{% else %}septic / on-site{% endif %} or new service</span>{% endfor %}{% if c.nearest_line %}<div class="muted">Mapped {{ what|lower }} line {{ c.nearest_line.miles|floatformat:1 }} mi ({{ c.nearest_line.name }})</div>{% endif %}{% endif %}</td></tr>{% endfor %}
       {% for o in category_rows %}<tr><th>{{ o.label }}</th><td><b>{{ o.value }}</b> <span class="muted">{% if o.parts|length > 1 %}({% for k, v in o.parts.items %}{{ k }} {{ v|floatformat:0 }}%{% if not forloop.last %}, {% endif %}{% endfor %}){% endif %} 1-3 = existing or planned public service; 5-6 = none planned</span></td></tr>{% endfor %}

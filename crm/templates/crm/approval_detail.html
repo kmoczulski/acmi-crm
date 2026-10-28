@@ -30,7 +30,7 @@
     {% for d in psa_dates %}<div class="lc-small {% if d.date and a.needed_by and d.date < a.needed_by %}overdue{% else %}muted{% endif %}">PSA: {{ d.label }} {{ d.date|date:"M j, Y"|default:"(not fixed)" }}</div>{% endfor %}</div>
   <div><div class="label">Decision</div>
     {% if a.approved_on %}<div class="value">{{ a.approved_on|date:"M j, Y" }}</div>{% else %}<div class="value muted">–</div>{% endif %}
-    <div class="muted lc-small">{% if a.expires_on %}<span class="{% if a.expiring_in is not None and a.expiring_in <= 60 %}soon{% endif %}">lapses {{ a.expires_on|date:"M j, Y" }}</span>{% endif %}{% if a.appeal_ends_on %} · appeal period ends {{ a.appeal_ends_on|date:"M j" }}{% endif %}{% if a.submitted_on %}{% if a.expires_on or a.appeal_ends_on %} · {% endif %}submitted {{ a.submitted_on|date:"M j" }}{% endif %}</div></div>
+    <div class="muted lc-small">{% if a.expires_on %}<span class="{% if a.expiring_in is not None and a.expiring_in <= 60 %}soon{% endif %}">Lapses {{ a.expires_on|date:"M j, Y" }}</span>{% endif %}{% if a.appeal_ends_on %} · appeal period ends {{ a.appeal_ends_on|date:"M j" }}{% endif %}{% if a.submitted_on %}{% if a.expires_on or a.appeal_ends_on %} · {% endif %}submitted {{ a.submitted_on|date:"M j" }}{% endif %}</div></div>
 </div>
 
 <div class="ct-layout">
@@ -67,7 +67,7 @@
         <table class="data compact">{% for c in proposed %}
           <tr><td><input type="checkbox" name="condition" value="{{ c.pk }}" checked></td>
             <td class="wrap">{{ c.text }}<div class="muted lc-small">{{ c.timing }}{% if c.due_on %} · due {{ c.due_on|date:"M j, Y" }}{% endif %}</div>
-              {% if c.quote %}<details class="lc-small"><summary>{% if c.source_href and c.source_start is not None %}<a href="{{ c.source_href }}" target="_blank" rel="noopener">source</a>{% else %}quote (not found in the text){% endif %}</summary><q>{{ c.quote }}</q></details>{% endif %}</td></tr>
+              {% if c.quote %}<details class="lc-small"><summary>{% if c.source_href and c.source_start is not None %}<a href="{{ c.source_href }}" target="_blank" rel="noopener">Source</a>{% else %}Quote (not found in the text){% endif %}</summary><q>{{ c.quote }}</q></details>{% endif %}</td></tr>
         {% endfor %}</table>
         <div class="inline-form"><button class="btn btn-primary btn-small" name="action" value="condition_keep">Keep ticked</button>
           <button class="btn btn-small" name="action" value="condition_discard" onclick="return confirm('Discard all of Claude\'s suggestions?')">Discard all</button></div>
@@ -78,7 +78,7 @@
           <form method="post">{% csrf_token %}<input type="hidden" name="action" value="condition_status"><input type="hidden" name="condition" value="{{ c.pk }}">
             <button class="ct-check" name="status" value="{% if c.status == 'met' %}open{% else %}met{% endif %}" title="{% if c.status == 'met' %}Mark open{% else %}Mark met{% endif %}">{% if c.status == "met" %}✓{% elif c.status == "na" %}–{% else %}○{% endif %}</button></form>
           <span class="cl-name">{{ c.text }}{% if c.timing %} <span class="muted lc-small">· {{ c.timing }}</span>{% endif %}
-            {% if c.source_href %} <a class="lc-small" href="{{ c.source_href }}" target="_blank" rel="noopener" title="{{ c.quote|truncatechars:300 }}">source</a>{% endif %}</span>
+            {% if c.source_href %} <a class="lc-small" href="{{ c.source_href }}" target="_blank" rel="noopener" title="{{ c.quote|truncatechars:300 }}">Source</a>{% endif %}</span>
           <span class="lc-small {% if c.status == 'open' and c.due_on and c.due_on < today %}overdue{% else %}muted{% endif %}">{{ c.due_on|date:"M j" }}</span>
           <form method="post">{% csrf_token %}<input type="hidden" name="action" value="condition_status"><input type="hidden" name="condition" value="{{ c.pk }}">
             <input type="hidden" name="status" value="{% if c.status == 'na' %}open{% else %}na{% endif %}">

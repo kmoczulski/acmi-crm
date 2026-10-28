@@ -32,7 +32,7 @@
       {% for c in columns %}
         <tr class="{% if not c.field %}imp-ignored{% endif %}">
           <td><strong>{{ c.header }}</strong></td>
-          <td class="imp-samples">{% for s in c.samples %}<span>{{ s|truncatechars:40 }}</span>{% empty %}<span class="muted">empty</span>{% endfor %}</td>
+          <td class="imp-samples">{% for s in c.samples %}<span>{{ s|truncatechars:40 }}</span>{% empty %}<span class="muted">Empty</span>{% endfor %}</td>
           <td><select name="col_{{ c.i }}" data-col>
             <option value="">Ignore</option>
             {% for group, fields in groups %}<optgroup label="{{ group }}">{% for key, label in fields %}<option value="{{ key }}" {% if key == c.field %}selected{% endif %}>{{ label }}</option>{% endfor %}</optgroup>{% endfor %}

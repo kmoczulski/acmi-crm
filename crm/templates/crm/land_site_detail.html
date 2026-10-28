@@ -155,7 +155,7 @@
         {% for m in milestones %}
         <label><span>{{ m.label }}</span>
           <input type="date" name="{{ m.key }}" value="{{ m.date|date:'Y-m-d' }}">
-          <button type="button" class="btn-link lc-small" data-today>today</button></label>
+          <button type="button" class="btn-link lc-small" data-today>Today</button></label>
         {% endfor %}
         <p class="muted lc-small">Setting a later milestone moves the status forward (LOI → Under contract → Acquired); it never moves it back. Dropped sites keep their status.</p>
         <button class="btn-primary">Save timeline</button>
@@ -197,7 +197,7 @@
 
     {% if parcels %}<section class="panel" id="comps">
       <h3>Sale comps nearby <a href="{% url 'crm:land_comps' %}?site={{ site.pk }}" style="float:right;text-transform:none;letter-spacing:0">All comps</a></h3>
-      {% with vr=site_range %}{% if vr %}<div class="lc-small"><b>Value range</b><span class="team-only-tag">team only</span>
+      {% with vr=site_range %}{% if vr %}<div class="lc-small"><b>Value range</b><span class="team-only-tag">Team only</span>
         {% if vr.enough %}<div class="lc-range">
           <a href="{% url 'crm:land_comps' %}?{{ vr.query }}">Low<b>${{ vr.low|intcomma }}</b>/ac</a>
           <a href="{% url 'crm:land_comps' %}?{{ vr.query }}">Base<b>${{ vr.base|intcomma }}</b>/ac</a>
@@ -223,7 +223,7 @@
               <td class="wrap">{{ p.owner_name|title|default:"Unknown" }}{% if p.mail_state and p.mail_state != p.county.state %} <span class="muted lc-small">({{ p.mail_state }})</span>{% endif %}</td>
               <td class="wrap"><a href="{{ p.get_absolute_url }}">{{ p.situs_address|default:p.legal_desc|truncatechars:40|default:p.prop_id }}</a>
                 <div class="muted lc-small">{{ p.county.name }} · {% if p.cad_url %}<a href="{{ p.cad_url }}" target="_blank" rel="noopener">{{ p.prop_id }}</a>{% else %}{{ p.prop_id|default:p.key }}{% endif %}</div></td>
-              <td class="num">{% if p.deal.trimmed %}{{ p.deal.acres|floatformat:1|intcomma }}<div class="muted lc-small">of {{ p.acres|floatformat:1|intcomma }} · trimmed</div>{% else %}{{ p.acres|floatformat:1|intcomma }}{% endif %}{% if p.deal and not p.deal.included %}<div class="muted lc-small">excluded</div>{% endif %}</td>
+              <td class="num">{% if p.deal.trimmed %}{{ p.deal.acres|floatformat:1|intcomma }}<div class="muted lc-small">of {{ p.acres|floatformat:1|intcomma }} · trimmed</div>{% else %}{{ p.acres|floatformat:1|intcomma }}{% endif %}{% if p.deal and not p.deal.included %}<div class="muted lc-small">Excluded</div>{% endif %}</td>
               <td class="lc-small">{{ p.zoning|default:p.state_land_use|default:"–" }}</td>
               <td class="num">{{ p.score }}{% if p.killers %} <span class="overdue" title="{{ p.killers|join:'; ' }}">⛔</span>{% endif %}</td>
               <td class="lc-small">{{ p.get_status_display }}</td>

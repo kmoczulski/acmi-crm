@@ -44,7 +44,7 @@
       {% if not i.has_draft %}
         <span class="muted">No draft was written for this one.</span>
       {% elif i.draft_uid %}
-        <div class="muted" style="font-size:12px;margin-bottom:4px">Gmail draft matched ({{ i.draft_score|floatformat:2 }}){% if i.edited %} · <strong style="color:var(--accent)">edited</strong> <button type="button" class="btn-link btn-small" data-revert {% if locked %}disabled{% endif %}>Revert</button>{% endif %}
+        <div class="muted" style="font-size:12px;margin-bottom:4px">Gmail draft matched ({{ i.draft_score|floatformat:2 }}){% if i.edited %} · <strong style="color:var(--accent)">Edited</strong> <button type="button" class="btn-link btn-small" data-revert {% if locked %}disabled{% endif %}>Revert</button>{% endif %}
           {% if i.people %} · to {% for p in i.people %}{{ p.name|default:p.email }}{% if not forloop.last %}, {% endif %}{% endfor %}{% endif %}</div>
         {% if i.draft_too_large %}
           <div><strong>{{ i.subject }}</strong> <span class="muted">(too large to edit here; open it in Gmail)</span></div>

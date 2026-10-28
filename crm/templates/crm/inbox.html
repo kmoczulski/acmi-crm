@@ -68,8 +68,8 @@
       <input type="hidden" name="in" value="{{ within|default:label }}" data-adv-in {% if not within %}disabled{% endif %}>
     </form>
     {% if widened %}<p class="mail-widened lc-small muted">Also finding mail with {% for kind, name in widened %}<b>{{ name }}</b>{% if not forloop.last %}, {% endif %}{% endfor %} by their addresses ·
-      <a href="?{% if label %}label={{ label|urlencode }}&{% endif %}q={{ query|urlencode }}&exact=1">just the words</a></p>
-    {% elif exact and query %}<p class="mail-widened lc-small muted">Matching the words only · <a href="?{% if label %}label={{ label|urlencode }}&{% endif %}q={{ query|urlencode }}">include people and companies</a></p>{% endif %}
+      <a href="?{% if label %}label={{ label|urlencode }}&{% endif %}q={{ query|urlencode }}&exact=1">Just the words</a></p>
+    {% elif exact and query %}<p class="mail-widened lc-small muted">Matching the words only · <a href="?{% if label %}label={{ label|urlencode }}&{% endif %}q={{ query|urlencode }}">Include people and companies</a></p>{% endif %}
     <div class="mail-list-head">
       <strong>{{ label_name }}</strong>{% if query %} <span class="muted">“{{ query }}”</span> <a class="lc-small" href="?label={{ label|urlencode }}">Clear</a>{% endif %}
       <span class="spacer"></span>
@@ -118,7 +118,7 @@
       <li class="mail-row{% if t.unread %} unread{% endif %}{% if t.gmail_id == open_id %} on{% endif %}">
 {% if can_change %}        <input type="checkbox" class="mail-pick" name="t" value="{{ t.gmail_id }}" form="mail-bulk" aria-label="Select {{ t.subject|default:'(no subject)' }}" data-pick>{% endif %}
         <a href="?label={{ label|urlencode }}{% if query %}&q={{ query|urlencode }}{% endif %}{% if tab != 'all' %}&tab={{ tab }}{% endif %}{% if page_token %}&p={{ page_token|urlencode }}{% endif %}{% if offset %}&o={{ offset }}{% endif %}&t={{ t.gmail_id }}">
-          <span class="mail-from">{% for s in t.senders|slice:":3" %}{% if s.1 == mailbox.email %}me{% else %}{{ s.0|default:s.1 }}{% endif %}{% if not forloop.last %}, {% endif %}{% endfor %}{% if t.message_count > 1 %} <span class="muted">{{ t.message_count }}</span>{% endif %}</span>
+          <span class="mail-from">{% for s in t.senders|slice:":3" %}{% if s.1 == mailbox.email %}Me{% else %}{{ s.0|default:s.1 }}{% endif %}{% if not forloop.last %}, {% endif %}{% endfor %}{% if t.message_count > 1 %} <span class="muted">{{ t.message_count }}</span>{% endif %}</span>
           <span class="mail-date">{% if t.has_attachments %}<span title="Has attachments" aria-label="Has attachments">📎</span> {% endif %}{{ t.last_message_at|date:"M j" }}</span>
           <span class="mail-subject">{% if t.starred %}<span title="Starred" aria-label="Starred">★</span> {% endif %}{{ t.subject|default:"(no subject)" }}</span>
           <span class="mail-snippet">{% with until=snoozed|get_item:t.gmail_id %}{% if until %}<span class="tag">⏰ {{ until|date:"D M j, g A" }}</span> {% endif %}{% endwith %}{{ t.snippet }}</span>

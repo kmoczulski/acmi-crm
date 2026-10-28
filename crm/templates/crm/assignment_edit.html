@@ -33,7 +33,7 @@
   <div class="grid2">{% for k, label, val, pre in overview %}
     <label>{{ label }}</label><textarea name="ov_{{ k }}" rows="{% if k == 'parcel_ids' %}3{% else %}1{% endif %}" placeholder="{{ pre|truncatechars:80 }}">{{ val }}</textarea>{% endfor %}</div>
 
-  <h3>Net usable acreage <span class="muted lc-small">gross {{ c.gross|floatformat:'-1'|intcomma }} ac from the CRM; enter acres to subtract</span></h3>
+  <h3>Net usable acreage <span class="muted lc-small">Gross {{ c.gross|floatformat:'-1'|intcomma }} ac from the CRM; enter acres to subtract</span></h3>
   <div class="grid2">
     <label>Less: wetlands</label><input type="text" name="net_wetlands" value="{{ net.wetlands }}">
     <label>Less: floodway</label><input type="text" name="net_floodway" value="{{ net.floodway }}">

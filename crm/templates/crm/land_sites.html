@@ -16,10 +16,10 @@
 </div>
 {% view_bar "sites" %}
 <div class="sites-stats">
-  <div><b>{{ total }}</b><span>active site{{ total|pluralize }}</span></div>
-  <div><b>{{ total_acres|floatformat:0|intcomma }}</b><span>acres mapped</span></div>
+  <div><b>{{ total }}</b><span>Active site{{ total|pluralize }}</span></div>
+  <div><b>{{ total_acres|floatformat:0|intcomma }}</b><span>Acres mapped</span></div>
   <div><b>{{ groups|length }}</b><span>campus / project group{{ groups|length|pluralize }}</span></div>
-  {% if archive %}<div><b>{{ archive|length }}</b><span>archived</span></div>{% endif %}
+  {% if archive %}<div><b>{{ archive|length }}</b><span>Archived</span></div>{% endif %}
 </div>
 {% if view == 'campus' %}<nav class="stage-filter" aria-label="Filter by deal stage">
   <a class="stage-chip{% if status not in stage_values %} on{% endif %}" href="?">All active <b>{{ active_count }}</b></a>

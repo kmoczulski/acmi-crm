@@ -20,7 +20,7 @@
     {% else %}<div class="value muted">–</div>{% endif %}{% endwith %}</div>
   <div><div class="label">Budget</div>
     {% with t=s.budget.totals %}{% if s.budget.lines %}<div class="value">{{ t.current|money }}</div>
-      <div class="lc-small {% if t.variance > 0 %}overdue{% else %}muted{% endif %}">forecast {{ t.forecast_total|money }}{% if t.variance > 0 %} · {{ t.variance|money }} over{% elif t.variance < 0 %} · under budget{% endif %}</div>
+      <div class="lc-small {% if t.variance > 0 %}overdue{% else %}muted{% endif %}">Forecast {{ t.forecast_total|money }}{% if t.variance > 0 %} · {{ t.variance|money }} over{% elif t.variance < 0 %} · under budget{% endif %}</div>
     {% else %}<div class="value muted">–</div>{% endif %}{% endwith %}</div>
   <div><div class="label">General contractor</div>
     {% if s.gc %}<div class="value">{{ s.gc }}</div>{% elif s.bids %}<div class="value muted">Selecting</div><div class="muted lc-small">{{ s.bids_in|length }} proposal{{ s.bids_in|length|pluralize }} in</div>{% else %}<div class="value muted">–</div>{% endif %}</div>
@@ -46,7 +46,7 @@
         <td class="lc-small">{{ m.actual|date:"M j, Y"|default:"–" }}</td>
         <td class="num lc-small {% if m.slip and m.slip > 0 %}overdue{% endif %}">{% if m.slip is not None %}{% if m.slip > 0 %}+{% endif %}{{ m.slip }} d{% endif %}</td>
         <td class="wrap lc-small">{{ m.note }}
-          <details class="ct-edit no-print"><summary>edit</summary>
+          <details class="ct-edit no-print"><summary>Edit</summary>
             <form method="post" class="dd-form">{% csrf_token %}<input type="hidden" name="action" value="milestone_edit"><input type="hidden" name="id" value="{{ m.pk }}">
               <label>Milestone <input name="name" value="{{ m.name }}" required></label>
               <label>Phase <select name="phase">{% for v, l in phases|offer:m.phase %}<option value="{{ v }}"{% if v == m.phase %} selected{% endif %}>{{ l }}</option>{% endfor %}</select></label>
@@ -83,7 +83,7 @@
     <tbody>{% for t in project.team.all %}<tr>
       <td class="lc-small">{{ t.get_role_display }}</td>
       <td class="wrap"><b>{% if t.directory_id %}<a href="{% url 'crm:firm' t.directory_id %}">{{ t.firm }}</a>{% else %}{{ t.firm }}{% endif %}</b>{% if t.contact %}<div class="muted lc-small">{{ t.contact }}</div>{% endif %}
-        <details class="ct-edit no-print lc-small"><summary>edit</summary>
+        <details class="ct-edit no-print lc-small"><summary>Edit</summary>
           <form method="post" class="dd-form">{% csrf_token %}<input type="hidden" name="action" value="team_edit"><input type="hidden" name="id" value="{{ t.pk }}">
             <label>Role <select name="role">{% for v, l in roles|offer:t.role %}<option value="{{ v }}"{% if v == t.role %} selected{% endif %}>{{ l }}</option>{% endfor %}</select></label>
             <label>Firm <input name="firm" value="{{ t.firm }}" list="firm-names" autocomplete="off" required></label>
@@ -121,7 +121,7 @@
       <td>{{ d.number }}</td><td class="lc-small">{{ d.period_end|date:"M j, Y"|default:"–" }}</td>
       <td class="num">{{ d.requested|dollars }}</td><td class="num">{{ d.funded|dollars }}</td><td class="num">{{ d.retainage|dollars }}</td>
       <td class="lc-small">{{ d.get_status_display }}{% if d.funded_on %} {{ d.funded_on|date:"M j" }}{% elif d.submitted_on %} {{ d.submitted_on|date:"M j" }}{% endif %}
-        <details class="ct-edit no-print"><summary>edit</summary>
+        <details class="ct-edit no-print"><summary>Edit</summary>
           <form method="post" class="dd-form">{% csrf_token %}<input type="hidden" name="action" value="draw_edit"><input type="hidden" name="id" value="{{ d.pk }}">
             <label>Number <input name="number" value="{{ d.number }}" required></label>
             <label>Period end <input type="date" name="period_end" value="{{ d.period_end|date:'Y-m-d' }}"></label>
@@ -167,7 +167,7 @@
       <td class="lc-small">{% if b.href %}<a href="{{ b.href }}" target="_blank" rel="noopener">{% if b.pages %}{{ b.pages }} p.{% else %}file{% endif %}</a>{% else %}–{% endif %}</td>
     </tr>
     <tr class="dd-more no-print"><td colspan="8">
-      <details class="ct-edit lc-small"><summary>edit</summary>
+      <details class="ct-edit lc-small"><summary>Edit</summary>
         <form method="post" enctype="multipart/form-data" class="dd-form">{% csrf_token %}<input type="hidden" name="action" value="bid_edit"><input type="hidden" name="id" value="{{ b.pk }}">
           <label>Firm <input name="firm" value="{{ b.firm }}" required></label>
           <label>Contact <input name="contact" value="{{ b.contact }}"></label>
@@ -236,7 +236,7 @@
     {% for group, rows in s.budget.groups %}<tbody><tr class="bd-phase"><td colspan="8">{{ group }}</td></tr>
       {% for l in rows %}<tr>
         <td class="wrap"><span class="muted lc-small">{{ l.code }}</span> {{ l.name }}
-          <details class="ct-edit no-print lc-small"><summary>edit</summary>
+          <details class="ct-edit no-print lc-small"><summary>Edit</summary>
             <form method="post" class="dd-form">{% csrf_token %}<input type="hidden" name="action" value="line_edit"><input type="hidden" name="id" value="{{ l.pk }}">
               <label>Group <select name="group">{% for v, lab in groups|offer:l.group %}<option value="{{ v }}"{% if v == l.group %} selected{% endif %}>{{ lab }}</option>{% endfor %}</select></label>
               <label>Code <input name="code" value="{{ l.code }}"></label>
@@ -277,7 +277,7 @@
     <tbody>{% for c in project.change_orders.all %}<tr>
       <td class="lc-small">{{ c.number }}</td>
       <td class="wrap">{{ c.title }}{% if c.notes %}<div class="muted lc-small">{{ c.notes }}</div>{% endif %}
-        <details class="ct-edit no-print lc-small"><summary>edit</summary>
+        <details class="ct-edit no-print lc-small"><summary>Edit</summary>
           <form method="post" class="dd-form">{% csrf_token %}<input type="hidden" name="action" value="co_edit"><input type="hidden" name="id" value="{{ c.pk }}">
             <label>Number <input name="number" value="{{ c.number }}"></label>
             <label class="dd-wide">Change <input name="title" value="{{ c.title }}" required></label>

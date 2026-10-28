@@ -167,7 +167,7 @@ class ClaudeOnPapersTests(EntitlementBase):
         self.assertEqual(proposed[2].due_on, date(2026, 12, 1))
         self.variance.refresh_from_db()
         self.assertEqual((self.variance.expires_on, self.variance.appeal_ends_on), (date(2027, 6, 30), date(2026, 11, 30)))
-        self.assertContains(r, "quote (not found in the text)")
+        self.assertContains(r, "Quote (not found in the text)")
         self.client.post(self.variance.get_absolute_url(), {"action": "condition_keep",
                                                             "condition": [proposed[0].pk, proposed[1].pk]})
         self.client.post(self.variance.get_absolute_url(), {"action": "condition_discard"})

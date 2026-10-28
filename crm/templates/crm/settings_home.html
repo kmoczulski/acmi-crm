@@ -12,7 +12,7 @@
   <section class="panel dd-area">
     <h3>{{ area }}</h3>
     {% for l in items %}<a class="dd-row" href="{% url 'crm:dropdown_edit' l.key %}">
-      <span><b>{{ l.title }}</b>{% if not l.open %} <span class="tag" title="New options pick a built-in option they work like">logic</span>{% endif %}{% if l.edited %} <span class="tag">edited</span>{% endif %}
+      <span><b>{{ l.title }}</b>{% if not l.open %} <span class="tag" title="New options pick a built-in option they work like">Logic</span>{% endif %}{% if l.edited %} <span class="tag">Edited</span>{% endif %}
         <span class="muted lc-small dd-used">{{ l.used_in|join:" · " }}</span></span>
       <span class="muted lc-small">{{ l.count }} option{{ l.count|pluralize }} ›</span>
     </a>{% endfor %}
