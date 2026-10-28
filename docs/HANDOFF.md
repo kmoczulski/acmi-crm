@@ -5,6 +5,20 @@ Read this first when picking the project up in a new chat, along with
 
 ## Pick up here (2026-10-25)
 
+**NEXT, for the ACMI Claude on the laptop (2026-10-28): finish the review work in `docs/WORKLIST_2026-10-28.md`.**
+Kellen: "combine everything and check against what you found. Then update handoff and have my acmi claude finish the
+work". The worklist combines today's security audit and UI review, Gemini's report, the 10-26 review and the 10-22 UX
+pass. Each item was checked against `main` (`b254b6d`) and this branch, with Gemini's wrong items rejected with proof.
+In order:
+1. **Merge `main` into branch `claude/beautiful-albattani-6xp3qi`** in a worktree. The merge brings 9 conflicts, each
+   with its resolution in the worklist. Take `main`'s mail layout and `attach.js`, and drop the branch's duplicate
+   attachment list.
+2. **Renumber the branch's migration** `0068_data_room_login_attempts` to `0072`, after a read-only check that it was
+   never applied. Back up first, then suite, CI, and fast-forward `main`.
+3. **Fix W1–W13**, each with a test. Start with "Not a deal" taking a GET (W1), the inbox's Add note 500 (W2), the
+   23 too-wide phone pages (W3) and the pipeline table (W4).
+4. **Improvements I1–I16** are Kellen's pick. The quick wins are marked.
+
 **Record cards 2026-10-27** (Kellen: "check the clickability between things... on the investor report to a company
 then to their page. Is that necessary? Should it not be their card? ... It should be much more fluid and easy to
 navigate"). A plain click on any company, deal or person link now opens that record's card over the page you are on:
@@ -53,7 +67,8 @@ Excel exports, a read-only shared-mailbox grantee who can file, partner password
 and "Not a deal" working from a GET. `docs/UI_REVIEW_2026-10-28.md` (screenshots in `docs/ux-review-3/`): the parcel
 card 500s once the user who set a status is deleted, five inbox actions 500 when Google refuses the token, 23 phone
 pages are too wide (mostly `app.css:685`), and the pipeline table lists closed deals first under an open-deal count.
-The fixes are to be chosen with Kellen.
+The parcel card and four of the five inbox actions turned out to be fixed on this branch already (10-26 items 10
+and 12). What's still to do is in `docs/WORKLIST_2026-10-28.md`.
 
 **Code review and audit of the week's changes 2026-10-26** (Kellen: "review the changes made since 10/21, audit and
 optimize everything"; branch `claude/beautiful-albattani-6xp3qi`, not merged; findings and a checklist of what to try
