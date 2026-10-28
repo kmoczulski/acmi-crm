@@ -39,7 +39,7 @@
       <h3>Contacts</h3>
       {% for c in p.contacts %}<div class="row-line"><span><b>{{ c.name }}</b>{% if c.title %} <span class="muted lc-small">· {{ c.title }}</span>{% endif %}
           <div class="lc-small">{% if c.email %}<a href="mailto:{{ c.email }}">{{ c.email }}</a>{% endif %}{% if c.phone %} · {{ c.phone }}{% endif %}</div></span>
-        <form method="post" onsubmit="return confirm('Remove {{ c.name|escapejs }}?')">{% csrf_token %}<input type="hidden" name="action" value="contact_delete"><input type="hidden" name="i" value="{{ forloop.counter0 }}"><button class="btn-link lc-small">✕</button></form></div>
+        <form method="post" onsubmit="return confirm('Remove {{ c.name|escapejs }}?')">{% csrf_token %}<input type="hidden" name="action" value="contact_delete"><input type="hidden" name="i" value="{{ forloop.counter0 }}"><input type="hidden" name="name" value="{{ c.name|default:'' }}"><input type="hidden" name="email" value="{{ c.email|default:'' }}"><button class="btn-link lc-small">✕</button></form></div>
       {% empty %}<p class="muted lc-small">None yet.</p>{% endfor %}
       <form method="post" class="dd-form" style="margin-top:8px">{% csrf_token %}<input type="hidden" name="action" value="contact_add">
         <label>Name <input name="name" required></label><label>Title <input name="title"></label>
