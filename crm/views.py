@@ -680,16 +680,25 @@ def opportunity_board(request):
         deals = [o for o in deals if o.stage == stage_filter]
         view = "table" if view == "board" and request.GET.get("view") != "board" else view
     show_closed = request.GET.get("closed") == "1"
-    deals.sort(key=lambda o: (-STAGE_ORDER[o.stage], -(o.value or 0), o.name))
+    # Open stages first (furthest along at the top), then signed, then on hold and lost.
+    closed_stages = (OpportunityStage.ON_HOLD, OpportunityStage.LOST)
+    deals.sort(key=lambda o: (o.stage not in OPEN_STAGES, o.stage in closed_stages, -STAGE_ORDER[o.stage],
+                              -(o.value or 0), o.name))
+    # The table hides on-hold and lost deals, as the board folds their columns, unless
+    # asked for (closed=1) or that stage was picked.
+    rows = deals
+    if not show_closed and stage_filter not in closed_stages:
+        rows = [o for o in deals if o.stage not in closed_stages]
     columns = []
     for value, label in OpportunityStage.choices:
         items = [o for o in deals if o.stage == value]
         columns.append({
             "value": value, "label": label, "items": items, "total": sum(o.value or 0 for o in items),
-            "collapsed": value in (OpportunityStage.ON_HOLD, OpportunityStage.LOST) and not show_closed,
+            "collapsed": value in closed_stages and not show_closed,
         })
     return render(request, "crm/opportunity_board.html", {
-        "columns": columns, "deals": deals, "view": view, "campuses": Campus.objects.all(),
+        "columns": columns, "deals": rows, "hidden_closed": len(deals) - len(rows), "show_closed": show_closed,
+        "view": view, "campuses": Campus.objects.all(),
         "campus": request.GET.get("campus"), "risk_only": risk_only, "stage_filter": stage_filter,
         "summary": pipeline.summary(qs), "users": active_users(),
         "suggestions": pipeline.suggestions(limit=10) if view == "board" else [],
@@ -705,7 +714,6 @@ def suggestion_create(request, company_id):
 
 
 @require_POST
-@require_POST
 def reply_dismiss(request, pk):
     """My day: this reply needs no answer from me, so take it off my list (only mine)."""
     act = get_object_or_404(Activity, pk=pk, kind=Activity.Kind.REPLY)
@@ -717,6 +725,7 @@ def reply_dismiss(request, pk):
     return redirect(_safe_next(request, reverse("crm:home")))
 
 
+@require_POST
 def suggestion_dismiss(request, company_id):
     company = get_object_or_404(Company, pk=company_id)
     DealSuggestionDismissal.objects.get_or_create(company=company, defaults={"dismissed_by": request.user})
