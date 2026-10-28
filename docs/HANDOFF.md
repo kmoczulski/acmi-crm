@@ -9,15 +9,26 @@ Read this first when picking the project up in a new chat, along with
 Kellen: "combine everything and check against what you found. Then update handoff and have my acmi claude finish the
 work". The worklist combines today's security audit and UI review, Gemini's report, the 10-26 review and the 10-22 UX
 pass. Each item was checked against `main` (`b254b6d`) and this branch, with Gemini's wrong items rejected with proof.
-In order:
-1. **Merge `main` into branch `claude/beautiful-albattani-6xp3qi`** in a worktree. The merge brings 9 conflicts, each
-   with its resolution in the worklist. Take `main`'s mail layout and `attach.js`, and drop the branch's duplicate
-   attachment list.
+**Kellen decided the same day: deploy everything to the cloud first, then audit and fix the hosted copy.** The laptop
+stops being the working copy. Worklist section 5 checks the laptop Claude's hosting-readiness list. In order:
+1. **Merge `main` into branch `claude/beautiful-albattani-6xp3qi`, before the first deploy.** This branch's
+   `cloudbuild.yaml` already passes `ACMI_TOKEN_KEY`, the VAPID pair, the Anthropic key to the sync job and the Google
+   client to the send job, which are the first three "confirmed" readiness gaps. Deploying `main` as it stands ships
+   them. The merge brings 9 conflicts, each with its resolution in worklist step 0. Take `main`'s mail layout and
+   `attach.js`, and drop the branch's duplicate attachment list.
 2. **Renumber the branch's migration** `0068_data_room_login_attempts` to `0072`, after a read-only check that it was
-   never applied. Back up first, then suite, CI, and fast-forward `main`.
-3. **Fix W1–W13**, each with a test. Start with "Not a deal" taking a GET (W1), the inbox's Add note 500 (W2), the
-   23 too-wide phone pages (W3) and the pipeline table (W4).
-4. **Improvements I1–I16** are Kellen's pick. The quick wins are marked.
+   never applied. Then suite, CI, and fast-forward `main`.
+3. **Cutover** (worklist section 5):
+   - Secret Manager gets the laptop's own `ACMI_TOKEN_KEY` and VAPID pair, or the copied tokens and subscriptions
+     are unreadable.
+   - Copy `media/` to the bucket (the image leaves it out).
+   - Turn off the laptop's mail sync task before the final database copy.
+   - Rehearse the 1.1 GB copy into a scratch Postgres first.
+   - Add the OAuth redirect URIs.
+4. **Still to build for the cloud:** the news watcher reading a Drive folder (plus `ACMI_DRIVE_ADC`), and a way for
+   Granola meetings to reach the hosted database (today the import writes the laptop's).
+5. **Then, on the hosted copy:** W1–W13, each with a test. Improvements I1–I16 are Kellen's pick, with the quick wins
+   marked.
 
 **Record cards 2026-10-27** (Kellen: "check the clickability between things... on the investor report to a company
 then to their page. Is that necessary? Should it not be their card? ... It should be much more fluid and easy to
