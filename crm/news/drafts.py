@@ -197,7 +197,8 @@ def _name_similarity(company, candidate):
     overlap = left & right
     if not left or not right or not overlap:
         return 0.0
-    coverage = len(overlap) / len(left)
+    distinctive = left - INDUSTRY_WORDS or left  # a subject that drops "Aerospace" still names the company
+    coverage = len(overlap & distinctive) / len(distinctive)
     ratio = SequenceMatcher(None, " ".join(sorted(left)), " ".join(sorted(right))).ratio()
     score = 0.65 * coverage + 0.35 * ratio
     if not (overlap - INDUSTRY_WORDS):
@@ -367,6 +368,12 @@ class Drafts:
         self._select(readonly=False)
         return self._trash(uids)
 
+    def create(self, to, subject, html_body, cc=""):
+        raise DraftError(f"{self.mailbox.email} isn't on Mail in the hub, so a draft can't be placed in it.")
+
+    def compose_url(self, uid):
+        return f"https://mail.google.com/mail/u/{self.mailbox.email}/#drafts"
+
     def _trash(self, uids):
         results = {}
         for uid in uids:
@@ -456,6 +463,25 @@ class ApiDrafts:
         message.add_alternative(html_body, subtype="html")
         answer = self.client.save_draft(message.as_bytes(), draft_id=uid, thread_id=msg_json.get("threadId", ""))
         return answer.get("id", uid)
+
+    def create(self, to, subject, html_body, cc=""):
+        """Put a new, unsent draft in this mailbox. Returns its draft id."""
+        message = EmailMessage()
+        message["From"] = self.mailbox.email
+        if to:
+            message["To"] = to
+        if cc:
+            message["Cc"] = cc
+        message["Subject"] = subject or ""
+        message.set_content(html_to_text(html_body))
+        message.add_alternative(html_body, subtype="html")
+        return self.client.save_draft(message.as_bytes())["id"]
+
+    def compose_url(self, uid):
+        """A link that opens the draft in Gmail for this mailbox's account."""
+        message_id = (self.client.draft(uid).get("message") or {}).get("id", "")
+        base = f"https://mail.google.com/mail/u/{self.mailbox.email}/#drafts"
+        return f"{base}?compose={message_id}" if message_id else base
 
     def trash(self, uids):
         results = {}

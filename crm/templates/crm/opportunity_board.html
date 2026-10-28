@@ -13,6 +13,10 @@
   <form method="get" class="inline-form">{% for k, v in request.GET.items %}{% if k != 'q' %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endif %}{% endfor %}
     <input type="search" name="q" value="{{ request.GET.q }}" placeholder="Filter deals" size="16"></form>
 </div>
+<div class="chips">
+  <span class="muted">Sort</span>
+  {% for key, label in sorts %}<a class="{% if sort == key %}on{% endif %}" href="{% qs_set sort=key %}">{{ label }}</a>{% endfor %}
+</div>
 {% view_bar "pipeline" %}
 <div class="board-summary">
   {{ summary.open_count }} open deal{{ summary.open_count|pluralize }} · {{ summary.open_total|money|default:"$0" }} pipeline · {{ summary.weighted_total|money|default:"$0" }} weighted · {{ summary.signed_total|money|default:"$0" }} signed

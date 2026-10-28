@@ -10,6 +10,18 @@
   };
   const csrf = () => document.cookie.split('; ').find(c => c.startsWith('csrftoken='))?.split('=')[1] || '';
 
+  // Dark mode: the profile menu's button flips it; the early script in base.html applies it before first paint.
+  document.querySelectorAll('[data-theme-toggle]').forEach(btn => {
+    const show = () => { btn.textContent = root.getAttribute('data-theme') === 'dark' ? 'Light mode' : 'Dark mode'; };
+    show();
+    btn.addEventListener('click', () => {
+      const dark = root.getAttribute('data-theme') !== 'dark';
+      if (dark) root.setAttribute('data-theme', 'dark'); else root.removeAttribute('data-theme');
+      try { localStorage.setItem('hubTheme', dark ? 'dark' : 'light'); } catch (e) {}
+      show();
+    });
+  });
+
   // Saved on the server (crm/prefs.py), so a layout follows the person to any computer.
   window.acmiPrefs = {
     save(key, value) {

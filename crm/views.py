@@ -1,3 +1,4 @@
+import datetime
 import re
 from urllib.parse import parse_qs, urlencode
 
@@ -664,6 +665,21 @@ def _filtered_deals(request):
     return qs
 
 
+_FAR = datetime.date.max
+# Board sorts, within each stage column (and the table, which lists stage first): label and sort key.
+DEAL_SORTS = {
+    "value": ("Value", lambda o: (-STAGE_ORDER[o.stage], -(o.value or 0), o.name.lower())),
+    "touch": ("Last touch", lambda o: (-STAGE_ORDER[o.stage], -(o.company.last_interaction_at.timestamp()
+                                                                if o.company.last_interaction_at else 0), o.name.lower())),
+    "name": ("A–Z", lambda o: (-STAGE_ORDER[o.stage], o.company.name.lower(), o.name.lower())),
+    "campus": ("Campus", lambda o: (-STAGE_ORDER[o.stage], o.site_label.lower(), o.company.name.lower())),
+    "owner": ("Owner", lambda o: (-STAGE_ORDER[o.stage], (o.owner.get_username() if o.owner_id else "~").lower(),
+                                   o.company.name.lower())),
+    "next": ("Next step due", lambda o: (-STAGE_ORDER[o.stage], o.next_step_due or _FAR, o.company.name.lower())),
+    "size": ("Size", lambda o: (-STAGE_ORDER[o.stage], -(o.sq_ft_need or 0), o.company.name.lower())),
+}
+
+
 def opportunity_board(request):
     qs = _filtered_deals(request)
     view = request.GET.get("view", "board")
@@ -680,10 +696,11 @@ def opportunity_board(request):
         deals = [o for o in deals if o.stage == stage_filter]
         view = "table" if view == "board" and request.GET.get("view") != "board" else view
     show_closed = request.GET.get("closed") == "1"
-    # Open stages first (furthest along at the top), then signed, then on hold and lost.
+    sort = request.GET.get("sort") if request.GET.get("sort") in DEAL_SORTS else "value"
+    deals.sort(key=DEAL_SORTS[sort][1])
+    # Then, keeping that order inside each group: open stages, signed, then on hold and lost.
     closed_stages = (OpportunityStage.ON_HOLD, OpportunityStage.LOST)
-    deals.sort(key=lambda o: (o.stage not in OPEN_STAGES, o.stage in closed_stages, -STAGE_ORDER[o.stage],
-                              -(o.value or 0), o.name))
+    deals.sort(key=lambda o: (o.stage not in OPEN_STAGES, o.stage in closed_stages))
     # The table hides on-hold and lost deals, as the board folds their columns, unless
     # asked for (closed=1) or that stage was picked.
     rows = deals
@@ -698,7 +715,8 @@ def opportunity_board(request):
         })
     return render(request, "crm/opportunity_board.html", {
         "columns": columns, "deals": rows, "hidden_closed": len(deals) - len(rows), "show_closed": show_closed,
-        "view": view, "campuses": Campus.objects.all(),
+        "view": view, "sort": sort, "sorts": [(key, label) for key, (label, _) in DEAL_SORTS.items()],
+        "campuses": Campus.objects.all(),
         "campus": request.GET.get("campus"), "risk_only": risk_only, "stage_filter": stage_filter,
         "summary": pipeline.summary(qs), "users": active_users(),
         "suggestions": pipeline.suggestions(limit=10) if view == "board" else [],

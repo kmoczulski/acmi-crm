@@ -169,7 +169,7 @@ dl.details dd.prose { white-space: normal; }
 
 /* Kanban */
 .board { display: flex; gap: 12px; overflow-x: auto; align-items: flex-start; padding-bottom: 12px; }
-.column { background: #eceff3; border-radius: var(--radius); width: 250px; flex: 0 0 250px; padding: 8px; min-height: 120px; }
+.column { background: #eceff3; border-radius: var(--radius); width: 250px; flex: 1 0 250px; padding: 8px; min-height: 120px; }
 .column h4 { margin: 2px 4px 8px; font-size: 13px; display: flex; justify-content: space-between; }
 .column.drop { outline: 2px dashed var(--accent); }
 .kcard { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 8px 10px; margin-bottom: 8px; cursor: grab; }
@@ -203,7 +203,7 @@ table.data.compact td, table.data.compact th { padding: 5px 8px; }
 .num { text-align: right; white-space: nowrap; }
 .kcard .risk { font-size: 11px; color: var(--bad); margin-top: 3px; }
 .kcard .next { font-size: 12px; margin-top: 3px; }
-.column.collapsed { width: 150px; flex-basis: 150px; }
+.column.collapsed { width: 150px; flex: 0 0 150px; }
 .board-summary { font-size: 12px; color: var(--muted); margin: -6px 0 10px; }
 .role-row { display: grid; grid-template-columns: 1fr auto auto; gap: 6px; align-items: center; padding: 5px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
 .bulkbar { display: flex; gap: 8px; align-items: center; padding: 8px 10px; background: var(--accent-soft); border-radius: var(--radius); margin-bottom: 10px; font-size: 13px; }
@@ -1514,7 +1514,7 @@ button.btn-primary, .btn.btn-primary { box-shadow: 0 1px 2px rgba(15, 23, 42, .1
 .appbar .user-menu .avatar { background: #fff; color: var(--accent); }
 kbd { display: inline-block; font: 600 10.5px/1 system-ui, sans-serif; padding: 3px 5px; border-radius: 4px;
   border: 1px solid var(--line); background: #f8fafc; color: var(--muted); }
-main { padding: 20px 28px 40px; max-width: 1680px; margin: 0 auto; }
+main { padding: 20px 28px 40px; }
 
 /* Drop-down menus (+ New, account). */
 .menu-wrap { position: relative; }
@@ -2453,3 +2453,16 @@ html.split-narrow .appbar .search-trigger kbd, html.split-narrow .appbar .search
   html.split-on.split-v { --main-vh: 100vh; }
   .split-pane, .split-btn { display: none; }
 }
+
+
+/* Dark mode: the page's colours are inverted and the hues turned back, so every panel, table and badge follows,
+   including the many that carry their own colours. Pictures, maps and frames are inverted again to look normal.
+   Chosen with the profile menu's "Dark mode" button (nav.js); never used for printing. */
+html[data-theme="dark"] { filter: invert(.92) hue-rotate(180deg); background: #fff; }
+html[data-theme="dark"] img, html[data-theme="dark"] video, html[data-theme="dark"] iframe,
+html[data-theme="dark"] canvas, html[data-theme="dark"] picture, html[data-theme="dark"] svg image,
+html[data-theme="dark"] .leaflet-container, html[data-theme="dark"] .maplibregl-map, html[data-theme="dark"] .mapboxgl-map,
+html[data-theme="dark"] [style*="background-image"] { filter: invert(1) hue-rotate(180deg) brightness(1.087); }
+html[data-theme="dark"] .appbar .brand img { filter: none; }
+@media print { html[data-theme="dark"] { filter: none; background: #fff; } html[data-theme="dark"] img,
+  html[data-theme="dark"] iframe, html[data-theme="dark"] canvas { filter: none; } }

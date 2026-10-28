@@ -6,6 +6,16 @@
   <title>{% block title %}ACMI CRM{% endblock %}</title>
   <link rel="stylesheet" href="{% static 'crm/app.css' %}?v={{ ASSET_VERSION }}">
   <script>
+    // Dark mode (the "Dark mode" button in the profile menu): the choice is kept in this browser; with none made, the
+    // computer's own setting decides. Set before first paint so the page doesn't flash white.
+    (function (h) {
+      var t = null;
+      try { t = localStorage.getItem('hubTheme'); } catch (e) {}
+      if (!t && window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches) t = 'dark';
+      if (t === 'dark') h.setAttribute('data-theme', 'dark');
+    })(document.documentElement);
+  </script>
+  <script>
     // Split view (split.js): inside the side frame the page drops its top bar; on top, an open split keeps its width
     // from the first paint, so the page doesn't jump when split.js runs.
     (function (h) {
@@ -124,6 +134,7 @@
         <a href="{% url 'crm:notification_list' %}">Notifications</a>
         <a href="{% url 'crm:notification_settings' %}">Notification settings</a>
         <a href="{% url 'crm:mail_settings' %}">Mail in the hub</a>
+        <button type="button" class="menu-btn" data-theme-toggle>Dark mode</button>
         <form method="post" action="{% url 'account_logout' %}">{% csrf_token %}<button class="menu-btn">Sign out</button></form>
       </div>
     </details>

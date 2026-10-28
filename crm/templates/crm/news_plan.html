@@ -10,6 +10,7 @@
 
 {% if plan %}
   {% if plan.undecided %}<div class="panel" style="background:var(--warn-bg);border-color:#f0d9a6">{{ plan.undecided|length }} item{{ plan.undecided|length|pluralize }} undecided. Nothing happens for them.</div>{% endif %}
+  <div class="panel" style="background:var(--ok-bg, #eef7ee)"><strong>Nothing is sent.</strong> Apply never emails anyone. Drafts stay unsent drafts in Gmail; a Proceed becomes a task with a link to its draft, and you or the assignee send it from Gmail.</div>
   <div class="cards">
     <div class="card"><div class="label">Proceed</div><div class="value">{{ plan.proceed|length }}</div></div>
     <div class="card"><div class="label">Decline</div><div class="value">{{ plan.decline|length }}</div><div class="sub">{{ plan.trash|length }} draft{{ plan.trash|length|pluralize }} to Gmail Trash</div></div>
@@ -24,6 +25,9 @@
     </div>
     <div class="panel"><h3>Tasks to create</h3>
       {% for item, title in plan.tasks %}<div style="font-size:13px;padding:3px 0">{{ title }} <span class="muted">→ {{ item.owner|username|default:"you" }}</span></div>{% empty %}<p class="muted" style="margin:0">None.</p>{% endfor %}
+    </div>
+    <div class="panel"><h3>Review tasks (with a link to the draft)</h3>
+      {% for item in plan.draft_tasks %}<div style="font-size:13px;padding:3px 0"><strong>{{ item.company_name }}</strong> <span class="muted">→ {{ item.owner|username|default:"you" }}{% if item in plan.moves %} · draft moves to their Gmail drafts{% endif %}</span></div>{% empty %}<p class="muted" style="margin:0">None.</p>{% endfor %}
     </div>
     <div class="panel"><h3>Drafts to move to Gmail Trash</h3>
       {% for item in plan.trash %}<div style="font-size:13px;padding:3px 0"><strong>{{ item.company_name }}</strong>: {{ item.subject }} <span class="muted">to {{ item.to|truncatechars:50 }} · match {{ item.draft_score|floatformat:2 }}</span></div>{% empty %}<p class="muted" style="margin:0">None.</p>{% endfor %}
@@ -51,12 +55,12 @@
     <div class="card"><div class="label">Contacts added</div><div class="value">{{ r.contacts_added }}</div><div class="sub">{{ r.contacts_known }} already in CRM</div></div>
     <div class="card"><div class="label">Tasks created</div><div class="value">{{ r.tasks }}</div></div>
     <div class="card"><div class="label">Companies created</div><div class="value">{{ r.companies_created }}</div></div>
-    <div class="card"><div class="label">Drafts saved / trashed</div><div class="value">{{ r.drafts_saved }} / {{ r.drafts_trashed }}</div></div>
+    <div class="card"><div class="label">Drafts saved / trashed / handed over</div><div class="value">{{ r.drafts_saved }} / {{ r.drafts_trashed }} / {{ r.drafts_moved|default:0 }}</div></div>
     <div class="card"><div class="label">Decisions logged</div><div class="value">{{ r.logged }}</div></div>
   </div>
   {% if r.gmail_errors %}<div class="panel" style="background:var(--bad-bg)"><strong>Gmail problems:</strong><ul>{% for e in r.gmail_errors %}<li>{{ e }}</li>{% endfor %}</ul></div>{% endif %}
   <div class="panel"><h3>Per company</h3>
-    <table class="data">{% for i in applied_items %}<tr><td>{% if i.company %}<a href="{{ i.company.get_absolute_url }}">{{ i.company_name }}</a>{% else %}{{ i.company_name }}{% endif %}</td><td>{{ i.get_decision_display }}</td><td class="wrap">{% for k, v in i.result.items %}{{ k }}: {{ v }}{% if not forloop.last %} · {% endif %}{% endfor %}</td></tr>{% empty %}<tr><td class="muted">Nothing needed per-company results.</td></tr>{% endfor %}</table>
+    <table class="data">{% for i in applied_items %}<tr><td>{% if i.company %}<a href="{{ i.company.get_absolute_url }}">{{ i.company_name }}</a>{% else %}{{ i.company_name }}{% endif %}</td><td>{{ i.get_decision_display }}</td><td class="wrap">{% for k, v in i.result.items %}{{ k }}: {{ v|urlize }}{% if not forloop.last %} · {% endif %}{% endfor %}</td></tr>{% empty %}<tr><td class="muted">Nothing needed per-company results.</td></tr>{% endfor %}</table>
   </div>
   <p class="muted">Applied {{ scan.applied_at|date:"M j, g:i a" }} by {{ scan.applied_by|username }}.</p>
   {% endwith %}

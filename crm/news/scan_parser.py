@@ -155,8 +155,9 @@ NEEDS_CONTACT_CURRENT = re.compile(r"needs contact lookup", re.I)
 # only: the real recipient still comes from matching the Gmail draft itself,
 # same as before, so a miss here just means the scan's own text has no name.
 CONTACT_PATTERNS_CURRENT = [
+    re.compile(r"\)\s+to ([^(.;]+)", re.I),
     re.compile(r"(?:cold intro|fresh angle|follow-up) to ([^(.;]+)", re.I),
-    re.compile(r"relationship with ([^(.;]+)", re.I),
+    re.compile(r"relationship with ([^().;]+)", re.I),  # "(external, threaded ...) to Bill Denzel (COO) flagging ..."
 ]
 
 
@@ -251,6 +252,61 @@ def _parse_current(text):
                 "format": "current",
             }
         )
+    return entries
+
+
+# ------------------------------------------------------------ numbered format
+# 2026-10-28 on: "Part A" lists the week's board companies as "1. Company (Section)" with the same labelled lines
+# as the current format, and no section headings. A Trello note can run over several lines.
+
+NUMBERED_HEADING = re.compile(r"^\s*(\d+)\.\s+(.+?)\s*\(([^()\n]+)\)\s*$", re.M)
+NUMBERED_LABELS = ("Headline", "Date", "Source", "Synopsis", "Outreach action", "Framing", "Trello card")
+NUMBERED_LABEL_LINE = re.compile(r"^(%s):[ \t]*" % "|".join(NUMBERED_LABELS), re.M | re.I)
+
+
+def _section_from_parenthetical(text):
+    """'Cold / New Leads' -> Cold; 'LOI / PDA Negotiations' and 'EARLY ENGAGEMENT' as they are."""
+    whole = _normalize_heading(text)
+    if whole:
+        return whole
+    return _normalize_heading(text.split("/")[0]) or _clean(text)
+
+
+def _parse_numbered(text):
+    """Board-company entries in the 2026-10-28-on format. See above."""
+    start = re.search(r"Part A\b", text)
+    end = NEW_PROSPECTS_HEADING.search(text, start.end() if start else 0)
+    region = text[start.end() if start else 0:end.start() if end else len(text)]
+    headings = list(NUMBERED_HEADING.finditer(region))
+    entries = []
+    for i, heading in enumerate(headings):
+        segment = region[heading.end():headings[i + 1].start() if i + 1 < len(headings) else len(region)]
+        labels = list(NUMBERED_LABEL_LINE.finditer(segment))
+        fields = {}
+        for j, label in enumerate(labels):
+            stop = labels[j + 1].start() if j + 1 < len(labels) else len(segment)
+            fields.setdefault(label.group(1).lower(), segment[label.end():stop])
+        if not all(k in fields for k in ("headline", "synopsis", "outreach action")):
+            continue
+        outreach_action = _clean(fields["outreach action"])
+        contact, needs_contact = _extract_contact_current(outreach_action)
+        entries.append({
+            "index": len(entries),
+            "section": _section_from_parenthetical(heading.group(3)),
+            "company": _clean(heading.group(2)),
+            "headline": _clean(fields["headline"]),
+            "date": _clean(fields.get("date", "")),
+            "source_url": _join_url(fields.get("source", "").strip(), 0)[0],
+            "summary": _clean(fields["synopsis"]),
+            "outreach_action": outreach_action,
+            "framing": _clean(fields.get("framing", "")),
+            "trello_note": _clean(fields.get("trello card", "")),
+            "trello_url": "",
+            "contact": contact,
+            "needs_contact": needs_contact,
+            "has_draft": bool(HAS_DRAFT_CURRENT.match(outreach_action)),
+            "format": "numbered",
+        })
     return entries
 
 
@@ -354,13 +410,13 @@ NEW_PROSPECTS_HEADING = re.compile(r"New Prospects to Target", re.I)
 CHECKED_HEADING = re.compile(r"Companies Checked", re.I)
 STRONG_FIT_HEADING = re.compile(r"\nStrong Fit \(\d+\)\n")
 WORTH_WATCHING_HEADING = re.compile(r"\nWorth Watching \(\d+\)\n")
-WEAK_HEADING = re.compile(r"Also surfaced,[^\n]*\n", re.I)
+WEAK_HEADING = re.compile(r"Also surfaced,[^\n]*\n|\nWeak or No U\.S\.-Site Fit \(\d+\)\n", re.I)
 
 PROSPECT_ENTRY_NUM = re.compile(r"\n(\d+)\.\s+")
 HQ_LABEL = re.compile(r"\nHQ:\s*")
-WHAT_LABEL = re.compile(r"\nWhat they do:\s*")
-SIGNAL_LABEL = re.compile(r"\nThis week's signal:\s*", re.I)
-WHY_LABEL = re.compile(r"\nWhy it fits:\s*")
+WHAT_LABEL = re.compile(r"\nWhat they do:\s*", re.I)
+SIGNAL_LABEL = re.compile(r"\n(?:This week's )?signal:\s*", re.I)
+WHY_LABEL = re.compile(r"\n(?:Why it fits|Fit note):\s*", re.I)
 PROSPECT_SOURCE_LABEL = re.compile(r"\nSource:\s*")
 # The signal's trailing "(YYYY-MM-DD)" sometimes has its date split across a
 # PDF page wrap ("(2026-08-\n20)"), which _clean() turns into "(2026-08- 20)"
@@ -387,11 +443,21 @@ def _parse_prospect_block(block, tier):
         if not (hq_match and what_match and signal_match and why_match and source_match):
             continue
 
-        company = _clean(seg[:hq_match.start()])
+        head = seg[:hq_match.start()]
+        named = re.search(r"Company Name:\s*(.*)", head, re.I | re.S)
+        company = _clean(named.group(1) if named else head)
         if not company:
             continue
 
-        signal_raw = seg[signal_match.end():why_match.start()].strip()
+        # Each field runs to the start of whichever label comes next; the order differs between layouts
+        # (Source follows Fit Note in the older one, precedes it from 2026-10-28).
+        marks = sorted((m.start(), m.end(), name) for name, m in (
+            ("hq", hq_match), ("what", what_match), ("signal", signal_match), ("why", why_match),
+            ("source", source_match)))
+        field = {name: seg[end:marks[k + 1][0] if k + 1 < len(marks) else len(seg)]
+                 for k, (_, end, name) in enumerate(marks)}
+
+        signal_raw = field["signal"].strip()
         date_match = TRAILING_DATE.search(signal_raw)
         signal_date = "-".join(date_match.groups()) if date_match else ""
         signal = _clean(TRAILING_DATE.sub("", signal_raw))
@@ -400,12 +466,12 @@ def _parse_prospect_block(block, tier):
             {
                 "tier": tier,
                 "company": company,
-                "hq": _clean(seg[hq_match.end():what_match.start()]),
-                "what_they_do": _clean(seg[what_match.end():signal_match.start()]),
+                "hq": _clean(field["hq"]),
+                "what_they_do": _clean(field["what"]),
                 "signal": signal,
                 "signal_date": signal_date,
-                "why_fits": _clean(seg[why_match.end():source_match.start()]),
-                "source_name": _clean(seg[source_match.end():]),
+                "why_fits": _clean(field["why"]),
+                "source_name": _clean(field["source"]),
             }
         )
     return out
@@ -419,7 +485,12 @@ def _parse_weak_prospects(block):
         if not line.strip():
             continue
         match = WEAK_LINE.match(line)
-        if match:
+        if line.lstrip().startswith("●"):  # "● Name — HQ. Reason" in the 2026-10-28 layout
+            if current:
+                entries.append(current)
+            name, _, reason = line.lstrip("● \t").partition(EM_DASH)
+            current = {"company": name.strip(), "reason": reason.strip()}
+        elif match:
             if current:
                 entries.append(current)
             current = {"company": match.group(1).strip(), "reason": match.group(2).strip()}
@@ -485,8 +556,10 @@ def parse_scan(path):
     text = read_scan_text(path)
     text = text.replace("\r\n", "\n").replace("\r", "\n")
 
-    entries = _parse_current(text)
+    entries = _parse_numbered(text)
     fmt = "current"
+    if not entries:
+        entries = _parse_current(text)
     if not entries:
         entries = _parse_legacy(text)
         fmt = "legacy"

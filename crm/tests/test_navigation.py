@@ -176,3 +176,21 @@ class AlertOnceTests(NavTestCase):
             f.return_value.exists.return_value = False
             self.assertIsNone(notify.send(self.user, Notification.Kind.DUE, "Due today: x", key="due:1"))
         self.assertEqual(Notification.objects.filter(user=self.user, key="due:1").count(), 1)
+
+
+class PipelineSortTests(NavTestCase):
+    def setUp(self):
+        super().setUp()
+        now = timezone.now()
+        for name, days in (("Bravo Co", 1), ("Alpha Co", 9), ("Charlie Co", 3)):
+            company = Company.objects.create(name=name, last_interaction_at=now - timedelta(days=days))
+            Opportunity.objects.create(company=company, name=name, stage=OpportunityStage.values[1])
+
+    def order(self, sort):
+        r = self.client.get(reverse("crm:opportunity_board") + f"?view=table&sort={sort}")
+        return [o.company.name for o in r.context["deals"]]
+
+    def test_sort_by_name_and_last_touch(self):
+        self.assertEqual(self.order("name"), ["Alpha Co", "Bravo Co", "Charlie Co"])
+        self.assertEqual(self.order("touch"), ["Bravo Co", "Charlie Co", "Alpha Co"])
+        self.assertEqual(self.order("nonsense"), self.order("value"))

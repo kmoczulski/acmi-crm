@@ -90,6 +90,13 @@ class FakeDrafts:
         FakeDrafts.calls.append(("trash", tuple(uids)))
         return {u: "trashed" for u in uids}
 
+    def create(self, to, subject, html, cc=""):
+        FakeDrafts.calls.append(("create", to, subject))
+        return "77"
+
+    def compose_url(self, uid):
+        return f"https://mail.google.com/mail/u/x/#drafts?compose=m{uid}"
+
 
 class NewsReviewTests(TestCase):
     def setUp(self):
@@ -161,6 +168,31 @@ class NewsReviewTests(TestCase):
         r = self.client.post(f"/news/items/{fh.pk}/", {"decision": "decline"})
         self.assertEqual(r.status_code, 409)
 
+    def test_proceed_makes_a_review_task_and_hands_the_draft_to_the_owner(self):
+        scan = self.open_scan()
+        dave = get_user_model().objects.create(username="dave", email="dave@acmigroup.com")
+        Mailbox.objects.create(user=dave, email=dave.email)
+        fh, old = self.item(scan, "Firehawk Aerospace"), self.item(scan, "Old Co")
+        self.client.post(f"/news/items/{fh.pk}/", {"decision": "proceed", "owner": str(dave.pk),
+                                                   "edit_subject": "ACMI x Firehawk: edited"})
+        self.client.post(f"/news/items/{old.pk}/", {"decision": "proceed"})
+        plan = self.client.get(f"/news/{scan.pk}/plan/")
+        self.assertContains(plan, "Nothing is sent.")
+        self.assertEqual(Task.objects.count(), 0)  # reviewing the plan changes nothing
+        with patch("crm.news.drafts.open_drafts", lambda mailbox, user: FakeDrafts(mailbox)):
+            review.apply(scan, self.user)
+        # Dave's copy carries the edit; the original leaves Kellen's drafts; the edit isn't saved in place.
+        self.assertIn(("create", "Ben Allen <ben@firehawkaerospace.com>", "ACMI x Firehawk: edited"), FakeDrafts.calls)
+        self.assertIn(("trash", ("11",)), FakeDrafts.calls)
+        self.assertFalse(any(c[0] == "update" for c in FakeDrafts.calls))
+        task = Task.objects.get(title="Review and send draft: Firehawk Aerospace")
+        self.assertEqual(task.assignee, dave)
+        self.assertIn("compose=m77", task.notes)
+        mine = Task.objects.get(title="Review and send draft: Old Co")
+        self.assertEqual(mine.assignee, self.user)  # no owner picked: stays with whoever applied
+        self.assertIn("compose=m13", mine.notes)
+        self.assertFalse(any(c[0] == "create" and "Old Co" in c[2] for c in FakeDrafts.calls))
+
     def test_prospect_pursue_creates_company_and_task(self):
         scan = self.open_scan()
         p = NewsItem.objects.create(scan=scan, kind="prospect", tier="strong", company_name="Aventra",
@@ -177,3 +209,71 @@ class NewsReviewTests(TestCase):
         scan = self.open_scan()
         r = self.client.post(f"/news/items/{self.item(scan, 'Valinor').pk}/", {"decision": "pursue"})
         self.assertEqual(r.status_code, 400)
+
+
+class NumberedLayoutTests(TestCase):
+    """The 2026-10-28 scan lists board companies as '1. Company (Section)' and has no section headings."""
+
+    TEXT = """Weekly Prospect News Scan
+October 28, 2026
+Report window: October 21, 2026 - October 28, 2026
+Part A: Notable News This Week
+1. Zone 5 Technologies (Cold / New Leads)
+Headline: Zone 5 Unveils Block 40
+Date: October 24, 2026
+Source: en.defence-ua.com
+Synopsis: A new variant.
+Outreach action: Outreach draft created in Gmail (external, threaded relationship with an existing contact) to Bill
+Denzel (COO) flagging the target.
+Framing: External.
+Trello card: Updated. "Recent News" note added to the card
+and the outreach sent.
+2. Xtend (EARLY ENGAGEMENT)
+Headline: Xtend wins an order
+Date: October 27, 2026
+Source: xtend.me
+Synopsis: An order.
+Outreach action: No outreach drafted.
+Framing: No outreach.
+Trello card: Updated.
+3. Long Wall (LOI / PDA Negotiations)
+Headline: Long Wall award
+Date: October 22, 2026
+Source: breakingdefense.com
+Synopsis: An award.
+Outreach action: No outreach drafted.
+Framing: Internal.
+Trello card: Not updated.
+New Prospects to Target
+Intro.
+Strong Fit (1)
+1. Radiant Nuclear
+Company Name: Radiant Nuclear
+HQ: El Segundo, California
+What They Do: Builds microreactors.
+Signal: Navy tapped Radiant.
+Source: Tectonic Defense (Oct 21)
+Fit Note: Needs factory space.
+Worth Watching (0)
+Weak or No U.S.-Site Fit (1)
+Listed for completeness.
+● Quantum Systems — Gilching, Germany. Foreign HQ.
+Companies Checked - No Notable News This Week
+"""
+
+    def test_numbered_entries_and_prospects(self):
+        from crm.news.scan_parser import parse_new_prospects, _parse_numbered
+
+        entries = _parse_numbered(self.TEXT)
+        self.assertEqual([(e["company"], e["section"]) for e in entries],
+                         [("Zone 5 Technologies", "Cold"), ("Xtend", "Early Engagement"),
+                          ("Long Wall", "LOI / PDA Negotiations")])
+        self.assertTrue(entries[0]["has_draft"])
+        self.assertEqual(entries[0]["contact"], "Bill Denzel")
+        self.assertEqual(entries[0]["trello_note"], 'Updated. "Recent News" note added to the card and the outreach sent.')
+        self.assertFalse(entries[1]["has_draft"])
+        prospects = parse_new_prospects(self.TEXT)
+        strong = prospects["strong_fit"][0]
+        self.assertEqual((strong["company"], strong["why_fits"], strong["source_name"]),
+                         ("Radiant Nuclear", "Needs factory space.", "Tectonic Defense (Oct 21)"))
+        self.assertEqual(prospects["weak"], [{"company": "Quantum Systems", "reason": "Gilching, Germany. Foreign HQ."}])
