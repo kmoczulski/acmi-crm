@@ -518,6 +518,8 @@ def file_options(request, mailbox, client):
 @require_POST
 def file_to(request, mailbox, client):
     nxt = _safe_next(request, reverse("crm:inbox"))
+    if not may_change(request, mailbox):  # filing changes the thread's labels in Gmail
+        return redirect(nxt)
     gmail_id = request.POST.get("t", "")
     try:
         target = mail_filing.target_for(request.POST.get("kind", ""), request.POST.get("pk", ""))
@@ -540,25 +542,32 @@ def file_to(request, mailbox, client):
 def unfile(request, mailbox, client, pk):
     from django.shortcuts import get_object_or_404
 
+    nxt = _safe_next(request, reverse("crm:inbox"))
+    if not may_change(request, mailbox):
+        return redirect(nxt)
     filing = get_object_or_404(MailFiling, pk=pk, mailbox=mailbox)
     target = filing.target
     mail_filing.unfile(filing, client)
     messages.success(request, f"Taken off {target}.")
-    return redirect(_safe_next(request, reverse("crm:inbox")))
+    return redirect(nxt)
 
 
 @mail_required
 @require_POST
 def comment_add(request, mailbox, client):
+    nxt = _safe_next(request, reverse("crm:inbox"))
     gmail_id = request.POST.get("t", "")
     try:
         thread = mail_render.get_thread(mailbox, client, gmail_id)
+        subject = mail_render.thread_view(mailbox, client, gmail_id)[0]
     except NotFound:
         raise Http404()
-    subject = mail_render.thread_view(mailbox, client, gmail_id)[0]
+    except (MailboxError, requests.RequestException) as exc:  # the note needs the thread, so it waits for Gmail
+        messages.error(request, gmail_error(exc))
+        return redirect(nxt)
     if mail_comments.add(request.user, thread, subject, request.POST.get("body", "")):
         messages.success(request, "Note added.")
-    return redirect(_safe_next(request, reverse("crm:inbox")))
+    return redirect(nxt)
 
 
 @mail_required
