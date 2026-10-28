@@ -1,12 +1,24 @@
 """Load Granola notes (or calendar events) from JSON files into the Meetings calendar. Safe to run again on files
 that overlap: each Granola note is matched by its id and updated in place. Afterwards the Managers get one bell
-note with the counts and how many meetings need filing."""
+note with the counts and how many meetings need filing.
+
+On Cloud Run the daily Granola task uploads its JSON to a Drive folder instead (settings.GRANOLA_DRIVE_FOLDER), and
+sync_all calls import_from_drive() to load each new file once."""
+import tempfile
+from pathlib import Path, PurePath
+
+from django.conf import settings
 from django.core.management.base import BaseCommand
+from django.db import transaction
 from django.urls import reverse
 
-from crm import meetings, notify
+from crm import drive, meetings, notify
 from crm.directory.sort import managers
-from crm.models import Notification
+from crm.models import ImportBatch, Notification
+
+# A Drive file's import is recorded as an ImportBatch whose `sheet` is "granola:<file id>" (the spreadsheet import
+# page leaves these out).
+DRIVE_MARK = "granola:"
 
 
 class Command(BaseCommand):
@@ -42,3 +54,45 @@ def note(stats):
     url = reverse("crm:needs_filing") if filing else reverse("crm:meeting_list")
     for m in managers():
         notify.send(m, Notification.Kind.MEETING, text, url, None, key=f"granola-import:{timezone.now().isoformat()}")
+
+
+def import_from_drive():
+    """Import the Granola JSON files in the Drive folder that haven't been imported yet, all in one run (so calendar
+    events merge into Granola notes across files), then record each file so it isn't read again. A file that won't
+    download or parse is skipped and tried again next run. Returns {"files": [names imported], "failed": [(name,
+    error)], "stats": the import's counts or None}. Nothing to do without the setting."""
+    out = {"files": [], "failed": [], "stats": None}
+    folder = drive.folder_id_from(getattr(settings, "GRANOLA_DRIVE_FOLDER", ""))
+    if not folder:
+        return out
+    done = {s[len(DRIVE_MARK):] for s in
+            ImportBatch.objects.filter(sheet__startswith=DRIVE_MARK).values_list("sheet", flat=True)}
+    new = [f for f in drive.list_files(folder, refresh=True)
+           if f.name.lower().endswith(".json") and f.mime not in drive.EXPORTS and f.id not in done]
+    if not new:
+        return out
+    c = drive.client()
+    with tempfile.TemporaryDirectory() as tmp:
+        good = []
+        for i, f in enumerate(new):
+            path = Path(tmp) / f"{i}-{PurePath(f.name).name}"
+            try:
+                response, _ = c.download(f.id, f.mime)
+                with open(path, "wb") as fh:
+                    for chunk in response.iter_content(64 * 1024):
+                        fh.write(chunk)
+                meetings.load(path)  # read it now, so one bad file doesn't stop the others
+            except Exception as exc:  # noqa: BLE001 - reported, and tried again next run
+                out["failed"].append((f.name, f"{exc.__class__.__name__}: {exc}"))
+                continue
+            good.append((f, path))
+        if not good:
+            return out
+        with transaction.atomic():
+            stats = meetings.import_meetings(meetings.load(*[p for _, p in good]))
+            counts = {k: v for k, v in stats.items() if k != "unmatched"}
+            for f, _ in good:
+                ImportBatch.objects.create(filename=f.name[:255], sheet=f"{DRIVE_MARK}{f.id}"[:120], counts=counts)
+    out["files"], out["stats"] = [f.name for f, _ in good], stats
+    note(stats)
+    return out

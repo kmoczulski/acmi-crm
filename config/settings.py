@@ -174,6 +174,11 @@ SOCIALACCOUNT_PROVIDERS = {}
 DRIVE_SA_FILE = env("ACMI_DRIVE_SA_FILE", "")
 DRIVE_ADC = env_bool("ACMI_DRIVE_ADC", False)
 DRIVE_TENANCY_FOLDER = env("ACMI_DRIVE_TENANCY_FOLDER", "")
+# Drive folder IDs that stand in for the laptop's folders on Cloud Run: the weekly news scans (News page) and the daily
+# Granola JSON (imported by sync_all). Blank = the news page reads NEWS_WATCH_FOLDER and Granola comes in by
+# "manage.py import_meetings <files>" on the laptop.
+NEWS_DRIVE_FOLDER = env("ACMI_NEWS_DRIVE_FOLDER", "")
+GRANOLA_DRIVE_FOLDER = env("ACMI_GRANOLA_DRIVE_FOLDER", "")
 
 GOOGLE_SIGNIN_ENABLED = bool(env("GOOGLE_CLIENT_ID"))
 if GOOGLE_SIGNIN_ENABLED:

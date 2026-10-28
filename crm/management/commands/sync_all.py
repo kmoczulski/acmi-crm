@@ -1,7 +1,8 @@
-"""Mail, then Google Calendar for everyone who connected it, then Claude sorting new email domains, then the team's
-due reminders (so browser notifications arrive with the hub closed): what
-scripts/sync_mail.cmd runs on the laptop, and what the Cloud Run sync job runs every 15 minutes in production (Cloud
-Scheduler). A calendar or sorting problem never fails the mail part."""
+"""Mail, then Google Calendar for everyone who connected it, then new Granola files from Drive (when
+settings.GRANOLA_DRIVE_FOLDER is set), then Claude sorting new email domains, then the team's due reminders (so
+browser notifications arrive with the hub closed): what scripts/sync_mail.cmd runs on the laptop, and what the Cloud
+Run sync job runs every 15 minutes in production (Cloud Scheduler). A calendar, Granola or sorting problem never
+fails the mail part."""
 from django.core.management.base import BaseCommand
 
 from crm import gcal
@@ -18,6 +19,17 @@ class Command(BaseCommand):
             gcal.sync_all(stdout=self.stdout)
         except Exception as exc:  # noqa: BLE001 - logged, and the mail sync above already counted
             self.stderr.write(f"calendar sync failed: {exc}")
+        from .import_meetings import import_from_drive  # Granola JSON the daily task put in the Drive folder
+
+        try:
+            granola = import_from_drive()
+            if granola["files"]:
+                self.stdout.write(f"granola: {len(granola['files'])} new file(s), "
+                                  f"{granola['stats']['calendar']} meetings")
+            for name, error in granola["failed"]:
+                self.stderr.write(f"granola file {name} not imported: {error}")
+        except Exception as exc:  # noqa: BLE001 - never fails the sync
+            self.stderr.write(f"granola import failed: {exc}")
         from crm.directory import sort  # Claude sorts the review queue's new domains
 
         try:
