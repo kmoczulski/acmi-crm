@@ -518,6 +518,8 @@ def file_options(request, mailbox, client):
 @require_POST
 def file_to(request, mailbox, client):
     nxt = _safe_next(request, reverse("crm:inbox"))
+    if not may_change(request, mailbox):  # filing changes the thread's labels in Gmail
+        return redirect(nxt)
     gmail_id = request.POST.get("t", "")
     try:
         target = mail_filing.target_for(request.POST.get("kind", ""), request.POST.get("pk", ""))
@@ -540,11 +542,14 @@ def file_to(request, mailbox, client):
 def unfile(request, mailbox, client, pk):
     from django.shortcuts import get_object_or_404
 
+    nxt = _safe_next(request, reverse("crm:inbox"))
+    if not may_change(request, mailbox):
+        return redirect(nxt)
     filing = get_object_or_404(MailFiling, pk=pk, mailbox=mailbox)
     target = filing.target
     mail_filing.unfile(filing, client)
     messages.success(request, f"Taken off {target}.")
-    return redirect(_safe_next(request, reverse("crm:inbox")))
+    return redirect(nxt)
 
 
 @mail_required
