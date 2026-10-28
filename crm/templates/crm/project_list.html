@@ -18,7 +18,7 @@
         </div>
         {% if g.home %}<div class="campus-stats"><b>{{ g.home.emails|intcomma }}</b> emails · <b>{{ g.home.companies }}</b> companies · last {{ g.home.last|ago }}{% if g.home.next %} · next meeting <span title="{{ g.home.next|date:'Y-m-d H:i' }}">{{ g.home.next|date:"M j" }}</span>{% endif %}</div>{% endif %}
       </div>
-      <table class="data">
+      <div class="table-wrap" style="border:0"><table class="data">
         <thead><tr><th>Project in {{ g.campus.code }}</th><th>Emails</th><th>Companies</th><th>Last</th><th>Land sites</th></tr></thead>
         <tbody>{% for r in g.projects %}
           <tr><td><a href="{{ r.project.get_absolute_url }}">{{ r.project.name }}</a>{% if not r.project.active %} <span class="muted">(inactive)</span>{% endif %}
@@ -26,7 +26,7 @@
             <td>{{ r.emails }}</td><td>{{ r.companies }}</td><td>{{ r.last|ago }}{% if r.next %}<div class="muted lc-small">next meeting {{ r.next|date:"M j" }}</div>{% endif %}</td>
             <td class="wrap">{% for s in r.sites %}<span class="pill site-{{ s.status }}">{{ s.get_status_display }}</span> <a href="{{ s.get_absolute_url }}">{{ s.name }}</a> <span class="muted">{{ s.acres|intcomma }} ac</span><br>{% empty %}<span class="muted">–</span>{% endfor %}{% if r.archived %}<span class="muted lc-small">+{{ r.archived|length }} archived</span>{% endif %}</td></tr>
         {% empty %}<tr><td colspan="5" class="muted">No projects in this campus yet.</td></tr>{% endfor %}</tbody>
-      </table>
+      </table></div>
       {% if g.sites %}<div class="campus-sites"><b class="lc-small">Prospective sites for the campus</b>
         {% for s in g.sites %}<div class="site-row"><span class="pill site-{{ s.status }}">{{ s.get_status_display }}</span> <a href="{{ s.get_absolute_url }}">{{ s.name }}</a> <span class="muted">{{ s.acres|intcomma }} ac · {{ s.parcels.all|length }} parcel{{ s.parcels.all|length|pluralize }}</span></div>{% endfor %}
       </div>{% endif %}
@@ -39,13 +39,13 @@
     {% if other or loose_sites %}
     <section class="panel campus-card">
       <div class="campus-head"><h2>Not in a campus</h2></div>
-      {% if other %}<table class="data">
+      {% if other %}<div class="table-wrap" style="border:0"><table class="data">
         <thead><tr><th>Project</th><th>Part of</th><th>Emails</th><th>Companies</th><th>Last</th><th>Land sites</th></tr></thead>
         <tbody>{% for r in other %}
           <tr><td><a href="{{ r.project.get_absolute_url }}">{{ r.project.name }}</a></td><td>{{ r.project.parent|default:"" }}</td>
             <td>{{ r.emails }}</td><td>{{ r.companies }}</td><td>{{ r.last|ago }}{% if r.next %}<div class="muted lc-small">next meeting {{ r.next|date:"M j" }}</div>{% endif %}</td>
             <td class="wrap">{% for s in r.sites %}<a href="{{ s.get_absolute_url }}">{{ s.name }}</a><br>{% empty %}<span class="muted">–</span>{% endfor %}</td></tr>{% endfor %}</tbody>
-      </table>{% endif %}
+      </table></div>{% endif %}
       {% if loose_sites %}<div class="campus-sites"><b class="lc-small">Sites not assigned yet</b>
         {% for s in loose_sites %}<div class="site-row"><span class="pill site-{{ s.status }}">{{ s.get_status_display }}</span> <a href="{{ s.get_absolute_url }}">{{ s.name }}</a> <span class="muted">{{ s.acres|intcomma }} ac</span></div>{% endfor %}
       </div>{% endif %}

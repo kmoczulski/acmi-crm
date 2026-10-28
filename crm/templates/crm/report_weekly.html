@@ -12,5 +12,6 @@
   </form>
 </div>
 <p class="muted" style="margin-top:0">Recipients: {{ recipients|default:"none set (Outreach → Settings)" }}</p>
-<div class="panel">{% include "crm/partials/report_body.html" %}</div>
+{# The scroll frame stays out of report_body.html, which is also the email. #}
+<div class="panel"><div class="table-wrap" style="border:0">{% include "crm/partials/report_body.html" %}</div></div>
 {% endblock %}

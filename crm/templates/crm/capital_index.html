@@ -26,7 +26,7 @@
     <section class="panel">
       <h3><a href="{% url 'crm:project_capital' g.project.pk %}">{% if g.project.campus %}{{ g.project.campus.code }} · {% endif %}{{ g.project.name }}</a>
         <span class="lc-small" style="float:right;text-transform:none;letter-spacing:0">{{ g.stack.total.sought|money|default:"$0" }} sought · {{ g.stack.total.committed|money|default:"$0" }} committed</span></h3>
-      <table class="data compact">
+      <div class="table-wrap" style="border:0"><table class="data compact">
         <thead><tr><th>Provider</th><th>Stage</th><th class="num">Amount</th><th>Latest terms</th><th>Last touch</th><th>Ball / next</th><th>Runs it</th></tr></thead>
         <tbody>{% for s in g.rows %}
           <tr>
@@ -43,7 +43,7 @@
             <td class="lc-small">{{ s.owner|username|default:"–" }}</td>
           </tr>
         {% endfor %}</tbody>
-      </table>
+      </table></div>
     </section>
     {% empty %}
     <section class="panel"><p class="muted" style="margin:0">No capital sources {% if show == "active" %}in play {% endif %}yet. Open a project's Capital page, or add a source here.</p></section>

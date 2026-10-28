@@ -47,7 +47,7 @@
   <h3>The program's needs</h3>
   <p class="muted lc-small" style="margin-top:0">Acres, square feet and MW come from the deal's details. Add a row per explosives building (hazard division and net explosive weight, NEWQD).</p>
   <form method="post">{% csrf_token %}
-    <table class="data compact">
+    <div class="table-wrap" style="border:0"><table class="data compact">
       <thead><tr><th>Building</th><th>Hazard division</th><th>NEWQD (lb)</th><th>Kind</th><th>Building (sf)</th></tr></thead>
       <tbody>{% for c in cases %}<tr>
         <td><input name="name_{{ forloop.counter0 }}" value="{{ c.name|default:'' }}" placeholder="e.g. Mixing building"></td>
@@ -56,7 +56,7 @@
         <td><select name="kind_{{ forloop.counter0 }}">{% for k, label in kinds.items %}<option value="{{ k }}"{% if k == c.kind %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></td>
         <td><input name="sqft_{{ forloop.counter0 }}" value="{{ c.sqft|default_if_none:''|floatformat:'-0'|intcomma }}" inputmode="decimal" data-commas></td>
       </tr>{% endfor %}</tbody>
-    </table>
+    </table></div>
     <div class="inline-form" style="margin-top:8px">
       <label><input type="checkbox" name="needs_rail" value="1"{% if needs.needs_rail %} checked{% endif %}> Needs rail</label>
       <label><input type="checkbox" name="needs_gas" value="1"{% if needs.needs_gas %} checked{% endif %}> Needs natural gas</label>

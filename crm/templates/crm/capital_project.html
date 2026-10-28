@@ -16,7 +16,7 @@
   <div>
     <section class="panel" id="sources">
       <h3>Sources ({{ sources|length }})</h3>
-      <table class="data compact">
+      <div class="table-wrap" style="border:0"><table class="data compact">
         <thead><tr><th>Provider</th><th>Stage</th><th class="num">Sought</th><th class="num">Committed</th><th>Latest terms</th><th>Ball / next</th><th>Last touch</th></tr></thead>
         <tbody>{% for s in sources %}
           <tr{% if s.status == 'passed' or s.status == 'declined' %} class="muted"{% endif %}>
@@ -30,7 +30,7 @@
             <td class="lc-small">{% if s.touch_on %}<span class="{% if s.quiet %}overdue{% endif %}">{{ s.touch_on|date:"M j" }}</span> <span class="muted">{{ s.touch_what }}</span>{% else %}–{% endif %}</td>
           </tr>
         {% empty %}<tr><td colspan="7" class="muted">No sources yet. Add the equity partner and each lender you're talking to below.</td></tr>{% endfor %}</tbody>
-      </table>
+      </table></div>
       <form method="post" action="{% url 'crm:capital_quick_add' project.pk %}" class="dd-form no-print" style="margin-top:10px">{% csrf_token %}
         <label>Provider <input name="provider_name" list="provider-names" autocomplete="off" required placeholder="Lender, investor or agency"></label>
         <label>Type <select name="kind">{% for v, l in form.fields.kind.choices %}{% if v %}<option value="{{ v }}"{% if v == "construction" %} selected{% endif %}>{{ l }}</option>{% endif %}{% endfor %}</select></label>
