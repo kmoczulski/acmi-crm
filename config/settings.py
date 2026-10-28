@@ -236,7 +236,7 @@ if GCS_BUCKET:
 # says push isn't set up. The subject tells push services who to contact about this sender.
 VAPID_PUBLIC_KEY = env("ACMI_VAPID_PUBLIC_KEY", "")
 VAPID_PRIVATE_KEY = env("ACMI_VAPID_PRIVATE_KEY", "")
-VAPID_SUBJECT = env("ACMI_VAPID_SUBJECT", "https://hub.acmigroup.com")
+VAPID_SUBJECT = env("ACMI_VAPID_SUBJECT", "https://hub.acmiproperties.com")
 
 # --- Security headers ------------------------------------------------------
 # Scripts may only come from this site and the pinned unpkg files (which also carry integrity hashes). Inline scripts

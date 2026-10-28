@@ -30,8 +30,8 @@
 substitutions:
   _REGION: us-central1
   _SERVICE: acmi-crm
-  _HOSTS: hub.acmigroup.com
-  _ORIGINS: https://hub.acmigroup.com
+  _HOSTS: hub.acmiproperties.com
+  _ORIGINS: https://hub.acmiproperties.com
   _DB_NAME: acmi
   _DB_USER: acmi
   _BUCKET: ""
