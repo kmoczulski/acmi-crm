@@ -99,6 +99,19 @@ def _font(**kw):
     return Font(name=FONT, **kw)
 
 
+FORMULA_START = ("=", "+", "-", "@", "\t", "\r")
+
+
+def _input(ws, row, column, value):
+    """A typed-in value. Text that starts like a formula (a deal note "=HYPERLINK(...)", "-50 SF") is kept as plain
+    text, so opening the file never runs it; Excel's quote prefix keeps it text if someone edits the cell too."""
+    cell = ws.cell(row=row, column=column, value=value)
+    if isinstance(value, str) and value.startswith(FORMULA_START):
+        cell.data_type = "s"
+        cell.quotePrefix = True
+    return cell
+
+
 def _header_row(ws, row, labels_widths):
     for i, (label, width) in enumerate(labels_widths, start=1):
         cell = ws.cell(row=row, column=i, value=label)
@@ -153,7 +166,7 @@ def pipeline_workbook(data, columns=None):
         first = row
         for o in section["rows"]:
             for c in columns:
-                cell = ws.cell(row=row, column=col_of[c.key], value=cell_value(o, c.key))
+                cell = _input(ws, row, col_of[c.key], cell_value(o, c.key))
                 cell.font = _font(color=INPUT_BLUE)
                 cell.border = Border(bottom=THIN)
                 cell.alignment = Alignment(vertical="top", wrap_text=c.key in ("notes", "tenant"))
@@ -213,7 +226,7 @@ def pipeline_workbook(data, columns=None):
             "notes": (s["campus"].status if s["campus"] else ""),
         }
         for i, (key, _, _) in enumerate(site_cols, start=1):
-            cell = sites.cell(row=r, column=i, value=values[key])
+            cell = _input(sites, r, i, values[key])
             cell.font = _font(color=INPUT_BLUE)
             cell.border = Border(bottom=THIN)
             if key in fmt:
