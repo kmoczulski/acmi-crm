@@ -1,5 +1,5 @@
 {% extends "crm/base.html" %}
-{% block title %}{% if template.pk %}{{ template.name }}{% else %}New template{% endif %} · ACMI CRM{% endblock %}
+{% block title %}{% if copy_of %}Copy of {{ copy_of.name }}{% elif template.pk %}{{ template.name }}{% else %}New template{% endif %} · ACMI CRM{% endblock %}
 {% block content %}
 <div class="page-head">
   <div><div class="muted lc-small"><a href="{% url 'crm:contract_list' %}">Contracts</a> › <a href="{% url 'crm:contract_templates' %}">Abstract templates</a></div>
