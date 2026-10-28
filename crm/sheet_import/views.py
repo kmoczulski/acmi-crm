@@ -50,7 +50,8 @@ def upload(request):
         return redirect("crm:sheet_import_map")
     return render(request, "crm/sheet_import_upload.html", {
         "pending": _pending(request),
-        "batches": ImportBatch.objects.select_related("created_by", "undone_by")[:15],
+        # Granola files read from Drive are recorded as batches too (import_meetings.import_from_drive); not listed here.
+        "batches": ImportBatch.objects.exclude(sheet__startswith="granola:").select_related("created_by", "undone_by")[:15],
         "max_mb": logic.MAX_BYTES // 1024 // 1024, "max_rows": f"{logic.MAX_ROWS:,}",
     })
 

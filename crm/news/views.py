@@ -12,9 +12,14 @@ from .scan_parser import CORE_SECTIONS
 
 
 def news_home(request):
+    try:
+        files = review.available_scans()
+    except Exception as exc:  # Drive not connected, or the folder isn't shared with the hub
+        files = []
+        messages.error(request, f"Could not list the news scans folder ({exc.__class__.__name__}).")
     return render(request, "crm/news_home.html", {
-        "files": review.available_scans(),
-        "folder": review.watch_folder(),
+        "files": files,
+        "folder": review.folder_label(),
         "scans": NewsScan.objects.all()[:20],
     })
 
@@ -22,11 +27,16 @@ def news_home(request):
 @require_POST
 def news_import(request):
     path = request.POST.get("path", "")
-    if path not in {f["path"] for f in review.available_scans()}:
+    try:
+        found = next((f for f in review.available_scans() if f["path"] == path), None)
+    except Exception as exc:  # Drive not connected, or the folder isn't shared with the hub
+        messages.error(request, f"Could not list the news scans folder ({exc.__class__.__name__}).")
+        return redirect("crm:news_home")
+    if found is None:
         return HttpResponseBadRequest("Unknown scan file")
     try:
-        scan = review.import_scan(path, user=request.user)
-    except Exception as exc:  # unreadable file, changed scan format
+        scan = review.import_scan(path, user=request.user, drive_file=found.get("drive_file"))
+    except Exception as exc:  # unreadable file, changed scan format, Drive download failed
         messages.error(request, f"Could not read that scan: {exc}")
         return redirect("crm:news_home")
     if scan.drafts_checked_at is None:

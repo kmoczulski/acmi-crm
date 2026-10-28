@@ -7,14 +7,15 @@ Apply writes to the CRM only (Kellen's decision, 2026-10-13): contacts become
 People, decisions become timeline events, research and new leads become Tasks.
 Gmail draft edits are saved and declined drafts moved to Trash, as before.
 """
+import tempfile
 from datetime import timedelta
-from pathlib import Path
+from pathlib import Path, PurePath
 
 from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 
-from crm import merge
+from crm import drive, merge
 from crm.models import Activity, Company, CompanyStatus, Mailbox, NewsItem, NewsScan, Note, Person, Priority, Task
 from crm.names import clean_name
 
@@ -22,6 +23,7 @@ from . import drafts as gmail_drafts
 from .scan_parser import parse_scan
 
 SCAN_SUFFIXES = (".pdf", ".docx")
+DRIVE_PREFIX = "drive:"  # NewsScan.path for a scan read from Drive: "drive:<file id>"
 
 
 # --------------------------------------------------------------------- files
@@ -30,14 +32,31 @@ def watch_folder():
     return Path(settings.NEWS_WATCH_FOLDER)
 
 
+def drive_folder():
+    """The Drive folder ID the scans land in on Cloud Run (a folder link works too), or "" to read the laptop's watch
+    folder."""
+    return drive.folder_id_from(getattr(settings, "NEWS_DRIVE_FOLDER", ""))
+
+
+def folder_label():
+    """Where the scans are read from, for the News page."""
+    return f"Google Drive folder {drive_folder()}" if drive_folder() else watch_folder()
+
+
+def _wanted(name, suffix):
+    return suffix in SCAN_SUFFIXES and not name.startswith("~$") and "REVIEWED" not in name.upper()
+
+
 def available_scans():
-    """Scan files in the watch folder, newest first; a .pdf wins over a .docx of the same name."""
+    """Scan files in the watch folder (or the Drive folder), newest first; a .pdf wins over a .docx of the same name."""
+    if drive_folder():
+        return _drive_scans()
     folder = watch_folder()
     if not folder.exists():
         return []
     by_stem = {}
     for f in folder.iterdir():
-        if f.suffix.lower() not in SCAN_SUFFIXES or f.name.startswith("~$") or "REVIEWED" in f.name.upper():
+        if not _wanted(f.name, f.suffix.lower()):
             continue
         current = by_stem.get(f.stem)
         if current is None or (f.suffix.lower() == ".pdf" and current.suffix.lower() != ".pdf"):
@@ -46,6 +65,33 @@ def available_scans():
     files = sorted(by_stem.values(), key=lambda f: f.stat().st_mtime, reverse=True)
     return [{"path": str(f), "name": f.name, "modified": f.stat().st_mtime, "scan": imported.get(str(f))}
             for f in files]
+
+
+def _drive_scans():
+    """The same list from the Drive folder. A scan's path is "drive:<file id>", so it stays unique when two files
+    share a name."""
+    by_stem = {}
+    for f in drive.list_files(drive_folder()):
+        name = PurePath(f.name)
+        if not _wanted(f.name, name.suffix.lower()):
+            continue
+        current = by_stem.get(name.stem)
+        if current is None or (f.is_pdf and not current.is_pdf):
+            by_stem[name.stem] = f
+    imported = {s.path: s for s in NewsScan.objects.filter(path__startswith=DRIVE_PREFIX)}
+    files = sorted(by_stem.values(), key=lambda f: f.modified.timestamp() if f.modified else 0, reverse=True)
+    return [{"path": DRIVE_PREFIX + f.id, "name": f.name, "modified": f.modified.timestamp() if f.modified else 0,
+             "scan": imported.get(DRIVE_PREFIX + f.id), "drive_file": f} for f in files]
+
+
+def _download(file_id, name, mime, folder):
+    """Save a Drive scan into `folder` under its own name (the parser goes by the extension) and return the path."""
+    response, _ = drive.client().download(file_id, mime)
+    target = Path(folder) / PurePath(name).name
+    with open(target, "wb") as fh:
+        for chunk in response.iter_content(64 * 1024):
+            fh.write(chunk)
+    return target
 
 
 # --------------------------------------------------------------------- import
@@ -57,16 +103,26 @@ def _company_index():
     return index
 
 
-@transaction.atomic
-def import_scan(path, user=None):
-    """Parse the file into a NewsScan with items, matched to CRM companies. Re-importing returns the existing scan."""
+def import_scan(path, user=None, drive_file=None):
+    """Parse the file into a NewsScan with items, matched to CRM companies. Re-importing returns the existing scan.
+
+    A Drive scan (`path` "drive:<file id>", `drive_file` its DriveFile) is downloaded to a temporary folder first."""
     path = str(path)
     existing = NewsScan.objects.filter(path=path).first()
     if existing:
         return existing
-    meta, entries, prospects = parse_scan(Path(path))
+    if not path.startswith(DRIVE_PREFIX):
+        return _import(path, Path(path), Path(path).name, user)
+    with tempfile.TemporaryDirectory() as folder:
+        local = _download(drive_file.id, drive_file.name, drive_file.mime, folder)
+        return _import(path, local, drive_file.name, user)
+
+
+@transaction.atomic
+def _import(path, local, file_name, user):
+    meta, entries, prospects = parse_scan(local)
     scan = NewsScan.objects.create(
-        path=path, file_name=Path(path).name, title=meta.get("title", ""), scan_date=meta.get("scan_date", ""),
+        path=path, file_name=file_name, title=meta.get("title", ""), scan_date=meta.get("scan_date", ""),
         stats_line=meta.get("stats_line", ""), imported_by=user,
     )
     companies = _company_index()

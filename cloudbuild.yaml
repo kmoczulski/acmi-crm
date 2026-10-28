@@ -16,6 +16,11 @@
 # Secret Manager Secret Accessor, Cloud SQL Client, Storage Object Admin on the bucket, and Cloud Run Developer on the
 # ${_SERVICE}-send job (the web app starts it with the batch id when someone presses Send).
 #
+# Drive (read with the runtime service account, ACMI_DRIVE_ADC=true): _NEWS_FOLDER is the Drive folder ID of the
+# weekly news scans (the News page reads it), _GRANOLA_FOLDER the one the daily Granola task uploads its JSON to (the
+# sync job imports each new file once). Blank = off. Once, before relying on them: turn on the Google Drive API in the
+# project, and share both folders with the runtime service account's email as Viewer.
+#
 # Once, after the first deploy, run the mail + calendar sync every 15 minutes:
 #   gcloud scheduler jobs create http acmi-crm-sync --location=us-central1 --schedule="*/15 * * * *" \
 #     --uri="https://run.googleapis.com/v2/projects/PROJECT_ID/locations/us-central1/jobs/acmi-crm-sync:run" \
@@ -28,6 +33,8 @@ substitutions:
   _DB_NAME: acmi
   _DB_USER: acmi
   _BUCKET: ""
+  _NEWS_FOLDER: ""
+  _GRANOLA_FOLDER: ""
 steps:
   - id: build
     name: gcr.io/cloud-builders/docker
@@ -63,7 +70,7 @@ steps:
     args: ["run", "jobs", "deploy", "${_SERVICE}-sync",
            "--image=${_REGION}-docker.pkg.dev/$PROJECT_ID/acmi/${_SERVICE}:$SHORT_SHA", "--region=${_REGION}",
            "--set-cloudsql-instances=${_SQL_INSTANCE}", "--task-timeout=1800", "--max-retries=0",
-           "--set-env-vars=^@^DJANGO_DEBUG=false@DJANGO_ALLOWED_HOSTS=${_HOSTS}@POSTGRES_DB=${_DB_NAME}@POSTGRES_USER=${_DB_USER}@POSTGRES_HOST=/cloudsql/${_SQL_INSTANCE}@GOOGLE_CLIENT_ID=${_GOOGLE_CLIENT_ID}",
+           "--set-env-vars=^@^DJANGO_DEBUG=false@DJANGO_ALLOWED_HOSTS=${_HOSTS}@POSTGRES_DB=${_DB_NAME}@POSTGRES_USER=${_DB_USER}@POSTGRES_HOST=/cloudsql/${_SQL_INSTANCE}@GOOGLE_CLIENT_ID=${_GOOGLE_CLIENT_ID}@ACMI_DRIVE_ADC=true@ACMI_GRANOLA_DRIVE_FOLDER=${_GRANOLA_FOLDER}",
            "--set-secrets=DJANGO_SECRET_KEY=acmi-django-secret-key:latest,POSTGRES_PASSWORD=acmi-postgres-password:latest,GOOGLE_CLIENT_SECRET=acmi-google-client-secret:latest,ACMI_TOKEN_KEY=acmi-token-key:latest,ANTHROPIC_API_KEY=acmi-anthropic-api-key:latest,ACMI_VAPID_PUBLIC_KEY=acmi-vapid-public-key:latest,ACMI_VAPID_PRIVATE_KEY=acmi-vapid-private-key:latest,ACMI_IMAP_PASSWORD_KELLEN=acmi-imap-password-kellen:latest",
            "--command=python", "--args=manage.py,sync_all"]
   - id: deploy
@@ -72,7 +79,7 @@ steps:
     args: ["run", "deploy", "${_SERVICE}",
            "--image=${_REGION}-docker.pkg.dev/$PROJECT_ID/acmi/${_SERVICE}:$SHORT_SHA", "--region=${_REGION}",
            "--add-cloudsql-instances=${_SQL_INSTANCE}", "--timeout=900",
-           "--set-env-vars=^@^DJANGO_DEBUG=false@DJANGO_ALLOWED_HOSTS=${_HOSTS}@DJANGO_CSRF_TRUSTED_ORIGINS=${_ORIGINS}@ACMI_LOCAL_LOGIN=false@POSTGRES_DB=${_DB_NAME}@POSTGRES_USER=${_DB_USER}@POSTGRES_HOST=/cloudsql/${_SQL_INSTANCE}@GOOGLE_CLIENT_ID=${_GOOGLE_CLIENT_ID}@ACMI_SEND_JOB=${_SERVICE}-send@ACMI_GCP_REGION=${_REGION}@ACMI_GCS_BUCKET=${_BUCKET}",
+           "--set-env-vars=^@^DJANGO_DEBUG=false@DJANGO_ALLOWED_HOSTS=${_HOSTS}@DJANGO_CSRF_TRUSTED_ORIGINS=${_ORIGINS}@ACMI_LOCAL_LOGIN=false@POSTGRES_DB=${_DB_NAME}@POSTGRES_USER=${_DB_USER}@POSTGRES_HOST=/cloudsql/${_SQL_INSTANCE}@GOOGLE_CLIENT_ID=${_GOOGLE_CLIENT_ID}@ACMI_SEND_JOB=${_SERVICE}-send@ACMI_GCP_REGION=${_REGION}@ACMI_GCS_BUCKET=${_BUCKET}@ACMI_DRIVE_ADC=true@ACMI_NEWS_DRIVE_FOLDER=${_NEWS_FOLDER}",
            "--set-secrets=DJANGO_SECRET_KEY=acmi-django-secret-key:latest,POSTGRES_PASSWORD=acmi-postgres-password:latest,ACMI_CRON_SECRET=acmi-cron-secret:latest,GOOGLE_CLIENT_SECRET=acmi-google-client-secret:latest,ANTHROPIC_API_KEY=acmi-anthropic-api-key:latest,ACMI_TOKEN_KEY=acmi-token-key:latest,ACMI_VAPID_PUBLIC_KEY=acmi-vapid-public-key:latest,ACMI_VAPID_PRIVATE_KEY=acmi-vapid-private-key:latest,ACMI_IMAP_PASSWORD_KELLEN=acmi-imap-password-kellen:latest"]
 images:
   - "${_REGION}-docker.pkg.dev/$PROJECT_ID/acmi/${_SERVICE}:$SHORT_SHA"
