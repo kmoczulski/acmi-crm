@@ -5,7 +5,7 @@ Read this first when picking the project up in a new chat, along with
 
 ## Pick up here (2026-10-25)
 
-**Done on the laptop 2026-10-28 (branch `claude/beautiful-albattani-6xp3qi`, not yet on `main`):** steps 1, 2 and 4
+**Done on the laptop 2026-10-28 (branch `claude/beautiful-albattani-6xp3qi`, merged fast-forward to `main` `b691c6d`, CI green, 904 tests; real database migrated through 0072, backup `backups/db-2026-10-28-before-review-fixes-to-main.sqlite3`; the laptop's `.venv` still has the old `pypdf` / `pillow`, CI and the image use the new pins):** steps 1, 2 and 4
 below, and W1–W13 in code (Kellen's instruction was to do W1–W13 on the hosted copy; they're code fixes, so they ship
 with the first deploy instead). Real database backed up to `backups/db-2026-10-28-before-review-merge.sqlite3`.
 - Merge of `main` (`dcc0b9e`): the 9 conflicts resolved as in worklist step 0; data room migration renumbered
@@ -20,8 +20,7 @@ with the first deploy instead). Real database backed up to `backups/db-2026-10-2
   passes them as `_NEWS_FOLDER` / `_GRANOLA_FOLDER` with `ACMI_DRIVE_ADC=true`; its header lists the one-time setup.
   **The daily Granola task (acmiproperties account) has to save its JSON into that Drive folder.**
 - 901 tests green.
-- **Not done, needs Kellen:** fast-forward `main` and `migrate crm` on the real database (live data); the whole
-  cutover in step 3.
+- **Not done, needs Kellen:** the whole cutover in step 3.
 - **Secret Manager is Mel's** (Kellen, 10-28). Neither ACMI project (`sincere-passage-511621-j3`, which has the OAuth
   client, or `acmi-properties-web-app`) has billing or Secret Manager on. `docs/FOR_MEL_SECRET_MANAGER.md` lists what
   Mel sets up. Once Mel gives Kellen Secret Manager Admin, Claude on the laptop uploads `ACMI_TOKEN_KEY` and the
