@@ -17,6 +17,7 @@
 <div class="board-summary">
   {{ summary.open_count }} open deal{{ summary.open_count|pluralize }} · {{ summary.open_total|money|default:"$0" }} pipeline · {{ summary.weighted_total|money|default:"$0" }} weighted · {{ summary.signed_total|money|default:"$0" }} signed
   {% if stage_filter %} · showing {{ stage_filter }} only <a href="{% qs_set stage='' %}">clear</a>{% endif %}
+  {% if view == 'table' %}{% if hidden_closed %} · <a href="{% qs_set closed='1' %}">Show closed ({{ hidden_closed }})</a>{% elif show_closed %} · <a href="{% qs_set closed='' %}">Hide closed</a>{% endif %}{% endif %}
 </div>
 
 {% if suggestions %}
