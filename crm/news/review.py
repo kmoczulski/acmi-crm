@@ -158,7 +158,10 @@ def build_plan(scan, user):
     """What Apply will do, item by item, without doing it."""
     existing_emails = set(Person.objects.exclude(email=None).values_list("email", flat=True))
     plan = {"proceed": [], "decline": [], "noted": [], "pursue": [], "pass": [], "undecided": [],
-            "contacts": [], "tasks": [], "trash": [], "draft_saves": [], "new_companies": []}
+            "contacts": [], "tasks": [], "trash": [], "draft_saves": [], "new_companies": [], "moves": [],
+            "draft_tasks": []}
+    mailbox = mailbox_for(user)
+    mailbox_user_id = mailbox.user_id if mailbox else None
     for item in scan.items.exclude(kind=NewsItem.Kind.WEAK).select_related("company", "owner"):
         if item.kind == NewsItem.Kind.PROSPECT:
             if item.decision == NewsItem.Decision.PURSUE:
@@ -173,8 +176,12 @@ def build_plan(scan, user):
             continue
         if item.decision == NewsItem.Decision.PROCEED:
             plan["proceed"].append(item)
-            if item.edited and item.draft_uid:
-                plan["draft_saves"].append(item)
+            if item.draft_uid:
+                plan["draft_tasks"].append(item)
+                if item.owner_id and item.owner_id != mailbox_user_id:
+                    plan["moves"].append(item)  # the draft goes to their Gmail instead of being edited here
+                elif item.edited:
+                    plan["draft_saves"].append(item)
             if not item.company_id:
                 plan["new_companies"].append(item.company_name)
             people = item_recipients(item, user)
@@ -237,6 +244,23 @@ def _body(item):
     return "\n".join(line for line in lines if line)
 
 
+def _hand_draft_over(item, source_box):
+    """Recreate the item's draft (with any edits) as an unsent draft in its owner's Gmail, then trash the original.
+    Returns the link to the new draft. Nothing is sent."""
+    owner_mailbox = Mailbox.objects.filter(user=item.owner).first()
+    if owner_mailbox is None:
+        raise gmail_drafts.DraftError(f"{item.owner} has no mailbox connected")
+    to = item.edit_to if item.edited else item.draft_to
+    subject = item.edit_subject if item.edited else item.draft_subject
+    html = item.edit_html if item.edited else item.draft_html
+    with gmail_drafts.open_drafts(owner_mailbox, item.owner) as owner_box:
+        new_id = owner_box.create(to, subject, html, cc=item.draft_cc)
+        link = owner_box.compose_url(new_id)
+    source_box.trash([item.draft_uid])
+    item.result["draft"] = f"moved to {item.owner}'s Gmail drafts"
+    return link
+
+
 def apply(scan, user):
     """Carry out every decision once. Gmail steps run first; CRM writes in one transaction."""
     with transaction.atomic():
@@ -249,26 +273,41 @@ def apply(scan, user):
         scan.save(update_fields=["status", "applied_at", "applied_by"])
 
     results = {"drafts_saved": 0, "drafts_trashed": 0, "gmail_errors": [], "contacts_added": 0,
-               "contacts_known": 0, "tasks": 0, "companies_created": 0, "logged": 0}
+               "contacts_known": 0, "tasks": 0, "drafts_moved": 0, "companies_created": 0, "logged": 0}
     # Gmail first: if it fails, the CRM records still go in and the error is reported.
     mailbox = mailbox_for(user)
-    if mailbox and (plan["draft_saves"] or plan["trash"]):
+    draft_links = {}  # item.pk -> where to open its draft in Gmail
+    if mailbox and (plan["draft_saves"] or plan["trash"] or plan["draft_tasks"]):
         try:
             with gmail_drafts.open_drafts(mailbox, user) as box:
                 for item in plan["draft_saves"]:
                     try:
                         new_uid = box.update(item.draft_uid, item.edit_to, item.edit_subject, item.edit_html,
                                              cc=item.draft_cc)
+                        item.draft_uid = new_uid or item.draft_uid
                         item.result["draft"] = f"saved edits (new draft {new_uid})"
                         results["drafts_saved"] += 1
                     except Exception as exc:  # report and keep going
                         item.result["draft"] = f"edit FAILED: {exc}"
+                        results["gmail_errors"].append(f"{item.company_name}: {exc}")
+                for item in plan["moves"]:
+                    try:
+                        draft_links[item.pk] = _hand_draft_over(item, box)
+                        results["drafts_moved"] += 1
+                    except Exception as exc:  # the draft stays in this mailbox and the task says so
+                        item.result["draft"] = f"not handed to {item.owner}: {exc}"
                         results["gmail_errors"].append(f"{item.company_name}: {exc}")
                 if plan["trash"]:
                     outcome = box.trash([i.draft_uid for i in plan["trash"]])
                     for item in plan["trash"]:
                         item.result["draft"] = outcome.get(item.draft_uid, "not trashed")
                         results["drafts_trashed"] += outcome.get(item.draft_uid) == "trashed"
+                for item in plan["draft_tasks"]:
+                    if item.pk not in draft_links:
+                        try:
+                            draft_links[item.pk] = box.compose_url(item.draft_uid)
+                        except Exception:  # a link is a convenience; the task still says where the draft is
+                            pass
         except (gmail_drafts.DraftError, OSError) as exc:
             results["gmail_errors"].append(str(exc))
 
@@ -317,6 +356,22 @@ def apply(scan, user):
                 due_date=timezone.localdate() + timedelta(days=3), notes=_body(item),
             )
             item.result["task"] = title
+            results["tasks"] += 1
+        for item in plan["draft_tasks"]:
+            company = _company_for(item, user)
+            owner = item.owner or user
+            link = draft_links.get(item.pk, "")
+            where = f"Draft in Gmail: {link}" if link else "The draft is in Gmail Drafts."
+            if item.result.get("draft", "").startswith("not handed"):
+                where += f"\nIt is still in {mailbox.email}'s Drafts: {item.result['draft']}"
+            Task.objects.create(
+                title=f"Review and send draft: {item.company_name}", company=company, assignee=owner,
+                created_by=user, due_date=timezone.localdate() + timedelta(days=3),
+                notes=f"{where}\nNothing has been sent.\n\n{_body(item)}",
+            )
+            if link:
+                item.result["draft_link"] = link
+            item.result["draft_task"] = str(owner)
             results["tasks"] += 1
         for item in plan["proceed"] + plan["noted"] + plan["decline"] + plan["pursue"]:
             if item.note and item.company_id:

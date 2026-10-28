@@ -90,6 +90,13 @@ class FakeDrafts:
         FakeDrafts.calls.append(("trash", tuple(uids)))
         return {u: "trashed" for u in uids}
 
+    def create(self, to, subject, html, cc=""):
+        FakeDrafts.calls.append(("create", to, subject))
+        return "77"
+
+    def compose_url(self, uid):
+        return f"https://mail.google.com/mail/u/x/#drafts?compose=m{uid}"
+
 
 class NewsReviewTests(TestCase):
     def setUp(self):
@@ -160,6 +167,31 @@ class NewsReviewTests(TestCase):
         # Locked after apply.
         r = self.client.post(f"/news/items/{fh.pk}/", {"decision": "decline"})
         self.assertEqual(r.status_code, 409)
+
+    def test_proceed_makes_a_review_task_and_hands_the_draft_to_the_owner(self):
+        scan = self.open_scan()
+        dave = get_user_model().objects.create(username="dave", email="dave@acmigroup.com")
+        Mailbox.objects.create(user=dave, email=dave.email)
+        fh, old = self.item(scan, "Firehawk Aerospace"), self.item(scan, "Old Co")
+        self.client.post(f"/news/items/{fh.pk}/", {"decision": "proceed", "owner": str(dave.pk),
+                                                   "edit_subject": "ACMI x Firehawk: edited"})
+        self.client.post(f"/news/items/{old.pk}/", {"decision": "proceed"})
+        plan = self.client.get(f"/news/{scan.pk}/plan/")
+        self.assertContains(plan, "Nothing is sent.")
+        self.assertEqual(Task.objects.count(), 0)  # reviewing the plan changes nothing
+        with patch("crm.news.drafts.open_drafts", lambda mailbox, user: FakeDrafts(mailbox)):
+            review.apply(scan, self.user)
+        # Dave's copy carries the edit; the original leaves Kellen's drafts; the edit isn't saved in place.
+        self.assertIn(("create", "Ben Allen <ben@firehawkaerospace.com>", "ACMI x Firehawk: edited"), FakeDrafts.calls)
+        self.assertIn(("trash", ("11",)), FakeDrafts.calls)
+        self.assertFalse(any(c[0] == "update" for c in FakeDrafts.calls))
+        task = Task.objects.get(title="Review and send draft: Firehawk Aerospace")
+        self.assertEqual(task.assignee, dave)
+        self.assertIn("compose=m77", task.notes)
+        mine = Task.objects.get(title="Review and send draft: Old Co")
+        self.assertEqual(mine.assignee, self.user)  # no owner picked: stays with whoever applied
+        self.assertIn("compose=m13", mine.notes)
+        self.assertFalse(any(c[0] == "create" and "Old Co" in c[2] for c in FakeDrafts.calls))
 
     def test_prospect_pursue_creates_company_and_task(self):
         scan = self.open_scan()
