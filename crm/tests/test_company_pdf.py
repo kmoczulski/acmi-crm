@@ -6,6 +6,7 @@ from django.contrib.auth import get_user_model
 from django.template.loader import render_to_string
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 from django.utils.html import escape
 
 from crm import company_pdf
@@ -113,7 +114,8 @@ class CompanyPdfTests(TestCase):
 
     def test_contacts_are_named_and_listed_once(self):
         Person.objects.create(full_name="", email="contactus@example.com", company=self.co)
-        Person.objects.create(full_name="Jeb Brough", email="jeb@example.com", company=self.co)
+        Person.objects.create(full_name="Jeb Brough", email="jeb@example.com", company=self.co,
+                              last_interaction_at=timezone.now())  # the one in touch most recently is the one kept
         Person.objects.create(full_name="jeb  brough", email="jeb2@example.com", company=self.co)
         Person.objects.create(full_name="Terry Russell", company=self.co)
         self.assertEqual(sorted(p.full_name for p in company_pdf.build(self.co)["people"]), ["Jeb Brough", "Terry Russell"])
