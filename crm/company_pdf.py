@@ -97,6 +97,20 @@ def lease_rows(contracts):
     return out
 
 
+def contacts(company, limit=6):
+    """Named contacts, most recently in touch first, each name once: an unnamed record would print its email address
+    in a document that leaves ACMI, and duplicate person records would list the same person twice."""
+    seen, out = set(), []
+    for p in company.people.exclude(full_name="").order_by(F("last_interaction_at").desc(nulls_last=True), "full_name"):
+        key = " ".join(p.full_name.lower().split())
+        if key and key not in seen:
+            seen.add(key)
+            out.append(p)
+            if len(out) == limit:
+                break
+    return out
+
+
 def build(company):
     contracts = list(_contracts(company).select_related("lease_terms"))
     documents = list(Document.objects.filter(Q(company=company) | Q(opportunity__company=company)).distinct())
@@ -115,7 +129,7 @@ def build(company):
     now = timezone.now()
     return {
         "company": company, "tenant": tenant, "deals": deals, "leases": lease_rows(contracts), "missing": missing,
-        "people": list(company.people.order_by(F("last_interaction_at").desc(nulls_last=True), "full_name")[:6]),
+        "people": contacts(company),
         "next_meeting": company.meetings.filter(start__gt=now).order_by("start").first(),
     }
 

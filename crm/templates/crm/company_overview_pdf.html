@@ -44,7 +44,7 @@
 
   <h2>Relationship</h2>
   <div class="brief-cols"><table>
-    {% for p in people %}<tr><th>{{ p.full_name|default:p.email }}</th><td>{{ p.title }}</td></tr>{% empty %}<tr><td class="muted">No contacts on file.</td></tr>{% endfor %}
+    {% for p in people %}<tr><th>{{ p.full_name }}</th><td>{{ p.title }}</td></tr>{% empty %}<tr><td class="muted">No contacts on file.</td></tr>{% endfor %}
   </table><table>
     <tr><th>Last contact</th><td>{{ company.last_interaction_at|date:"M j, Y"|default:"–" }}</td></tr>
     <tr><th>Last reply</th><td>{{ company.last_reply_at|date:"M j, Y"|default:"–" }}</td></tr>

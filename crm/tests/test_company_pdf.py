@@ -3,6 +3,7 @@ from datetime import date
 from unittest import mock
 
 from django.contrib.auth import get_user_model
+from django.template.loader import render_to_string
 from django.test import TestCase
 from django.urls import reverse
 from django.utils.html import escape
@@ -109,6 +110,21 @@ class CompanyPdfTests(TestCase):
         self.assertContains(resp, "Tenant overview")
         printed = self.client.get(self.url + "?print=1")
         self.assertContains(printed, "window.print()")
+
+    def test_contacts_are_named_and_listed_once(self):
+        Person.objects.create(full_name="", email="contactus@example.com", company=self.co)
+        Person.objects.create(full_name="Jeb Brough", email="jeb@example.com", company=self.co)
+        Person.objects.create(full_name="jeb  brough", email="jeb2@example.com", company=self.co)
+        Person.objects.create(full_name="Terry Russell", company=self.co)
+        self.assertEqual(sorted(p.full_name for p in company_pdf.build(self.co)["people"]), ["Jeb Brough", "Terry Russell"])
+        with mock.patch.object(briefs, "html_to_pdf", return_value=b"%PDF") as pdf:
+            self.client.get(self.url)
+        self.assertNotIn("contactus@example.com", pdf.call_args.args[0])
+
+    def test_details_panel_renders_the_overview_markdown(self):
+        html = render_to_string("crm/partials/company_details.html", {"company": self.co, "grid": False})
+        self.assertIn("<strong>Parent:</strong>", html)
+        self.assertNotIn("**", html)
 
     def test_company_page_links_to_it(self):
         page = self.client.get(reverse("crm:company_detail", args=[self.co.pk]))

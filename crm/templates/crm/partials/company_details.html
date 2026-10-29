@@ -12,6 +12,6 @@
   {% if company.linkedin %}<dt>LinkedIn</dt><dd><a href="{{ company.linkedin }}" target="_blank" rel="noopener">Profile</a></dd>{% endif %}
   {% if company.categories %}<dt>Categories</dt><dd>{% for c in company.categories %}<span class="tag">{{ c }}</span> {% endfor %}</dd>{% endif %}
   {% if company.flags %}<dt>Flags</dt><dd>{% for f in company.flags %}<span class="tag">{{ f }}</span> {% endfor %}</dd>{% endif %}
-  {% if company.description and not grid %}<dt>Description</dt><dd class="prose">{{ company.description|linebreaksbr }}</dd>{% endif %}{# the overview widget shows it on the grid #}
+  {% if company.description and not grid %}<dt>Description</dt><dd class="prose">{{ company.description|prose }}</dd>{% endif %}{# the overview widget shows it on the grid #}
   {% if company.notes %}<dt>Notes</dt><dd class="prose">{{ company.notes|linebreaksbr }}</dd>{% endif %}
 </dl>
