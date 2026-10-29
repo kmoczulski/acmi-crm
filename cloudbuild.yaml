@@ -1,6 +1,14 @@
-# Cloud Build trigger on the GitHub repo's main branch: build, push, migrate, deploy the jobs and the service.
+# Cloud Build pipeline, run by hand (there is no trigger): build, push, migrate, deploy the jobs and the service.
+# Run it from a clean checkout of the commit to deploy: the whole folder is uploaded, so uncommitted files would reach
+# the image.
+#   gcloud builds submit --config cloudbuild.yaml --region us-central1 --substitutions=_TAG=$(git rev-parse --short HEAD) .
 #
-# Set on the trigger: _SQL_INSTANCE (project:region:instance) and _GOOGLE_CLIENT_ID; the others have defaults.
+# _TAG, the image tag, is the only value to pass (the built-in SHORT_SHA is empty on a manual submit); the first step
+# stops the build when it is missing. Every other substitution defaults to what is live, so leaving one out cannot blank
+# a live setting. To change one, pass it and change its default below too, or the next plain submit puts the old value
+# back. --set-env-vars and --set-secrets replace everything on the service and the jobs, so a variable added by hand
+# with gcloud run ... update is dropped by the next deploy unless it is added here as well.
+# The env lists use | as their separator (^|^): values hold commas, colons and @ (the push account is an email).
 # _HOSTS and _ORIGINS may list several values separated by commas (e.g. add the run.app address while DNS is set up).
 # _BUCKET is the Cloud Storage bucket for uploads and outreach attachments (create it first; blank = local disk).
 #
@@ -32,34 +40,43 @@
 #     --uri="https://run.googleapis.com/v2/projects/PROJECT_ID/locations/us-central1/jobs/acmi-crm-sync:run" \
 #     --http-method=POST --oauth-service-account-email=RUNTIME_SERVICE_ACCOUNT
 substitutions:
+  _TAG: ""
   _REGION: us-central1
   _SERVICE: acmi-crm
+  _SQL_INSTANCE: sincere-passage-511621-j3:us-central1:acmi-db
+  _GOOGLE_CLIENT_ID: 46824423159-hvl8u2od52feflanu9cgq6lqtpkb0c4u.apps.googleusercontent.com
   _HOSTS: hub.acmiproperties.com
   _ORIGINS: https://hub.acmiproperties.com
   _DB_NAME: acmi
   _DB_USER: acmi
-  _BUCKET: ""
+  _BUCKET: acmi-uploads-sincere-passage-511621-j3
   _NEWS_FOLDER: ""
   _GRANOLA_FOLDER: ""
-  _PUSH_TOPIC: ""
-  _PUSH_SA: ""
+  _PUSH_TOPIC: projects/sincere-passage-511621-j3/topics/acmi-gmail-push
+  _PUSH_SA: acmi-pubsub-push@sincere-passage-511621-j3.iam.gserviceaccount.com
   _PUSH_AUDIENCE: https://hub.acmiproperties.com/internal/gmail-push/
 steps:
+  # A manual submit leaves SHORT_SHA empty, so the image tag comes from _TAG. Stop before anything is built or deployed
+  # if it was left out.
+  - id: check-tag
+    name: gcr.io/cloud-builders/docker
+    entrypoint: sh
+    args: ["-c", "case '${_TAG}' in ''|[-.]*|*[!A-Za-z0-9_.-]*) echo 'Pass --substitutions=_TAG=<git short sha> (see the top of cloudbuild.yaml)' >&2; exit 1;; esac"]
   - id: build
     name: gcr.io/cloud-builders/docker
-    args: ["build", "-t", "${_REGION}-docker.pkg.dev/$PROJECT_ID/acmi/${_SERVICE}:$SHORT_SHA", "."]
+    args: ["build", "-t", "${_REGION}-docker.pkg.dev/$PROJECT_ID/acmi/${_SERVICE}:${_TAG}", "."]
   - id: push
     name: gcr.io/cloud-builders/docker
-    args: ["push", "${_REGION}-docker.pkg.dev/$PROJECT_ID/acmi/${_SERVICE}:$SHORT_SHA"]
+    args: ["push", "${_REGION}-docker.pkg.dev/$PROJECT_ID/acmi/${_SERVICE}:${_TAG}"]
   # Migrations run first, as a Cloud Run job from the new image with the service's database and secrets, so the
   # new code never starts against an old schema. The build stops here if a migration fails.
   - id: migrate
     name: gcr.io/google.com/cloudsdktool/cloud-sdk
     entrypoint: gcloud
     args: ["run", "jobs", "deploy", "${_SERVICE}-migrate",
-           "--image=${_REGION}-docker.pkg.dev/$PROJECT_ID/acmi/${_SERVICE}:$SHORT_SHA", "--region=${_REGION}",
+           "--image=${_REGION}-docker.pkg.dev/$PROJECT_ID/acmi/${_SERVICE}:${_TAG}", "--region=${_REGION}",
            "--set-cloudsql-instances=${_SQL_INSTANCE}",
-           "--set-env-vars=^@^DJANGO_DEBUG=false@DJANGO_ALLOWED_HOSTS=${_HOSTS}@DJANGO_CSRF_TRUSTED_ORIGINS=${_ORIGINS}@ACMI_LOCAL_LOGIN=false@POSTGRES_DB=${_DB_NAME}@POSTGRES_USER=${_DB_USER}@POSTGRES_HOST=/cloudsql/${_SQL_INSTANCE}@GOOGLE_CLIENT_ID=${_GOOGLE_CLIENT_ID}",
+           "--set-env-vars=^|^DJANGO_DEBUG=false|DJANGO_ALLOWED_HOSTS=${_HOSTS}|DJANGO_CSRF_TRUSTED_ORIGINS=${_ORIGINS}|ACMI_LOCAL_LOGIN=false|POSTGRES_DB=${_DB_NAME}|POSTGRES_USER=${_DB_USER}|POSTGRES_HOST=/cloudsql/${_SQL_INSTANCE}|GOOGLE_CLIENT_ID=${_GOOGLE_CLIENT_ID}",
            "--set-secrets=DJANGO_SECRET_KEY=acmi-django-secret-key:latest,POSTGRES_PASSWORD=acmi-postgres-password:latest,ACMI_TOKEN_KEY=acmi-token-key:latest",
            "--command=python", "--args=manage.py,migrate,--noinput", "--max-retries=0", "--execute-now", "--wait"]
   # Outreach batches: the web app runs this job with "manage.py send_batch <id>" (crm/cloudrun.py).
@@ -67,9 +84,9 @@ steps:
     name: gcr.io/google.com/cloudsdktool/cloud-sdk
     entrypoint: gcloud
     args: ["run", "jobs", "deploy", "${_SERVICE}-send",
-           "--image=${_REGION}-docker.pkg.dev/$PROJECT_ID/acmi/${_SERVICE}:$SHORT_SHA", "--region=${_REGION}",
+           "--image=${_REGION}-docker.pkg.dev/$PROJECT_ID/acmi/${_SERVICE}:${_TAG}", "--region=${_REGION}",
            "--set-cloudsql-instances=${_SQL_INSTANCE}", "--task-timeout=3600", "--max-retries=0",
-           "--set-env-vars=^@^DJANGO_DEBUG=false@DJANGO_ALLOWED_HOSTS=${_HOSTS}@POSTGRES_DB=${_DB_NAME}@POSTGRES_USER=${_DB_USER}@POSTGRES_HOST=/cloudsql/${_SQL_INSTANCE}@ACMI_GCS_BUCKET=${_BUCKET}@GOOGLE_CLIENT_ID=${_GOOGLE_CLIENT_ID}",
+           "--set-env-vars=^|^DJANGO_DEBUG=false|DJANGO_ALLOWED_HOSTS=${_HOSTS}|POSTGRES_DB=${_DB_NAME}|POSTGRES_USER=${_DB_USER}|POSTGRES_HOST=/cloudsql/${_SQL_INSTANCE}|ACMI_GCS_BUCKET=${_BUCKET}|GOOGLE_CLIENT_ID=${_GOOGLE_CLIENT_ID}",
            "--set-secrets=DJANGO_SECRET_KEY=acmi-django-secret-key:latest,POSTGRES_PASSWORD=acmi-postgres-password:latest,GOOGLE_CLIENT_SECRET=acmi-google-client-secret:latest,ACMI_TOKEN_KEY=acmi-token-key:latest",
            "--command=python", "--args=manage.py,send_batch,0"]
   # Mail + calendar sync, run every 15 minutes by Cloud Scheduler (see the header).
@@ -77,18 +94,18 @@ steps:
     name: gcr.io/google.com/cloudsdktool/cloud-sdk
     entrypoint: gcloud
     args: ["run", "jobs", "deploy", "${_SERVICE}-sync",
-           "--image=${_REGION}-docker.pkg.dev/$PROJECT_ID/acmi/${_SERVICE}:$SHORT_SHA", "--region=${_REGION}",
+           "--image=${_REGION}-docker.pkg.dev/$PROJECT_ID/acmi/${_SERVICE}:${_TAG}", "--region=${_REGION}",
            "--set-cloudsql-instances=${_SQL_INSTANCE}", "--task-timeout=1800", "--max-retries=0",
-           "--set-env-vars=^@^DJANGO_DEBUG=false@DJANGO_ALLOWED_HOSTS=${_HOSTS}@POSTGRES_DB=${_DB_NAME}@POSTGRES_USER=${_DB_USER}@POSTGRES_HOST=/cloudsql/${_SQL_INSTANCE}@GOOGLE_CLIENT_ID=${_GOOGLE_CLIENT_ID}@ACMI_DRIVE_ADC=true@ACMI_GRANOLA_DRIVE_FOLDER=${_GRANOLA_FOLDER}@ACMI_GMAIL_PUSH_TOPIC=${_PUSH_TOPIC}",
+           "--set-env-vars=^|^DJANGO_DEBUG=false|DJANGO_ALLOWED_HOSTS=${_HOSTS}|POSTGRES_DB=${_DB_NAME}|POSTGRES_USER=${_DB_USER}|POSTGRES_HOST=/cloudsql/${_SQL_INSTANCE}|GOOGLE_CLIENT_ID=${_GOOGLE_CLIENT_ID}|ACMI_DRIVE_ADC=true|ACMI_GRANOLA_DRIVE_FOLDER=${_GRANOLA_FOLDER}|ACMI_GMAIL_PUSH_TOPIC=${_PUSH_TOPIC}",
            "--set-secrets=DJANGO_SECRET_KEY=acmi-django-secret-key:latest,POSTGRES_PASSWORD=acmi-postgres-password:latest,GOOGLE_CLIENT_SECRET=acmi-google-client-secret:latest,ACMI_TOKEN_KEY=acmi-token-key:latest,ANTHROPIC_API_KEY=acmi-anthropic-api-key:latest,ACMI_VAPID_PUBLIC_KEY=acmi-vapid-public-key:latest,ACMI_VAPID_PRIVATE_KEY=acmi-vapid-private-key:latest",
            "--command=python", "--args=manage.py,sync_all"]
   - id: deploy
     name: gcr.io/google.com/cloudsdktool/cloud-sdk
     entrypoint: gcloud
     args: ["run", "deploy", "${_SERVICE}",
-           "--image=${_REGION}-docker.pkg.dev/$PROJECT_ID/acmi/${_SERVICE}:$SHORT_SHA", "--region=${_REGION}",
+           "--image=${_REGION}-docker.pkg.dev/$PROJECT_ID/acmi/${_SERVICE}:${_TAG}", "--region=${_REGION}",
            "--add-cloudsql-instances=${_SQL_INSTANCE}", "--timeout=900", "--memory=2Gi", "--allow-unauthenticated",
-           "--set-env-vars=^@^DJANGO_DEBUG=false@DJANGO_ALLOWED_HOSTS=${_HOSTS}@DJANGO_CSRF_TRUSTED_ORIGINS=${_ORIGINS}@ACMI_LOCAL_LOGIN=false@POSTGRES_DB=${_DB_NAME}@POSTGRES_USER=${_DB_USER}@POSTGRES_HOST=/cloudsql/${_SQL_INSTANCE}@GOOGLE_CLIENT_ID=${_GOOGLE_CLIENT_ID}@ACMI_SEND_JOB=${_SERVICE}-send@ACMI_GCP_REGION=${_REGION}@ACMI_GCS_BUCKET=${_BUCKET}@ACMI_DRIVE_ADC=true@ACMI_NEWS_DRIVE_FOLDER=${_NEWS_FOLDER}@ACMI_GMAIL_PUSH_SA=${_PUSH_SA}@ACMI_GMAIL_PUSH_AUDIENCE=${_PUSH_AUDIENCE}",
+           "--set-env-vars=^|^DJANGO_DEBUG=false|DJANGO_ALLOWED_HOSTS=${_HOSTS}|DJANGO_CSRF_TRUSTED_ORIGINS=${_ORIGINS}|ACMI_LOCAL_LOGIN=false|POSTGRES_DB=${_DB_NAME}|POSTGRES_USER=${_DB_USER}|POSTGRES_HOST=/cloudsql/${_SQL_INSTANCE}|GOOGLE_CLIENT_ID=${_GOOGLE_CLIENT_ID}|ACMI_SEND_JOB=${_SERVICE}-send|ACMI_GCP_REGION=${_REGION}|ACMI_GCS_BUCKET=${_BUCKET}|ACMI_DRIVE_ADC=true|ACMI_NEWS_DRIVE_FOLDER=${_NEWS_FOLDER}|ACMI_GMAIL_PUSH_TOPIC=${_PUSH_TOPIC}|ACMI_GMAIL_PUSH_SA=${_PUSH_SA}|ACMI_GMAIL_PUSH_AUDIENCE=${_PUSH_AUDIENCE}",
            "--set-secrets=DJANGO_SECRET_KEY=acmi-django-secret-key:latest,POSTGRES_PASSWORD=acmi-postgres-password:latest,ACMI_CRON_SECRET=acmi-cron-secret:latest,GOOGLE_CLIENT_SECRET=acmi-google-client-secret:latest,ANTHROPIC_API_KEY=acmi-anthropic-api-key:latest,ACMI_TOKEN_KEY=acmi-token-key:latest,ACMI_VAPID_PUBLIC_KEY=acmi-vapid-public-key:latest,ACMI_VAPID_PRIVATE_KEY=acmi-vapid-private-key:latest"]
 images:
-  - "${_REGION}-docker.pkg.dev/$PROJECT_ID/acmi/${_SERVICE}:$SHORT_SHA"
+  - "${_REGION}-docker.pkg.dev/$PROJECT_ID/acmi/${_SERVICE}:${_TAG}"
