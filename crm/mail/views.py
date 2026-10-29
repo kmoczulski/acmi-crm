@@ -4,7 +4,7 @@ from functools import wraps
 import requests
 from django.conf import settings
 from django.contrib import messages
-from django.http import Http404, HttpResponseForbidden, JsonResponse
+from django.http import Http404, HttpResponse, HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
@@ -257,6 +257,22 @@ def cron_sync(request):
     except Exception as exc:  # noqa: BLE001 - reminders must not fail the mail sync
         out["reminders_error"] = str(exc)
     return JsonResponse(out)
+
+
+@csrf_exempt
+@require_POST
+def gmail_push(request):
+    """Pub/Sub's push for a Gmail watch (crm/mail/push.py): read what changed in that one mailbox now. Only a request
+    signed by the push subscription's service account counts; anything it sends is only a nudge, since the sync reads
+    from the mailbox's own history marker. Always answers 204 once verified, so Pub/Sub doesn't redeliver."""
+    from . import push
+
+    if not push.verified(request):
+        return HttpResponseForbidden("not from the push subscription")
+    address = push.notified_address(request.body)
+    if address:
+        push.sync_for(address)
+    return HttpResponse(status=204)
 
 
 # ---------------------------------------------------------------------------

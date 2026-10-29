@@ -220,7 +220,7 @@ class InviteTests(CaptureBase):
         email = parse_message((
             "From: Priya Raman <priya.raman@harborpoint.test>\r\nTo: kmoczulski@acmigroup.com\r\n"
             f"Subject: Invitation: Anvil financing @ {self.day:%a %b} {self.day.day}, {self.day.year} 2:30pm - 3:30pm"
-            f" ({at(self.day).tzname()}) (kmoczulski@acmigroup.com)\r\n"  # EST once daylight saving ends, as Google writes it
+            f" ({at(self.day).tzname()}) (kmoczulski@acmigroup.com)\r\n"  # EDT or EST, as Google prints it that day
             "Message-ID: <inv-2@harborpoint.test>\r\n\r\nGuests\r\npriya.raman@harborpoint.test\r\ndshah@harborpoint.test\r\n"
         ).encode())
         self.assertTrue(invites.is_invitation(email.subject))

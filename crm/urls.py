@@ -294,4 +294,5 @@ urlpatterns = [
     path("boards/cards/<int:pk>/attach/", board_views.attachment_edit, name="card_attach"),
     path("boards/attachments/<int:pk>/file/", board_views.attachment_file, name="card_attachment_file"),
     path("internal/sync-mail/", mail_views.cron_sync, name="cron_sync"),
+    path("internal/gmail-push/", mail_views.gmail_push, name="gmail_push"),
 ]

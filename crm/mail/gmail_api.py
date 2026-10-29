@@ -214,6 +214,15 @@ class GmailClient:
     def profile(self):
         return self.get("/profile")
 
+    def watch(self, topic):
+        """Ask Gmail to publish to the Pub/Sub `topic` whenever the inbox or Sent changes (crm/mail/push.py). Returns
+        {"historyId", "expiration" in ms since the epoch}; the watch lasts at most 7 days."""
+        return self.post("/watch", {"topicName": topic, "labelIds": ["INBOX", "SENT"],
+                                    "labelFilterBehavior": "INCLUDE"})
+
+    def stop_watch(self):
+        return self.post("/stop")
+
     def list_ids(self, query):
         """Message ids matching a Gmail search, newest first (Spam and Trash left out)."""
         ids, params = [], {"q": query, "maxResults": PAGE_SIZE}

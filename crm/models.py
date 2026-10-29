@@ -1266,6 +1266,8 @@ class Mailbox(models.Model):
     inbox_indexed_at = models.DateTimeField(null=True, blank=True, editable=False)
     # When the hub finished putting CRM labels on the indexed threads once (crm/mail/crm_labels.py backfill).
     crm_labels_done_at = models.DateTimeField(null=True, blank=True, editable=False)
+    # When Gmail's push watch on this mailbox runs out (a watch lasts at most 7 days; crm/mail/push.py renews it).
+    watch_expires_at = models.DateTimeField(null=True, blank=True, editable=False)
 
     class Meta:
         verbose_name_plural = "mailboxes"
