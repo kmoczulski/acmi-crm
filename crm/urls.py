@@ -166,6 +166,7 @@ urlpatterns = [
     path("inbox/file/<int:pk>/remove/", inbox_views.unfile, name="inbox_unfile"),
     path("inbox/note/", inbox_views.comment_add, name="inbox_note"),
     path("inbox/open/", inbox_views.open_message, name="inbox_open"),
+    path("inbox/window/", inbox_views.thread_window, name="inbox_window"),
     path("mail-setup/crm-labels/", mail_views.crm_labels_switch, name="mail_crm_labels"),
     path("mail-setup/shared/connect/", mail_views.shared_connect, name="mail_shared_connect"),
     path("mail-setup/shared/connected/", mail_views.shared_done, name="mail_shared_done"),

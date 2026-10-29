@@ -6,6 +6,7 @@ anyone else's mail; a thread or message id that isn't theirs is simply not found
 """
 import io
 import logging
+import re
 import zipfile
 from urllib.parse import parse_qsl, urlsplit, urlunsplit
 
@@ -585,3 +586,32 @@ def open_message(request, mailbox, client):
         return redirect("crm:inbox")
     thread = mail_render.get_message(mailbox, client, found[0]).get("threadId", "")
     return redirect(f"{reverse('crm:inbox')}?label=ALL&t={thread}")
+
+
+@mail_required
+def thread_window(request, mailbox, client):
+    """One conversation in the mail dock's little box (static/crm/dock.js), opened from a new-email alert: the messages
+    and Reply / Reply all / Forward, which open their own boxes beside it. Reading it marks it read, as in the inbox.
+    ?t=<thread> from an alert; ?m=<Message-ID> works as it does for /inbox/open/. Gmail trouble is shown in the box."""
+    gmail_id = request.GET.get("t", "")[:40]
+    notice, reader = "", None
+    try:
+        if not gmail_id:
+            message_id = request.GET.get("m", "").strip()[:500]
+            found = client.message_page(f"rfc822msgid:{message_id.strip('<>')}", size=1)[0] if message_id else []
+            gmail_id = mail_render.get_message(mailbox, client, found[0]).get("threadId", "") if found else ""
+        if gmail_id:
+            reader = reader_for(request, mailbox, client, gmail_id)
+    except NotFound:
+        pass
+    except (MailboxError, requests.RequestException) as exc:
+        log.warning("Mail box for %s failed: %s", mailbox, exc)
+        notice = gmail_error(exc)
+    if reader is None and not notice:
+        notice = "That email isn't in your mailbox."
+    win = re.sub(r"[^A-Za-z0-9_-]", "", request.GET.get("w", ""))[:24]
+    return render(request, "crm/mail_window.html", {
+        "mailbox": mailbox, "reader": reader, "notice": notice, "window": win,
+        "can_change": shared.can_change(request.user, mailbox),
+        "layout": "crm/window_base.html",
+    })

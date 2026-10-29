@@ -2466,3 +2466,62 @@ html[data-theme="dark"] [style*="background-image"] { filter: invert(1) hue-rota
 html[data-theme="dark"] .appbar .brand img { filter: none; }
 @media print { html[data-theme="dark"] { filter: none; background: #fff; } html[data-theme="dark"] img,
   html[data-theme="dark"] iframe, html[data-theme="dark"] canvas { filter: none; } }
+
+/* Mail dock (static/crm/dock.js): boxes along the bottom of the page for a new message, a forward or an email opened from
+   an alert, like Gmail's compose windows. Each box is a frame of window_base.html, drawn without the top bar. */
+.mail-dock { position: fixed; right: 20px; bottom: 0; z-index: 900; display: flex; align-items: flex-end; gap: 12px;
+  max-width: calc(100vw - 40px); pointer-events: none; }
+.mail-dock[hidden] { display: none; }
+.dock-win { pointer-events: auto; display: flex; flex-direction: column; width: 500px; height: min(600px, calc(100vh - 80px));
+  background: var(--panel); border: 1px solid var(--line); border-bottom: 0; border-radius: 10px 10px 0 0;
+  box-shadow: 0 8px 30px rgba(0,0,0,.28); overflow: hidden; }
+.dock-win.dock-thread { width: 460px; }
+.dock-win.big { width: min(900px, 70vw); height: min(780px, calc(100vh - 70px)); }
+.dock-win.min { width: 260px; height: 40px; box-shadow: 0 4px 14px rgba(0,0,0,.2); }
+.dock-head { display: flex; align-items: center; flex: 0 0 40px; height: 40px; background: var(--accent); color: #fff; padding: 0 6px 0 2px; }
+.dock-head button { border: 0; background: none; color: #fff; }
+.dock-head button:hover { border: 0; }
+.dock-title { flex: 1; min-width: 0; height: 100%; padding: 0 10px; text-align: left; font-weight: 600; font-size: 13px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+.dock-btn { width: 30px; height: 30px; padding: 0; font-size: 15px; line-height: 1; border-radius: 4px; cursor: pointer; }
+.dock-btn:hover { background: rgba(255,255,255,.16); }
+.dock-win.min .dock-big { display: none; }
+.dock-frame { flex: 1; width: 100%; min-height: 0; border: 0; background: var(--panel); }
+.dock-win.min .dock-frame { display: none; }
+/* Beside a split-view page or the Times panel, the boxes sit to the left of it. */
+html.split-on:not(.split-v) .mail-dock { right: calc(var(--split-w, 560px) + 20px); }
+html.split-on.split-v .mail-dock { bottom: var(--split-h, 50vh); }
+@media (min-width: 1100px) {
+  body.times-open .mail-dock { right: calc(var(--times-w, clamp(480px, 42vw, 760px)) + 20px); }
+  html.split-on:not(.split-v) body.times-open .mail-dock { right: calc(var(--split-w, 560px) + var(--times-w, clamp(480px, 42vw, 760px)) + 20px); }
+}
+@media (max-width: 900px) { html.split-on .mail-dock, html.split-on.split-v .mail-dock { right: 20px; bottom: 0; } }
+/* A phone: the open box fills the screen, folded ones are bars along the bottom. */
+@media (max-width: 700px) {
+  html .mail-dock, html.split-on .mail-dock, html.split-on.split-v .mail-dock, body.times-open .mail-dock {
+    left: 0; right: 0; bottom: 0; max-width: none; flex-direction: column; align-items: stretch; gap: 0; }
+  .dock-win.min { width: 100%; border-radius: 0; }
+  .dock-win:not(.min) { position: fixed; inset: 0; width: auto; height: auto; border: 0; border-radius: 0; }
+  .dock-big { display: none; }
+}
+#dock-toasts { position: fixed; left: 18px; bottom: 18px; z-index: 3000; display: flex; flex-direction: column; gap: 8px; }
+.dock-toast { background: #1e2a3a; color: #fff; border-radius: 8px; padding: 9px 14px; font-size: 13px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.25); animation: toast-in .25s ease-out; }
+.dock-toast a { color: #9fc3ff; font-weight: 600; margin-left: 6px; }
+body.has-dock #alert-toasts { right: auto; left: 18px; bottom: 76px; }  /* the boxes own the bottom right */
+/* The pages inside a box (window_base.html, compose.html with window set, mail_window.html) */
+.dock-body { margin: 0; background: var(--panel); }
+.dock-main { display: flex; flex-direction: column; min-height: 100vh; padding: 10px 12px 0; }
+.dock-main > .mail-error { margin: 0 0 8px; }
+.compose-from { margin: 0 0 6px; }
+.compose-window { flex: 1; border: 0; border-radius: 0; padding: 0; margin: 0; max-width: none; gap: 6px; }
+.compose-window .compose-row { grid-template-columns: 52px minmax(0, 1fr); }
+.compose-window .compose-more > summary { margin-left: 60px; }
+.compose-window .compose-editor { flex: 1; min-height: 150px; border-radius: 0 0 var(--radius) var(--radius); overflow-y: auto; }
+.compose-window .compose-actions { position: sticky; bottom: 0; z-index: 2; background: var(--panel); padding: 8px 0 10px;
+  border-top: 1px solid var(--line); }
+.compose-window .compose-original, .compose-window .compose-sig, .compose-window .compose-files { font-size: 12px; }
+.dock-thread-head { padding-bottom: 6px; border-bottom: 1px solid var(--line); margin-bottom: 4px; }
+.dock-thread-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.dock-thread-bar .spacer { flex: 1; }
+.dock-thread-head p { margin: 6px 0 0; }

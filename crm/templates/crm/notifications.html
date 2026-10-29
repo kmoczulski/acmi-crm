@@ -12,7 +12,7 @@
 </div>
 <div class="panel">
   {% for n in page %}
-    <a class="notif {% if not n.read_at %}unread{% endif %}" href="{% url 'crm:notification_open' n.pk %}">
+    <a class="notif {% if not n.read_at %}unread{% endif %}" href="{% url 'crm:notification_open' n.pk %}"{% if n.window %} data-window="{{ n.window }}"{% endif %}>
       <span class="notif-kind">{{ n.get_kind_display }}</span>
       <span class="notif-text">{{ n.text }}</span>
       <span class="muted notif-when">{{ n.created_at|date:"M j, g:i A" }}</span>

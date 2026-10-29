@@ -1000,6 +1000,8 @@ def notification_list(request):
     if show == "unread":
         qs = qs.filter(read_at__isnull=True)
     page = Paginator(qs, 50).get_page(request.GET.get("page"))
+    for n in page:  # new-email alerts open in the mail dock's little box (static/crm/dock.js)
+        n.window = notify.window_url(n)
     return render(request, "crm/notifications.html", {"page": page, "show": show})
 
 
@@ -1027,7 +1029,7 @@ def notification_poll(request):
         after = 0
     latest = Notification.objects.filter(user=request.user, in_hub=True).order_by("-id").values_list("id", flat=True).first() or 0
     items = [{"id": n.pk, "kind": n.get_kind_display(), "text": n.text,
-              "url": reverse("crm:notification_open", args=[n.pk])}
+              "url": reverse("crm:notification_open", args=[n.pk]), "window": notify.window_url(n)}
              for n in unread.filter(id__gt=after).order_by("id")[:10]] if after else []
     return JsonResponse({"unread": unread.count(), "latest": latest, "items": items})
 

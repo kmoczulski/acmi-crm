@@ -1,0 +1,42 @@
+{% extends layout %}
+{% load static %}
+{# One conversation in the mail dock's little box (crm/mail/inbox_views.py thread_window, static/crm/dock.js). #}
+{% block title %}{% if reader %}{{ reader.subject|default:"(no subject)" }}{% else %}Mail{% endif %} · ACMI Hub{% endblock %}
+{% block bodyattrs %} data-window="{{ window }}" data-window-title="{% if reader %}{{ reader.subject|default:'(no subject)' }}{% else %}Mail{% endif %}"{% endblock %}
+{% block content %}
+{% if notice %}<p class="mail-error">{{ notice }}</p>{% endif %}
+{% if reader %}
+<div class="dock-thread-head">
+  <div class="dock-thread-bar">
+    {% if can_change and reader.latest %}
+    <a class="btn btn-small btn-primary" href="{% url 'crm:inbox_compose' %}?reply={{ reader.latest }}&mode=reply" target="_top" data-dock-reply="{{ reader.latest }}" data-mode="reply">↩ Reply</a>
+    <a class="btn btn-small" href="{% url 'crm:inbox_compose' %}?reply={{ reader.latest }}&mode=all" target="_top" data-dock-reply="{{ reader.latest }}" data-mode="all">↩ Reply all</a>
+    <a class="btn btn-small" href="{% url 'crm:inbox_compose' %}?reply={{ reader.latest }}&mode=forward" target="_top" data-dock-reply="{{ reader.latest }}" data-mode="forward">↪ Forward</a>
+    {% endif %}
+    <span class="spacer"></span>
+    <a class="btn btn-small" href="{% url 'crm:inbox' %}?label=ALL&t={{ reader.id }}" target="_top" title="Open the whole conversation in Mail">Open in Mail</a>
+  </div>
+  <p class="muted lc-small">{{ reader.messages|length }} message{{ reader.messages|length|pluralize }}{% if mailbox.shared %} · {{ mailbox.label }}{% endif %}</p>
+  {% if reader.chips %}<div class="mail-chips">{% for kind, name, url in reader.chips %}<a class="mail-chip chip-{{ kind }}" href="{{ url }}" target="_top">{{ name }}</a>{% endfor %}</div>{% endif %}
+</div>
+{% for m in reader.messages %}
+<details class="mail-msg" id="m-{{ m.id }}"{% if m.open %} open{% endif %}>
+  <summary>
+    <span class="mail-msg-from"><strong>{% if m.from_addr == mailbox.email %}me{% else %}{{ m.from_name }}{% endif %}</strong>{% if m.draft %} <span class="tag">Draft</span>{% endif %}{% if m.unread %} <span class="tag">New</span>{% endif %}{% if m.files %} <span class="muted" title="{{ m.files|length }} attachment{{ m.files|length|pluralize }}">📎</span>{% endif %} <span class="muted lc-small">{{ m.from_addr }}</span></span>
+    <span class="mail-msg-date muted lc-small">{{ m.date|date:"M j, g:i a" }}</span>
+    <span class="mail-msg-snippet muted">{{ m.snippet }}</span>
+  </summary>
+  <p class="mail-msg-to muted lc-small">To {{ m.to|join:", " }}{% if m.cc %} · Cc {{ m.cc|join:", " }}{% endif %}</p>
+  <iframe class="mail-frame" title="Message from {{ m.from_name }}" sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox" loading="lazy"
+          src="{% url 'crm:inbox_body' m.id %}" data-mail-frame data-message="{{ m.id }}"></iframe>
+  <p class="mail-images" hidden><button type="button" class="btn btn-small" data-show-images>Show images</button> <span class="muted lc-small">Images from the sender are blocked so they can't tell you opened this.</span></p>
+  {% if m.files %}
+  <ul class="mail-files">
+    {% for a in m.files %}<li><a href="{% url 'crm:inbox_part' m.id a.part %}" target="_blank" rel="noopener">📎 {{ a.name }}</a> <span class="muted lc-small">{{ a.size|filesizeformat }}</span></li>{% endfor %}
+  </ul>
+  {% endif %}
+</details>
+{% endfor %}
+{% endif %}
+{% endblock %}
+{% block scripts %}<script src="{% static 'crm/mail_window.js' %}?v={{ ASSET_VERSION }}"></script>{% endblock %}

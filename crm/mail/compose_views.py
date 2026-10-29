@@ -1,5 +1,6 @@
 """The compose page (docs/EMAIL_CLIENT.md, step 5): new message, reply, reply all, forward; drafts; signature."""
 import logging
+import re
 
 import requests
 from django.contrib import messages
@@ -32,6 +33,20 @@ def _original(mailbox, client, message_id):
         raise MailboxError(GMAIL_DOWN)
 
 
+def _window(request):
+    """The box of the mail dock this page is drawn in (?window=1&w=<id>, set by static/crm/dock.js): its id, or "" for
+    a full page."""
+    if request.GET.get("window") != "1":
+        return ""
+    return re.sub(r"[^A-Za-z0-9_-]", "", request.GET.get("w", ""))[:24] or "w"
+
+
+def _notice(request, mailbox, win, text):
+    """A box of the dock has nowhere to redirect to (that would draw the inbox inside it): say what's wrong in the box."""
+    return render(request, "crm/mail_window.html", {"mailbox": mailbox, "reader": None, "notice": text, "window": win,
+                                                    "can_change": False, "layout": "crm/window_base.html"})
+
+
 def _fields_from_post(request):
     """What the person typed, checked: recipients parsed, ComposeError for a bad address."""
     post = request.POST
@@ -62,9 +77,12 @@ def _first_name(addresses):
 def compose_page(request, mailbox, client):
     """GET: the form, filled in for a reply / reply all / forward (?reply=<message id>&mode=…) or for an address
     (?to=…, from a person or company page). POST: send."""
+    win = _window(request)
     try:
         original = _original(mailbox, client, request.POST.get("reply_to_id") or request.GET.get("reply", ""))
     except MailboxError as exc:
+        if win:
+            return _notice(request, mailbox, win, str(exc))
         messages.error(request, str(exc))
         return redirect("crm:inbox")
     mode = request.POST.get("mode") or request.GET.get("mode", "reply" if original else "new")
@@ -74,6 +92,8 @@ def compose_page(request, mailbox, client):
         if not shared.can_change(request.user, mailbox):
             return _form_again(request, mailbox, client, original, mode, READ_ONLY)
         return _send(request, mailbox, client, original, mode)
+    if win and not shared.can_change(request.user, mailbox):
+        return _notice(request, mailbox, win, READ_ONLY)
     if not may_change(request, mailbox):
         return redirect("crm:inbox")
     fields = {"to": request.GET.get("to", ""), "cc": "", "subject": request.GET.get("subject", ""), "thread_id": "",
@@ -87,6 +107,7 @@ def compose_page(request, mailbox, client):
                           .values("template_id", "name", "subject", "body_plain")),
         "first_name": _first_name(fields["to"]), "sending_on": compose.settings.MAIL_SEND_ENABLED,
         "back": request.GET.get("back", ""),
+        "window": win, "layout": "crm/window_base.html" if win else "crm/base.html",
     })
 
 
@@ -115,11 +136,13 @@ def _send(request, mailbox, client, original, mode):
         index.refresh(mailbox, client, [result.get("threadId", "")])
     except Exception:  # the email went; the list catches up on its own
         log.warning("Index refresh after sending failed for %s", mailbox, exc_info=True)
-    messages.success(request, "Sent.")
     if mode in ("reply", "all") and back.startswith("/") and not back.startswith("//") and "t=" in back:
         url = back  # back to the thread you were reading, now with your reply in it
     else:
         url = f"{reverse('crm:inbox')}?label=SENT&t={result.get('threadId', '')}"
+    if request.POST.get("dock"):  # a box in the mail dock: it closes itself and the page says "Sent"; no flash for later
+        return JsonResponse({"ok": True, "url": url})
+    messages.success(request, "Sent.")
     if request.POST.get("inline"):  # the reading pane's own reply box: it reloads the thread itself
         return JsonResponse({"ok": True, "url": url})
     return redirect(url)
@@ -232,6 +255,8 @@ def discard_draft(request, mailbox, client):
             client.delete_draft(draft_id)
         except (MailboxError, requests.RequestException, NotFound):
             pass
+    if request.POST.get("inline"):  # a box in the mail dock closes itself
+        return JsonResponse({"ok": True})
     messages.success(request, "Draft discarded.")
     return redirect(request.POST.get("back") if (request.POST.get("back") or "").startswith("/")
                     and not request.POST.get("back", "").startswith("//") else reverse("crm:inbox"))

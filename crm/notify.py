@@ -8,14 +8,29 @@ Each person picks which kinds show in the hub and which reach their browsers as 
 """
 import re
 from datetime import timedelta
+from urllib.parse import parse_qsl, urlsplit
 
 from django.db import IntegrityError, transaction
+from django.urls import reverse
 from django.utils import timezone
+from django.utils.http import urlencode
 
 from . import push
 from .models import Card, Comment, Notification, Task
 
 MENTION = re.compile(r"@([A-Za-z][\w.-]*)")
+
+
+def window_url(note):
+    """Where a new-email alert opens in the mail dock's little box (static/crm/dock.js), or "" for every other kind:
+    the alert's inbox link (/inbox/?[mb=…&]t=<thread>) becomes /inbox/window/ for the same thread and mailbox."""
+    if note.kind != Notification.Kind.MAIL:
+        return ""
+    parts = urlsplit(note.url or "")
+    if parts.path != reverse("crm:inbox"):
+        return ""
+    query = {k: v for k, v in parse_qsl(parts.query) if k in ("t", "mb") and v}
+    return f"{reverse('crm:inbox_window')}?{urlencode(query)}" if query.get("t") else ""
 
 
 def send(user, kind, text, url="", actor=None, key=""):
