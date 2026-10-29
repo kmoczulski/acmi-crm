@@ -41,8 +41,8 @@ substitutions:
   _BUCKET: ""
   _NEWS_FOLDER: ""
   _GRANOLA_FOLDER: ""
-  _PUSH_TOPIC: ""
-  _PUSH_SA: ""
+  _PUSH_TOPIC: projects/sincere-passage-511621-j3/topics/acmi-gmail-push
+  _PUSH_SA: acmi-pubsub-push@sincere-passage-511621-j3.iam.gserviceaccount.com
   _PUSH_AUDIENCE: https://hub.acmiproperties.com/internal/gmail-push/
 steps:
   - id: build
