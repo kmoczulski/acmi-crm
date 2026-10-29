@@ -217,6 +217,12 @@ IMAP_HOST = env("ACMI_IMAP_HOST", "imap.gmail.com")
 NEWS_WATCH_FOLDER = env("ACMI_NEWS_WATCH_FOLDER", r"C:/Users/Kemoc/Desktop/Prospecting/Weekly News Search")
 # Shared secret for the scheduler that calls /internal/sync-mail/ in production.
 CRON_SECRET = env("ACMI_CRON_SECRET", "")
+# Gmail push (crm/mail/push.py): the Pub/Sub topic Gmail publishes to (projects/<project>/topics/<name>), the service
+# account the topic's push subscription signs its requests as, and the audience set on that subscription (the
+# endpoint's URL). Unset = no push; the 15-minute sync does everything.
+GMAIL_PUSH_TOPIC = env("ACMI_GMAIL_PUSH_TOPIC", "")
+GMAIL_PUSH_SA = env("ACMI_GMAIL_PUSH_SA", "")
+GMAIL_PUSH_AUDIENCE = env("ACMI_GMAIL_PUSH_AUDIENCE", "")
 # Production: the Cloud Run job that sends outreach batches (crm/cloudrun.py); unset = a local background process.
 SEND_JOB = env("ACMI_SEND_JOB", "")
 GCP_PROJECT = env("ACMI_GCP_PROJECT", "")  # default: read from the metadata server

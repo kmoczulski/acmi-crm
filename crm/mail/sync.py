@@ -560,6 +560,10 @@ def sync_all(max_messages=DEFAULT_MAX_MESSAGES):
                 results[str(mb)] = {"snoozed threads back": actions.wake_due(mb, gmail_api.client_for(mb))}
             except Exception as exc:  # noqa: BLE001 - one person's Gmail must not stop the others
                 log.warning("Snooze wake-up failed for %s: %s", mb, exc)
+    from . import push  # Gmail push: start or renew each mailbox's watch (does nothing without a topic)
+
+    for name, outcome in push.renew_watches().items():
+        results.setdefault(name, {})["push watch"] = str(outcome)
     return results
 
 
