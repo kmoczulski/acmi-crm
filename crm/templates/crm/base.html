@@ -79,6 +79,7 @@
       <a href="{% url 'crm:boards' %}" class="tn-link {% if '/boards/' in p %}active{% endif %}">Boards</a>
 
       {% if MAIL_ON %}<a href="{% url 'crm:inbox' %}" class="tn-link {% if '/inbox/' in p %}active{% endif %}">Mail</a>{% endif %}
+      {% if CHAT_AVAILABLE %}<a href="{% url 'crm:chat' %}" class="tn-link {% if '/chat/' in p %}active{% endif %}">Chat</a>{% endif %}
 
       <details class="tn-menu {% if '/opportunities/' in p or '/reports/pipeline' in p or '/companies/' in p and 'duplicates' not in p or '/people/' in p or '/leases/' in p %}active{% endif %}">
         <summary>Tenants</summary>
@@ -210,7 +211,7 @@
 <script src="{% static 'crm/views.js' %}?v={{ ASSET_VERSION }}"></script>
 <script src="{% static 'crm/back.js' %}?v={{ ASSET_VERSION }}"></script>
 {% if user.is_authenticated %}<script src="{% static 'crm/split.js' %}?v={{ ASSET_VERSION }}"></script>{% endif %}
-{% if user.is_authenticated and MAIL_ON %}<script src="{% static 'crm/dock.js' %}?v={{ ASSET_VERSION }}" data-compose-url="{% url 'crm:inbox_compose' %}" data-thread-url="{% url 'crm:inbox_window' %}"></script>{% endif %}
+{% if user.is_authenticated and MAIL_ON or user.is_authenticated and CHAT_ON %}<script src="{% static 'crm/dock.js' %}?v={{ ASSET_VERSION }}"{% if MAIL_ON %} data-compose-url="{% url 'crm:inbox_compose' %}" data-thread-url="{% url 'crm:inbox_window' %}"{% endif %}{% if CHAT_ON %} data-chat-url="{% url 'crm:chat_window' %}" data-chat-list-url="{% url 'crm:chat_list' %}" data-chat-poll-url="{% url 'crm:chat_poll' %}" data-chat-page-url="{% url 'crm:chat' %}"{% endif %}></script>{% endif %}
 <script>
   // Long lists (.clist[data-limit]) show the first N items with "Show N more" / "Show less".
   document.querySelectorAll('.clist[data-limit]').forEach(list => {
