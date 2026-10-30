@@ -40,19 +40,21 @@ class WhoTests(TestCase):
         self.assertContains(r, 'value="Landco"')
         self.assertContains(r, "A new firm gets landco.com")
         self.assertContains(r, '<option value="re_broker">Real estate broker</option>', html=True)
+        self.assertContains(r, 'name="office_phone"')
+        self.assertContains(r, 'name="cell_phone"')
 
     def test_adding_makes_the_firm_takes_the_domain_and_files_waiting_email(self):
         mailbox = Mailbox.objects.create(user=self.user, email=ME)
         UnmatchedEmail.objects.create(mailbox=mailbox, message_id="<1@x>", occurred_at=timezone.now(),
                                       kind=Activity.Kind.EMAIL_RECEIVED, address=ANNE, domain="landco.com",
                                       subject="Counter LOI")
-        r = self.add(kind="re_broker", title="Land broker", phone="(410) 555-0100")
+        r = self.add(kind="re_broker", title="Land broker", office_phone="(410) 555-0100", cell_phone="(410) 555-0111")
         self.assertTrue(r.json()["ok"])
         firm = Firm.objects.get(name="Landco")
         self.assertEqual(firm.kind, Firm.Kind.RE_BROKER)
         self.assertEqual(firm.domains, ["landco.com"])
         self.assertEqual(firm.contacts, [{"name": "Anne Hooper", "title": "Land broker", "email": ANNE,
-                                          "phone": "(410) 555-0100"}])
+                                          "phone": "(410) 555-0100 (office), (410) 555-0111 (mobile)"}])
         self.assertEqual(firm.created_by, self.user)
         self.assertEqual(r.json()["url"], firm.get_absolute_url())
         self.assertIn("1 waiting email moved", r.json()["message"])
@@ -83,11 +85,11 @@ class WhoTests(TestCase):
 
     def test_adding_again_fills_blanks_only(self):
         self.add(firm="Landco", title="")
-        self.add(firm="Landco", title="Land broker", phone="410")
+        self.add(firm="Landco", title="Land broker", office_phone="410")
         self.add(firm="Landco", title="Something else")
         contacts = Firm.objects.get(name="Landco").contacts
         self.assertEqual(len(contacts), 1)
-        self.assertEqual((contacts[0]["title"], contacts[0]["phone"]), ("Land broker", "410"))
+        self.assertEqual((contacts[0]["title"], contacts[0]["phone"]), ("Land broker", "410 (office)"))
 
     def test_personal_email_needs_a_firm_name_and_never_ties_the_domain(self):
         r = self.add(email="anne.hooper@gmail.com")

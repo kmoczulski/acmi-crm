@@ -208,6 +208,12 @@ def who(request):
         "picked_kind": info["domain_firm"].kind if info["domain_firm"] else ""})
 
 
+def _phone_text(post):
+    """Office and cell numbers as "number (office), number (mobile)", the labels a person's phones are saved with."""
+    return ", ".join(f"{post[key].strip()} ({label})" for key, label in (("office_phone", "office"), ("cell_phone", "mobile"))
+                     if post.get(key, "").strip())
+
+
 @require_POST
 def who_add(request):
     """Add the person to the directory as a contact at a firm (logic.add_contact)."""
@@ -215,7 +221,7 @@ def who_add(request):
     try:
         firm, created, domain_added, moved = logic.add_contact(
             request.POST.get("email", ""), request.POST.get("name", ""), request.POST.get("kind", ""),
-            request.POST.get("firm", ""), request.POST.get("title", ""), request.POST.get("phone", ""), request.user)
+            request.POST.get("firm", ""), request.POST.get("title", ""), _phone_text(request.POST), request.user)
     except logic.ContactError as exc:
         if fetched:
             return JsonResponse({"error": str(exc)}, status=400)

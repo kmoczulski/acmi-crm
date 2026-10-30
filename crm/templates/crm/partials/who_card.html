@@ -23,7 +23,8 @@
           {% for value, label in kinds %}<option value="{{ value }}"{% if value == picked_kind %} selected{% endif %}>{{ label }}</option>{% endfor %}
         </select></label>
         <label>Title <input name="title" maxlength="200" placeholder="e.g. Land broker" autocomplete="off"></label>
-        <label>Phone <input name="phone" type="tel" maxlength="200" autocomplete="off"></label>
+        <label>Office phone <input name="office_phone" type="tel" maxlength="200" autocomplete="off"></label>
+        <label>Cell phone <input name="cell_phone" type="tel" maxlength="200" autocomplete="off"></label>
         <p class="who-note muted lc-small">{% if w.domain_firm %}{{ w.domain }} is {{ w.domain_firm.name }}'s, so they're added there unless you name another firm.{% elif w.domain_company %}{{ w.domain }} is the company {{ w.domain_company.name }}'s; its email stays filed there.{% elif w.free %}{{ w.domain }} is personal email, so it isn't tied to the firm.{% else %}A new firm gets {{ w.domain }}, so its email files there from now on.{% endif %}</p>
         <p class="who-error" role="alert" hidden></p>
         <button class="btn btn-primary">Add to the directory</button>
