@@ -2,14 +2,18 @@
 
 Read this first when picking the project up in a new chat, along with
 `attio_spec.md` in this folder. Start with "Pick up here"; the dated sections after it are the history.
-Newest (2026-10-29, late): branch `chat-parity` (worktree `.claude/worktrees/chat-parity`, on `schedule`, **not deployed, not
-pushed**): Kellen asked for everything Google Chat's web app does, so Chat now has **emoji reactions, quote in reply, file
+Newest (2026-10-30): branch `chat-parity` (worktree `.claude/worktrees/chat-parity`, on `schedule`, pushed to GitHub, not merged;
+**live since 10:38 am Central on 2026-10-30**: revision `acmi-crm-00011-dlb`, image `c370d25`, built by `cloudbuild.yaml` in 5
+minutes, migration `0076` applied, the service and the three jobs have the same settings as before and only the image changed,
+Cloud SQL backup `1793374290231` taken first, rollback is traffic back to `acmi-crm-00010-pfw`): Kellen asked for everything
+Google Chat's web app does, so Chat now has **emoji reactions, quote in reply, file
 attachments (send, drop, paste; pictures shown, files downloaded through the hub), edit and delete your own messages, @mentions
 and :emoji: suggestions, formatting buttons, starting direct messages / group chats / spaces, searching messages, and it
 catches reactions and edits by others without a reload**; see "Like Google Chat's own web app" in `docs/CHAT.md`. One new
 optional Google permission (`chat.spaces.create`, in `docs/FOR_MEL_GOOGLE_CHAT.md`), migration `0076`. Everything sent now
 says `markupSyntax: MARKUP_SYNTAX_CHAT` (the live Chat code didn't; a project made lately reads text as Markdown by default).
-Nothing has run against real Google. Deploying it needs the migration and Kellen's go-ahead.
+Nothing has run against real Google. gcloud's Google sign-in had expired by the next morning (Google's organization asks for a
+password check about every 14 hours); it was renewed through the browser pane, see the deploy note in memory.
 
 Before it (2026-10-29): the **mail dock**, email boxes along the bottom of the page (`docs/MAIL_DOCK.md`), is merged to `main`
 (PR #14). On top of it, **live since 9:03 pm Central on 2026-10-29 but not yet merged to `main`** (revision `acmi-crm-00010-pfw`,
