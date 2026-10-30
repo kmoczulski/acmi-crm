@@ -1,0 +1,42 @@
+{% extends "crm/base.html" %}
+{% load static %}
+{% block title %}Chat · ACMI Hub{% endblock %}
+{% block content %}
+{% if not on %}
+<div class="page-head"><h1>Chat</h1></div>
+<section class="panel chat-switch" style="max-width:720px">
+  <h3>Chat is off <span class="tag">Off</span></h3>
+  <p>Optional. Turn it on to read and answer your Google Chat in the hub: your spaces, group chats and direct messages, in a list here and in small boxes along the bottom of any page, with an alert when someone writes. Google Chat itself doesn't change, and you can turn it off at any time.</p>
+  {% if unavailable %}
+    <p class="muted">{{ unavailable }}</p>
+  {% else %}
+    <form method="post" action="{% url 'crm:chat_turn_on' %}">{% csrf_token %}
+      <button class="btn btn-primary">Turn on Chat</button>
+    </form>
+    <p class="muted lc-small">Google asks you once to let the hub use your Chat. Leave every box ticked on that screen. Nobody else in the hub can see your conversations.</p>
+  {% endif %}
+  {% if conn.last_error %}<p style="color:var(--bad)">Last try: {{ conn.last_error }}</p>{% endif %}
+</section>
+{% else %}
+<div class="chat-app{% if convo %} has-convo{% endif %}" data-chat-app data-chat-url="{% url 'crm:chat' %}" data-rows-url="{% url 'crm:chat_rows' %}">
+  <aside class="chat-side">
+    <div class="chat-side-head">
+      <input type="search" class="chat-search" placeholder="Search conversations" aria-label="Search conversations" data-chat-search>
+      <details class="menu-wrap chat-menu"><summary class="btn btn-small" aria-label="Chat settings">⋯</summary>
+        <div class="menu">
+          <form method="post" action="{% url 'crm:chat_turn_off' %}">{% csrf_token %}<button class="menu-btn">Turn off Chat</button></form>
+          <a href="{% url 'crm:notification_settings' %}">Chat alerts</a>
+        </div>
+      </details>
+    </div>
+    {% if error %}<p class="mail-error">{{ error }}</p>{% endif %}
+    <nav class="chat-rows" data-rows>{% include "crm/partials/chat_rows.html" %}</nav>
+  </aside>
+  <div class="chat-main" data-pane>
+    {% if convo %}{% include "crm/partials/chat_conversation.html" %}
+    {% else %}<div class="chat-blank muted">{% if error %}Chat isn't answering.{% else %}Pick a conversation.{% endif %}</div>{% endif %}
+  </div>
+</div>
+<script src="{% static 'crm/chat.js' %}?v={{ ASSET_VERSION }}"></script>
+{% endif %}
+{% endblock %}

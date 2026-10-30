@@ -198,6 +198,8 @@ SOCIALACCOUNT_STORE_TOKENS = True
 TOKEN_KEYS = [k for k in env("ACMI_TOKEN_KEY", "").split(",") if k.strip()]
 # Mail in the hub (docs/EMAIL_CLIENT.md). Each person turns it on for themselves; false hides it for everyone.
 MAIL_CLIENT_ENABLED = env_bool("ACMI_MAIL_CLIENT", True)
+# Chat in the hub (docs/CHAT.md). Each person turns it on for themselves; false hides it for everyone.
+CHAT_ENABLED = env_bool("ACMI_CHAT", True)
 # Sending from the hub (crm/mail/compose.py). false blocks every Send; off while the tests run, so no test can send.
 MAIL_SEND_ENABLED = env_bool("ACMI_MAIL_SEND", True) and "test" not in sys.argv[1:2]
 # Meeting transcripts are also written as .txt files here, one folder per campus (crm/transcripts.py). Point it at a

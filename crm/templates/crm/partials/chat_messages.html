@@ -1,0 +1,9 @@
+{# Messages of a conversation (crm/chat/views.py: the page, messages_json, send). Text is escaped in crm/chat/render.py. #}
+{% for m in messages %}{% if m.new_day %}<div class="chat-day"><span>{{ m.time|date:"D, M j" }}</span></div>{% endif %}
+<div class="chat-msg{% if m.mine %} mine{% endif %}{% if m.head %} head{% endif %}{% if m.reply %} in-thread{% endif %}" data-id="{{ m.id }}" data-uid="{{ m.uid }}" data-iso="{{ m.iso }}" data-thread="{{ m.thread }}">
+  {% if m.head %}<span class="chat-av" style="background:hsl({{ m.hue }} 42% 46%)" aria-hidden="true">{{ m.initial }}</span>
+  <div class="chat-who"><b>{% if m.mine %}You{% else %}{{ m.name }}{% endif %}</b> <time datetime="{{ m.time|date:'c' }}">{{ m.time|date:"g:i a" }}</time></div>{% endif %}
+  <div class="chat-text">{% if m.deleted %}<em class="muted">This message was deleted.</em>{% else %}{{ m.html }}{% endif %}</div>
+  {% for a in m.attachments %}<div class="chat-att">📎 {% if a.url %}<a href="{{ a.url }}" target="_blank" rel="noopener noreferrer">{{ a.name }}</a>{% else %}{{ a.name }}{% endif %}</div>{% endfor %}
+  {% if m.thread and not m.deleted %}<button type="button" class="chat-reply" data-reply-thread="{{ m.thread }}" title="Reply in this thread" aria-label="Reply in this thread">↩</button>{% endif %}
+</div>{% endfor %}

@@ -977,6 +977,7 @@ class Notification(models.Model):
         DIRECTORY = "directory", "Filed in the directory"
         CARD = "card", "Card"
         MAIL = "mail", "New email"
+        CHAT = "chat", "New chat message"
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="notifications")
     kind = models.CharField(max_length=12, choices=Kind.choices)
@@ -1517,6 +1518,28 @@ class MailConnection(models.Model):
 
     def __str__(self):
         return f"Mail for {self.user} ({'on' if self.enabled else 'off'})"
+
+
+class ChatConnection(models.Model):
+    """One person's Chat in the hub switch (docs/CHAT.md). Off until they turn it on; crm/chat/connect.py.
+
+    The Google Chat permissions live in their (encrypted) Google token, next to Gmail and Calendar; this row says whether
+    they want Chat used, and how far the new-message alerts have got.
+    """
+
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="chat_connection")
+    enabled = models.BooleanField(default=False)
+    google_email = models.EmailField(blank=True)
+    turned_on_at = models.DateTimeField(null=True, blank=True)
+    turned_off_at = models.DateTimeField(null=True, blank=True)
+    last_error = models.TextField(blank=True)
+    # Alerts (crm/chat/service.py) only look at messages newer than this, so turning Chat on never replays history.
+    alerted_through = models.DateTimeField(null=True, blank=True)
+    # Google lets people untick single permissions: without the read-state one the hub can't show unread markers.
+    can_read_state = models.BooleanField(default=True)
+
+    def __str__(self):
+        return f"Chat for {self.user} ({'on' if self.enabled else 'off'})"
 
 
 class MailFilter(models.Model):

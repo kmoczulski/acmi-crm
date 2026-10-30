@@ -17,6 +17,7 @@ from . import settings_views
 from .land import brief_views, comp_views, diligence_views, letter_views
 from .land import card_views as land_card_views
 from .land import views as land_views
+from .chat import views as chat_views
 from .mail import compose_views, inbox_views
 from .mail import views as mail_views
 from .news import views as news_views
@@ -167,6 +168,18 @@ urlpatterns = [
     path("inbox/note/", inbox_views.comment_add, name="inbox_note"),
     path("inbox/open/", inbox_views.open_message, name="inbox_open"),
     path("inbox/window/", inbox_views.thread_window, name="inbox_window"),
+    path("chat/", chat_views.home, name="chat"),
+    path("chat/window/", chat_views.window, name="chat_window"),
+    path("chat/list/", chat_views.list_box, name="chat_list"),
+    path("chat/rows/", chat_views.rows, name="chat_rows"),
+    path("chat/messages/", chat_views.messages_json, name="chat_messages"),
+    path("chat/send/", chat_views.send, name="chat_send"),
+    path("chat/read/", chat_views.read, name="chat_read"),
+    path("chat/mute/", chat_views.mute, name="chat_mute"),
+    path("chat/poll/", chat_views.poll, name="chat_poll"),
+    path("chat/on/", chat_views.turn_on, name="chat_turn_on"),
+    path("chat/connected/", chat_views.connected, name="chat_connected"),
+    path("chat/off/", chat_views.turn_off, name="chat_turn_off"),
     path("mail-setup/crm-labels/", mail_views.crm_labels_switch, name="mail_crm_labels"),
     path("mail-setup/shared/connect/", mail_views.shared_connect, name="mail_shared_connect"),
     path("mail-setup/shared/connected/", mail_views.shared_done, name="mail_shared_done"),

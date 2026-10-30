@@ -1,0 +1,32 @@
+{# One open conversation: header, messages, the box to write in (crm/chat/views.py _conversation; static/crm/chat.js). #}
+<section class="chat-convo" data-chat-convo data-space="{{ convo.space.id }}" data-latest="{{ convo.latest }}" data-earliest="{{ convo.earliest }}"
+         data-messages-url="{% url 'crm:chat_messages' %}" data-send-url="{% url 'crm:chat_send' %}" data-read-url="{% url 'crm:chat_read' %}"
+         data-mute-url="{% url 'crm:chat_mute' %}">
+  <header class="chat-head">
+    <a class="chat-back" href="{% url 'crm:chat' %}" data-chat-back>← Chats</a>
+    <div class="chat-head-main">
+      <strong class="chat-title">{{ convo.space.icon }} {{ convo.space.title }}</strong>
+      {% if convo.people %}<span class="muted lc-small chat-people">{{ convo.people }}</span>{% endif %}
+    </div>
+    <div class="chat-head-actions">
+      <button type="button" class="btn btn-small" data-mute title="Alerts for new messages here">{% if convo.space.muted %}🔕 Alerts off{% else %}🔔 Alerts on{% endif %}</button>
+      {% if convo.space.uri %}<a class="btn btn-small" href="{{ convo.space.uri }}" target="_blank" rel="noopener noreferrer" title="Open this conversation in Google Chat">Google Chat ↗</a>{% endif %}
+    </div>
+    {% if convo.records %}<div class="chat-records">{% for r in convo.records %}<a class="mail-chip" href="{{ r.url }}" target="_top">{{ r.label }}</a>{% endfor %}</div>{% endif %}
+  </header>
+  <div class="chat-scroll" data-scroll>
+    {% if convo.more %}<button type="button" class="btn btn-small chat-older" data-older>Earlier messages</button>{% endif %}
+    <div class="chat-list" data-list>{% include "crm/partials/chat_messages.html" with messages=convo.messages %}</div>
+    <p class="muted chat-none" data-none{% if convo.messages %} hidden{% endif %}>No messages here yet.</p>
+    <button type="button" class="btn btn-small chat-new" data-new hidden>New messages ↓</button>
+  </div>
+  <form class="chat-compose" data-compose-form>
+    {% csrf_token %}
+    <div class="chat-thread-note lc-small" data-thread-note hidden>Replying in a thread · <button type="button" class="btn-link" data-thread-clear>Cancel</button></div>
+    <p class="mail-error" data-chat-error hidden></p>
+    <div class="chat-compose-row">
+      <textarea rows="1" placeholder="Message {{ convo.space.title }}" aria-label="Message" data-text maxlength="4000"></textarea>
+      <button class="btn-primary" data-send>Send</button>
+    </div>
+  </form>
+</section>

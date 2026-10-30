@@ -2,6 +2,10 @@
 
 Read this first when picking the project up in a new chat, along with
 `attio_spec.md` in this folder. Start with "Pick up here"; the dated sections after it are the history.
+Newest, not yet merged (2026-10-29; branch `mail-dock`, worktree `.claude/worktrees/mail-dock`, nothing committed yet): the
+**mail dock**, email boxes along the bottom of the page (`docs/MAIL_DOCK.md`), and **Chat in the hub** built on top of it
+(`docs/CHAT.md`; migration `0074`; it waits on Mel's Google setup, `docs/FOR_MEL_GOOGLE_CHAT.md`, and has never run against real
+Google). What e-signature would take is in `docs/ESIGN_AND_CHAT.md` (nothing built).
 
 ## Pick up here (2026-10-25)
 

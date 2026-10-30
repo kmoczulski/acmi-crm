@@ -1,0 +1,19 @@
+{% extends layout %}
+{% load static %}
+{# The list of conversations in the dock's Chat box (crm/chat/views.py list_box, static/crm/dock.js). #}
+{% block title %}Chat · ACMI Hub{% endblock %}
+{% block bodyattrs %} data-window="{{ window }}" data-window-title="Chat" data-chat-list{% endblock %}
+{% block content %}
+{% if not on %}
+  <p>Chat is off.</p>
+  <a class="btn btn-primary" href="{% url 'crm:chat' %}" target="_top">Turn on Chat</a>
+{% else %}
+  <div class="chat-side-head">
+    <input type="search" class="chat-search" placeholder="Search conversations" aria-label="Search conversations" data-chat-search>
+    <a class="btn btn-small" href="{% url 'crm:chat' %}" target="_top" title="Open Chat as a page">⤢</a>
+  </div>
+  {% if error %}<p class="mail-error">{{ error }}</p>{% endif %}
+  <nav class="chat-rows" data-rows data-rows-url="{% url 'crm:chat_rows' %}">{% include "crm/partials/chat_rows.html" %}</nav>
+{% endif %}
+{% endblock %}
+{% block scripts %}{% if on %}<script src="{% static 'crm/chat.js' %}?v={{ ASSET_VERSION }}"></script>{% endif %}{% endblock %}

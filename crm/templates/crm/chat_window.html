@@ -1,0 +1,10 @@
+{% extends layout %}
+{% load static %}
+{# One conversation in a box of the dock (crm/chat/views.py window, static/crm/dock.js). #}
+{% block title %}{% if convo %}{{ convo.space.title }}{% else %}Chat{% endif %} · ACMI Hub{% endblock %}
+{% block bodyattrs %} data-window="{{ window }}" data-window-title="{% if convo %}{{ convo.space.title }}{% else %}Chat{% endif %}" data-chat-box{% endblock %}
+{% block content %}
+{% if error %}<p class="mail-error">{{ error }}</p>{% endif %}
+{% if convo %}{% include "crm/partials/chat_conversation.html" %}{% endif %}
+{% endblock %}
+{% block scripts %}<script src="{% static 'crm/chat.js' %}?v={{ ASSET_VERSION }}"></script>{% endblock %}
