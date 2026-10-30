@@ -1,5 +1,6 @@
 """Chat in the hub (docs/CHAT.md): the Google Chat client, how messages read, the list of conversations with unread
 markers, sending, alerts, and the pages and dock wiring. A fake Chat stands in for Google."""
+import json
 import re
 from datetime import timedelta
 from unittest import mock
@@ -29,23 +30,58 @@ def error(status, message, reason=""):
     return status, {"error": {"code": status, "message": message, "details": [{"reason": reason}] if reason else []}}
 
 
+class MediaResponse:
+    """A streamed download: what `requests.get(..., stream=True)` hands back."""
+
+    def __init__(self, content_type, data, status=200):
+        self.status_code, self.content, self.closed = status, data, False
+        self.headers = {"Content-Type": content_type, "Content-Length": str(len(data))}
+
+    def iter_content(self, size):
+        for i in range(0, len(self.content), size):
+            yield self.content[i:i + size]
+
+    def close(self):
+        self.closed = True
+
+    def json(self):
+        return {}
+
+
 class FakeChat:
-    """Stands in for `requests` against the Chat API: spaces with members and messages, and Kellen's read times."""
+    """Stands in for `requests` against the Chat API: spaces with members and messages, Kellen's read times, reactions,
+    uploads and downloads, edits and deletions, new conversations and search."""
 
     def __init__(self):
         self.spaces, self.members, self.messages, self.read = {}, {}, {}, {}
         self.calls, self.posts, self.n = [], [], 0
         self.fail = None  # (status, body) answered to every call
-        self.orders = {"createTime desc"}  # the spellings of orderBy this fake accepts
+        self.orders = {"DESC"}  # the spellings of orderBy this fake accepts
         self.page_cap = 0  # answer in pages of this size, whatever was asked
+        self.people = dict(USERS)
+        self.reactions = {}  # message name -> [reaction]
+        self.uploads, self.files = {}, {}  # token -> upload, resource name -> (type, bytes)
+        self.quotes = "ok"  # how Chat treats a quote: "ok", "reject" (400) or "drop" (the message comes back without it)
+        self.markup_ok = True  # False: Chat refuses a message that sets markupSyntax
+        self.dms = {}  # email -> the direct message space id with that person
+        self.setups = []  # what spaces:setup was asked
+        self.uploaded = []  # (space, filename, content type, bytes, query)
+        self.searches = []  # the bodies of search calls
+
+    def add_person(self, uid, name, email):
+        self.people[uid] = (name, email)
 
     def add_space(self, sid, kind="SPACE", name="", people=("users/1", "users/2")):
         self.spaces[sid] = {"name": f"spaces/{sid}", "spaceType": kind, "displayName": name,
                             "spaceUri": f"https://chat.google.com/room/{sid}", "lastActiveTime": ""}
         self.members[sid] = [{"name": f"spaces/{sid}/members/{u.split('/')[1]}", "state": "JOINED",
-                              "member": {"name": u, "displayName": USERS[u][0], "email": USERS[u][1], "type": "HUMAN"}}
+                              "member": {"name": u, "displayName": self.people[u][0], "email": self.people[u][1], "type": "HUMAN"}}
                              for u in people]
         self.messages[sid] = []
+        if kind == "DIRECT_MESSAGE":
+            for u in people:
+                if u != "users/1":
+                    self.dms[self.people[u][1]] = sid
 
     def set_read(self, sid, when):
         self.read[sid] = stamp(when)
@@ -53,14 +89,35 @@ class FakeChat:
     def add_message(self, sid, text, sender="users/2", when=None, reply=False, thread="", sparse=False, **extra):
         when = when or timezone.now()
         self.n += 1
-        who = {"name": sender, "type": "HUMAN"} if sparse else {"name": sender, "type": "HUMAN", "displayName": USERS[sender][0],
-                                                                  "email": USERS[sender][1]}
+        who = {"name": sender, "type": "HUMAN"} if sparse else {"name": sender, "type": "HUMAN", "displayName": self.people[sender][0],
+                                                                  "email": self.people[sender][1]}
         msg = {"name": f"spaces/{sid}/messages/m{self.n}.m{self.n}", "sender": who, "createTime": stamp(when), "text": text,
                "thread": {"name": thread or f"spaces/{sid}/threads/t{self.n}"}, "threadReply": reply, **extra}
         self.messages[sid].append(msg)
         if parse_time(self.spaces[sid]["lastActiveTime"] or "1970-01-01T00:00:00Z") < when:
             self.spaces[sid]["lastActiveTime"] = stamp(when)
         return msg
+
+    def add_reaction(self, message, emoji, user="users/2"):
+        self.n += 1
+        r = {"name": f"{message['name']}/reactions/r{self.n}", "user": {"name": user, "type": "HUMAN"}, "emoji": {"unicode": emoji}}
+        self.reactions.setdefault(message["name"], []).append(r)
+        return r
+
+    def find_message(self, name):
+        sid = name.split("/")[1]
+        return next((m for m in self.messages.get(sid, []) if m["name"] == name), None)
+
+    def _out(self, msg):
+        """A message as Chat answers with it: with the emoji summed up."""
+        out = dict(msg)
+        mine = self.reactions.get(msg["name"], [])
+        if mine:
+            groups = {}
+            for r in mine:
+                groups[r["emoji"]["unicode"]] = groups.get(r["emoji"]["unicode"], 0) + 1
+            out["emojiReactionSummaries"] = [{"emoji": {"unicode": u}, "reactionCount": c} for u, c in groups.items()]
+        return out
 
     # What `requests` would do
 
@@ -72,6 +129,51 @@ class FakeChat:
             out["nextPageToken"] = str(start + cap)
         return FakeResponse(out)
 
+    def _missing(self):
+        return FakeResponse(*error(404, "Not found")[::-1])
+
+    def _create(self, sid, body, params):
+        """A message the person sends: quote and files handled as Chat would."""
+        thread = (body.get("thread") or {}).get("name", "")
+        extra = {}
+        quote = body.get("quotedMessageMetadata")
+        if quote:
+            if self.quotes == "reject":
+                return FakeResponse(*error(400, "Quoting messages isn't supported here.")[::-1])
+            target = self.find_message(quote["name"])
+            if target is None or quote.get("lastUpdateTime") != (target.get("lastUpdateTime") or target["createTime"]):
+                return FakeResponse(*error(400, "last_update_time doesn't match the latest version of the quoted message.")[::-1])
+            if self.quotes == "ok":
+                extra["quotedMessageMetadata"] = {"name": quote["name"], "lastUpdateTime": quote["lastUpdateTime"], "quoteType": "REPLY",
+                                                  "quotedMessageSnapshot": {"sender": target["sender"]["name"], "text": target.get("text", "")}}
+        files = []
+        for a in body.get("attachment") or []:
+            up = self.uploads.get((a.get("attachmentDataRef") or {}).get("attachmentUploadToken"))
+            if up is None:
+                return FakeResponse(*error(400, "Invalid attachment token.")[::-1])
+            files.append({"name": f"{up['resource']}x", "contentName": up["name"], "contentType": up["type"], "source": "UPLOADED_CONTENT",
+                          "attachmentDataRef": {"resourceName": up["resource"]}, "downloadUri": f"https://chat.google.com/api/get_attachment_url?x={up['resource']}"})
+        if files:
+            extra["attachment"] = files
+        msg = self.add_message(sid, body.get("text", ""), sender="users/1", thread=thread, reply=bool(thread), sparse=True, **extra)
+        return FakeResponse(msg)
+
+    def _upload(self, url, params, data, headers):
+        match = re.search(r"/spaces/([\w-]+)/attachments:upload", url)
+        boundary = re.search(r"boundary=(\w+)", (headers or {}).get("Content-Type", "")).group(1).encode()
+        parts = [p for p in data.split(b"--" + boundary) if p.strip(b"-\r\n")]
+        meta = parts[0].split(b"\r\n\r\n", 1)[1].strip()
+        head, content = parts[1].split(b"\r\n\r\n", 1)
+        name = json.loads(meta)["filename"]
+        kind = re.search(rb"Content-Type: ([^\r\n]+)", head).group(1).decode()
+        content = content[:-2] if content.endswith(b"\r\n") else content
+        self.n += 1
+        ref = {"resourceName": f"spaces/{match.group(1)}/attachments/a{self.n}", "attachmentUploadToken": f"tok{self.n}"}
+        self.uploads[ref["attachmentUploadToken"]] = {"name": name, "type": kind, "data": content, "resource": ref["resourceName"]}
+        self.files[ref["resourceName"]] = (kind, content)
+        self.uploaded.append((match.group(1), name, kind, content, dict(params or {})))
+        return FakeResponse({"attachmentDataRef": ref})
+
     def _answer(self, method, path, params, body):
         self.calls.append((method, path, dict(params or {})))
         if self.fail:
@@ -79,31 +181,98 @@ class FakeChat:
         params = params or {}
         if method == "GET" and path == "/spaces":
             return self._page(list(self.spaces.values()), "spaces", params)
+        if method == "GET" and path == "/spaces:findDirectMessage":
+            sid = self.dms.get(params.get("name", "").removeprefix("users/"))
+            return FakeResponse(self.spaces[sid]) if sid else self._missing()
+        if method == "POST" and path == "/spaces:setup":
+            self.setups.append(body)
+            kind, emails = body["space"]["spaceType"], [m["member"]["name"].removeprefix("users/") for m in body["memberships"]]
+            if kind == "DIRECT_MESSAGE" and emails[0] in self.dms:
+                return FakeResponse(self.spaces[self.dms[emails[0]]])
+            sid = f"NEW{len(self.setups)}"
+            ids = ["users/1"]
+            for e in emails:
+                uid = next((u for u, (_, mail) in self.people.items() if mail == e), None)
+                if uid is None:
+                    uid = f"users/9{len(self.people)}"
+                    self.add_person(uid, e.split("@")[0].title(), e)
+                ids.append(uid)
+            self.add_space(sid, kind, body["space"].get("displayName", ""), tuple(ids))
+            return FakeResponse(self.spaces[sid])
+        if method == "POST" and path == "/spaces/-/messages:search":
+            self.searches.append(body)
+            words = [w.strip('"').lower() for w in re.findall(r'"[^"]*"|\S+', body["filter"])]
+            hits = [self._out(m) for ms in self.messages.values() for m in ms
+                    if not m.get("deleteTime") and all(w in m.get("text", "").lower() for w in words)]
+            hits.sort(key=lambda m: parse_time(m["createTime"]), reverse=True)
+            return FakeResponse({"results": [{"message": m} for m in hits[:body.get("pageSize", 25)]]})
+        if method == "GET" and path.startswith("/media/"):
+            found = self.files.get(path.removeprefix("/media/"))
+            return MediaResponse(*found) if found else self._missing()
         m = re.fullmatch(r"/spaces/([\w-]+)", path)
         if m and method == "GET":
-            return FakeResponse(self.spaces[m.group(1)]) if m.group(1) in self.spaces else FakeResponse(*error(404, "Not found")[::-1])
+            return FakeResponse(self.spaces[m.group(1)]) if m.group(1) in self.spaces else self._missing()
         m = re.fullmatch(r"/spaces/([\w-]+)/members", path)
         if m and method == "GET":
-            return self._page(self.members[m.group(1)], "memberships", params) if m.group(1) in self.members else FakeResponse(*error(404, "Not found")[::-1])
+            return self._page(self.members[m.group(1)], "memberships", params) if m.group(1) in self.members else self._missing()
+        m = re.fullmatch(r"/spaces/([\w-]+)/messages/([\w.-]+)/reactions", path)
+        if m:
+            msg = self.find_message(f"spaces/{m.group(1)}/messages/{m.group(2)}")
+            if msg is None:
+                return self._missing()
+            if method == "POST":
+                emoji = body["emoji"]["unicode"]
+                if any(r["emoji"]["unicode"] == emoji and r["user"]["name"] == "users/1" for r in self.reactions.get(msg["name"], [])):
+                    return FakeResponse(*error(409, "The reaction already exists.")[::-1])
+                return FakeResponse(self.add_reaction(msg, emoji, "users/1"))
+            items = list(self.reactions.get(msg["name"], []))
+            for field, value in re.findall(r'(emoji\.unicode|user\.name) = "([^"]*)"', params.get("filter", "")):
+                items = [r for r in items if (r["emoji"]["unicode"] if field == "emoji.unicode" else r["user"]["name"]) == value]
+            return self._page(items, "reactions", params)
+        m = re.fullmatch(r"/spaces/([\w-]+)/messages/([\w.-]+)/reactions/([\w.-]+)", path)
+        if m and method == "DELETE":
+            name = f"spaces/{m.group(1)}/messages/{m.group(2)}"
+            before = self.reactions.get(name, [])
+            self.reactions[name] = [r for r in before if not r["name"].endswith("/" + m.group(3))]
+            return FakeResponse({}) if len(self.reactions[name]) < len(before) else self._missing()
+        m = re.fullmatch(r"/spaces/([\w-]+)/messages/([\w.-]+)", path)
+        if m:
+            msg = self.find_message(path.removeprefix("/"))
+            if msg is None:
+                return self._missing()
+            if method == "GET":
+                return FakeResponse(self._out(msg))
+            if method == "PATCH":
+                msg["text"] = body["text"]
+                msg["lastUpdateTime"] = stamp(parse_time(msg["createTime"]) + timedelta(minutes=5))
+                return FakeResponse(self._out(msg))
+            if method == "DELETE":
+                replies = [x for x in self.messages[m.group(1)] if x is not msg and x["thread"]["name"] == msg["thread"]["name"]]
+                if replies and params.get("force") != "true":
+                    return FakeResponse(*error(400, "The message has replies; set force to delete them too.")[::-1])
+                for x in [msg] + (replies if params.get("force") == "true" else []):
+                    x["deleteTime"] = stamp(timezone.now())
+                    x.pop("text", None)
+                return FakeResponse({})
         m = re.fullmatch(r"/spaces/([\w-]+)/messages", path)
         if m and m.group(1) not in self.spaces:
-            return FakeResponse(*error(404, "Not found")[::-1])
+            return self._missing()
         if m and method == "GET":
             order = params.get("orderBy")
             if order and order not in self.orders:
                 return FakeResponse(*error(400, f"Invalid orderBy: {order}")[::-1])
-            items = list(self.messages[m.group(1)])
+            items = [self._out(x) for x in self.messages[m.group(1)] if params.get("showDeleted") == "true" or not x.get("deleteTime")]
             mt = re.fullmatch(r'createTime ([<>]) "(.+)"', params.get("filter", ""))
             if mt:
                 t = parse_time(mt.group(2))
                 items = [x for x in items if (parse_time(x["createTime"]) > t if mt.group(1) == ">" else parse_time(x["createTime"]) < t)]
-            items.sort(key=lambda x: parse_time(x["createTime"]), reverse=params.get("orderBy") == "createTime desc")
+            items.sort(key=lambda x: parse_time(x["createTime"]), reverse=order in ("createTime desc", "DESC"))
             return self._page(items, "messages", params)
         if m and method == "POST":
-            thread = ((body or {}).get("thread") or {}).get("name", "")
             self.posts.append((m.group(1), body, params))
-            return FakeResponse(self.add_message(m.group(1), body["text"], sender="users/1", thread=thread, reply=bool(thread),
-                                                 sparse=True))
+            if not self.markup_ok and "markupSyntax" in body:
+                return FakeResponse(*error(400, "Invalid JSON payload: Unknown name markupSyntax.")[::-1])
+            return self._create(m.group(1), body, params)
         m = re.fullmatch(r"/users/me/spaces/([\w-]+)/spaceReadState", path)
         if m and method == "GET":
             if m.group(1) in self.read:
@@ -111,21 +280,27 @@ class FakeChat:
             return FakeResponse(*error(404, "No read state")[::-1])
         if m and method == "PATCH":
             if m.group(1) not in self.spaces:
-                return FakeResponse(*error(404, "Not found")[::-1])
+                return self._missing()
             self.read[m.group(1)] = body["lastReadTime"]
             return FakeResponse({"lastReadTime": body["lastReadTime"]})
         return FakeResponse({}, 404)
 
-    def get(self, url, params=None, headers=None, timeout=None):
+    def get(self, url, params=None, headers=None, timeout=None, stream=False):
         return self._answer("GET", url.removeprefix(chat_api.API), params, None)
 
     def post(self, url, params=None, json=None, headers=None, timeout=None, data=None):
         if url == gcal.TOKEN_URL:
             return FakeResponse({"access_token": "fresh", "expires_in": 3600})
+        if url.startswith(chat_api.UPLOAD):
+            self.calls.append(("POST", url.removeprefix(chat_api.UPLOAD), dict(params or {})))
+            return FakeResponse(*self.fail[::-1]) if self.fail else self._upload(url, params, data, headers)
         return self._answer("POST", url.removeprefix(chat_api.API), params, json)
 
     def patch(self, url, params=None, json=None, headers=None, timeout=None):
         return self._answer("PATCH", url.removeprefix(chat_api.API), params, json)
+
+    def delete(self, url, params=None, json=None, headers=None, timeout=None):
+        return self._answer("DELETE", url.removeprefix(chat_api.API), params, None)
 
 
 class FakeGoogleToken:
@@ -183,16 +358,16 @@ class ClientTests(ChatTestCase):
             self.fake.add_message("AAA", f"m{n}", when=self.now - timedelta(minutes=50 - n))
         got = self.chat_client().messages("spaces/AAA", limit=3)
         self.assertEqual([m["text"] for m in got], ["m2", "m3", "m4"])
-        self.assertEqual(self.fake.calls[-1][2]["orderBy"], "createTime desc")
+        self.assertEqual(self.fake.calls[-1][2]["orderBy"], "DESC")
 
     def test_googles_spelling_of_newest_first_is_found_and_kept(self):
-        self.fake.orders = {"DESC"}
+        self.fake.orders = {"createTime desc"}
         client = self.chat_client()
         self.assertEqual([m["text"] for m in client.messages("spaces/AAA", limit=3)], ["Survey is booked for *Tuesday*."])
         asked = lambda: [c[2]["orderBy"] for c in self.fake.calls if c[1] == "/spaces/AAA/messages"]  # noqa: E731
-        self.assertEqual(asked(), ["createTime desc", "DESC"])
+        self.assertEqual(asked(), ["DESC", "createTime desc"])
         client.messages("spaces/AAA", limit=3)
-        self.assertEqual(asked(), ["createTime desc", "DESC", "DESC"])  # the one that worked goes first next time
+        self.assertEqual(asked(), ["DESC", "createTime desc", "createTime desc"])  # the one that worked goes first next time
 
     def test_a_400_that_is_not_about_the_order_is_still_an_error(self):
         self.fake.fail = error(400, "Bad request")
@@ -213,7 +388,7 @@ class ClientTests(ChatTestCase):
         client = self.chat_client()
         client.send("spaces/AAA", "On it")
         space, body, params = self.fake.posts[-1]
-        self.assertEqual((space, body), ("AAA", {"text": "On it"}))
+        self.assertEqual((space, body), ("AAA", {"text": "On it", "markupSyntax": "MARKUP_SYNTAX_CHAT"}))
         self.assertTrue(params["requestId"])
         self.assertNotIn("messageReplyOption", params)
         client.send("spaces/AAA", "Reply", thread="spaces/AAA/threads/t1")

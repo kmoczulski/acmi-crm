@@ -8,11 +8,14 @@ Gmail and Calendar. Google's own pages were read to write this; the first real "
 ## In the Google Cloud project `sincere-passage-511621-j3` (the one with the hub's OAuth client)
 1. **APIs & Services > Library:** make sure the **Google Chat API** is enabled in *this* project. (It has to be the project
    that owns the hub's OAuth client; if Kellen enabled it in the other "ACMI Properties Web App" project, enable it here.)
-2. **APIs & Services > OAuth consent screen > Data access (scopes):** add these four, then save:
+2. **APIs & Services > OAuth consent screen > Data access (scopes):** add these five, then save:
    - `https://www.googleapis.com/auth/chat.spaces.readonly`
    - `https://www.googleapis.com/auth/chat.memberships.readonly`
-   - `https://www.googleapis.com/auth/chat.messages` (read and send; Google calls it "restricted", like Gmail's)
+   - `https://www.googleapis.com/auth/chat.messages` (read and send; Google calls it "restricted", like Gmail's. It also
+     covers reactions, editing and deleting their own messages, file attachments and searching messages)
    - `https://www.googleapis.com/auth/chat.users.readstate` (which conversations are read, for the unread markers)
+   - `https://www.googleapis.com/auth/chat.spaces.create` (starting a brand-new direct message, group chat or space; people can
+     leave this one out and everything else still works)
 3. Check the consent screen's **User type is Internal**. Restricted permissions need Google's review for an External app;
    an Internal one is exempt (the hub's Gmail access relies on the same thing, see `docs/EMAIL_CLIENT.md`).
 4. **APIs & Services > Google Chat API > Configuration** (needed for people to *send* from the hub; reading works without
@@ -28,7 +31,7 @@ Gmail and Calendar. Google's own pages were read to write this; the first real "
 
 ## What happens next, and what the hub says if a step is missing
 Tell Kellen when 1 to 4 are done. Each person opens **Chat** in the hub and clicks **Turn on Chat**; Google shows its
-permission screen once, listing the four Chat permissions. Nothing is read from anyone's Chat until they do.
+permission screen once, listing the Chat permissions. Nothing is read from anyone's Chat until they do.
 - Google says the app is blocked or the permissions aren't allowed: step 2 or 3, or the Admin console.
 - The hub says "Google Chat isn't switched on for the hub's Google project yet": step 1 (the wrong project, or not enabled).
 - The hub says "Google needs the Chat API's Configuration page filled in": step 4. People can read before it's done.

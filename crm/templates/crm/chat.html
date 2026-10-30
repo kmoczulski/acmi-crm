@@ -18,10 +18,11 @@
   {% if conn.last_error %}<p style="color:var(--bad)">Last try: {{ conn.last_error }}</p>{% endif %}
 </section>
 {% else %}
-<div class="chat-app{% if convo %} has-convo{% endif %}" data-chat-app data-chat-url="{% url 'crm:chat' %}" data-rows-url="{% url 'crm:chat_rows' %}">
+<div class="chat-app{% if convo %} has-convo{% endif %}" data-chat-app data-chat-url="{% url 'crm:chat' %}" data-rows-url="{% url 'crm:chat_rows' %}" data-search-url="{% url 'crm:chat_search' %}" data-new-url="{% url 'crm:chat_new' %}">
   <aside class="chat-side">
     <div class="chat-side-head">
-      <input type="search" class="chat-search" placeholder="Search conversations" aria-label="Search conversations" data-chat-search>
+      <input type="search" class="chat-search" placeholder="Search chats and messages" aria-label="Search chats and messages" data-chat-search>
+      <button type="button" class="btn btn-small" data-new-chat title="Start a chat or a space" aria-label="Start a chat or a space">＋</button>
       <details class="menu-wrap chat-menu"><summary class="btn btn-small" aria-label="Chat settings">⋯</summary>
         <div class="menu">
           <form method="post" action="{% url 'crm:chat_turn_off' %}">{% csrf_token %}<button class="menu-btn">Turn off Chat</button></form>
@@ -30,13 +31,17 @@
       </details>
     </div>
     {% if error %}<p class="mail-error">{{ error }}</p>{% endif %}
+    <button type="button" class="chat-search-hint lc-small" data-search-hint hidden>Search all messages for “<span data-search-term></span>” ↵</button>
     <nav class="chat-rows" data-rows>{% include "crm/partials/chat_rows.html" %}</nav>
+    <div class="chat-results" data-results hidden></div>
   </aside>
   <div class="chat-main" data-pane>
     {% if convo %}{% include "crm/partials/chat_conversation.html" %}
     {% else %}<div class="chat-blank muted">{% if error %}Chat isn't answering.{% else %}Pick a conversation.{% endif %}</div>{% endif %}
   </div>
 </div>
+{% include "crm/partials/chat_new_dialog.html" %}
+<script src="{% static 'crm/emoji.js' %}?v={{ ASSET_VERSION }}"></script>
 <script src="{% static 'crm/chat.js' %}?v={{ ASSET_VERSION }}"></script>
 {% endif %}
 {% endblock %}

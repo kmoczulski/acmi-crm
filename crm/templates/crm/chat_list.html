@@ -9,11 +9,15 @@
   <a class="btn btn-primary" href="{% url 'crm:chat' %}" target="_top">Turn on Chat</a>
 {% else %}
   <div class="chat-side-head">
-    <input type="search" class="chat-search" placeholder="Search conversations" aria-label="Search conversations" data-chat-search>
+    <input type="search" class="chat-search" placeholder="Search chats and messages" aria-label="Search chats and messages" data-chat-search>
+    <button type="button" class="btn btn-small" data-new-chat title="Start a chat or a space" aria-label="Start a chat or a space">＋</button>
     <a class="btn btn-small" href="{% url 'crm:chat' %}" target="_top" title="Open Chat as a page">⤢</a>
   </div>
   {% if error %}<p class="mail-error">{{ error }}</p>{% endif %}
-  <nav class="chat-rows" data-rows data-rows-url="{% url 'crm:chat_rows' %}">{% include "crm/partials/chat_rows.html" %}</nav>
+  <button type="button" class="chat-search-hint lc-small" data-search-hint hidden>Search all messages for “<span data-search-term></span>” ↵</button>
+  <nav class="chat-rows" data-rows data-rows-url="{% url 'crm:chat_rows' %}" data-search-url="{% url 'crm:chat_search' %}" data-new-url="{% url 'crm:chat_new' %}">{% include "crm/partials/chat_rows.html" %}</nav>
+  <div class="chat-results" data-results hidden></div>
+  {% include "crm/partials/chat_new_dialog.html" %}
 {% endif %}
 {% endblock %}
-{% block scripts %}{% if on %}<script src="{% static 'crm/chat.js' %}?v={{ ASSET_VERSION }}"></script>{% endif %}{% endblock %}
+{% block scripts %}{% if on %}<script src="{% static 'crm/emoji.js' %}?v={{ ASSET_VERSION }}"></script><script src="{% static 'crm/chat.js' %}?v={{ ASSET_VERSION }}"></script>{% endif %}{% endblock %}

@@ -200,6 +200,8 @@ TOKEN_KEYS = [k for k in env("ACMI_TOKEN_KEY", "").split(",") if k.strip()]
 MAIL_CLIENT_ENABLED = env_bool("ACMI_MAIL_CLIENT", True)
 # Chat in the hub (docs/CHAT.md). Each person turns it on for themselves; false hides it for everyone.
 CHAT_ENABLED = env_bool("ACMI_CHAT", True)
+# The biggest file the hub passes to Google Chat (Chat itself takes 200 MB; Cloud Run takes 32 MiB in one request).
+CHAT_MAX_UPLOAD_MB = int(env("ACMI_CHAT_MAX_UPLOAD_MB", "25"))
 # Sending from the hub (crm/mail/compose.py). false blocks every Send; off while the tests run, so no test can send.
 MAIL_SEND_ENABLED = env_bool("ACMI_MAIL_SEND", True) and "test" not in sys.argv[1:2]
 # Meeting transcripts are also written as .txt files here, one folder per campus (crm/transcripts.py). Point it at a

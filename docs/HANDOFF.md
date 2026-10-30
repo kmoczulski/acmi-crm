@@ -2,7 +2,16 @@
 
 Read this first when picking the project up in a new chat, along with
 `attio_spec.md` in this folder. Start with "Pick up here"; the dated sections after it are the history.
-Newest (2026-10-29): the **mail dock**, email boxes along the bottom of the page (`docs/MAIL_DOCK.md`), is merged to `main`
+Newest (2026-10-29, late): branch `chat-parity` (worktree `.claude/worktrees/chat-parity`, on `schedule`, **not deployed, not
+pushed**): Kellen asked for everything Google Chat's web app does, so Chat now has **emoji reactions, quote in reply, file
+attachments (send, drop, paste; pictures shown, files downloaded through the hub), edit and delete your own messages, @mentions
+and :emoji: suggestions, formatting buttons, starting direct messages / group chats / spaces, searching messages, and it
+catches reactions and edits by others without a reload**; see "Like Google Chat's own web app" in `docs/CHAT.md`. One new
+optional Google permission (`chat.spaces.create`, in `docs/FOR_MEL_GOOGLE_CHAT.md`), migration `0076`. Everything sent now
+says `markupSyntax: MARKUP_SYNTAX_CHAT` (the live Chat code didn't; a project made lately reads text as Markdown by default).
+Nothing has run against real Google. Deploying it needs the migration and Kellen's go-ahead.
+
+Before it (2026-10-29): the **mail dock**, email boxes along the bottom of the page (`docs/MAIL_DOCK.md`), is merged to `main`
 (PR #14). On top of it, **live since 9:03 pm Central on 2026-10-29 but not yet merged to `main`** (revision `acmi-crm-00010-pfw`,
 image `f0be55f`, built with `cloudbuild.yaml`; migrations `0074` and `0075` applied; the service and the three jobs have the same
 settings as before, only the image changed): branch `schedule` (worktree `.claude/worktrees/schedule`, code at `f0be55f`, on

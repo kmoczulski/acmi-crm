@@ -62,7 +62,7 @@
   const forget = id => { try { sessionStorage.removeItem('hubDock:' + id); } catch (e) {} };
   const persist = () => {
     try {
-      sessionStorage.setItem(KEY, JSON.stringify(wins.map(w => ({id: w.id, kind: w.kind, url: w.url, key: w.key || '',
+      sessionStorage.setItem(KEY, JSON.stringify(wins.map(w => ({id: w.id, kind: w.kind, url: w.url.replace(/([?&])at=[^&]*&?/, '$1').replace(/[?&]$/, ''), key: w.key || '',
         reply: w.reply || '', mode: w.mode || '', title: w.title, min: w.min, big: w.big}))));
     } catch (e) { /* private window: the boxes just don't come back on the next page */ }
   };
@@ -248,12 +248,14 @@
   }
 
   // A Chat conversation in a box of its own (space: the id after spaces/).
-  function chat(space, name) {
+  // at: the createTime of a message a search found; the box opens at it (and doesn't again on the next page).
+  async function chat(space, name, at) {
     if (!PATH.chat || !space) return;
     const same = wins.find(w => w.kind === 'chat' && w.key === space);
-    if (same) { show(same); return; }
+    if (same && !at) { show(same); return; }
+    if (same) await close(same.id, {force: true});
     const id = rand();
-    show(add({id, kind: 'chat', url: PATH.chat + '?' + new URLSearchParams({s: space, w: id}), key: space, title: name || 'Chat'}));
+    show(add({id, kind: 'chat', url: PATH.chat + '?' + new URLSearchParams(Object.assign({s: space, w: id}, at ? {at} : {})), key: space, title: name || 'Chat'}));
   }
 
   // A box opened from an address: an alert's /inbox/window/ or /chat/window/ link.

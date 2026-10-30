@@ -24,8 +24,10 @@ SCOPE_SPACES = "https://www.googleapis.com/auth/chat.spaces.readonly"
 SCOPE_MEMBERS = "https://www.googleapis.com/auth/chat.memberships.readonly"
 SCOPE_MESSAGES = "https://www.googleapis.com/auth/chat.messages"  # read and write; Google's "restricted" kind, like Gmail's
 SCOPE_READ_STATE = "https://www.googleapis.com/auth/chat.users.readstate"  # what's read in Chat (unread markers)
+SCOPE_CREATE = "https://www.googleapis.com/auth/chat.spaces.create"  # start a new direct message, group chat or space
+# chat.messages already covers writing, reactions, editing, deleting, files and searching messages.
 NEEDED = (SCOPE_SPACES, SCOPE_MEMBERS, SCOPE_MESSAGES)
-CHAT_SCOPES = [*NEEDED, SCOPE_READ_STATE]
+CHAT_SCOPES = [*NEEDED, SCOPE_READ_STATE, SCOPE_CREATE]
 TOKENINFO_URL = "https://oauth2.googleapis.com/tokeninfo"
 TIMEOUT = 30
 SESSION_KEY = "chat_connect_pending"
@@ -120,6 +122,7 @@ def finish(user, session=None):
     conn, _ = ChatConnection.objects.get_or_create(user=user)
     conn.enabled, conn.google_email, conn.turned_on_at, conn.last_error = True, google_email or user.email, now, ""
     conn.can_read_state = SCOPE_READ_STATE in granted
+    conn.can_create = SCOPE_CREATE in granted
     conn.alerted_through = now  # alerts start from now: turning Chat on never replays old messages
     conn.save()
     return conn

@@ -1539,6 +1539,8 @@ class ChatConnection(models.Model):
     alerted_through = models.DateTimeField(null=True, blank=True)
     # Google lets people untick single permissions: without the read-state one the hub can't show unread markers.
     can_read_state = models.BooleanField(default=True)
+    # And without the create-spaces one a brand-new conversation can't be started (existing ones still open).
+    can_create = models.BooleanField(default=False)
 
     def __str__(self):
         return f"Chat for {self.user} ({'on' if self.enabled else 'off'})"

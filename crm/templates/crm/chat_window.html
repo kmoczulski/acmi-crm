@@ -7,4 +7,4 @@
 {% if error %}<p class="mail-error">{{ error }}</p>{% endif %}
 {% if convo %}{% include "crm/partials/chat_conversation.html" %}{% endif %}
 {% endblock %}
-{% block scripts %}<script src="{% static 'crm/chat.js' %}?v={{ ASSET_VERSION }}"></script>{% endblock %}
+{% block scripts %}<script src="{% static 'crm/emoji.js' %}?v={{ ASSET_VERSION }}"></script><script src="{% static 'crm/chat.js' %}?v={{ ASSET_VERSION }}"></script>{% endblock %}

@@ -1,9 +1,16 @@
-{# Messages of a conversation (crm/chat/views.py: the page, messages_json, send). Text is escaped in crm/chat/render.py. #}
+{# Messages of a conversation (crm/chat/views.py: the page, messages_json, send, refresh). Text is escaped in crm/chat/render.py. #}
 {% for m in messages %}{% if m.new_day %}<div class="chat-day"><span>{{ m.time|date:"D, M j" }}</span></div>{% endif %}
-<div class="chat-msg{% if m.mine %} mine{% endif %}{% if m.head %} head{% endif %}{% if m.reply %} in-thread{% endif %}" data-id="{{ m.id }}" data-uid="{{ m.uid }}" data-iso="{{ m.iso }}" data-thread="{{ m.thread }}">
-  {% if m.head %}<span class="chat-av" style="background:hsl({{ m.hue }} 42% 46%)" aria-hidden="true">{{ m.initial }}</span>
+<div class="chat-msg{% if m.mine %} mine{% endif %}{% if m.head %} head{% endif %}{% if m.reply %} in-thread{% endif %}{% if m.deleted %} is-deleted{% endif %}" data-id="{{ m.id }}" data-uid="{{ m.uid }}" data-iso="{{ m.iso }}" data-thread="{{ m.thread }}" data-quote-time="{{ m.quote_time }}" data-author="{% if m.mine %}You{% else %}{{ m.name }}{% endif %}" data-snippet="{{ m.snippet }}" data-raw="{{ m.raw }}">
+  {% if m.head %}<span class="chat-av" style="background:hsl({{ m.hue }} 42% 46%)" aria-hidden="true">{{ m.initial }}{% if m.avatar %}<img src="{{ m.avatar }}" alt="" referrerpolicy="no-referrer">{% endif %}</span>
   <div class="chat-who"><b>{% if m.mine %}You{% else %}{{ m.name }}{% endif %}</b> <time datetime="{{ m.time|date:'c' }}">{{ m.time|date:"g:i a" }}</time></div>{% endif %}
-  <div class="chat-text">{% if m.deleted %}<em class="muted">This message was deleted.</em>{% else %}{{ m.html }}{% endif %}</div>
-  {% for a in m.attachments %}<div class="chat-att">📎 {% if a.url %}<a href="{{ a.url }}" target="_blank" rel="noopener noreferrer">{{ a.name }}</a>{% else %}{{ a.name }}{% endif %}</div>{% endfor %}
-  {% if m.thread and not m.deleted %}<button type="button" class="chat-reply" data-reply-thread="{{ m.thread }}" title="Reply in this thread" aria-label="Reply in this thread">↩</button>{% endif %}
+  {% if m.quote %}<div class="chat-quote" data-quote-id="{{ m.quote.id }}" title="Jump to the message"><b>{% if m.quote.forwarded %}Forwarded{% if m.quote.from_space %} from {{ m.quote.from_space }}{% endif %}{% else %}{{ m.quote.name }}{% endif %}</b><span>{{ m.quote.text }}</span></div>{% endif %}
+  <div class="chat-text">{% if m.deleted %}<em class="muted">This message was deleted.</em>{% else %}{{ m.html }}{% if m.edited %} <span class="chat-edited muted">(edited)</span>{% endif %}{% endif %}</div>
+  {% for a in m.attachments %}{% if a.kind == 'image' %}<a class="chat-img" href="{{ a.src }}" target="_blank" rel="noopener noreferrer" title="{{ a.name }}"><img src="{{ a.src }}" alt="{{ a.name }}" loading="lazy"></a>{% else %}<a class="chat-file"{% if a.url %} href="{{ a.url }}" target="_blank" rel="noopener noreferrer"{% endif %} title="{{ a.name }}"><span class="chat-file-ico" aria-hidden="true">{{ a.icon }}</span><span class="chat-file-name">{{ a.name }}</span>{% if a.kind == 'drive' %}<small class="muted">Drive</small>{% endif %}</a>{% endif %}{% endfor %}
+  {% if not m.deleted %}<div class="chat-react" data-react>{% include "crm/partials/chat_reactions.html" with reactions=m.reactions %}</div>
+  <div class="chat-acts" role="toolbar" aria-label="Message actions">
+    <button type="button" class="chat-act" data-act="react" title="Add a reaction" aria-label="Add a reaction">☺</button>
+    {% if m.thread %}<button type="button" class="chat-act chat-reply" data-reply-thread="{{ m.thread }}" title="Reply in this thread" aria-label="Reply in this thread">↩</button>{% endif %}
+    <button type="button" class="chat-act" data-act="quote" title="Quote in a reply" aria-label="Quote in a reply">❝</button>
+    {% if m.can_change %}<button type="button" class="chat-act" data-act="edit" title="Edit" aria-label="Edit">✎</button><button type="button" class="chat-act" data-act="delete" title="Delete" aria-label="Delete">🗑</button>{% endif %}
+  </div>{% endif %}
 </div>{% endfor %}
