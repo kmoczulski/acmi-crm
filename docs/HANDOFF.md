@@ -3,15 +3,16 @@
 Read this first when picking the project up in a new chat, along with
 `attio_spec.md` in this folder. Start with "Pick up here"; the dated sections after it are the history.
 Newest (2026-10-29): the **mail dock**, email boxes along the bottom of the page (`docs/MAIL_DOCK.md`), is merged to `main`
-(PR #14) and live (image `fa13dbe`, revision `acmi-crm-00009-db8`). Built on top of it and **not yet merged or deployed**: branch
-`schedule` (worktree `.claude/worktrees/schedule`, 5 commits on `main` `41044b8`, 1,081 tests pass): the dock's superset
-(`dock.js` also carries Chat), **Chat in the hub** (`docs/CHAT.md`; migration `0074`; coworkers only, no tie to companies or
-the CRM; waits on Mel's Google setup, `docs/FOR_MEL_GOOGLE_CHAT.md`) and **Scheduling** (`docs/SCHEDULING.md`; migration `0075`;
-see when teammates are free and put a meeting on the calendar; `docs/FOR_MEL_SCHEDULING.md`). Neither has run against real
-Google. Deploying it means the two migrations on the live database (backup `1793324941228` was taken 2026-10-30 01:49 UTC, 8:49 pm
-Central, before them) and a new image on the service and its three jobs; rollback is traffic back to `acmi-crm-00009-db8`
-(the migrations only add a table and a column, so the old code runs on the new schema). What e-signature would take is in
-`docs/ESIGN_AND_CHAT.md` (nothing built).
+(PR #14). On top of it, **live since 9:03 pm Central on 2026-10-29 but not yet merged to `main`** (revision `acmi-crm-00010-pfw`,
+image `f0be55f`, built with `cloudbuild.yaml`; migrations `0074` and `0075` applied; the service and the three jobs have the same
+settings as before, only the image changed): branch `schedule` (worktree `.claude/worktrees/schedule`, code at `f0be55f`, on
+`main` `41044b8`, 1,081 tests pass): the dock's superset (`dock.js` also carries Chat), **Chat in the hub** (`docs/CHAT.md`; coworkers
+only, no tie to companies or the CRM; waits on Mel's Google setup, `docs/FOR_MEL_GOOGLE_CHAT.md`) and **Scheduling**
+(`docs/SCHEDULING.md`; see when teammates are free and put a meeting on the calendar; `docs/FOR_MEL_SCHEDULING.md`). Neither has
+run against real Google yet: the first real "Turn on Chat" and "Allow scheduling" prove them. Before the migrations a Cloud SQL
+backup was taken (`1793324941228`, 8:49 pm Central). Rollback is traffic back to `acmi-crm-00009-db8` (the migrations only add
+a table and a column, so the old code runs on the new schema). What e-signature would take is in `docs/ESIGN_AND_CHAT.md`
+(nothing built).
 
 ## Pick up here (2026-10-25)
 
