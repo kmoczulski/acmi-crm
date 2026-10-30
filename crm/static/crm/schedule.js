@@ -26,8 +26,8 @@
   const team = cfg.team.filter(t => !t.me);
   const known = new Map(cfg.team.map(t => [t.email, t.name]));
   cfg.invited.forEach(p => { if (!known.has(p.email)) known.set(p.email, p.name); });
-  const initialsOf = name => {
-    const parts = (name || '').split(/[\s.@]+/).filter(Boolean);
+  const initialsOf = name => {  // "Simon Shewmaker" -> SS; an address with no name -> the start of what's before the @
+    const parts = (name || '').split('@')[0].split(/[\s._-]+/).filter(Boolean);
     return ((parts.length > 1 ? parts[0][0] + parts[parts.length - 1][0] : (parts[0] || '?').slice(0, 2))).toUpperCase();
   };
 
