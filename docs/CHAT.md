@@ -30,7 +30,8 @@ to a message, attachments." That is the section **Like Google Chat's own web app
   click a conversation to open it in a box beside it (up to 4 boxes with the mail ones; they fold to a title bar, a folded one
   with something new shows a ● in its title, and they come back on the next page like the mail boxes). On the Chat page itself
   the pinned box hides (the page is the list) and the unread count sits beside Chat in the top bar. A phone gets one
-  full-screen box.
+  full-screen box, and no pinned box over the page (2026-10-30, Kellen: "Chat is blocking the view"): a 💬 button in the
+  top bar, with the unread count, opens the list full screen; folding it puts it away again.
 - **Alerts**: a new message from someone else (not yours, not in a muted conversation, not from before Chat was turned on)
   becomes a notification of kind "New chat message": the bell, a toast that opens that conversation's box, and a browser
   notification (Notification settings has its own switches). While the hub is open the dock's poll makes them within about 20

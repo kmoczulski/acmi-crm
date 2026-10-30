@@ -58,7 +58,7 @@
           if (s.dir === 'v') { h.classList.add('split-v'); h.style.setProperty('--split-h', (s.h || Math.round(innerHeight * 0.5)) + 'px'); }
           else {
             h.style.setProperty('--split-w', (s.w || 560) + 'px');
-            if (innerWidth - (s.w || 560) <= 1180) h.classList.add('split-narrow');
+            if (innerWidth - (s.w || 560) <= 1400) h.classList.add('split-narrow');
           }
         }
       } catch (e) {}
@@ -157,6 +157,7 @@
       </div>
     </details>
     {% if user.is_authenticated %}<button type="button" class="appbar-icon split-btn" data-split-toggle title="Open a page beside this one (or Alt+click any link)" aria-label="Open a page beside this one">◫</button>{% endif %}
+    {% if CHAT_ON %}<a href="{% url 'crm:chat' %}" class="appbar-icon appbar-chat" data-chat-open title="Chat" aria-label="Chat">💬<span class="count" hidden></span></a>{% endif %}
     <a href="{% url 'crm:notification_list' %}" class="appbar-icon bell {% if unread_notifications %}has-unread{% endif %}" title="Notifications" aria-label="Notifications">🔔{% if unread_notifications %}<span class="count">{{ unread_notifications }}</span>{% endif %}</a>
     <details class="menu-wrap user-menu">
       <summary class="avatar" title="{{ user.get_full_name|default:user.username }}">{{ user.first_name|default:user.username|slice:":1"|upper }}{{ user.last_name|slice:":1"|upper }}</summary>

@@ -98,6 +98,9 @@ def summary(msg):
         "from_name": name or addr, "from_addr": addr.lower(),
         "to": [n or a for n, a in getaddresses([h.get("to", "")]) if a],
         "cc": [n or a for n, a in getaddresses([h.get("cc", "")]) if a],
+        # (name, address) of each, so a name can open who they are (crm/static/crm/who.js)
+        "to_people": [(n or a, a.lower()) for n, a in getaddresses([h.get("to", "")]) if a],
+        "cc_people": [(n or a, a.lower()) for n, a in getaddresses([h.get("cc", "")]) if a],
         "subject": h.get("subject", ""),
         "date": when,
         "snippet": html.unescape(msg.get("snippet", "")),

@@ -2,7 +2,41 @@
 
 Read this first when picking the project up in a new chat, along with
 `attio_spec.md` in this folder. Start with "Pick up here"; the dated sections after it are the history.
-Newest (2026-10-30): branch `chat-parity` (worktree `.claude/worktrees/chat-parity`, on `schedule`, pushed to GitHub, not merged;
+
+**Newest, not deployed (2026-10-30, afternoon): branch `claude/beautiful-albattani-6xp3qi`, on top of `chat-parity`
+`1bc8005` (the live code), pushed, not merged.** Kellen, from his phone, asked for three things. All 1,157 tests pass,
+there is no migration, and nothing is new in settings. To ship it, deploy this branch as `chat-parity` was deployed:
+only the image changes.
+1. **A name in an email adds them to the directory** ("click an email and [add] them to the directory directly. Anne is
+   a land broker"):
+   - From, To and Cc names in the reading pane and the dock's email box are buttons (`partials/mail_to_line.html`,
+     `crm/static/crm/who.js`).
+   - A click opens a card (`directory_views.who`, `partials/who_card.html`). It says what the hub already knows: an
+     ACMI address, a person in the CRM, a contact at a directory firm, or whose the domain is.
+   - Otherwise the card has a form: name, firm, type of firm ("Real estate broker" fits a land broker), title and
+     phone. The firm is prefilled with the one that owns the domain, else a name made from the domain.
+   - `who_add`, through `logic.add_contact`, puts the contact on the firm, creating it or matching a name in any case.
+     It gives a new firm the email domain, unless the domain is personal email, a company's or another firm's. Then it
+     files the domain's mail waiting in the review queue there.
+   - Adding the same address again only fills blanks. Tests in `crm/tests/test_who.py`.
+2. **Time with the date in the inbox list**: the `mail_when` filter in `crm_tags.py` gives "Oct 30, 9:12 a.m.", with
+   the year added when it isn't this year.
+3. **Phone layout** ("the interface on mobile is bad... Chat is blocking the view"). Checked in Chromium at 390 px on
+   made-up data with Chat on:
+   - Below 700 px the pinned Chat box is gone. A 💬 button in the top bar carries the unread count and opens the list
+     full screen (`dock.js` `data-chat-open`). "+ New" shows as "+" to make room.
+   - Folded boxes no longer cover the end of the page (`--dock-h`).
+   - Notification settings' device table stacks instead of widening the page to 485 px.
+   - The ten pages that still scrolled sideways now fit: the redline compare, project build and capital, firm,
+     Needs filing, client searches and their site report editor, site manage and diligence. 97 pages were checked at
+     390 px.
+   - The Back link no longer hides under the top bar on Mail, and the reader's buttons are smaller.
+   - Also on desktop: with Chat added, the top menus ran 10 px past a 1440 px window (the avatar was cut off), and up
+     to 1,348 px wide between 1181 and 1366 px. Search is now its icon below 1500 px, and the menus fold into ☰ at
+     1400 px instead of 1180 px (`app.css`, `split.js` `NARROW`, the inline check in `base.html`).
+   - Not tried: a real iPhone, and real Google Chat or Gmail.
+
+Before it, (2026-10-30): branch `chat-parity` (worktree `.claude/worktrees/chat-parity`, on `schedule`, pushed to GitHub, not merged;
 **live since 10:38 am Central on 2026-10-30**: revision `acmi-crm-00011-dlb`, image `c370d25`, built by `cloudbuild.yaml` in 5
 minutes, migration `0076` applied, the service and the three jobs have the same settings as before and only the image changed,
 Cloud SQL backup `1793374290231` taken first, rollback is traffic back to `acmi-crm-00010-pfw`): Kellen asked for everything

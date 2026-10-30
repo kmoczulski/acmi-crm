@@ -132,6 +132,9 @@
   function layout() {
     dock.hidden = !wins.length;
     document.body.classList.toggle('has-dock', wins.length > 0);
+    // How much of the foot of the page the folded boxes cover: on a phone they span the screen, so the page gets that
+    // much room below its end (app.css, --dock-h) and nothing stays hidden under them.
+    document.documentElement.style.setProperty('--dock-h', (dock.hidden ? 0 : dock.offsetHeight) + 'px');
     persist();
   }
 
@@ -301,6 +304,16 @@
   makeRoom(null);
   layout();
 
+  // A phone has no room for the pinned Chat box along the bottom (app.css hides it there while it's folded): the top
+  // bar's Chat button (base.html) opens the list full screen instead, and carries the unread count.
+  const chatBtn = document.querySelector('[data-chat-open]');
+  if (chatBtn) chatBtn.addEventListener('click', e => {
+    const hub = wins.find(x => x.kind === 'chats');
+    if (!hub || hub.el.hidden || e.ctrlKey || e.metaKey || e.shiftKey) return;  // on the Chat page the page is the list
+    e.preventDefault();
+    show(hub);
+  });
+
   // Chat: how many conversations are unread, on the pinned box and on any folded conversation box. Asking also turns
   // new messages into alerts while the hub is open (crm/chat/views.py poll).
   async function pollChat() {
@@ -314,6 +327,12 @@
         let n = nav.querySelector('.tn-count');
         if (d.unread && !n) { n = document.createElement('span'); n.className = 'tn-count'; nav.append(' ', n); }
         if (n) { if (d.unread) n.textContent = d.unread; else { n.previousSibling && n.previousSibling.remove(); n.remove(); } }
+      }
+      if (chatBtn) {
+        const c = chatBtn.querySelector('.count');
+        c.textContent = d.unread || '';
+        c.hidden = !d.unread;
+        chatBtn.setAttribute('aria-label', d.unread ? `Chat, ${d.unread} unread` : 'Chat');
       }
       wins.forEach(w => {
         if (w.kind === 'chats') { w.count = d.unread || 0; paintTitle(w); }

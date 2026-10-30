@@ -4,7 +4,7 @@
 // the side. ⬓ stacks them top and bottom (a portrait monitor). Alt+click a link to open it in the other side. Remembered in this browser (localStorage hubSplit:
 // {open, url, w, h, dir}); the head script in base.html applies it before the first paint. Phones get one page.
 (function () {
-  const KEY = 'hubSplit', MIN_SIDE = 320, MIN_MAIN = 360, MIN_H = 200, WIDE = 900, NARROW = 1180;  // NARROW: app.css's ☰ width
+  const KEY = 'hubSplit', MIN_SIDE = 320, MIN_MAIN = 360, MIN_H = 200, WIDE = 900, NARROW = 1400;  // NARROW: app.css's ☰ width
   const root = document.documentElement;
   const here = () => location.pathname + location.search + location.hash;
   const strip = url => {

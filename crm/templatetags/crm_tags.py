@@ -60,6 +60,17 @@ def ago(value):
 
 
 @register.filter
+def mail_when(value):
+    """When an email came, date and time ("Oct 30, 9:12 a.m."), with the year once it's from another year."""
+    if not value:
+        return ""
+    from django.utils.dateformat import format as date_format
+
+    local = timezone.localtime(value)
+    return date_format(local, "M j, g:i a" if local.year == timezone.localdate().year else "M j, Y, g:i a")
+
+
+@register.filter
 def username(user):
     if not user:
         return ""
