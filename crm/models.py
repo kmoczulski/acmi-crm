@@ -919,6 +919,8 @@ class CalendarSync(models.Model):
     last_synced_at = models.DateTimeField(null=True, blank=True)
     last_error = models.TextField(blank=True)
     events_seen = models.PositiveIntegerField(default=0)
+    can_schedule = models.BooleanField(default=False, help_text="Allowed the hub to put meetings on their calendar "
+                                       "(Google's calendar.events permission; docs/SCHEDULING.md)")
 
     def __str__(self):
         return f"Calendar sync for {self.user}"

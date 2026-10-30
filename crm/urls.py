@@ -18,6 +18,7 @@ from .land import brief_views, comp_views, diligence_views, letter_views
 from .land import card_views as land_card_views
 from .land import views as land_views
 from .chat import views as chat_views
+from .schedule import views as schedule_views
 from .mail import compose_views, inbox_views
 from .mail import views as mail_views
 from .news import views as news_views
@@ -144,6 +145,13 @@ urlpatterns = [
     path("meetings/<int:pk>/task/", views.meeting_make_task, name="meeting_make_task"),
     path("meetings/<int:pk>/tasks/", views.meeting_make_tasks, name="meeting_make_tasks"),
     path("meetings/<int:pk>/transcript.txt", views.meeting_transcript, name="meeting_transcript"),
+    path("schedule/", schedule_views.home, name="schedule"),
+    path("schedule/availability/", schedule_views.availability_json, name="schedule_availability"),
+    path("schedule/people/", schedule_views.people, name="schedule_people"),
+    path("schedule/create/", schedule_views.create, name="schedule_create"),
+    path("schedule/open/", schedule_views.open_in_google, name="schedule_open"),
+    path("schedule/allow/", schedule_views.allow, name="schedule_allow"),
+    path("schedule/allowed/", schedule_views.allowed, name="schedule_allowed"),
     path("notes/add/", views.note_add, name="note_add"),
     path("lists/", views.list_index, name="list_index"),
     path("lists/<int:pk>/", views.list_detail, name="list_detail"),

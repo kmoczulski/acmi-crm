@@ -1,0 +1,108 @@
+{% extends "crm/base.html" %}
+{% load static socialaccount %}
+{% block title %}Schedule a meeting · ACMI Hub{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Schedule a meeting</h1>
+  <span class="muted">See when people are free, pick a time, and Google Calendar does the invitations.</span>
+  <span class="spacer"></span>
+  <a class="btn" href="{% url 'crm:meeting_list' %}">Calendar</a>
+</div>
+
+{% if not google_ready %}
+  <section class="panel" style="max-width:720px"><p class="muted">Google sign-in isn't set up on this hub yet (GOOGLE_CLIENT_ID in .env), so there are no calendars to look at.</p></section>
+{% elif not has_email %}
+  <section class="panel" style="max-width:720px"><p class="muted">Your hub account has no email address. Ask an admin to add your ACMI address first.</p></section>
+{% elif not connected %}
+  <section class="panel" style="max-width:720px">
+    <h3>Connect your Google Calendar first</h3>
+    <p>Scheduling reads when people are free from Google Calendar, using your own Google sign-in. Nothing is stored: the hub asks Google each time.</p>
+    <a class="btn btn-primary" href="{% provider_login_url 'google' process='connect' auth_params='prompt=consent' next=request.path %}">Connect Google Calendar</a>
+  </section>
+{% else %}
+<section class="panel sched-allow" data-allow{% if can_schedule %} hidden{% endif %}>
+  <form method="post" action="{% url 'crm:schedule_allow' %}">{% csrf_token %}
+    <strong>To send invitations from here,</strong> allow the hub to put meetings on your Google Calendar. Google asks once; leave the box ticked.
+    Until then, <em>Open in Google Calendar</em> fills the meeting in for you to save.
+    <button class="btn btn-small btn-primary">Allow scheduling</button>
+  </form>
+</section>
+
+<div class="sched" data-sched>
+  <aside class="sched-side">
+    <section class="panel">
+      <h3>Who</h3>
+      <ul class="sched-who" data-who></ul>
+      <label class="sched-add"><span class="muted lc-small">Add someone</span>
+        <input type="search" placeholder="Name or email address" autocomplete="off" aria-label="Add someone by name or email" data-add>
+      </label>
+      <ul class="sched-found" data-found hidden></ul>
+      <div class="sched-contacts" data-contacts hidden></div>
+      <p class="muted lc-small">People outside ACMI show up only if they've shared their calendar with you. If not, the times below are for the people you can see.</p>
+    </section>
+    <section class="panel">
+      <h3>How long and when</h3>
+      <div class="sched-controls">
+        <label>Length <select data-minutes></select></label>
+        <label>Day runs <select data-hours>
+          <option value="7-19">7 am – 7 pm</option><option value="8-18" selected>8 am – 6 pm</option>
+          <option value="9-17">9 am – 5 pm</option><option value="6-20">6 am – 8 pm</option>
+        </select></label>
+        <label class="check"><input type="checkbox" data-weekend> Show Saturday and Sunday</label>
+      </div>
+    </section>
+    <section class="panel">
+      <h3>Times everyone can do</h3>
+      <ol class="sched-suggest" data-suggest></ol>
+      <p class="muted lc-small" data-suggest-none hidden>No time this week suits everyone. Try another week or a shorter meeting.</p>
+    </section>
+  </aside>
+
+  <section class="sched-main">
+    <div class="panel sched-nav">
+      <button type="button" class="btn btn-small" data-prev aria-label="Earlier week">‹</button>
+      <button type="button" class="btn btn-small" data-today>This week</button>
+      <button type="button" class="btn btn-small" data-next aria-label="Later week">›</button>
+      <strong data-range></strong>
+      <span class="spacer"></span>
+      <span class="muted lc-small">Times are shown in <span data-zone>Central time</span></span>
+    </div>
+    <p class="mail-error" data-error hidden></p>
+    <div class="panel sched-grid-wrap" data-grid aria-live="polite"><p class="muted">Loading…</p></div>
+    <p class="sched-legend lc-small muted">
+      <span><i class="sc-key sc-free"></i>Everyone is free</span>
+      <span><i class="sc-key sc-some"></i>Some are busy (the number)</span>
+      <span><i class="sc-key sc-all"></i>Everyone is busy</span>
+      <span><i class="sc-key sc-off"></i>Past, or won't fit in the day</span>
+    </p>
+
+    <form class="panel sched-form" data-form hidden>
+      {% csrf_token %}
+      <input type="hidden" name="request" value="{{ request_id }}" data-request>
+      <h3>Put it on the calendar</h3>
+      <div class="sched-fields">
+        <label class="wide">Title <input name="title" maxlength="200" required data-title></label>
+        <label>Day <input type="date" name="day" required data-day></label>
+        <label>Starts <input type="time" name="time" step="900" required data-time></label>
+        <label>Length <select name="minutes" data-form-minutes></select></label>
+        <label class="wide">Place <input name="location" maxlength="300" placeholder="An office, an address or a phone number (optional)"></label>
+        <label class="wide check"><input type="checkbox" name="meet" value="1" checked> Add a Google Meet video link</label>
+        <label class="wide">Notes <textarea name="description" rows="3" maxlength="4000" placeholder="What the meeting is for (optional)"></textarea></label>
+      </div>
+      <p class="sched-inviting lc-small"><strong>Inviting:</strong> <span data-inviting></span></p>
+      <p class="sched-note lc-small" data-conflict hidden></p>
+      <p class="mail-error" data-form-error hidden></p>
+      <div class="sched-actions">
+        <button class="btn btn-primary" data-send{% if not can_schedule %} hidden{% endif %}>Send invitations</button>
+        <a class="btn" href="{% url 'crm:schedule_open' %}" target="_blank" rel="noopener noreferrer" data-open title="Opens Google Calendar's own new-event screen with this filled in">Open in Google Calendar ↗</a>
+        <button type="button" class="btn-link" data-cancel>Cancel</button>
+      </div>
+    </form>
+
+    <section class="panel sched-done" data-done hidden></section>
+  </section>
+</div>
+{{ config|json_script:"sched-config" }}
+<script src="{% static 'crm/schedule.js' %}?v={{ ASSET_VERSION }}"></script>
+{% endif %}
+{% endblock %}
