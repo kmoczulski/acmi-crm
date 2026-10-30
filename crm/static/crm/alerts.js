@@ -34,6 +34,7 @@
     if (!box) { box = document.createElement('div'); box.id = 'alert-toasts'; document.body.appendChild(box); }
     const a = document.createElement('a');
     a.className = 'alert-toast'; a.href = item.url;
+    if (item.window) a.dataset.window = item.window;  // a new email opens in a box of the mail dock (dock.js)
     a.innerHTML = '<b></b><span></span>';
     a.querySelector('b').textContent = item.kind; a.querySelector('span').textContent = item.text;
     box.appendChild(a);
@@ -45,7 +46,11 @@
     if (!pref('desktop', true) || pref('push', false) || !('Notification' in window) || Notification.permission !== 'granted') return false;
     try {
       const n = new Notification(item.kind, {body: item.text, tag: 'acmi-' + item.id, icon: root.dataset.icon || undefined});
-      n.onclick = () => { window.focus(); location.href = item.url; n.close(); };
+      n.onclick = () => {
+        window.focus();
+        if (item.window && window.acmiDock) window.acmiDock.thread(item.window, item.url); else location.href = item.url;
+        n.close();
+      };
       return true;
     } catch (e) { return false; }
   }
@@ -77,7 +82,7 @@
   }
 
   window.acmiAlerts = {
-    pref, setPref, chime,
+    pref, setPref, chime, refresh: () => poll(false),
     test() { const i = {id: 0, kind: 'Test alert', text: 'Notifications and sounds are working.', url: location.href}; if (pref('sound', true)) chime(); if (!desktop(i)) toast(i); },
     async enableDesktop() {
       if (!('Notification' in window)) return 'unsupported';

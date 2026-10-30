@@ -1,0 +1,33 @@
+{% load static %}<!doctype html>
+{# The page inside one box of the mail dock (static/crm/dock.js): no top bar, no page margins. Dark mode follows the hub page around it. #}
+<html lang="en" class="embedded dock-window">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Mail · ACMI Hub{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'crm/app.css' %}?v={{ ASSET_VERSION }}">
+  <script>
+    (function (h) {
+      var mq = window.matchMedia ? matchMedia('(prefers-color-scheme: dark)') : null;
+      var saved = function () { try { return localStorage.getItem('hubTheme'); } catch (e) { return null; } };
+      var apply = function () {
+        var t = saved(), dark = t ? t === 'dark' : !!(mq && mq.matches);
+        if (dark) h.setAttribute('data-theme', 'dark'); else h.removeAttribute('data-theme');
+      };
+      apply();
+      addEventListener('storage', function (e) { if (e.key === 'hubTheme') apply(); });
+      if (mq) (mq.addEventListener ? mq.addEventListener('change', apply) : mq.addListener(apply));
+    })(document.documentElement);
+  </script>
+</head>
+<body class="dock-body"{% block bodyattrs %}{% endblock %}>
+<main class="dock-main">
+{% block content %}{% endblock %}
+</main>
+{% block scripts %}{% endblock %}
+<script>
+  // A link in a box opens on the page around it, not inside the little box.
+  document.querySelectorAll('a[href]:not([target]):not([href^="#"])').forEach(function (a) { a.target = '_top'; });
+</script>
+</body>
+</html>

@@ -23,6 +23,10 @@
     const FIRST = 7, LAST = 20, SNAP = 15, HEAD_PX = 38, MIN_HOUR = 56, WIDTH_KEY = 'times-panel-width';
     let HOUR_PX = MIN_HOUR;
     let panel = null, target = null, url = '', weekStart = null, events = [], picked = [], length = 30, weekends = false;
+    // In a box of the mail dock (dock.js) the box is too small to hold the panel, so it is drawn on the hub page around it.
+    let host = window;
+    try { if (window.top !== window && window.top.acmiDock) host = window.top; } catch (e) { /* not the hub page */ }
+    const doc = host.document;
     const pad = n => String(n).padStart(2, '0');
     const iso = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
     const monday = d => { const x = new Date(d); x.setHours(0, 0, 0, 0); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x; };
@@ -39,7 +43,7 @@
     const line = s => `${dayName(s.start)}, ${span(s)}`;
 
     function build() {
-      panel = document.createElement('aside');
+      panel = doc.createElement('aside');
       panel.className = 'times-panel';
       panel.setAttribute('aria-label', 'Pick meeting times');
       panel.hidden = true;
@@ -68,7 +72,7 @@
             <button type="button" class="btn btn-small" data-clear>Clear</button>
           </div>
         </div>`;
-      document.body.append(panel);
+      doc.body.append(panel);
       try { const w = +localStorage.getItem(WIDTH_KEY); if (w) setWidth(w); } catch (e) { /* private window */ }
       // Drag the left edge to make the panel wider or narrower; remembered in this browser.
       panel.querySelector('[data-resize]').addEventListener('pointerdown', e => {
@@ -76,17 +80,17 @@
         const right = panel.getBoundingClientRect().right;  // not the window's edge when a split view is open (split.js)
         const move = ev => setWidth(right - ev.clientX);
         const up = () => {
-          window.removeEventListener('pointermove', move);
-          window.removeEventListener('pointerup', up);
-          document.body.classList.remove('times-resizing');
+          host.removeEventListener('pointermove', move);
+          host.removeEventListener('pointerup', up);
+          doc.body.classList.remove('times-resizing');
           try { localStorage.setItem(WIDTH_KEY, String(panel.offsetWidth)); } catch (err) {}
           fit();
         };
-        document.body.classList.add('times-resizing');
-        window.addEventListener('pointermove', move);
-        window.addEventListener('pointerup', up);
+        doc.body.classList.add('times-resizing');
+        host.addEventListener('pointermove', move);
+        host.addEventListener('pointerup', up);
       });
-      window.addEventListener('resize', () => { if (!panel.hidden) fit(); });
+      host.addEventListener('resize', () => { if (!panel.hidden) fit(); });
       panel.querySelector('[data-zone]').textContent = zone();
       panel.querySelector('[data-close]').addEventListener('click', close);
       panel.querySelectorAll('[data-week]').forEach(b => b.addEventListener('click', () => {
@@ -98,12 +102,14 @@
       panel.querySelector('[data-clear]').addEventListener('click', () => { picked = []; draw(); });
       panel.querySelector('[data-insert]').addEventListener('click', insert);
       panel.querySelector('[data-grid]').addEventListener('click', pick);
-      document.addEventListener('keydown', e => { if (e.key === 'Escape' && !panel.hidden) close(); });
+      doc.addEventListener('keydown', e => { if (e.key === 'Escape' && !panel.hidden) close(); });
+      // The box that opened the panel is gone (sent, closed, or the page changed): the panel goes with it.
+      if (host !== window) window.addEventListener('pagehide', () => { panel.remove(); doc.body.classList.remove('times-open'); });
     }
 
     function setWidth(px) {
-      const w = Math.round(Math.max(380, Math.min(px, window.innerWidth - 320, 1100)));
-      document.documentElement.style.setProperty('--times-w', w + 'px');
+      const w = Math.round(Math.max(380, Math.min(px, host.innerWidth - 320, 1100)));
+      doc.documentElement.style.setProperty('--times-w', w + 'px');
     }
     // The hours stretch to fill the panel's height, so the whole day shows without scrolling when there's room.
     function fit() {
@@ -222,7 +228,7 @@
       url = calendarUrl;
       if (!weekStart) weekStart = monday(new Date());
       panel.hidden = false;
-      document.body.classList.add('times-open');
+      doc.body.classList.add('times-open');
       fit();
       load().then(() => {
         fit();
@@ -233,9 +239,14 @@
     function close() {
       if (!panel) return;
       panel.hidden = true;
-      document.body.classList.remove('times-open');
+      doc.body.classList.remove('times-open');
     }
-    return {open, close};
+    const api = {open(ed, calendarUrl) {  // one panel at a time on the page, whichever box asked
+      try { if (host.acmiTimesOpen && host.acmiTimesOpen !== api) host.acmiTimesOpen.close(); } catch (e) { /* that box is gone */ }
+      host.acmiTimesOpen = api;
+      open(ed, calendarUrl);
+    }, close};
+    return api;
   })();
 
   // The colours offered for text and for highlighting; "" takes the colour off.
@@ -374,7 +385,11 @@
     return api;
   }
 
-  function setup(form, inline) {
+  function setup(form, kind) {
+    // kind: false = the full compose page, true = the reading pane's reply box, 'window' = a box of the mail dock.
+    const inline = !!kind, windowed = kind === 'window';
+    const winId = windowed ? form.dataset.window : '';
+    const dock = () => { try { return window.top !== window ? window.top.acmiDock : null; } catch (e) { return null; } };
     const state = form.querySelector('[data-draft-state]') || document.querySelector('[data-draft-state]');
     const draftId = form.querySelector('[data-draft-id]');
     const sendBtn = form.querySelector('[data-send]');
@@ -384,26 +399,59 @@
     const body = form.querySelector('textarea[name=body]');
     try { document.execCommand('styleWithCSS', false, false); } catch (e) { /* older browsers */ }
     const ed = editor(form, body);
-    let timer = null, saveTimer = null, confirmed = false, saving = false;
+    let timer = null, saveTimer = null, snapTimer = null, confirmed = false, inflight = null, rev = 0, savedRev = 0;
     const say = text => { if (state) state.textContent = text; };
+    const field = name => form.elements[name];
+    const initial = {to: field('to').value, subject: field('subject').value};
+    // Worth keeping as a draft: something typed beyond what the reply or the link filled in.
+    const hasContent = () => !!(ed.area.innerText.trim() || field('subject').value !== initial.subject || field('to').value !== initial.to);
 
-    const save = async () => {
-      if (saving || confirmed || !form.dataset.draftUrl) return;
-      saving = true;
-      const data = new FormData(form);
-      data.delete('files');
+    // A box of the dock keeps what's typed for this tab, so it is still there on the next page (dock.js brings the box
+    // back; this puts the text back, and the draft id, so autosave goes on updating the same draft in Gmail).
+    const SNAP = 'hubDock:' + winId;
+    const snapshot = () => {
+      if (!windowed) return;
       try {
-        const r = await fetch(form.dataset.draftUrl, {method: 'POST', body: data, headers: {'X-CSRFToken': csrf(form)}});
-        const d = await r.json();
-        if (d.draft) { draftId.value = d.draft; say('Draft saved ' + new Date().toLocaleTimeString([], {hour: 'numeric', minute: '2-digit'})); }
-        else if (d.error) say(d.error);
-      } catch (e) { say('Draft not saved (offline?)'); }
-      saving = false;
+        sessionStorage.setItem(SNAP, JSON.stringify({
+          to: field('to').value, cc: field('cc').value, bcc: field('bcc').value, subject: field('subject').value,
+          html: ed.area.innerHTML, draft: draftId.value,
+          off: [...form.querySelectorAll('[name=forward_part]:not(:checked)')].map(i => i.value),
+          files: [...(field('files') ? field('files').files : [])].map(f => f.name),
+        }));
+      } catch (e) { /* storage full or blocked: the draft in Gmail is still there */ }
+    };
+
+    const save = () => {
+      if (inflight) return inflight;
+      if (confirmed || !form.dataset.draftUrl) return Promise.resolve(false);
+      const at = rev, data = new FormData(form);
+      data.delete('files');
+      inflight = (async () => {
+        try {
+          const r = await fetch(form.dataset.draftUrl, {method: 'POST', body: data, headers: {'X-CSRFToken': csrf(form)}});
+          const d = await r.json();
+          if (d.draft) {
+            draftId.value = d.draft;
+            savedRev = at;
+            say('Draft saved ' + new Date().toLocaleTimeString([], {hour: 'numeric', minute: '2-digit'}));
+            snapshot();
+            return true;
+          }
+          if (d.error) say(d.error);
+        } catch (e) { say('Draft not saved (offline?)'); }
+        return false;
+      })().finally(() => {
+        inflight = null;
+        if (rev !== at && !confirmed) { clearTimeout(saveTimer); saveTimer = setTimeout(save, 1500); }  // typed while it saved
+      });
+      return inflight;
     };
     form.addEventListener('input', e => {
       if (e.target.type === 'file') return;
+      rev++;
       clearTimeout(saveTimer);
       saveTimer = setTimeout(save, 3000);
+      if (windowed) { clearTimeout(snapTimer); snapTimer = setTimeout(snapshot, 250); }
     });
 
     // Templates (full page): the outreach templates' text, {first_name} filled in when the hub knows the person.
@@ -436,6 +484,7 @@
         const r = await fetch(form.action, {method: 'POST', body: new FormData(form), headers: {'X-CSRFToken': csrf(form)}});
         const d = await r.json();
         if (!r.ok || !d.ok) throw new Error(d.error || 'Not sent. Try again.');
+        if (windowed && dock()) { dock().sent(winId, d); return; }  // the box closes and the page says "Message sent"
         location.href = d.url;
       } catch (err) {
         confirmed = false;
@@ -473,10 +522,60 @@
     window.addEventListener('beforeunload', e => {
       if (timer) { e.preventDefault(); e.returnValue = ''; }
     });
+
+    if (windowed) {
+      let s = null;
+      try { s = JSON.parse(sessionStorage.getItem(SNAP) || 'null'); } catch (e) { /* none kept */ }
+      if (s) {
+        for (const n of ['to', 'cc', 'bcc', 'subject']) if (field(n) && typeof s[n] === 'string') field(n).value = s[n];
+        ed.area.innerHTML = s.html || '';
+        ed.sync();
+        draftId.value = s.draft || '';
+        (s.off || []).forEach(v => { const c = [...form.querySelectorAll('[name=forward_part]')].find(i => i.value === v); if (c) c.checked = false; });
+        const more = form.querySelector('.compose-more');
+        if (more && (s.cc || s.bcc)) more.open = true;
+        if ((s.files || []).length) say('Attach again: ' + s.files.join(', '));  // files can't be kept across pages
+        rev = 1;
+      }
+      const retitle = () => { if (dock()) dock().title(winId, field('subject').value.trim() || 'New message'); };
+      field('subject').addEventListener('input', retitle);
+      retitle();
+      window.addEventListener('pagehide', snapshot);
+      // Discard throws the draft away in Gmail and closes the box.
+      const discard = form.querySelector('[data-discard]');
+      if (discard) discard.addEventListener('click', async e => {
+        e.preventDefault();
+        if (hasContent() && !confirm('Discard this message?')) return;
+        clearTimeout(saveTimer);
+        confirmed = true;  // no more autosaves
+        if (draftId.value) {
+          const data = new FormData();
+          data.set('draft_id', draftId.value);
+          data.set('inline', '1');
+          try { await fetch(discard.getAttribute('formaction'), {method: 'POST', body: data, headers: {'X-CSRFToken': csrf(form)}}); }
+          catch (err) { /* it stays in Gmail's Drafts */ }
+        }
+        if (dock()) dock().close(winId, {force: true});
+      });
+      form.addEventListener('keydown', e => {
+        if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && !sendBtn.disabled) { e.preventDefault(); sendBtn.click(); }
+      });
+      // What the dock asks before it closes the box: is a send waiting, and keep what was typed as a draft in Gmail.
+      window.acmiWindow = {
+        sending: () => !!timer,
+        flush: async () => {
+          clearTimeout(saveTimer);
+          if (inflight) await inflight;
+          if (rev !== savedRev && hasContent()) await save();
+          return !!draftId.value;  // true when a draft of it is in Gmail, so the page can say so
+        },
+      };
+      setTimeout(() => { const to = field('to'); (to.value ? ed.area : to).focus(); }, 60);
+    }
     return {save, ed};
   }
 
-  document.querySelectorAll('[data-compose]').forEach(form => setup(form, false));
+  document.querySelectorAll('[data-compose]').forEach(form => setup(form, form.dataset.window ? 'window' : false));
 
   // The reading pane's inline reply box: Reply / Reply all / Forward fill it in place, under the message. The inbox
   // calls initInlineReply again when it swaps in another conversation (and with it a new box).

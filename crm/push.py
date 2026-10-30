@@ -109,13 +109,17 @@ def subscribe(user, data, user_agent=""):
 
 def payload(note=None, *, title="", body="", url=""):
     """What the service worker shows. A saved notification opens through notification_open, which marks it read."""
+    window = ""  # new email: the mail dock's little box for the thread, for a hub tab that's already open
     if note is not None:
+        from . import notify
+
         title, body = note.get_kind_display(), note.text
         url = reverse("crm:notification_open", args=[note.pk]) if note.in_hub else (note.url or "/")
         tag = f"acmi-{note.pk}"
+        window = notify.window_url(note)
     else:
         tag = "acmi-test"
-    return {"title": title, "body": body, "url": url if url.startswith("/") else "/", "tag": tag}
+    return {"title": title, "body": body, "url": url if url.startswith("/") else "/", "tag": tag, "window": window}
 
 
 def deliver(user, data):
