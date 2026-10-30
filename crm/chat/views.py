@@ -15,7 +15,7 @@ from django.template.loader import render_to_string
 from django.views.decorators.http import require_POST
 
 from crm.mail.views import team_only
-from crm.models import ChatConnection, Person
+from crm.models import ChatConnection
 
 from . import connect, service
 from .api import ChatError, ChatNotFound, space_name
@@ -52,20 +52,6 @@ def _window_id(request):
     return re.sub(r"[^A-Za-z0-9_-]", "", request.GET.get("w", ""))[:24]
 
 
-def _records(directory, me):
-    """People in a conversation who are in the CRM, with their companies: small links in its header."""
-    emails = [p["email"] for p in directory.values() if p["email"] and p["email"] != me][:25]
-    if not emails:
-        return []
-    out, seen = [], set()
-    for person in Person.objects.filter(email__in=emails).select_related("company")[:8]:
-        out.append({"label": str(person), "url": person.get_absolute_url()})
-        if person.company_id and person.company_id not in seen:
-            seen.add(person.company_id)
-            out.append({"label": person.company.name, "url": person.company.get_absolute_url()})
-    return out
-
-
 def _conversation(user, client, space):
     """Everything the conversation partial shows for one space; opening it marks it read, as in Chat itself."""
     row = service.find(user, client, space)
@@ -77,8 +63,7 @@ def _conversation(user, client, space):
     people = "" if row["type"] == "DIRECT_MESSAGE" else \
         ", ".join(others[:6]) + (f" and {len(others) - 6} more" if len(others) > 6 else "")
     return {"space": row, "messages": views, "latest": raw[-1].get("createTime", "") if raw else "",
-            "earliest": raw[0].get("createTime", "") if raw else "", "more": len(raw) >= PAGE, "people": people,
-            "records": _records(directory, me), "me": me}
+            "earliest": raw[0].get("createTime", "") if raw else "", "more": len(raw) >= PAGE, "people": people, "me": me}
 
 
 def _previous(params):

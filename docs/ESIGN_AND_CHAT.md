@@ -50,8 +50,9 @@ client), and the first estimate here ("1 to 2 weeks", for a full client) was too
     people in the same space (or with prior contact), enough to match them to CRM people by email. Group chats and DMs are
     listed only after their first message. Quota: 3,000 message reads a minute for the whole project; ten people polling
     every 15 minutes is far below it.
-  - Copies are per person and private to them; a space linked to a company, deal or campus (like "File to…" for mail) shows
-    on that record's timeline, and can feed the campus summary.
+  - Copies are per person and private to them. (This analysis also proposed linking a space to a company, deal or campus,
+    like "File to…" for mail. Kellen ruled that out on 2026-10-29: "chats dont need to be applied to any company", it is just
+    for talking with coworkers while the team is remote. Chat is built without any tie to the CRM.)
 - **Alerts into Chat (a few hours; no per-person consent).** A space's incoming webhook: the hub posts "deal moved", "reply
   from X", "task due" into a space the team picks. One way only.
 - **Full Chat inside the hub (two or three more sessions after the pull).** Send and reply, live updates, boxes in the mail

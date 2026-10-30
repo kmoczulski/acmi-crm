@@ -12,7 +12,6 @@
       <button type="button" class="btn btn-small" data-mute title="Alerts for new messages here">{% if convo.space.muted %}🔕 Alerts off{% else %}🔔 Alerts on{% endif %}</button>
       {% if convo.space.uri %}<a class="btn btn-small" href="{{ convo.space.uri }}" target="_blank" rel="noopener noreferrer" title="Open this conversation in Google Chat">Google Chat ↗</a>{% endif %}
     </div>
-    {% if convo.records %}<div class="chat-records">{% for r in convo.records %}<a class="mail-chip" href="{{ r.url }}" target="_top">{{ r.label }}</a>{% endfor %}</div>{% endif %}
   </header>
   <div class="chat-scroll" data-scroll>
     {% if convo.more %}<button type="button" class="btn btn-small chat-older" data-older>Earlier messages</button>{% endif %}

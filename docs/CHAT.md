@@ -5,6 +5,10 @@ the page, as a sidebar, or like Gmail where it's at the bottom." All three are t
 and conversation boxes along the bottom of every page (Gmail's way; they float over the page), the same Chat page in the
 split view's side (◫, the sidebar), and the Chat page on its own.
 
+**What it's for:** talking with coworkers, since the team is remote. Chat is deliberately not tied to the CRM: nothing in it
+links to a company, person or deal, and nothing from Chat goes into records or summaries (Kellen, 2026-10-29: "chats dont need
+to be applied to any company").
+
 ## What it does
 
 - **Turn on Chat** (Chat in the top bar, once per person). Google shows its permission screen once; nothing is read from
@@ -18,8 +22,7 @@ split view's side (◫, the sidebar), and the Chat page on its own.
 - **A conversation**: messages with avatars, day separators, grouping by person, Chat's formatting (*bold*, _italic_, ~strike~,
   `code`, links, @mentions, attachments as links), thread replies indented. Enter sends, Shift+Enter is a new line; ↩ on a
   message answers in its thread; "Earlier messages" loads more; new messages arrive within about 6 seconds while it's open;
-  🔔 / 🔕 mutes its alerts; "Google Chat ↗" opens it in Chat. People in it who are in the CRM show as links to their person
-  and company. Opening a conversation marks it read.
+  🔔 / 🔕 mutes its alerts; "Google Chat ↗" opens it in Chat. Opening a conversation marks it read.
 - **At the bottom of every page (the dock, `MAIL_DOCK.md`)**: a pinned **Chat (3)** box at the right: click it to see the list,
   click a conversation to open it in a box beside it (up to 4 boxes with the mail ones; they fold to a title bar, a folded one
   with something new shows a ● in its title, and they come back on the next page like the mail boxes). On the Chat page itself
@@ -69,7 +72,7 @@ Google's docs leave two things to see for real: whether direct messages and grou
 
 ## Not built yet
 
-Starting a new conversation (a direct message with a teammate or a new space), sending attachments, emoji reactions, editing or
-deleting a message, files from Chat into the CRM, filing a conversation to a company, deal or campus (and Claude's campus summary
-reading it), live push with no polling (Workspace Events on the Pub/Sub topic Gmail push uses), a Chat alert when the hub is
-closed sooner than the 15-minute sweep.
+Starting a new conversation with a teammate (the one thing a remote team will miss: today you continue the conversations that
+already exist and start new ones in Google Chat), a new space, sending attachments, emoji reactions, editing or deleting a
+message, live push with no polling (Workspace Events on the Pub/Sub topic Gmail push uses), a Chat alert when the hub is closed
+sooner than the 15-minute sweep. Not wanted: tying Chat to companies, deals or campuses.

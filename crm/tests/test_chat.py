@@ -522,13 +522,14 @@ class PageTests(ChatTestCase):
         self.assertContains(r, "chat-row unread", count=2)
         self.assertContains(r, "Pick a conversation.")
 
-    def test_a_conversation_shows_its_messages_marks_them_read_and_names_the_crm_people(self):
+    def test_a_conversation_shows_its_messages_and_marks_them_read_and_is_never_tied_to_a_record(self):
         company = Company.objects.create(name="Firehawk Aerospace", domains=["firehawkaerospace.com"])
         Person.objects.create(first_name="Will", last_name="Edwards", email=WILL, company=company)
         r = self.client.get(reverse("crm:chat"), {"s": "CCC"})
         self.assertContains(r, "Can you send the PDA?")
         self.assertContains(r, "Will Edwards")
-        self.assertContains(r, "Firehawk Aerospace")
+        self.assertNotContains(r, "Firehawk Aerospace")  # Chat is for talking with coworkers: no links to CRM records
+        self.assertNotContains(r, company.get_absolute_url())
         self.assertGreater(parse_time(self.fake.read["CCC"]), self.now - timedelta(hours=1))  # opening it marked it read
 
     def test_the_page_swaps_the_right_side_in_place(self):
