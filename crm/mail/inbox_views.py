@@ -117,12 +117,18 @@ def inbox(request, mailbox, client):
     offset = int(request.GET.get("o", "0")) if request.GET.get("o", "0").isdigit() else 0
     open_id = request.GET.get("t", "")
     exact = bool(request.GET.get("exact"))
+    unread_only = request.GET.get("unread") == "1"
+    sort = request.GET.get("sort", "")  # "unread" keeps unread at the top
     within = request.GET.get("in", "")[:100] if query else ""  # "In this folder only" from the search options
     if within and within != "ALL":
         label = within
     gmail_query, widened = (query, []) if exact else mail_search.expand(query)
+    if unread_only:
+        gmail_query = (gmail_query + " is:unread").strip()
     thread_base = "?" + urlencode({k: v for k, v in [("label", label), ("q", query), ("exact", "1" if exact else ""),
                                                      ("in", within), ("tab", tab if tab != "all" else ""),
+                                                     ("unread", "1" if unread_only else ""),
+                                                     ("sort", sort if sort == "unread" else ""),
                                                      ("t", open_id)] if v})
     if open_id and request.headers.get("X-Mail-Pane"):
         return _pane(request, mailbox, client, open_id, label, query, tab, thread_base)
@@ -130,8 +136,13 @@ def inbox(request, mailbox, client):
     try:
         system, user_labels = index.labels(mailbox, client)
         if tab in TAB_FILTERS:
-            qs = MailThread.objects.filter(mailbox=mailbox, in_inbox=True, **TAB_FILTERS[tab]) \
-                .order_by("-last_message_at")
+            qs = MailThread.objects.filter(mailbox=mailbox, in_inbox=True, **TAB_FILTERS[tab])
+            if unread_only:
+                qs = qs.filter(unread=True)
+            if sort == "unread":
+                qs = qs.order_by("-unread", "-last_message_at")
+            else:
+                qs = qs.order_by("-last_message_at")
             threads = list(qs[offset:offset + PAGE + 1])
             if len(threads) > PAGE:
                 threads, next_offset = threads[:PAGE], offset + PAGE
@@ -139,6 +150,8 @@ def inbox(request, mailbox, client):
             threads, next_token, total = index.page(
                 mailbox, client, label=None if (query and not within) or label == "ALL" else label, query=gmail_query,
                 page_token=token)
+            if sort == "unread":
+                threads.sort(key=lambda t: (not t.unread, -(t.last_message_at.timestamp() if t.last_message_at else 0)))
         chips = index.chips(mailbox, threads)
         index.retag(mailbox, threads, chips)
         for t in threads:
@@ -157,7 +170,7 @@ def inbox(request, mailbox, client):
     return render(request, "crm/inbox.html", {
         "mailbox": mailbox, "system_labels": system, "user_labels": user_labels, "label": label,
         "label_tree": index.label_tree(user_labels),
-        "label_name": "Search" if query else current, "query": query, "widened": widened, "exact": exact, "within": within, "tabs": TABS if label == "INBOX" and not query else [],
+        "label_name": "Search" if query else current, "query": query, "widened": widened, "exact": exact, "within": within, "unread_only": unread_only, "sort": sort, "tabs": TABS if label == "INBOX" and not query else [],
         "tab": tab, "threads": threads, "next_token": next_token, "next_offset": next_offset, "offset": offset,
         "page_token": token, "total": total, "reader": reader, "open_id": open_id, "error": error,
         "indexing": tab in TAB_FILTERS and not mailbox.inbox_indexed_at,
