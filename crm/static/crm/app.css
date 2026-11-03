@@ -2143,8 +2143,12 @@ html.embedded .mail-app { height: 100vh; min-height: 0; border: 0; border-radius
 .attach-list li { padding: 2px 0; }
 .attach-list .btn-link { font-size: 16px; line-height: 1; padding: 0 4px; }
 form.attach-over { outline: 2px dashed var(--accent); outline-offset: 4px; }
-.compose-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.compose-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  position: sticky; bottom: 0; background: var(--panel); padding: 8px 0; z-index: 5; }
 .compose-actions .spacer { flex: 1; }
+/* The chat bar is fixed at the bottom right. Keep Send above it. */
+body.has-dock main { padding-bottom: 64px; }
+body.has-dock .compose-actions { bottom: 48px; }
 .compose-countdown { display: inline-flex; gap: 6px; align-items: center; }
 .compose-countdown[hidden] { display: none; }
 @media (max-width: 600px) {
@@ -2516,6 +2520,8 @@ html.split-on.split-v .mail-dock { bottom: var(--split-h, 50vh); }
     font-size: 13px; font-weight: 600; cursor: pointer; }
   .mail-dock.away .dock-win { display: none; }
   body.has-dock:not(.dock-away) { padding-bottom: 44px; }
+  body.has-dock:not(.dock-away) main { padding-bottom: 16px; }
+  body.has-dock:not(.dock-away) .compose-actions { bottom: 52px; }
   .dock-win.min { width: 100%; border-radius: 0; }
   .dock-win:not(.min) { position: fixed; inset: 0; width: auto; height: auto; border: 0; border-radius: 0; }
   .dock-big { display: none; }
