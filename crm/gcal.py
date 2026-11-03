@@ -193,23 +193,35 @@ def freebusy(user, emails, start, end, session=None):
 
 
 def create_event(user, *, event_id, title, start, end, attendees, description="", location="", meet=True,
-                 session=None):
+                 video="", session=None):
     """Put a meeting on the person's own calendar and invite the attendees (Google emails the invitations). `event_id`
     is chosen by the caller (letters a-v and digits), so asking twice for the same meeting finds the first instead of
-    inviting everyone again. Returns (event, created): created is False when Google already had that id."""
+    inviting everyone again. Returns (event, created): created is False when Google already had that id.
+
+    video: "meet" adds a Google Meet link, "teams" puts a Teams link in the place and the notes (Google cannot create
+    a Teams meeting), "" is in person. `meet=True` still means Meet, for the callers that don't pass video."""
     session = session or requests
     token = token_for(user)
     if token is None:
         raise CalendarError("Connect Google Calendar on the Calendar page first.")
+    kind = video or ("meet" if meet else "")
     body = {
         "id": event_id, "summary": title, "description": description, "location": location,
         "start": {"dateTime": start.isoformat(), "timeZone": settings.TIME_ZONE},
         "end": {"dateTime": end.isoformat(), "timeZone": settings.TIME_ZONE},
         "attendees": [{"email": a} for a in attendees],
     }
-    if meet:
+    if kind == "meet":
         body["conferenceData"] = {"createRequest": {"requestId": event_id,
                                                     "conferenceSolutionKey": {"type": "hangoutsMeet"}}}
+    elif kind == "teams":
+        link = (location or "").strip()
+        if link and not link.startswith("http"):
+            link = "https://" + link
+        if link:
+            body["location"] = link
+            note = f"Join Microsoft Teams: {link}"
+            body["description"] = f"{note}\n\n{description}".strip() if description else note
     headers = {"Authorization": f"Bearer {access_token(token, session)}"}
     r = session.post(EVENTS_URL, params={"sendUpdates": "all", "conferenceDataVersion": "1"}, json=body,
                      headers=headers, timeout=TIMEOUT)

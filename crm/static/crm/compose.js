@@ -22,7 +22,7 @@
   const times = (function () {
     const FIRST = 7, LAST = 20, SNAP = 15, HEAD_PX = 38, MIN_HOUR = 56, WIDTH_KEY = 'times-panel-width';
     let HOUR_PX = MIN_HOUR;
-    let panel = null, target = null, url = '', peopleUrl = '', availUrl = '', weekStart = null, events = [], picked = [], length = 30, weekends = false, people = [];
+    let panel = null, target = null, url = '', peopleUrl = '', availUrl = '', createUrl = '', weekStart = null, events = [], picked = [], length = 30, weekends = false, people = [];
     // In a box of the mail dock (dock.js) the box is too small to hold the panel, so it is drawn on the hub page around it.
     let host = window;
     try { if (window.top !== window && window.top.acmiDock) host = window.top; } catch (e) { /* not the hub page */ }
@@ -76,6 +76,12 @@
           <ul class="times-picked" data-picked></ul>
           <div class="times-actions">
             <button type="button" class="btn-primary" data-insert disabled>Insert into email</button>
+            <button type="button" class="btn btn-small" data-invite disabled>Send invite</button>
+            <select data-video aria-label="Video">
+              <option value="meet">Google Meet</option>
+              <option value="teams">Microsoft Teams</option>
+              <option value="">No video</option>
+            </select>
             <button type="button" class="btn btn-small" data-clear>Clear</button>
           </div>
         </div>`;
@@ -108,6 +114,7 @@
       panel.querySelector('[data-weekends]').addEventListener('change', e => { weekends = e.target.checked; draw(); });
       panel.querySelector('[data-clear]').addEventListener('click', () => { picked = []; draw(); });
       panel.querySelector('[data-insert]').addEventListener('click', insert);
+      panel.querySelector('[data-invite]').addEventListener('click', invite);
       panel.querySelector('[data-grid]').addEventListener('click', pick);
       const addBox = panel.querySelector('[data-add]'), found = panel.querySelector('[data-found]');
       let searchTimer = 0;
@@ -267,6 +274,44 @@
         || '<li class="muted lc-small">No times picked yet.</li>';
       panel.querySelectorAll('[data-drop]').forEach(b => b.addEventListener('click', () => { picked.splice(+b.dataset.drop, 1); draw(); }));
       panel.querySelector('[data-insert]').disabled = !picked.length;
+      panel.querySelector('[data-invite]').disabled = !picked.length || !people.length;
+    }
+
+    async function invite() {
+      if (!picked.length || !people.length || !createUrl) return;
+      const video = panel.querySelector('[data-video]').value;
+      const first = picked[0];
+      const err = panel.querySelector('[data-times-error]');
+      err.hidden = true;
+      if (video === 'teams') {
+        const link = window.prompt('Paste the Teams meeting link', 'https://teams.microsoft.com/');
+        if (!link) return;
+        first.teams = link.trim();
+      }
+      const body = new URLSearchParams({
+        request: Array.from(crypto.getRandomValues(new Uint8Array(16)), b => b.toString(16).padStart(2, '0')).join(''),
+        title: ((target && target.form && target.form.querySelector('[name=subject]')) || {}).value || 'Meeting',
+        start: first.start.toISOString(),
+        minutes: String(length),
+        attendees: people.map(p => p.email).join(','),
+        video,
+        location: first.teams || '',
+        csrfmiddlewaretoken: (doc.querySelector('[name=csrfmiddlewaretoken]') || {}).value || '',
+      });
+      try {
+        const r = await fetch(createUrl, {method: 'POST', credentials: 'same-origin', headers: {'Content-Type': 'application/x-www-form-urlencoded'}, body});
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error || 'Could not send the invite.');
+        const line = `Invite sent: ${d.when || ''}${d.meet ? ' · ' + d.meet : ''}`;
+        err.textContent = line;
+        err.hidden = false;
+        err.className = 'muted lc-small';
+        if (target) target.insertHtml(`<p>${esc(line)}</p>`, true);
+      } catch (e) {
+        err.textContent = e.message;
+        err.hidden = false;
+        err.className = 'mail-error';
+      }
     }
 
     function pick(e) {
@@ -295,12 +340,13 @@
       close();
     }
 
-    function open(ed, calendarUrl, avail, peopleSearch) {
+    function open(ed, calendarUrl, avail, peopleSearch, create) {
       if (!panel) build();
       target = ed;
       url = calendarUrl;
       availUrl = avail || '';
       peopleUrl = peopleSearch || '';
+      createUrl = create || '';
       if (!weekStart) weekStart = monday(new Date());
       panel.hidden = false;
       doc.body.classList.add('times-open');
@@ -317,10 +363,10 @@
       panel.hidden = true;
       doc.body.classList.remove('times-open');
     }
-    const api = {open(ed, calendarUrl, avail, peopleSearch) {  // one panel at a time on the page, whichever box asked
+    const api = {open(ed, calendarUrl, avail, peopleSearch, create) {  // one panel at a time on the page, whichever box asked
       try { if (host.acmiTimesOpen && host.acmiTimesOpen !== api) host.acmiTimesOpen.close(); } catch (e) { /* that box is gone */ }
       host.acmiTimesOpen = api;
-      open(ed, calendarUrl, avail, peopleSearch);
+      open(ed, calendarUrl, avail, peopleSearch, create);
     }, close};
     return api;
   })();
@@ -356,10 +402,10 @@
     sync();
     if (form.dataset.calendarUrl) {
       bar.insertAdjacentHTML('beforeend', '<span class="compose-tool-gap"></span><button type="button" class="compose-tool compose-times" data-times title="Offer meeting times from your calendar">📅 Times</button>');
-      bar.querySelector('[data-times]').addEventListener('click', () => times.open(api, form.dataset.calendarUrl, form.dataset.availUrl, form.dataset.peopleUrl));
+      bar.querySelector('[data-times]').addEventListener('click', () => times.open(api, form.dataset.calendarUrl, form.dataset.availUrl, form.dataset.peopleUrl, form.dataset.createUrl));
     }
     const propose = form.querySelector('[data-open-times]');
-    if (propose) propose.addEventListener('click', () => times.open(api, form.dataset.calendarUrl, form.dataset.availUrl, form.dataset.peopleUrl));
+    if (propose) propose.addEventListener('click', () => times.open(api, form.dataset.calendarUrl, form.dataset.availUrl, form.dataset.peopleUrl, form.dataset.createUrl));
 
     // Where the cursor was, so Times can put the slots there after you've clicked around the panel.
     let caret = null;

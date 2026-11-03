@@ -213,11 +213,16 @@ def meeting_fields(user, data, now=None):
         raise ScheduleError("Add at least one person to meet with.")
     description = (data.get("description") or "").strip()
     location = " ".join((data.get("location") or "").split())
+    video = (data.get("video") or "").strip().lower()
+    if video not in ("meet", "teams", ""):
+        video = "meet" if str(data.get("meet", "")).lower() in ("1", "true", "on", "yes") else ""
+    if video == "teams" and not location.startswith("http"):
+        raise ScheduleError("Paste a Teams meeting link for the place, or choose Google Meet.")
     if len(description) > 4000 or len(location) > 300:
         raise ScheduleError("The notes or the place are too long.")
     return {"title": title, "start": begin, "end": begin + timedelta(minutes=minutes), "minutes": minutes,
             "attendees": attendees, "description": description, "location": location,
-            "meet": str(data.get("meet", "")).lower() in ("1", "true", "on", "yes")}
+            "meet": video == "meet", "video": video}
 
 
 def google_link(fields):
@@ -267,7 +272,7 @@ def create_meeting(user, data, session=None, now=None):
     event, created = gcal.create_event(
         user, event_id="hub" + request_id, title=fields["title"], start=fields["start"], end=fields["end"],
         attendees=fields["attendees"], description=fields["description"], location=fields["location"],
-        meet=fields["meet"], session=session)
+        meet=fields["meet"], video=fields.get("video", ""), session=session)
     meeting = import_created(user, event)
     forget_busy(user)
     # What Google holds, not what was just typed: a repeated request finds the first meeting as it was made.

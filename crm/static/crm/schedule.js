@@ -299,7 +299,7 @@
     return {
       title: (data.get('title') || '').toString(), start: dayBox.value + 'T' + timeBox.value, minutes: formMinutes.value,
       attendees: state.invited.join(','), location: (data.get('location') || '').toString(),
-      description: (data.get('description') || '').toString(), meet: data.get('meet') ? '1' : '',
+      description: (data.get('description') || '').toString(), video: (data.get('video') || '').toString(),
     };
   }
 

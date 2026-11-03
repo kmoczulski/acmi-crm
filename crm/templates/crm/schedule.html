@@ -85,8 +85,14 @@
         <label>Day <input type="date" name="day" required data-day></label>
         <label>Starts <input type="time" name="time" step="900" required data-time></label>
         <label>Length <select name="minutes" data-form-minutes></select></label>
-        <label class="wide">Place <input name="location" maxlength="300" placeholder="An office, an address or a phone number (optional)"></label>
-        <label class="wide check"><input type="checkbox" name="meet" value="1" checked> Add a Google Meet video link</label>
+        <label class="wide">Place <input name="location" maxlength="300" placeholder="An office, an address, or a Teams link" data-location></label>
+        <fieldset class="wide" style="border:0;padding:0;margin:0">
+          <legend class="lc-small">Video</legend>
+          <label class="lc-small"><input type="radio" name="video" value="meet" checked data-video> Google Meet</label>
+          <label class="lc-small"><input type="radio" name="video" value="teams" data-video> Microsoft Teams</label>
+          <label class="lc-small"><input type="radio" name="video" value="" data-video> No video</label>
+        </fieldset>
+        <p class="muted lc-small" data-teams-note hidden>Paste the Teams meeting link in Place. Google can't create a Teams meeting; Meet is made for you.</p>
         <label class="wide">Notes <textarea name="description" rows="3" maxlength="4000" placeholder="What the meeting is for (optional)"></textarea></label>
       </div>
       <p class="sched-inviting lc-small"><strong>Inviting:</strong> <span data-inviting></span></p>
@@ -104,5 +110,11 @@
 </div>
 {{ config|json_script:"sched-config" }}
 <script src="{% static 'crm/schedule.js' %}?v={{ ASSET_VERSION }}"></script>
+<script>
+  document.querySelectorAll('[data-video]').forEach(r => r.addEventListener('change', () => {
+    const note = document.querySelector('[data-teams-note]');
+    if (note) note.hidden = document.querySelector('[data-video]:checked').value !== 'teams';
+  }));
+</script>
 {% endif %}
 {% endblock %}

@@ -13,7 +13,8 @@
 {% if mailbox.shared %}<p class="compose-from muted lc-small">Sending from the shared mailbox {{ mailbox.label }} ({{ mailbox.email }})</p>{% endif %}
 <form class="panel compose{% if window %} compose-window{% endif %}" method="post" enctype="multipart/form-data" action="{% url 'crm:inbox_compose' %}" data-compose{% if window %} data-window="{{ window }}" data-title="{% if f.subject %}{{ f.subject }}{% elif f.mode == 'forward' %}Forward{% else %}New message{% endif %}"{% endif %}
       data-draft-url="{% url 'crm:inbox_draft' %}" data-calendar-url="{% url 'crm:inbox_calendar' %}"
-      data-avail-url="{% url 'crm:schedule_availability' %}" data-people-url="{% url 'crm:schedule_people' %}">
+      data-avail-url="{% url 'crm:schedule_availability' %}" data-people-url="{% url 'crm:schedule_people' %}"
+      data-create-url="{% url 'crm:schedule_create' %}">
   {% csrf_token %}
   {% if window %}<input type="hidden" name="inline" value="1"><input type="hidden" name="dock" value="1">{% endif %}
   <input type="hidden" name="mode" value="{{ f.mode }}">
