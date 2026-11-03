@@ -12,7 +12,8 @@
 {% if not sending_on %}<p class="mail-error">Sending is switched off on this hub (ACMI_MAIL_SEND). You can still save drafts.</p>{% endif %}
 {% if mailbox.shared %}<p class="compose-from muted lc-small">Sending from the shared mailbox {{ mailbox.label }} ({{ mailbox.email }})</p>{% endif %}
 <form class="panel compose{% if window %} compose-window{% endif %}" method="post" enctype="multipart/form-data" action="{% url 'crm:inbox_compose' %}" data-compose{% if window %} data-window="{{ window }}" data-title="{% if f.subject %}{{ f.subject }}{% elif f.mode == 'forward' %}Forward{% else %}New message{% endif %}"{% endif %}
-      data-draft-url="{% url 'crm:inbox_draft' %}" data-calendar-url="{% url 'crm:inbox_calendar' %}">
+      data-draft-url="{% url 'crm:inbox_draft' %}" data-calendar-url="{% url 'crm:inbox_calendar' %}"
+      data-avail-url="{% url 'crm:schedule_availability' %}" data-people-url="{% url 'crm:schedule_people' %}">
   {% csrf_token %}
   {% if window %}<input type="hidden" name="inline" value="1"><input type="hidden" name="dock" value="1">{% endif %}
   <input type="hidden" name="mode" value="{{ f.mode }}">
@@ -53,7 +54,7 @@
   {% if window %}<p class="mail-error" data-compose-error hidden></p>{% endif %}
   <div class="compose-actions">
     <button class="btn-primary" data-send{% if not sending_on %} disabled{% endif %}>Send</button>
-    <a class="btn btn-small" href="{% url 'crm:schedule' %}" target="_blank" title="See when teammates are free, then paste the times back here">Propose times</a>
+    <button type="button" class="btn btn-small" data-open-times title="Add people and see when they are free">Propose times</button>
     <span class="compose-countdown" data-countdown hidden>Sending in <strong data-seconds>10</strong>… <button type="button" class="btn btn-small" data-undo-send>Undo</button></span>
     <span class="spacer"></span>
     {% if window %}<span class="muted lc-small" data-draft-state aria-live="polite"></span>{% endif %}

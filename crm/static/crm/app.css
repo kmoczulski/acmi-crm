@@ -2349,7 +2349,16 @@ table.data.imp-rows td:first-child { white-space: nowrap; }
 
 /* Times: your calendar beside an email, to offer meeting slots (compose.js) */
 .compose-times { font-size: 13px; }
-.times-panel { position: fixed; top: var(--topbar-h, 52px); right: 0; bottom: 0; width: var(--times-w, clamp(480px, 42vw, 760px));
+.times-people { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 0 12px 8px; }
+.times-who { display: flex; flex-wrap: wrap; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.times-chip { background: var(--chip); border-radius: 99px; padding: 2px 8px; font-size: 12px; }
+.times-add { position: relative; flex: 1; min-width: 160px; }
+.times-add input { width: 100%; }
+.times-found { position: absolute; z-index: 2; left: 0; right: 0; top: 100%; margin: 2px 0 0; padding: 4px; list-style: none;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 6px; max-height: 180px; overflow: auto; }
+.times-found button { display: block; width: 100%; text-align: left; background: none; border: 0; padding: 4px 6px; cursor: pointer; }
+.times-free { position: absolute; left: 0; right: 0; background: rgba(30, 160, 90, .18); pointer-events: none; }
+.times-free.some { background: rgba(220, 150, 40, .28); }
   max-width: 100vw; z-index: 40;
   background: var(--panel); border-left: 1px solid var(--line); box-shadow: -6px 0 24px rgba(0,0,0,.08);
   display: flex; flex-direction: column; padding: 10px 12px; gap: 6px; }
