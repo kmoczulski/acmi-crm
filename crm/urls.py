@@ -96,6 +96,7 @@ urlpatterns = [
     path("entitlements/matrix/", entitlement_views.approval_matrix, name="approval_matrix"),
     path("entitlements/files/<int:doc_pk>/", entitlement_views.approval_file, name="approval_file"),
     path("entitlements/<int:pk>/", entitlement_views.approval_detail, name="approval_detail"),
+    path("critical-dates/", contract_views.critical_dates, name="critical_dates"),
     path("contracts/", contract_views.contract_list, name="contract_list"),
     path("contracts/new/", contract_views.contract_create, name="contract_create"),
     path("contracts/new/drop/", contract_views.contract_drop_new, name="contract_drop_new"),

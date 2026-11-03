@@ -1,16 +1,23 @@
-{% load crm_tags %}{# The dashboard's critical dates calendar: cal = contracts.dates.month_calendar(). #}
-<div class="panel cc-panel" id="critical-dates">
-  <h3>Critical dates · {{ cal.month|date:"F Y" }}
-    <span class="muted" style="text-transform:none;letter-spacing:0;font-weight:400">· {{ cal.count }} this month</span>
+{% load crm_tags %}{# cal = contracts.dates.month_calendar() or span_calendar(). swap=1 on the dashboard widget. #}
+<div class="panel cc-panel" id="critical-dates"{% if swap %} data-swap="1"{% endif %}>
+  <h3>Critical dates · {% if cal.view == "day" %}{{ cal.month|date:"F j, Y" }}{% elif cal.view == "week" %}week of {{ cal.month|date:"M j, Y" }}{% else %}{{ cal.month|date:"F Y" }}{% endif %}
+    <span class="muted" style="text-transform:none;letter-spacing:0;font-weight:400">· {{ cal.count }}{% if cal.view == "month" %} this month{% elif cal.view == "week" %} this week{% else %} today{% endif %}</span>
     <span class="week-nav">
-      <a class="btn btn-small" href="{% qs_set crit=cal.prev|date:'Y-m' %}#critical-dates" title="Previous month">‹</a>
-      {% if not cal.this_month %}<a class="btn btn-small" href="{% qs_set crit='' %}#critical-dates">Today</a>{% endif %}
-      <a class="btn btn-small" href="{% qs_set crit=cal.next|date:'Y-m' %}#critical-dates" title="Next month">›</a>
+      {% if swap %}
+      <a class="btn btn-small" data-cc-month="{{ cal.prev|date:'Y-m' }}" href="{% url 'crm:critical_dates' %}?partial=1&month={{ cal.prev|date:'Y-m' }}" title="Previous month">‹</a>
+      {% if not cal.this_month %}<a class="btn btn-small" data-cc-month="" href="{% url 'crm:critical_dates' %}?partial=1">Today</a>{% endif %}
+      <a class="btn btn-small" data-cc-month="{{ cal.next|date:'Y-m' }}" href="{% url 'crm:critical_dates' %}?partial=1&month={{ cal.next|date:'Y-m' }}" title="Next month">›</a>
+      {% else %}
+      <a class="btn btn-small" href="?view={{ cal.view }}&when={{ cal.prev|date:cal.when_fmt }}{% if who_set %}&who_set=1{% for id in picked %}&who={{ id }}{% endfor %}{% endif %}" title="Previous">‹</a>
+      {% if not cal.this_month %}<a class="btn btn-small" href="?view={{ cal.view }}{% if who_set %}&who_set=1{% for id in picked %}&who={{ id }}{% endfor %}{% endif %}">Today</a>{% endif %}
+      <a class="btn btn-small" href="?view={{ cal.view }}&when={{ cal.next|date:cal.when_fmt }}{% if who_set %}&who_set=1{% for id in picked %}&who={{ id }}{% endfor %}{% endif %}" title="Next">›</a>
+      {% endif %}
     </span>
   </h3>
+  {% if swap %}<p class="muted lc-small" style="margin:0 0 8px"><a href="{% url 'crm:critical_dates' %}">Open the full calendar</a> for week and day, and to pick whose dates to show.</p>{% endif %}
   {% if cal.tags %}<div class="cc-filters">{% for t in cal.tags %}<button type="button" class="chip cc-tag cc-t-{{ t|slugify }} on" data-tag="{{ t|slugify }}">{{ t }}</button>{% endfor %}</div>{% endif %}
-  <div class="cc-grid">
-    {% for name in "Mon,Tue,Wed,Thu,Fri,Sat,Sun"|split_commas %}<div class="cc-dow">{{ name }}</div>{% endfor %}
+  <div class="cc-grid{% if cal.view == 'day' %} cc-dayview{% endif %}">
+    {% if cal.view != "day" %}{% for name in "Mon,Tue,Wed,Thu,Fri,Sat,Sun"|split_commas %}<div class="cc-dow">{{ name }}</div>{% endfor %}{% endif %}
     {% for week in cal.weeks %}{% for day in week %}
       <div class="cc-day{% if not day.in_month %} out{% endif %}{% if day.today %} today{% endif %}">
         <div class="cc-num">{{ day.date|date:"j" }}</div>
@@ -18,16 +25,37 @@
           <a class="cc-item cc-t-{{ r.tag|slugify }}{% if r.done %} done{% elif r.late %} late{% endif %}" data-tag="{{ r.tag|slugify }}" href="{{ r.url }}"
              title="{{ r.label }}{% if r.what %} · {{ r.what }}{% endif %}{% if r.amount %} · {{ r.amount|money }}{% endif %}{% if r.who %} · {{ r.who|username }}{% endif %}">
             {% if r.done %}✓ {% endif %}<b>{{ r.tag }}</b> {{ r.label|truncatechars:34 }}{% if r.what %}<span class="cc-what">{{ r.what|truncatechars:30 }}</span>{% endif %}</a>
-        {% endfor %}
+        {% empty %}{% if cal.view == "day" %}<span class="muted lc-small">Nothing on this day.</span>{% endif %}{% endfor %}
       </div>
     {% endfor %}{% endfor %}
   </div>
   <p class="muted lc-small" style="margin:8px 0 0">Executed agreements only (signed or closed PSAs, options, leases, PDAs): every date marked critical, and the closing checklist. Drafts and deals still in negotiation stay off. Uncheck "Critical date" on a contract date to leave it off.</p>
 </div>
 <script>
-  document.querySelectorAll('.cc-tag').forEach(b => b.addEventListener('click', () => {
-    b.classList.toggle('on');
-    const off = new Set([...document.querySelectorAll('.cc-tag:not(.on)')].map(x => x.dataset.tag));
-    document.querySelectorAll('.cc-item').forEach(i => { i.hidden = off.has(i.dataset.tag); });
-  }));
+  if (!window.__ccNav) {
+    window.__ccNav = true;
+    document.addEventListener('click', function (e) {
+      var tag = e.target.closest && e.target.closest('#critical-dates .cc-tag');
+      if (tag) {
+        tag.classList.toggle('on');
+        var root = tag.closest('#critical-dates');
+        var off = new Set([].map.call(root.querySelectorAll('.cc-tag:not(.on)'), function (x) { return x.dataset.tag; }));
+        root.querySelectorAll('.cc-item').forEach(function (i) { i.hidden = off.has(i.dataset.tag); });
+        return;
+      }
+      var a = e.target.closest && e.target.closest('#critical-dates[data-swap] [data-cc-month]');
+      if (!a) return;
+      e.preventDefault();
+      var panel = document.getElementById('critical-dates');
+      fetch(a.getAttribute('href'), {headers: {'X-Requested-With': 'fetch'}})
+        .then(function (r) { return r.text(); })
+        .then(function (html) {
+          var tmp = document.createElement('div');
+          tmp.innerHTML = html;
+          var next = tmp.querySelector('#critical-dates');
+          if (next && panel) panel.replaceWith(next);
+        })
+        .catch(function () { window.location = a.getAttribute('href').replace('partial=1&', '').replace('partial=1', ''); });
+    });
+  }
 </script>

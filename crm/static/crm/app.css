@@ -993,6 +993,8 @@ a.cite:hover { background: var(--accent); color: #fff; text-decoration: none; }
 .cc-t-entitlement { --cc: #a21caf; --cc-bg: #fbe8fb; }
 .cc-t-task { --cc: #b91c1c; --cc-bg: #fbe5e3; }
 @media (max-width: 800px) { .cc-day { min-height: 60px; padding: 2px; } .cc-item { font-size: 10px; } .cc-what { display: none; } }
+.cc-dayview { grid-template-columns: 1fr; }
+.cc-dayview .cc-day { min-height: 180px; }
 .rl-same { display: inline; }
 .rl-same summary { display: inline; cursor: pointer; color: var(--muted); font-family: system-ui, sans-serif; font-size: 12px; }
 .rl-same[open] summary { display: none; }

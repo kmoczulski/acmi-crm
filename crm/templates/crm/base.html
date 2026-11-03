@@ -75,7 +75,13 @@
     <nav class="topnav" aria-label="Main">
       <a href="{% url 'crm:home' %}" class="tn-link {% if p == '/' %}active{% endif %}">Home</a>
       <a href="{% url 'crm:task_list' %}" class="tn-link {% if '/tasks/' in p %}active{% endif %}">My tasks{% if my_due_count %} <span class="tn-count">{{ my_due_count }}</span>{% endif %}</a>
-      <a href="{% url 'crm:meeting_list' %}" class="tn-link {% if '/meetings/' in p %}active{% endif %}">Calendar</a>
+      <details class="tn-menu {% if '/meetings/' in p or '/critical-dates/' in p %}active{% endif %}">
+        <summary>Calendar</summary>
+        <div class="tn-drop">
+          <a href="{% url 'crm:meeting_list' %}" class="{% if '/meetings/' in p %}on{% endif %}"><strong>My work calendar</strong><span>Meetings and the week ahead</span></a>
+          <a href="{% url 'crm:critical_dates' %}" class="{% if '/critical-dates/' in p %}on{% endif %}"><strong>Critical dates</strong><span>Deadlines on signed agreements</span></a>
+        </div>
+      </details>
       <a href="{% url 'crm:boards' %}" class="tn-link {% if '/boards/' in p %}active{% endif %}">Boards</a>
 
       {% if MAIL_ON %}<a href="{% url 'crm:inbox' %}" class="tn-link {% if '/inbox/' in p %}active{% endif %}">Mail</a>{% endif %}

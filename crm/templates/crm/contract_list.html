@@ -21,10 +21,13 @@
 {% include "crm/partials/contract_dropzone.html" with url=drop_url mode="new" heading="Drop an agreement here to start a contract" hint="The executed agreement or the latest draft; drop its redlines and amendments with it." %}
 
 <div class="campus-layout">
-  <div class="table-wrap">
+  <div>
+    {% for section in sections %}
+    <h2 style="font-size:15px;margin:16px 0 6px">{{ section.title }} <span class="muted" style="font-weight:400">{{ section.contracts|length }}</span></h2>
+    <div class="table-wrap">
     <table class="data">
       <thead><tr><th>Contract</th><th>Counterparty</th><th>Site / campus</th><th>Status</th><th>Ball</th><th>Next date</th><th class="num">Price</th><th class="num">Docs</th></tr></thead>
-      <tbody>{% for c in contracts %}
+      <tbody>{% for c in section.contracts %}
         <tr>
           <td class="wrap"><a href="{{ c.get_absolute_url }}"><b>{{ c.title }}</b></a><div class="muted lc-small">{{ c.get_kind_display }}{% if c.owner %} · {{ c.owner|username }}{% endif %}</div></td>
           <td class="wrap">{{ c.counterparty|default:"–" }}</td>
@@ -35,9 +38,11 @@
           <td class="num">{{ c.price|money }}</td>
           <td class="num">{{ c.docs }}</td>
         </tr>
-      {% empty %}<tr><td colspan="8" class="muted">No contracts {% if show == "open" %}open {% endif %}yet. Add one here, or from a land site's page.</td></tr>{% endfor %}
+      {% endfor %}
       </tbody>
     </table>
+    </div>
+    {% empty %}<p class="muted">No contracts {% if show == "open" %}open {% endif %}yet. Add one here, or from a land site's page.</p>{% endfor %}
   </div>
   <aside>
     <section class="panel">
