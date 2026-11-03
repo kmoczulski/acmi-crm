@@ -30,7 +30,15 @@
         </div>
       </details>
     </div>
-    {% if error %}<p class="mail-error">{{ error }}</p>{% endif %}
+    {% if error %}
+    <div class="panel" style="margin:0 0 8px;padding:10px 12px;background:#fff3cd">
+      <p style="margin:0 0 6px"><strong>{{ error }}</strong></p>
+      <form method="post" action="{% url 'crm:chat_turn_off' %}" style="display:inline">{% csrf_token %}
+        <button class="btn btn-small">Turn off Chat</button>
+      </form>
+      <span class="muted lc-small"> then turn it back on to grant the Chat permission.</span>
+    </div>
+    {% endif %}
     <button type="button" class="chat-search-hint lc-small" data-search-hint hidden>Search all messages for “<span data-search-term></span>” ↵</button>
     <nav class="chat-rows" data-rows>{% include "crm/partials/chat_rows.html" %}</nav>
     <div class="chat-results" data-results hidden></div>

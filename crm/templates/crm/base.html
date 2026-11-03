@@ -166,6 +166,7 @@
         <a href="{% url 'crm:notification_list' %}">Notifications</a>
         <a href="{% url 'crm:notification_settings' %}">Notification settings</a>
         <a href="{% url 'crm:mail_settings' %}">Mail in the hub</a>
+        <a href="{% url 'crm:chat' %}">Chat in the hub</a>
         <button type="button" class="menu-btn" data-theme-toggle>Dark mode</button>
         <form method="post" action="{% url 'account_logout' %}">{% csrf_token %}<button class="menu-btn">Sign out</button></form>
       </div>
