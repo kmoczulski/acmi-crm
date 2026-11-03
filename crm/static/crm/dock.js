@@ -44,6 +44,17 @@
   dock.className = 'mail-dock no-print';
   dock.setAttribute('aria-label', 'Mail windows');
   dock.hidden = true;
+  const hide = document.createElement('button');
+  hide.type = 'button';
+  hide.className = 'dock-hide';
+  hide.textContent = 'Hide';
+  hide.title = 'Hide mail windows';
+  hide.addEventListener('click', () => {
+    const away = dock.classList.toggle('away');
+    hide.textContent = away ? 'Mail' : 'Hide';
+    document.body.classList.toggle('dock-away', away);
+  });
+  dock.append(hide);
   document.body.append(dock);
   let wins = [];  // oldest first; the newest sits at the right edge
 

@@ -1948,7 +1948,7 @@ span.mail-twisty { cursor: default; }
 .mail-widened { margin: 0; padding: 4px 10px; border-bottom: 1px solid var(--line); }
 /* Address and search suggestions (recipients.js) */
 .addr-host { position: relative; }
-.addr-suggest { position: absolute; z-index: 40; left: 0; right: 0; top: 100%; margin-top: 2px; background: var(--panel); border: 1px solid var(--line);
+.addr-suggest { position: absolute; z-index: 3000; left: 0; right: 0; top: 100%; margin-top: 2px; background: var(--panel); border: 1px solid var(--line);
   border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,.15); max-height: 300px; overflow-y: auto; font-size: 13px; }
 .compose-row .addr-suggest { left: 64px; }
 .addr-row { padding: 6px 10px; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -2474,6 +2474,7 @@ html[data-theme="dark"] .appbar .brand img { filter: none; }
 .mail-dock { position: fixed; right: 20px; bottom: 0; z-index: 900; display: flex; align-items: flex-end; gap: 12px;
   max-width: calc(100vw - 40px); pointer-events: none; }
 .mail-dock[hidden] { display: none; }
+.dock-hide { display: none; }
 .dock-win { pointer-events: auto; display: flex; flex-direction: column; width: 500px; height: min(600px, calc(100vh - 80px));
   background: var(--panel); border: 1px solid var(--line); border-bottom: 0; border-radius: 10px 10px 0 0;
   box-shadow: 0 8px 30px rgba(0,0,0,.28); overflow: hidden; }
@@ -2502,9 +2503,15 @@ html.split-on.split-v .mail-dock { bottom: var(--split-h, 50vh); }
 @media (max-width: 700px) {
   html .mail-dock, html.split-on .mail-dock, html.split-on.split-v .mail-dock, body.times-open .mail-dock {
     left: 0; right: 0; bottom: 0; max-width: none; flex-direction: column; align-items: stretch; gap: 0; }
+  .dock-hide { display: block; order: -1; height: 36px; border: 0; border-radius: 0; background: #1e2a3a; color: #fff;
+    font-size: 13px; font-weight: 600; cursor: pointer; }
+  .mail-dock.away .dock-win { display: none; }
+  body.has-dock:not(.dock-away) { padding-bottom: 44px; }
   .dock-win.min { width: 100%; border-radius: 0; }
   .dock-win:not(.min) { position: fixed; inset: 0; width: auto; height: auto; border: 0; border-radius: 0; }
   .dock-big { display: none; }
+  #alert-toasts, body.has-dock #alert-toasts { left: 10px; right: 10px; bottom: 52px; max-width: none; }
+  .btn, .btn-small, .appbar-icon, .tn-link { min-height: 40px; }
 }
 #dock-toasts { position: fixed; left: 18px; bottom: 18px; z-index: 3000; display: flex; flex-direction: column; gap: 8px; }
 .dock-toast { background: #1e2a3a; color: #fff; border-radius: 8px; padding: 9px 14px; font-size: 13px;

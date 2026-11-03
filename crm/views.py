@@ -597,8 +597,12 @@ def person_list(request):
 
 
 def person_create(request):
-    initial = {"company": request.GET.get("company")} if request.GET.get("company") else None
-    form = PersonForm(request.POST or None, initial=initial)
+    initial = {}
+    if request.GET.get("company"):
+        initial["company"] = request.GET.get("company")
+    if request.GET.get("email"):
+        initial["email"] = request.GET.get("email")[:254]
+    form = PersonForm(request.POST or None, initial=initial or None)
     if request.method == "POST" and form.is_valid():
         person = form.save(commit=False)
         person.created_by = request.user

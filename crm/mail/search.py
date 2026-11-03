@@ -47,11 +47,25 @@ def matches(words):
 
 
 def expand(query):
-    """(gmail query, [(kind, label)] it was widened with). Plain words only; operators pass through untouched."""
+    """(gmail query, [(kind, label)] it was widened with). Plain words always stay a keyword search.
+
+    A company, firm or person named in the query (the whole phrase, or any word of it) also matches mail to and
+    from their addresses. Operators and quotes are left as typed, so the advanced search box is unchanged.
+    """
     q = (query or "").strip()
     if not q or OPERATOR.search(q) or any(ch in q for ch in '{}()"'):
         return q, []
-    found = matches(q)
+    chunks = [q]
+    words = [w for w in q.split() if len(w) >= 3]
+    if len(words) > 1:
+        chunks.extend(words)
+    found, seen = [], set()
+    for chunk in chunks:
+        for kind, label, addresses in matches(chunk):
+            if label in seen:
+                continue
+            seen.add(label)
+            found.append((kind, label, addresses))
     terms, used = [], []
     for kind, label, addresses in found:
         extra = _terms(addresses)
@@ -61,8 +75,8 @@ def expand(query):
         used.append((kind, label))
     if not terms:
         return q, []
-    words = q if " " not in q else f'"{q}"'
-    return "{" + " ".join([words, *terms]) + "}", used
+    # Parentheses keep the words the person typed (each word, not a forced phrase). Addresses are extra, not instead.
+    return f"({q}) OR " + "{" + " ".join(terms) + "}", used
 
 
 def recipients(user, words, limit=8):
