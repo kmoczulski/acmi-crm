@@ -510,6 +510,10 @@ GENERAL_NOTES = {
     "wetlands": ("Wetlands (NWI)",
                  "U.S. Fish & Wildlife Service National Wetlands Inventory: mapped from aerial photos. Large lakes are left "
                  "out. It is a screening layer, not a jurisdictional wetland delineation."),
+    "score": ("Buy-box score",
+              "ACMI's 0 to 100 screen of how well a site fits a defense-industrial campus: size, zoning, power, access, "
+              "owner, utilities and incentives, with penalties for deal-killers. Acre-weighted across a site's parcels. "
+              "A screening aid, not a valuation or a recommendation."),
     "zoning": ("Zoning (public map)",
                "The zoning shown on the jurisdiction's published GIS layer, not a zoning verification letter. \"I-2 / CR\" is "
                "I-2 with an overlay district. A city's name in a county layer means that city zones the land. \"No zoning data\" "
@@ -553,6 +557,8 @@ def definitions(briefs):
     out.append(GENERAL_NOTES["net"])
     if any(b.get("wetlands") is not None for b in briefs):
         out.append(GENERAL_NOTES["wetlands"])
+    if any("score" not in (b.get("hide") or set()) for b in briefs):
+        out.append(GENERAL_NOTES["score"])
     out += [GENERAL_NOTES["zoning"], GENERAL_NOTES["distances"], GENERAL_NOTES["providers"]]
     if any(b.get("market_value") or b.get("land_value") for b in briefs):
         out.append(GENERAL_NOTES["value"])

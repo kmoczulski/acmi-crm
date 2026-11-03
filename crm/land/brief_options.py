@@ -5,6 +5,7 @@ SECTIONS = [  # (key, label, page)
     ("maps", "Aerial and context maps", "Page 1"),
     ("ownership", "Ownership, zoning and assessed value", "Page 1"),
     ("flags", "Flags", "Page 1"),
+    ("score", "Buy-box score", "Page 1"),
     ("power", "Power, roads and utilities", "Page 1"),
     ("verify", "Still to verify", "Page 1"),
     ("notes", "Source and broker notes", "Page 1"),

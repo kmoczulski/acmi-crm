@@ -8,6 +8,7 @@
         <b>{{ b.gross|floatformat:1|intcomma }} ac gross</b>{% if b.net is not None %} · <b>~{{ b.net|floatformat:0|intcomma }} ac net usable</b> <span class="small">(after floodplain and wetlands)</span>{% endif %}
         · {{ b.n_parcels }} parcel{{ b.n_parcels|pluralize }} · {{ b.owners|length }} owner{{ b.owners|length|pluralize }}</p>
     </div>
+    {% if "score" not in b.hide %}<div class="brief-score" title="ACMI buy-box screen, acre-weighted{% if b.score_range.0 != b.score_range.1 %} (parcels {{ b.score_range.0 }} to {{ b.score_range.1 }}){% endif %}"><b>{{ b.score }}</b><span>Buy-box score</span></div>{% endif %}
   </div>
 
 {% if "maps" not in b.hide %}  <div class="brief-maps">
