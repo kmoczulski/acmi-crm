@@ -17,6 +17,8 @@ from . import settings_views
 from .land import brief_views, comp_views, diligence_views, letter_views
 from .land import card_views as land_card_views
 from .land import views as land_views
+from .chat import views as chat_views
+from .schedule import views as schedule_views
 from .mail import compose_views, inbox_views
 from .mail import views as mail_views
 from .news import views as news_views
@@ -144,6 +146,13 @@ urlpatterns = [
     path("meetings/<int:pk>/task/", views.meeting_make_task, name="meeting_make_task"),
     path("meetings/<int:pk>/tasks/", views.meeting_make_tasks, name="meeting_make_tasks"),
     path("meetings/<int:pk>/transcript.txt", views.meeting_transcript, name="meeting_transcript"),
+    path("schedule/", schedule_views.home, name="schedule"),
+    path("schedule/availability/", schedule_views.availability_json, name="schedule_availability"),
+    path("schedule/people/", schedule_views.people, name="schedule_people"),
+    path("schedule/create/", schedule_views.create, name="schedule_create"),
+    path("schedule/open/", schedule_views.open_in_google, name="schedule_open"),
+    path("schedule/allow/", schedule_views.allow, name="schedule_allow"),
+    path("schedule/allowed/", schedule_views.allowed, name="schedule_allowed"),
     path("notes/add/", views.note_add, name="note_add"),
     path("lists/", views.list_index, name="list_index"),
     path("lists/<int:pk>/", views.list_detail, name="list_detail"),
@@ -168,6 +177,27 @@ urlpatterns = [
     path("inbox/note/", inbox_views.comment_add, name="inbox_note"),
     path("inbox/open/", inbox_views.open_message, name="inbox_open"),
     path("inbox/window/", inbox_views.thread_window, name="inbox_window"),
+    path("chat/", chat_views.home, name="chat"),
+    path("chat/window/", chat_views.window, name="chat_window"),
+    path("chat/list/", chat_views.list_box, name="chat_list"),
+    path("chat/rows/", chat_views.rows, name="chat_rows"),
+    path("chat/messages/", chat_views.messages_json, name="chat_messages"),
+    path("chat/send/", chat_views.send, name="chat_send"),
+    path("chat/refresh/", chat_views.refresh, name="chat_refresh"),
+    path("chat/react/", chat_views.react, name="chat_react"),
+    path("chat/reactions/", chat_views.reactions, name="chat_reactions"),
+    path("chat/edit/", chat_views.edit, name="chat_edit"),
+    path("chat/delete/", chat_views.delete, name="chat_delete"),
+    path("chat/upload/", chat_views.upload, name="chat_upload"),
+    path("chat/file/", chat_views.attachment, name="chat_attachment"),
+    path("chat/new/", chat_views.new, name="chat_new"),
+    path("chat/search/", chat_views.search, name="chat_search"),
+    path("chat/read/", chat_views.read, name="chat_read"),
+    path("chat/mute/", chat_views.mute, name="chat_mute"),
+    path("chat/poll/", chat_views.poll, name="chat_poll"),
+    path("chat/on/", chat_views.turn_on, name="chat_turn_on"),
+    path("chat/connected/", chat_views.connected, name="chat_connected"),
+    path("chat/off/", chat_views.turn_off, name="chat_turn_off"),
     path("mail-setup/crm-labels/", mail_views.crm_labels_switch, name="mail_crm_labels"),
     path("mail-setup/shared/connect/", mail_views.shared_connect, name="mail_shared_connect"),
     path("mail-setup/shared/connected/", mail_views.shared_done, name="mail_shared_done"),
@@ -185,6 +215,8 @@ urlpatterns = [
     path("inbox/t/<str:gmail_id>/files.zip", inbox_views.thread_files_zip, name="inbox_zip"),
     path("inbox/m/<str:message_id>/body/", inbox_views.message_body, name="inbox_body"),
     path("inbox/m/<str:message_id>/part/<str:part_id>/", inbox_views.message_part, name="inbox_part"),
+    path("inbox/m/<str:message_id>/part/<str:part_id>/drive/", inbox_views.save_to_drive, name="inbox_save_drive"),
+    path("inbox/drive/back/", inbox_views.save_to_drive_back, name="inbox_save_drive_back"),
     path("mail-setup/", mail_views.mail_settings, name="mail_settings"),
     path("mail-setup/on/", mail_views.mail_turn_on, name="mail_turn_on"),
     path("mail-setup/connected/", mail_views.mail_connected, name="mail_connected"),

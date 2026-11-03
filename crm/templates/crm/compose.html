@@ -53,6 +53,7 @@
   {% if window %}<p class="mail-error" data-compose-error hidden></p>{% endif %}
   <div class="compose-actions">
     <button class="btn-primary" data-send{% if not sending_on %} disabled{% endif %}>Send</button>
+    <a class="btn btn-small" href="{% url 'crm:schedule' %}" target="_blank" title="See when teammates are free, then paste the times back here">Propose times</a>
     <span class="compose-countdown" data-countdown hidden>Sending in <strong data-seconds>10</strong>… <button type="button" class="btn btn-small" data-undo-send>Undo</button></span>
     <span class="spacer"></span>
     {% if window %}<span class="muted lc-small" data-draft-state aria-live="polite"></span>{% endif %}

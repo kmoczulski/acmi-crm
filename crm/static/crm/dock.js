@@ -1,16 +1,20 @@
-// The mail dock: small boxes along the bottom of the page, like Gmail's compose windows. A New message, Forward or
-// Reply from a person's page opens as a box instead of a full page, and a new-email alert opens the conversation in
-// one, so you can answer mail without leaving the Land map or the pipeline. Each box is a frame of a hub page drawn
-// without the top bar (window_base.html): /inbox/compose/?window=1 for writing, /inbox/window/ for reading.
+// The dock: small boxes along the bottom of the page, like Gmail's compose and chat windows. A New message, Forward or
+// Reply from a person's page opens as a box instead of a full page, a new-email alert opens the conversation in one, and
+// Chat is a pinned "Chat" box at the right (the list of your conversations) that opens each conversation in a box of its
+// own, so you can answer mail and chat without leaving the Land map or the pipeline. Each box is a frame of a hub page
+// drawn without the top bar (window_base.html): /inbox/compose/?window=1 for writing, /inbox/window/ for reading an
+// email, /chat/list/ and /chat/window/ for Chat.
 // What's open is kept for this tab (sessionStorage hubDock), so the boxes come back on the next page you open, and
-// compose.js keeps what was typed in each one (hubDock:<id>). Links to the compose page open a box; so do links that
-// carry data-window (new-email alerts, the bell's list). Frames of the split view hand such links up to this page.
+// compose.js keeps what was typed in each mail box (hubDock:<id>). Links to the compose page open a box; so do links that
+// carry data-window (new-email and new-chat alerts, the bell's list). Frames of the split view hand such links up here.
 (function () {
   const script = document.currentScript;
-  if (!script || !script.dataset.composeUrl) return;
-  const PATH = {compose: new URL(script.dataset.composeUrl, location.origin).pathname,
-                thread: new URL(script.dataset.threadUrl, location.origin).pathname};
+  if (!script) return;
+  const cfg = script.dataset, pathOf = u => (u ? new URL(u, location.origin).pathname : '');
+  const PATH = {compose: pathOf(cfg.composeUrl), thread: pathOf(cfg.threadUrl), chat: pathOf(cfg.chatUrl), chats: pathOf(cfg.chatListUrl)};
+  const CHAT_POLL = cfg.chatPollUrl || '';
   const PARAMS = ['to', 'cc', 'bcc', 'subject', 'reply', 'mode'];
+  const kindOf = p => (p && p === PATH.thread ? 'thread' : p && p === PATH.chat ? 'chat' : '');
 
   // Which box (if any) a click on a link should open instead of leaving the page.
   function route(e) {
@@ -20,8 +24,12 @@
     let u;
     try { u = new URL(a.getAttribute('href'), location.href); } catch (err) { return null; }
     if (u.origin !== location.origin) return null;
-    if (a.dataset.window) return {kind: 'thread', url: a.dataset.window, read: a.getAttribute('href'), link: a};
-    if (u.pathname !== PATH.compose || location.pathname === PATH.compose) return null;
+    if (a.dataset.window) {
+      let kind = '';
+      try { kind = kindOf(new URL(a.dataset.window, location.origin).pathname); } catch (err) { /* not an address */ }
+      return kind ? {kind, url: a.dataset.window, read: a.getAttribute('href'), link: a} : null;
+    }
+    if (!PATH.compose || u.pathname !== PATH.compose || location.pathname === PATH.compose) return null;
     if (a.hasAttribute('data-reply') && document.querySelector('[data-inline]')) return null;  // the reading pane's own reply box
     const params = {};
     PARAMS.forEach(k => { if (u.searchParams.get(k)) params[k] = u.searchParams.get(k); });
@@ -39,10 +47,12 @@
     return;
   }
 
-  const KEY = 'hubDock', MAX = 4, GAP = 12, MIN_W = 260, WIDTH = {compose: 500, thread: 460}, PHONE = 700;
+  const KEY = 'hubDock', MAX = 4, GAP = 12, MIN_W = 260, PILL_W = 190, PHONE = 700;
+  const WIDTH = {compose: 500, thread: 460, chat: 340, chats: 300};
+  const NAMES = {compose: 'New message', thread: 'Email', chat: 'Chat', chats: 'Chat'};
   const dock = document.createElement('div');
   dock.className = 'mail-dock no-print';
-  dock.setAttribute('aria-label', 'Mail windows');
+  dock.setAttribute('aria-label', 'Mail and chat windows');
   dock.hidden = true;
   const hide = document.createElement('button');
   hide.type = 'button';
@@ -56,25 +66,26 @@
   });
   dock.append(hide);
   document.body.append(dock);
-  let wins = [];  // oldest first; the newest sits at the right edge
+  let wins = [];  // oldest first; the newest sits at the right edge, and the Chat list is always last
 
   const rand = () => Math.random().toString(36).slice(2, 8);
   const stored = () => { try { return JSON.parse(sessionStorage.getItem(KEY) || '[]'); } catch (e) { return []; } };
   const forget = id => { try { sessionStorage.removeItem('hubDock:' + id); } catch (e) {} };
   const persist = () => {
     try {
-      sessionStorage.setItem(KEY, JSON.stringify(wins.map(w => ({id: w.id, kind: w.kind, url: w.url, key: w.key || '',
+      sessionStorage.setItem(KEY, JSON.stringify(wins.map(w => ({id: w.id, kind: w.kind, url: w.url.replace(/([?&])at=[^&]*&?/, '$1').replace(/[?&]$/, ''), key: w.key || '',
         reply: w.reply || '', mode: w.mode || '', title: w.title, min: w.min, big: w.big}))));
     } catch (e) { /* private window: the boxes just don't come back on the next page */ }
   };
-  // Only the hub's own two pages are ever framed, whatever sessionStorage or the address bar hands us.
+  // Only the hub's own pages are ever framed, whatever sessionStorage or the address bar hands us.
   const valid = (kind, url) => {
     try {
       const u = new URL(url, location.origin);
-      return u.origin === location.origin && u.pathname === PATH[kind] ? u : null;
+      return PATH[kind] && u.origin === location.origin && u.pathname === PATH[kind] ? u : null;
     } catch (e) { return null; }
   };
   const frameApi = w => { try { return w.frame.contentWindow.acmiWindow || null; } catch (e) { return null; } };
+  const others = () => wins.filter(w => w.kind !== 'chats');
 
   function toast(text, link) {
     let box = document.getElementById('dock-toasts');
@@ -94,7 +105,7 @@
   }
 
   // How wide a box is now; boxes fold to their title bar, oldest first, when the row won't fit the window.
-  const span = w => (w.min ? MIN_W : w.big ? Math.min(900, Math.round(innerWidth * 0.7)) : WIDTH[w.kind]) + GAP;
+  const span = w => (w.min ? (w.kind === 'chats' ? PILL_W : MIN_W) : w.big ? Math.min(900, Math.round(innerWidth * 0.7)) : WIDTH[w.kind]) + GAP;
   function makeRoom(keep) {
     if (innerWidth <= PHONE) {
       wins.forEach(w => { if (w !== keep) w.min = true; });
@@ -103,12 +114,17 @@
       let total = wins.reduce((n, w) => n + span(w), 0);
       for (const w of wins) {
         if (total <= room) break;
-        if (w === keep || w.min) continue;
+        if (w === keep || w.min || w.kind === 'chats') continue;
         total -= span(w) - (MIN_W + GAP);
         w.min = true;
       }
     }
     wins.forEach(draw);
+  }
+
+  function paintTitle(w) {
+    w.el.querySelector('.dock-title').textContent = w.kind === 'chats' && w.count ? `Chat (${w.count})` : w.title;
+    if (w.kind === 'chats') w.el.classList.toggle('unread', !!w.count);
   }
 
   function draw(w) {
@@ -121,6 +137,7 @@
     grow.textContent = w.big ? '⤡' : '⤢';
     grow.title = w.big ? 'Smaller' : 'Bigger';
     if (!w.min && !w.frame.getAttribute('src')) w.frame.src = w.url;  // a folded box waits until it's opened
+    if (!w.min && w.kind === 'chat') w.el.classList.remove('unread');  // you're looking at it
   }
 
   function layout() {
@@ -131,11 +148,11 @@
 
   function add(spec) {
     const u = valid(spec.kind, spec.url);
-    if (!u || wins.length >= MAX) {
-      if (u) toast('Close one of the open mail windows first.');
+    if (!u || (spec.kind !== 'chats' && others().length >= MAX)) {
+      if (u) toast('Close one of the open windows first.');
       return null;
     }
-    const w = Object.assign({min: false, big: false, title: spec.kind === 'compose' ? 'New message' : 'Email'}, spec);
+    const w = Object.assign({min: false, big: false, title: NAMES[spec.kind] || 'Mail'}, spec);
     const el = document.createElement('section');
     el.className = 'dock-win dock-' + w.kind;
     el.dataset.id = w.id;
@@ -143,12 +160,12 @@
     el.innerHTML = '<header class="dock-head"><button type="button" class="dock-title" data-act="min"></button>'
       + '<button type="button" class="dock-btn" data-act="min" aria-label="Minimize"></button>'
       + '<button type="button" class="dock-btn dock-big" data-act="big" aria-label="Make it bigger or smaller"></button>'
-      + '<button type="button" class="dock-btn" data-act="close" title="Close" aria-label="Close">✕</button></header>'
+      + '<button type="button" class="dock-btn dock-x" data-act="close" title="Close" aria-label="Close">✕</button></header>'
       + '<iframe class="dock-frame" title=""></iframe>';
-    el.querySelector('.dock-title').textContent = w.title;
     w.el = el;
     w.frame = el.querySelector('iframe');
     w.frame.title = w.title;
+    paintTitle(w);
     w.frame.addEventListener('load', () => {
       try { const t = w.frame.contentDocument.body.dataset.windowTitle; if (t) title(w.id, t); } catch (e) { /* not ours */ }
     });
@@ -159,8 +176,9 @@
       else if (b.dataset.act === 'big') { w.big = !w.big; w.min = false; makeRoom(w); layout(); }
       else close(w.id);
     });
-    dock.append(el);
-    wins.push(w);
+    const pinned = wins.find(x => x.kind === 'chats');  // the Chat list stays at the right edge
+    if (w.kind !== 'chats' && pinned) { dock.insertBefore(el, pinned.el); wins.splice(wins.indexOf(pinned), 0, w); }
+    else { dock.append(el); wins.push(w); }
     return w;
   }
 
@@ -184,7 +202,7 @@
 
   async function close(id, opts) {
     const w = wins.find(x => x.id === id);
-    if (!w) return;
+    if (!w || w.kind === 'chats') return;
     const api = frameApi(w);
     if (api && !(opts && opts.force)) {
       if (api.sending && api.sending() && !confirm('This message is still waiting to send. Close it and cancel the send?')) return;
@@ -195,9 +213,9 @@
 
   function title(id, text) {
     const w = wins.find(x => x.id === id);
-    if (!w || !text) return;
+    if (!w || !text || w.kind === 'chats') return;
     w.title = text;
-    w.el.querySelector('.dock-title').textContent = text;
+    paintTitle(w);
     w.frame.title = text;
     persist();
   }
@@ -240,11 +258,30 @@
     show(add({id, kind: 'thread', url: u.pathname + u.search, key}));
   }
 
+  // A Chat conversation in a box of its own (space: the id after spaces/).
+  // at: the createTime of a message a search found; the box opens at it (and doesn't again on the next page).
+  async function chat(space, name, at) {
+    if (!PATH.chat || !space) return;
+    const same = wins.find(w => w.kind === 'chat' && w.key === space);
+    if (same && !at) { show(same); return; }
+    if (same) await close(same.id, {force: true});
+    const id = rand();
+    show(add({id, kind: 'chat', url: PATH.chat + '?' + new URLSearchParams(Object.assign({s: space, w: id}, at ? {at} : {})), key: space, title: name || 'Chat'}));
+  }
+
+  // A box opened from an address: an alert's /inbox/window/ or /chat/window/ link.
+  function openUrl(url, read) {
+    let kind = '', u = null;
+    try { u = new URL(url, location.origin); kind = kindOf(u.pathname); } catch (e) { return; }
+    if (kind === 'thread') thread(url, read);
+    else if (kind === 'chat' && u.searchParams.get('s')) { if (read) markRead(read); chat(u.searchParams.get('s'), ''); }
+  }
+
   const open = r => {
     if (r.kind === 'compose') compose(r.params);
-    else if (r.kind === 'thread') { thread(r.url, r.read); if (r.link) r.link.classList.remove('unread'); }  // the bell's list
+    else if (r.kind === 'thread' || r.kind === 'chat') { openUrl(r.url, r.read); if (r.link) r.link.classList.remove('unread'); }  // the bell's list
   };
-  window.acmiDock = {open, compose, thread, title, sent, close, markRead};
+  window.acmiDock = {open, openUrl, compose, thread, chat, title, sent, close, markRead};
 
   document.addEventListener('click', e => {
     const r = route(e);
@@ -254,20 +291,57 @@
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.addEventListener('message', e => {
       const d = e.data || {};
-      if (d.type === 'hub-window' && d.window) thread(d.window, d.read);
+      if (d.type === 'hub-window' && d.window) openUrl(d.window, d.read);
     });
   }
   let resizing = null;
   addEventListener('resize', () => { clearTimeout(resizing); resizing = setTimeout(() => { makeRoom(null); layout(); }, 150); });
 
-  // The boxes this tab had open on the last page, then anything the address asks for (a browser notification that
-  // had to open the hub: /?dock=<box address>&read=<alert address>).
-  stored().slice(0, MAX).forEach(r => { if (r && r.id && (r.kind === 'compose' || r.kind === 'thread')) add(r); });
+  // The boxes this tab had open on the last page, then the pinned Chat list, then anything the address asks for (a
+  // browser notification that had to open the hub: /?dock=<box address>&read=<alert address>).
+  let chatsFolded = true;
+  stored().forEach(r => {
+    if (!r || !r.id) return;
+    if (r.kind === 'chats') chatsFolded = r.min !== false;
+    else if (r.kind === 'compose' || r.kind === 'thread' || r.kind === 'chat') add(r);
+  });
+  if (PATH.chats) {
+    const hub = add({id: 'chats', kind: 'chats', url: PATH.chats + '?window=1&w=chats', key: 'chats', title: 'Chat', min: chatsFolded});
+    if (hub && cfg.chatPageUrl && location.pathname === cfg.chatPageUrl) hub.el.hidden = true;  // the Chat page is its own list
+  }
   makeRoom(null);
   layout();
+
+  // Chat: how many conversations are unread, on the pinned box and on any folded conversation box. Asking also turns
+  // new messages into alerts while the hub is open (crm/chat/views.py poll).
+  async function pollChat() {
+    if (!CHAT_POLL || document.hidden) return;
+    try {
+      const r = await fetch(CHAT_POLL, {credentials: 'same-origin'});
+      if (!r.ok) return;
+      const d = await r.json(), ids = d.ids || [];
+      const nav = cfg.chatPageUrl && document.querySelector(`.topnav a.tn-link[href="${cfg.chatPageUrl}"]`);
+      if (nav) {  // the number of unread conversations beside "Chat" in the top bar, like My tasks
+        let n = nav.querySelector('.tn-count');
+        if (d.unread && !n) { n = document.createElement('span'); n.className = 'tn-count'; nav.append(' ', n); }
+        if (n) { if (d.unread) n.textContent = d.unread; else { n.previousSibling && n.previousSibling.remove(); n.remove(); } }
+      }
+      wins.forEach(w => {
+        if (w.kind === 'chats') { w.count = d.unread || 0; paintTitle(w); }
+        else if (w.kind === 'chat') w.el.classList.toggle('unread', w.min && ids.includes(w.key));
+      });
+      if (d.alerts && window.acmiAlerts && window.acmiAlerts.refresh) window.acmiAlerts.refresh();
+    } catch (e) { /* offline: the next time */ }
+  }
+  if (PATH.chats && CHAT_POLL) {
+    setInterval(pollChat, 20000);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) pollChat(); });
+    pollChat();
+  }
+
   const q = new URLSearchParams(location.search);
   if (q.get('dock')) {
-    thread(q.get('dock'), q.get('read'));
+    openUrl(q.get('dock'), q.get('read'));
     q.delete('dock');
     q.delete('read');
     history.replaceState(null, '', location.pathname + (q.toString() ? '?' + q : '') + location.hash);

@@ -22,15 +22,17 @@ MENTION = re.compile(r"@([A-Za-z][\w.-]*)")
 
 
 def window_url(note):
-    """Where a new-email alert opens in the mail dock's little box (static/crm/dock.js), or "" for every other kind:
-    the alert's inbox link (/inbox/?[mb=…&]t=<thread>) becomes /inbox/window/ for the same thread and mailbox."""
-    if note.kind != Notification.Kind.MAIL:
-        return ""
+    """Where an alert opens in the dock's little box (static/crm/dock.js), or "" for every other kind. A new email's
+    inbox link (/inbox/?[mb=…&]t=<thread>) becomes /inbox/window/ for the same thread and mailbox; a new chat message's
+    /chat/?s=<space> becomes /chat/window/ for that conversation."""
     parts = urlsplit(note.url or "")
-    if parts.path != reverse("crm:inbox"):
-        return ""
-    query = {k: v for k, v in parse_qsl(parts.query) if k in ("t", "mb") and v}
-    return f"{reverse('crm:inbox_window')}?{urlencode(query)}" if query.get("t") else ""
+    if note.kind == Notification.Kind.MAIL and parts.path == reverse("crm:inbox"):
+        query = {k: v for k, v in parse_qsl(parts.query) if k in ("t", "mb") and v}
+        return f"{reverse('crm:inbox_window')}?{urlencode(query)}" if query.get("t") else ""
+    if note.kind == Notification.Kind.CHAT and parts.path == reverse("crm:chat"):
+        query = {k: v for k, v in parse_qsl(parts.query) if k == "s" and v}
+        return f"{reverse('crm:chat_window')}?{urlencode(query)}" if query else ""
+    return ""
 
 
 def send(user, kind, text, url="", actor=None, key=""):
@@ -164,14 +166,23 @@ def new_mail(user, sender, subject, url, message_id):
     send(user, Notification.Kind.MAIL, f"{sender}: {subject or '(no subject)'}", url, None, key=f"mail:{message_id}")
 
 
+def new_chat(user, sender, where, text, url, message_id):
+    """A new Google Chat message from someone else (crm.chat.service.alert); keyed by the message, so each alerts once.
+    where: the space or group chat's name, "" for a direct message."""
+    place = f" in {where}" if where else ""
+    return send(user, Notification.Kind.CHAT, f"{sender}{place}: {text}", url, None, key=f"chat:{message_id}")
+
+
 def sweep_everyone():
     """For a scheduler (manage.py notify_sweep, the cron): run the due and timed sweeps for the whole team, so
     reminders reach browsers even when nobody has the hub open. Keyed alerts never repeat."""
+    from .chat import service as chat
     from .permissions import team_users
 
     for user in team_users():
         due_sweep(user)
         timed_sweep(user)
+        chat.sweep(user)  # new Chat messages, for the people who turned Chat on
 
 
 def timed_sweep(user, now=None):

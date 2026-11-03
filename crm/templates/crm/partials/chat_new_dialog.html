@@ -1,0 +1,19 @@
+{# Start a chat or a space (static/crm/chat.js initNew; crm/chat/views.py new). Used on the Chat page and in the dock's Chat box. #}
+<dialog class="chat-start" data-new-dialog aria-labelledby="chat-new-title">
+  {% csrf_token %}
+  <h3 id="chat-new-title">Start a chat</h3>
+  <p class="muted lc-small">One person is a direct message, several are a group chat. Give it a name to make it a space.</p>
+  <input type="search" class="chat-new-find" placeholder="Find a teammate, or type an email address and press Enter" aria-label="Find a teammate" data-new-find>
+  <ul class="chat-people" data-new-people>
+    {% for p in people %}<li data-find="{{ p.name|lower }} {{ p.email }}"><label><input type="checkbox" value="{{ p.email }}"><span class="chat-pn">{{ p.name }}</span><span class="muted lc-small">{{ p.email }}</span></label></li>{% endfor %}
+  </ul>
+  <label class="chat-new-name">Name (optional) <input type="text" maxlength="128" placeholder="For a space, e.g. Campus ops" data-new-name></label>
+  <p class="mail-error" data-new-error hidden></p>
+  {% if not can_create %}
+  <form class="chat-allow lc-small" method="post" action="{% url 'crm:chat_turn_on' %}" target="_top">{% csrf_token %}
+    Starting a brand-new conversation needs one more Google permission (finding one you already have does not).
+    <button class="btn btn-small">Allow starting chats</button>
+  </form>
+  {% endif %}
+  <div class="chat-new-actions"><button type="button" class="btn btn-primary" data-new-go>Start</button> <button type="button" class="btn" data-new-cancel>Cancel</button></div>
+</dialog>
