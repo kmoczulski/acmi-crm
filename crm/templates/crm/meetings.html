@@ -9,6 +9,7 @@
   <a class="btn" href="{% qs_set month=next|date:'Y-m' open='' %}">›</a>
   <a class="btn" href="{% qs_set month='' open='' %}">Today</a>
   <span class="spacer"></span>
+  <a class="btn btn-primary" href="{% url 'crm:schedule' %}" title="See when people are free and put a meeting on the calendar">＋ Schedule a meeting</a>
   <a class="btn {% if who == 'all' %}btn-primary{% endif %}" href="{% qs_set who='' %}">Everyone</a>
   <a class="btn {% if who == 'me' %}btn-primary{% endif %}" href="{% qs_set who='me' %}">Mine</a>
   <a class="btn {% if who == 'outside' %}btn-primary{% endif %}" href="{% qs_set who='outside' %}">With companies</a>

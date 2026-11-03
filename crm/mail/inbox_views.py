@@ -325,12 +325,19 @@ def act(request, mailbox, client):
         return redirect(nxt)
     shared.log(mailbox, request.user, "change", ids[0] if len(ids) == 1 else "", f"{action} ({len(ids)})")
     request.session.pop("mail_undo", None)
+    wants_json = "application/json" in request.headers.get("Accept", "")
     if undoing:
+        if wants_json:
+            return JsonResponse({"ok": True, "text": "Undone."})
         messages.success(request, "Undone.")
     elif undo:
         request.session["mail_undo"] = {**undo, "text": text}
     else:
+        if wants_json:
+            return JsonResponse({"ok": True, "text": text})
         messages.success(request, text)
+    if wants_json:
+        return JsonResponse({"ok": True, "text": text, "undo": undo or None})
     if action in mail_actions.LEAVES_THE_LIST and not undoing:
         parts = urlsplit(nxt)
         query = [(k, v) for k, v in parse_qsl(parts.query) if not (k == "t" and v in ids)]
@@ -466,6 +473,50 @@ def message_body(request, mailbox, client, message_id):
     response["X-Blocked-Images"] = str(blocked)
     response["Cache-Control"] = "private, no-store"
     return response
+
+
+@mail_required
+@require_POST
+def save_to_drive(request, mailbox, client, message_id, part_id):
+    """Save one attachment into the filed company's mapped Drive folder, on this person's own permission."""
+    from . import drive_save
+
+    nxt = _safe_next(request, reverse("crm:inbox"))
+    if not drive_save.has_scope(request.user):
+        request.session["drive_save"] = {"message": message_id, "part": part_id, "next": nxt}
+        return redirect(drive_save.connect_url(request, reverse("crm:inbox_save_drive_back")))
+    filing = MailFiling.objects.filter(mailbox=mailbox, gmail_id=request.POST.get("t", "")).select_related("company").first()
+    company = filing.company if filing else None
+    folder = (company.drive_folder if company else "") or ""
+    if not folder:
+        messages.error(request, "File this thread to a company that has a Drive folder, then save the attachment.")
+        return redirect(nxt)
+    try:
+        msg = mail_render.get_message(mailbox, client, message_id)
+        part = mail_render.find_part(msg, part_id)
+        if part is None or not (part.get("body") or {}).get("attachmentId"):
+            raise Http404()
+        data = client.attachment(message_id, part["body"]["attachmentId"])
+        saved = drive_save.upload(request.user, name=part.get("filename") or "attachment",
+                                  mime=part.get("mimeType", ""), data=data, folder_id=folder)
+    except Http404:
+        raise
+    except drive_save.DriveSaveError as exc:
+        messages.error(request, str(exc))
+    except (MailboxError, requests.RequestException):
+        messages.error(request, "Couldn't reach Gmail or Drive. Try again.")
+    else:
+        messages.success(request, f"Saved {part.get('filename') or 'the file'} to {company}'s Drive folder.")
+        if saved.get("link"):
+            messages.info(request, saved["link"])
+    return redirect(nxt)
+
+
+def save_to_drive_back(request):
+    """Google sent the person back after they allowed Drive. The save they asked for is one click away."""
+    pending = request.session.pop("drive_save", None) or {}
+    messages.success(request, "Drive access allowed. Press Save to Drive on the attachment again.")
+    return redirect(pending.get("next") or "crm:inbox")
 
 
 @mail_required

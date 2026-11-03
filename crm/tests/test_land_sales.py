@@ -308,7 +308,15 @@ class CompTests(TestCase):
         defaults.update(kw)
         return SaleComp.objects.create(**defaults)
 
-    def test_summary_and_value_range(self):
+    def test_same_zoning_keeps_only_matching_parcels(self):
+        ig = make_parcel(self.pinal, "IG", -111.69, 32.91, acres=80.0, zoning="IG")
+        ag = make_parcel(self.pinal, "AG", -111.68, 32.92, acres=90.0, zoning="AG")
+        self.comp(5000, parcel=ig, record_key="ig")
+        self.comp(8000, parcel=ag, record_key="ag")
+        near = comps.nearby(lat=32.9, lon=-111.7, county=self.pinal)
+        self.assertEqual({c.record_key for c in near["comps"]}, {"ig", "ag"})
+        same = comps.nearby(lat=32.9, lon=-111.7, county=self.pinal, zonings=["IG"])
+        self.assertEqual({c.record_key for c in same["comps"]}, {"ig"})
         self.assertFalse(comps.parcel_value_range(self.subject)["enough"])
         for ppa in (4000, 5000, 6000, 7000, 8000):
             self.comp(ppa)

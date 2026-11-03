@@ -12,6 +12,7 @@
   <div class="no-print" style="margin-left:auto; display:flex; gap:12px; align-items:center; flex-wrap:wrap">
     <form method="post" action="{% url 'crm:assignments' %}" style="margin:0">{% csrf_token %}
       <input type="hidden" name="company_id" value="{{ company.pk }}"><button class="btn btn-small" title="Start a client land search for {{ company.name }}: candidate sites, a diligence report for each, and a link to share">+ Land search</button></form>
+    <a class="btn btn-small" href="{% url 'crm:schedule' %}?company={{ company.pk }}" title="See when people are free and put a meeting with {{ company.name }} on the calendar">📅 Schedule</a>
     <a class="btn btn-small" href="{% url 'crm:company_overview_pdf' company.pk %}" title="Download a one-page tenant overview of {{ company.name }} as a PDF: the overview, signing entity, deals and what's still needed">PDF</a>
     {% include "crm/partials/record_nav.html" with detail_url="crm:company_detail" back_url=back_url %}
   </div>
@@ -114,6 +115,19 @@
       <h3>Details</h3>
       {% include "crm/widgets/company/details.html" %}
     </div>
+    {% if tenant_facts %}
+    <section class="panel" id="financials">
+      <h3>Tenant & financials</h3>
+      <dl class="details">
+        {% for item, value, source in tenant_facts %}
+        <dt>{{ item }}</dt>
+        <dd>{% if value %}<b>{{ value }}</b>{% else %}<span class="pill pill-bad">Open</span>{% endif %}
+          {% if source %}<div class="muted lc-small">{{ source }}</div>{% endif %}</dd>
+        {% endfor %}
+      </dl>
+      <p class="muted lc-small" style="margin:6px 0 0">The same facts as the company overview PDF. Signing entity and guarantor come from a signed agreement; financials and the NDA come from documents filed on this company.</p>
+    </section>
+    {% endif %}
     {% include "crm/partials/drive_panel_slot.html" with kind="company" pk=company.pk %}
     {% include "crm/partials/record_side.html" %}
   </aside>

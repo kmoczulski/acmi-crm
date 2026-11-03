@@ -23,6 +23,7 @@ PAGES = [
     ("My tasks", "crm:task_list", "", "to do todo", "Home"),
     ("Calendar", "crm:meeting_list", "", "meetings month granola", "Home"),
     ("Notifications", "crm:notification_list", "", "alerts bell", "Home"),
+    ("Chat", "crm:chat", "", "google chat messages direct spaces", "Home"),
     ("Boards", "crm:boards", "", "trello cards lists kanban", "Home"),
     ("Tenant pipeline", "crm:opportunity_board", "", "deals opportunities board investor", "Tenants"),
     ("Tenant pipeline report", "crm:pipeline_report", "", "investor report pdf excel", "Tenants"),
