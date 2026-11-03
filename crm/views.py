@@ -987,6 +987,9 @@ def comment_add(request):
     if "opportunity" in target and target["opportunity"]:
         target.setdefault("company", target["opportunity"].company)
     comment = Comment.objects.create(body=body, author=request.user, **{k: v for k, v in target.items() if v})
+    if photo := request.FILES.get("photo"):
+        comment.photo = photo
+        comment.save(update_fields=["photo"])
     notify.comment_added(comment)
     return redirect(_safe_next(request, "/") + "#comments")
 

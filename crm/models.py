@@ -945,6 +945,7 @@ class Comment(models.Model):
     resolved = models.BooleanField(default=False)
     by_claude = models.BooleanField(default=False, help_text="Claude's note on a change in a redline")
     mentions = models.ManyToManyField(User, blank=True, related_name="mentioned_in")
+    photo = models.ImageField(upload_to='comments/%Y/%m/', null=True, blank=True, help_text='Optional photo attached to the comment')
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
