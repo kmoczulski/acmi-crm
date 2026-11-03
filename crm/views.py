@@ -13,6 +13,8 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.dateparse import parse_date
 from django.utils.http import url_has_allowed_host_and_scheme
+from django.db.models import Count, F
+from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from . import ai, company_page, documents, gcal, meetings, merge, notify, pipeline, prefs
@@ -55,6 +57,25 @@ def _safe_next(request, fallback):
         nxt, allowed_hosts={request.get_host()}, require_https=request.is_secure())
     return nxt if ok else fallback
 
+CALENDAR_NOISE = r": (Accepted|Declined|Tentatively accepted|Tentative|Updated invitation|Invitation|Canceled event):"
+
+
+def recent_activity(qs=None, limit=25, include_sent=False):
+    """Real conversation only: no automatic stage moves, calendar RSVPs, bounces or out-of-office.
+
+    Home also leaves out outbound email (thousands of campaign sends); record pages keep it.
+    """
+    from .models import Activity
+    qs = Activity.objects.all() if qs is None else qs
+    if not include_sent:
+        qs = qs.exclude(kind=Activity.Kind.EMAIL_SENT)
+    return (
+        qs.filter(is_background=False, occurred_at__lte=timezone.now())
+        .exclude(kind=Activity.Kind.STAGE_CHANGE, opportunity__isnull=True)
+        .exclude(summary__regex=CALENDAR_NOISE)
+        .exclude(kind__in=[Activity.Kind.BOUNCE, Activity.Kind.AUTO_REPLY])
+        .select_related("company", "person", "actor", "opportunity").prefetch_related("projects", "team_members")[:limit]
+    )
 
 def _record_from_post(request):
     """Resolve company/person/opportunity ids posted from a record page."""
