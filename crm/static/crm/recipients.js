@@ -52,7 +52,18 @@
           ${search ? '<span class="muted lc-small"> · mail with them</span>' : ''}</div>`).join('');
       const covers = search && d.records.length ? `<div class="addr-note muted lc-small">Searching “${esc(words)}” also finds mail with
           ${d.records.map(r => esc(r.label) + ' (' + r.kind + ')').join(', ')}</div>` : '';
-      if (!people && !covers) { close(); return; }
+      if (!people && !covers) {
+        const raw = token();
+        if (!search && raw.includes('@') && raw.includes('.')) {
+          const add = '/people/new/?email=' + encodeURIComponent(raw);
+          box.innerHTML = `<a class="addr-row" href="${add}"><b>Add ${esc(raw)}</b> <span class="muted lc-small">as a person</span></a>`;
+          box.hidden = false;
+          items = [];
+          return;
+        }
+        close();
+        return;
+      }
       box.innerHTML = people + covers;
       box.hidden = false;
       at = search ? -1 : 0;
@@ -78,8 +89,14 @@
     input.addEventListener('blur', () => setTimeout(close, 150));
   }
 
-  document.querySelectorAll('input[name=to], input[name=cc], input[name=bcc]').forEach(i => {
-    if (i.closest('form')?.matches('[data-compose], [data-inline]')) attach(i);
+  function watch(input) {
+    if (input.closest('form')?.matches('[data-compose], [data-inline]')) attach(input);
+  }
+  document.querySelectorAll('input[name=to], input[name=cc], input[name=bcc]').forEach(watch);
+  // Cc and Bcc sit inside a closed <details>, and the reply form is shown later. Attach when one is focused,
+  // not only at load, or typing there never suggests.
+  document.addEventListener('focusin', e => {
+    if (e.target.matches && e.target.matches('input[name=to], input[name=cc], input[name=bcc]')) watch(e.target);
   });
   const q = document.querySelector('.mail-search input[name=q]');
   if (q) attach(q, {search: true});

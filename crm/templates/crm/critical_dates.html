@@ -1,0 +1,24 @@
+{% extends "crm/base.html" %}
+{% load crm_tags %}
+{% block title %}Critical dates · ACMI Hub{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Critical dates</h1>
+  <span class="spacer"></span>
+  <span class="btn-row">
+    <a class="btn btn-small{% if cal.view == 'month' %} btn-primary{% endif %}" href="?view=month{% if who_set %}&who_set=1{% for id in picked %}&who={{ id }}{% endfor %}{% endif %}">Month</a>
+    <a class="btn btn-small{% if cal.view == 'week' %} btn-primary{% endif %}" href="?view=week&when={{ cal.month|date:'Y-m-d' }}{% if who_set %}&who_set=1{% for id in picked %}&who={{ id }}{% endfor %}{% endif %}">Week</a>
+    <a class="btn btn-small{% if cal.view == 'day' %} btn-primary{% endif %}" href="?view=day&when={{ cal.month|date:'Y-m-d' }}{% if who_set %}&who_set=1{% for id in picked %}&who={{ id }}{% endfor %}{% endif %}">Day</a>
+  </span>
+</div>
+<form method="get" class="inline-form" style="margin:0 0 12px;flex-wrap:wrap">
+  <input type="hidden" name="view" value="{{ cal.view }}">
+  <input type="hidden" name="when" value="{{ cal.anchor }}">
+  <input type="hidden" name="who_set" value="1">
+  <span class="muted lc-small" style="margin-right:6px">Show</span>
+  {% for u in people %}
+    <label class="chip" style="cursor:pointer"><input type="checkbox" name="who" value="{{ u.pk }}"{% if not who_set %} checked{% elif u.pk in picked %} checked{% endif %} onchange="this.form.submit()"> {{ u|username }}</label>
+  {% empty %}<span class="muted">No teammates yet.</span>{% endfor %}
+</form>
+{% include "crm/partials/critical_calendar.html" with cal=cal %}
+{% endblock %}

@@ -215,7 +215,14 @@ def critical_between(first, last, today=None):
     return rows
 
 
-def month_calendar(month=None, today=None):
+def _keep_owners(rows, owner_ids):
+    """None means everyone. An empty set means nobody."""
+    if owner_ids is None:
+        return rows
+    return [r for r in rows if getattr(getattr(r, "who", None), "pk", None) in owner_ids]
+
+
+def month_calendar(month=None, today=None, owner_ids=None):
     """The calendar panel: {"month" (its first day), "prev", "next", "weeks": [[{"date", "in_month", "today",
     "items"}]], "count", "tags"}. `month` is "YYYY-MM"; weeks run Monday to Sunday."""
     from datetime import date
@@ -230,7 +237,7 @@ def month_calendar(month=None, today=None):
     start = first - timedelta(days=first.weekday())
     end = nxt - timedelta(days=1)
     end += timedelta(days=6 - end.weekday())
-    rows = critical_between(start, end, today)
+    rows = _keep_owners(critical_between(start, end, today), owner_ids)
     by_day = {}
     for r in rows:
         by_day.setdefault(r.date, []).append(r)
@@ -242,4 +249,44 @@ def month_calendar(month=None, today=None):
         d += timedelta(days=7)
     return {"month": first, "prev": (first - timedelta(days=1)).replace(day=1), "next": nxt, "weeks": weeks,
             "count": sum(1 for r in rows if r.date.month == first.month), "tags": sorted({r.tag for r in rows}),
-            "this_month": first == today.replace(day=1)}
+            "this_month": first == today.replace(day=1), "view": "month",
+            "anchor": f"{first:%Y-%m}", "when_fmt": "Y-m"}
+
+
+def span_calendar(view="month", anchor=None, today=None, owner_ids=None):
+    """Month, week or day of critical dates. `anchor` is YYYY-MM (month) or YYYY-MM-DD (week/day)."""
+    from datetime import date
+
+    today = today or timezone.localdate()
+    view = view if view in ("month", "week", "day") else "month"
+    if view == "month":
+        month = anchor if anchor and anchor.count("-") == 1 else None
+        return month_calendar(month, today, owner_ids)
+    try:
+        y, m, d = (int(x) for x in (anchor or "").split("-"))
+        day = date(y, m, d)
+    except ValueError:
+        day = today
+    if view == "week":
+        start = day - timedelta(days=day.weekday())
+        end = start + timedelta(days=6)
+        prev, nxt = start - timedelta(days=7), start + timedelta(days=7)
+        label = start
+    else:
+        start = end = day
+        prev, nxt = day - timedelta(days=1), day + timedelta(days=1)
+        label = day
+    rows = _keep_owners(critical_between(start, end, today), owner_ids)
+    by_day = {}
+    for r in rows:
+        by_day.setdefault(r.date, []).append(r)
+    if view == "week":
+        days = [start + timedelta(days=i) for i in range(7)]
+        weeks = [[{"date": d, "in_month": True, "today": d == today, "items": by_day.get(d, [])} for d in days]]
+        here = start <= today <= end
+    else:
+        weeks = [[{"date": day, "in_month": True, "today": day == today, "items": by_day.get(day, [])}]]
+        here = day == today
+    return {"view": view, "month": label, "prev": prev, "next": nxt, "weeks": weeks, "count": len(rows),
+            "tags": sorted({r.tag for r in rows}), "this_month": here, "anchor": f"{label:%Y-%m-%d}",
+            "when_fmt": "Y-m-d"}

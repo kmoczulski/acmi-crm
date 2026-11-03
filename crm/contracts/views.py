@@ -35,6 +35,24 @@ COMPARE_QUESTION = ("What changed between these two documents? List each change 
 # ---------------------------------------------------------------------------
 
 
+_SECTIONS = (
+    ("Land", ("loi", "psa", "option")),
+    ("Leases", ("lease",)),
+    ("PDAs / DMAs", ("pda",)),
+)
+
+
+def _contract_sections(contracts):
+    """Land (PSA / LOI / option), leases, PDAs, then everything else. Empty groups are dropped."""
+    kind_to = {k: title for title, kinds in _SECTIONS for k in kinds}
+    buckets = {title: [] for title, _ in _SECTIONS}
+    buckets["Other"] = []
+    for c in contracts:
+        buckets[kind_to.get(c.kind, "Other")].append(c)
+    order = [title for title, _ in _SECTIONS] + ["Other"]
+    return [{"title": title, "contracts": buckets[title]} for title in order if buckets[title]]
+
+
 def contract_list(request):
     show = request.GET.get("show", "open")
     kind = request.GET.get("kind", "")
@@ -55,9 +73,29 @@ def contract_list(request):
         c.waiting_days = (today - c.waiting_since).days if c.waiting_on and c.waiting_since else None
     contracts.sort(key=lambda c: (c.next is None, c.next.date if c.next else today, c.title.lower()))
     return render(request, "crm/contract_list.html", {
-        "contracts": contracts, "deadlines": dates.upcoming(60, today), "show": show, "kind": kind,
+        "contracts": contracts, "sections": _contract_sections(contracts),
+        "deadlines": dates.upcoming(60, today), "show": show, "kind": kind,
         "kinds": Contract.Kind.choices, "campuses": Campus.objects.all(), "campus": campus,
     })
+
+
+def critical_dates(request):
+    """Critical dates calendar: month, week or day, filtered by whose contracts."""
+    from ..forms import active_users
+
+    today = timezone.localdate()
+    view = request.GET.get("view", "month")
+    anchor = request.GET.get("when") or request.GET.get("month") or request.GET.get("crit")
+    if request.GET.get("who_set"):
+        owner_ids = {int(x) for x in request.GET.getlist("who") if x.isdigit()}
+    else:
+        owner_ids = None
+    cal = dates.span_calendar(view, anchor, today, owner_ids)
+    people = list(active_users())
+    ctx = {"cal": cal, "people": people, "picked": owner_ids or set(), "who_set": bool(request.GET.get("who_set"))}
+    if request.GET.get("partial") == "1":
+        return render(request, "crm/partials/critical_calendar.html", {**ctx, "swap": True})
+    return render(request, "crm/critical_dates.html", ctx)
 
 
 def contract_create(request):
