@@ -332,7 +332,12 @@ def report_cell(o, key):
     if key == "stage":
         return format_html('<span class="stage stage-{}">{}</span>', o.stage, o.get_stage_display())
     if key == "tenant":
-        return format_html('<a href="{}">{}</a>', o.get_absolute_url(), o.company.name)
+        # The name in this column is the company. Open that page, not the deal (which sits a click further in).
+        name = format_html('<a href="{}"><b>{}</b></a>', o.company.get_absolute_url(), o.company.name)
+        if o.name and o.name != o.company.name:
+            return format_html('{}<div class="muted lc-small"><a href="{}">{}</a></div>',
+                               name, o.get_absolute_url(), o.name)
+        return name
     value = cell_value(o, key)
     if value in (None, ""):
         return "TBD" if key == "cost" else ""

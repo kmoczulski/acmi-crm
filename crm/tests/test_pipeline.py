@@ -212,6 +212,14 @@ class PipelinePageTests(TestCase):
         self.assertContains(r, "$75M")
         self.assertContains(r, "$56.2M")  # 75% weighted
 
+    def test_report_company_opens_the_company_page(self):
+        page = self.client.get(reverse("crm:pipeline_report"))
+        html = page.content.decode()
+        self.assertIn(f'href="{self.company.get_absolute_url()}"><b>ARA</b>', html)
+        self.assertIn(f'href="{self.opp.get_absolute_url()}">ARA · MEIH', html)
+        # The company name is not a link to the deal.
+        self.assertNotIn(f'href="{self.opp.get_absolute_url()}">ARA<', html)
+
     def test_excel_report(self):
         r = self.client.get(reverse("crm:pipeline_report_xlsx"))
         self.assertEqual(r.status_code, 200)
