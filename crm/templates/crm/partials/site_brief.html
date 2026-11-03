@@ -8,7 +8,6 @@
         <b>{{ b.gross|floatformat:1|intcomma }} ac gross</b>{% if b.net is not None %} · <b>~{{ b.net|floatformat:0|intcomma }} ac net usable</b> <span class="small">(after floodplain and wetlands)</span>{% endif %}
         · {{ b.n_parcels }} parcel{{ b.n_parcels|pluralize }} · {{ b.owners|length }} owner{{ b.owners|length|pluralize }}</p>
     </div>
-    <div class="brief-score" title="ACMI buy-box screen, acre-weighted{% if b.score_range.0 != b.score_range.1 %} (parcels {{ b.score_range.0 }} to {{ b.score_range.1 }}){% endif %}"><b>{{ b.score }}</b><span>Buy-box score</span></div>
   </div>
 
 {% if "maps" not in b.hide %}  <div class="brief-maps">
@@ -53,5 +52,5 @@
     </div>
   </div>
   {% for e in b.extras %}<div class="brief-extra">{% if e.title %}<h2>{{ e.title }}</h2>{% endif %}<div class="notes">{{ e.body }}</div></div>{% endfor %}
-  <div class="brief-foot">Prepared {{ b.built_at|date:"M j, Y" }} from county parcel records, public zoning and utility GIS layers and live federal checks{% if b.checked_at %} (run {{ b.checked_at|date:"M j" }}){% endif %}. Screening only: not a survey, title report or zoning verification. Terms such as FEMA zones, net usable acres and the buy-box score are defined on the Notes &amp; definitions page. Aerial imagery © Esri, Maxar, Earthstar Geographics.</div>
+  <div class="brief-foot">Prepared {{ b.built_at|date:"M j, Y" }} from county parcel records, public zoning and utility GIS layers and live federal checks{% if b.checked_at %} (run {{ b.checked_at|date:"M j" }}){% endif %}. Screening only: not a survey, title report or zoning verification. Terms such as FEMA zones, net usable acres are defined on the Notes &amp; definitions page. Aerial imagery © Esri, Maxar, Earthstar Geographics.</div>
 </article>
