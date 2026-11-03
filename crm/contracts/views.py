@@ -80,19 +80,30 @@ def contract_list(request):
 
 
 def critical_dates(request):
-    """Critical dates calendar: month, week or day, filtered by whose contracts."""
-    from ..forms import active_users
+    """Critical dates calendar: month, week or day, filtered by campus or project."""
+    from ..models import Campus, Project
 
     today = timezone.localdate()
     view = request.GET.get("view", "month")
     anchor = request.GET.get("when") or request.GET.get("month") or request.GET.get("crit")
-    if request.GET.get("who_set"):
-        owner_ids = {int(x) for x in request.GET.getlist("who") if x.isdigit()}
-    else:
-        owner_ids = None
-    cal = dates.span_calendar(view, anchor, today, owner_ids)
-    people = list(active_users())
-    ctx = {"cal": cal, "people": people, "picked": owner_ids or set(), "who_set": bool(request.GET.get("who_set"))}
+    campus_id = request.GET.get("campus", "")
+    project_id = request.GET.get("project", "")
+    cal = dates.span_calendar(view, anchor, today, owner_ids=None)
+    if campus_id or project_id:
+        from ..models import Contract
+        keep = set()
+        if campus_id.isdigit():
+            keep |= set(Contract.objects.filter(campus_id=int(campus_id)).values_list("pk", flat=True))
+        if project_id.isdigit():
+            keep |= set(Contract.objects.filter(site__project_id=int(project_id)).values_list("pk", flat=True))
+        if keep:
+            for week in cal.get("weeks", []):
+                for day in week:
+                    day["items"] = [r for r in day["items"] if getattr(getattr(r, "contract", None), "pk", None) in keep or not hasattr(r, "contract")]
+            cal["count"] = sum(len(d["items"]) for w in cal["weeks"] for d in w)
+    campuses = list(Campus.objects.all())
+    projects = list(Project.objects.filter(active=True).select_related("campus"))
+    ctx = {"cal": cal, "campuses": campuses, "projects": projects, "campus_id": campus_id, "project_id": project_id}
     if request.GET.get("partial") == "1":
         return render(request, "crm/partials/critical_calendar.html", {**ctx, "swap": True})
     return render(request, "crm/critical_dates.html", ctx)

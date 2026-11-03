@@ -485,6 +485,8 @@ def home(request):
             LandSite.objects.filter(Q(owner=request.user) | Q(team=request.user)).exclude(status=LandSite.Status.DROPPED)
             .select_related("campus", "project").distinct().order_by("-created_at")[:30]
         )
+    if request.GET.get("partial") == "1" and "week" in request.GET:
+        return render(request, "crm/widgets/week.html", ctx)
     return render(request, "crm/home.html", ctx)
 
 
@@ -1387,9 +1389,10 @@ def meeting_list(request):
     weeks = cal.Calendar(firstweekday=6).monthdatescalendar(first.year, first.month)
     qs = (Meeting.objects.filter(start__date__gte=weeks[0][0], start__date__lte=weeks[-1][-1])
           .prefetch_related("companies", "firms"))
-    who = request.GET.get("who", "all")
-    if who == "me":
+    who = request.GET.get("who", "me")
+    if who == "me" or not who:
         qs = qs.filter(team=request.user)
+        who = "me"
     elif who == "outside":
         qs = qs.filter(companies__isnull=False).distinct()
     elif who == "unfiled":  # outside attendees no record knows (crm/needs_filing.py)
