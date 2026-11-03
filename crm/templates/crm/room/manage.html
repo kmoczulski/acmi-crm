@@ -1,10 +1,10 @@
 {% extends "crm/base.html" %}
 {% load crm_tags %}
-{% block title %}{{ room.name }} data room · ACMI Hub{% endblock %}
+{% block title %}{{ room.name }} Data Room · ACMI Hub{% endblock %}
 {% block content %}
 <nav class="crumbs no-print" aria-label="Breadcrumb"><a href="{% url 'crm:data_rooms' %}?all=1">Data rooms</a> › {{ room.name }}</nav>
 <div class="page-head">
-  <h1>{{ room.name }} data room</h1>
+  <h1>{{ room.name }} Data Room</h1>
   {% if not room.active %}<span class="pill pill-bad">Off: nobody can sign in</span>{% endif %}
   <span class="spacer"></span>
   <a class="btn btn-small" href="{{ preview_url }}">See what {{ room.name }} sees</a>

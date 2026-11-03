@@ -2,7 +2,7 @@
 {% load crm_tags humanize %}
 {% block title %}Projects · ACMI Hub{% endblock %}
 {% block content %}
-<div class="page-head"><h1>Campuses &amp; projects</h1></div>
+<div class="page-head"><h1>Campuses &amp; projects</h1><span class="spacer"></span><a class="btn" href="{% url 'crm:data_rooms' %}">Fortress Data Room</a></div>
 {% view_bar "projects" %}
 <p class="muted" style="margin-top:0">Correspondence is tagged with a project when its own text (not quoted replies or signatures)
   mentions one of the project's keywords; projects inside a campus are tagged with the campus too. Campaign and news outreach is

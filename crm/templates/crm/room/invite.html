@@ -3,7 +3,7 @@
 {% block body %}
 <div class="r-card r-narrow">
   <h1>{% if invitee.user %}Set a new password{% else %}Make your account{% endif %}</h1>
-  <p class="muted">ACMI Properties invited {{ invitee.email }} to the {{ room.name }} data room.</p>
+  <p class="muted">ACMI Properties invited {{ invitee.email }} to the {{ room.name }} Data Room.</p>
   <form method="post" class="r-form">{% csrf_token %}
     {% if form.non_field_errors %}<div class="r-error" role="alert">{% for e in form.non_field_errors %}<p style="margin:0">{{ e }}</p>{% endfor %}</div>{% endif %}
     {% for f in form %}<p><label for="{{ f.id_for_label }}">{{ f.label }}</label>{{ f }}{% for e in f.errors %}<span class="r-error" style="margin-top:4px">{{ e }}</span>{% endfor %}</p>{% endfor %}

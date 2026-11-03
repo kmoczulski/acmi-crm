@@ -1,14 +1,14 @@
 {% extends "crm/base.html" %}
 {% block title %}Data rooms · ACMI Hub{% endblock %}
 {% block content %}
-<div class="page-head"><h1>Capital partner data rooms</h1></div>
-<p class="muted">A data room lets a capital partner sign in with their own account and see the deals on the investor report, a company card per deal and the files you approve, and nothing else in the hub.</p>
+<div class="page-head"><h1>Capital Partner Data Rooms</h1></div>
+<p class="muted">A Data Room lets a capital partner sign in with their own account and see the deals on the investor report, a company card per deal and the files you approve, and nothing else in the hub.</p>
 <div class="panel">
   {% for r in rooms %}<div class="role-row"><span><a href="{{ r.get_absolute_url }}"><strong>{{ r.name }}</strong></a>{% if not r.active %} <span class="muted">· off</span>{% endif %}</span><span class="muted">{{ r.members.all|length }} people</span></div>
-  {% empty %}<p class="muted">No data room yet.</p>{% endfor %}
+  {% empty %}<p class="muted">No Data Room yet.</p>{% endfor %}
   <form method="post" class="stack-form" style="margin-top:12px">{% csrf_token %}
     <input name="name" placeholder="Partner name, e.g. Fortress" maxlength="120" required aria-label="Room name">
-    <button class="btn-small btn-primary">Start a data room</button>
+    <button class="btn-small btn-primary">Start a Data Room</button>
   </form>
 </div>
 {% endblock %}

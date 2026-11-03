@@ -143,7 +143,7 @@
           {% if IS_MANAGER %}<a href="{% url 'crm:settings_home' %}"><strong>Dropdown lists</strong><span></span></a>
           <a href="{% url 'crm:outreach_settings' %}"><strong>Outreach settings</strong><span></span></a>
           <a href="{% url 'crm:contract_templates' %}"><strong>Contract abstract templates</strong><span></span></a>
-          <a href="{% url 'crm:data_rooms' %}" class="{% if '/data-rooms/' in p %}on{% endif %}"><strong>Capital partner data room</strong><span>Who sees which deals and files</span></a>{% endif %}
+          <a href="{% url 'crm:data_rooms' %}" class="{% if '/data-rooms/' in p %}on{% endif %}"><strong>Capital Partner Data Room</strong><span>Who sees which deals and files</span></a>{% endif %}
           {% if user.is_staff %}<a href="/admin/"><strong>Admin</strong><span></span></a>{% endif %}
         </div>
       </details>

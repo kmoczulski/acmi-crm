@@ -51,7 +51,7 @@
 <body>
 <header class="r-top">
   <img src="{% static 'crm/logo.png' %}" alt="ACMI Properties" height="32">
-  {% if room %}<span class="r-room">{{ room.name }} data room</span>{% endif %}
+  {% if room %}<span class="r-room">{{ room.name }} Data Room</span>{% endif %}
   <span class="r-spacer"></span>
   {% if member %}<span class="r-who">{{ request.user.get_full_name|default:request.user.email }}</span>
   <form method="post" action="{% url 'crm:room_logout' %}">{% csrf_token %}<button>Sign out</button></form>{% endif %}
