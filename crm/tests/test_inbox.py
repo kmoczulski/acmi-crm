@@ -144,7 +144,10 @@ class InboxTests(TestCase):
     def test_search_by_company_name_also_finds_its_addresses(self):
         r = self.get(q="firehawk")
         q = [p for path, p in self.fake.calls if path == "/threads"][-1]["q"]
-        self.assertTrue(q.startswith("{firehawk ") and "from:firehawkaerospace.com" in q and "to:firehawkaerospace.com" in q, q)
+        self.assertTrue(
+            q.startswith("(firehawk) OR {") and "from:firehawkaerospace.com" in q and "to:firehawkaerospace.com" in q,
+            q,
+        )
         self.assertEqual(r.context["widened"], [("company", "Firehawk Aerospace")])
         self.get(q="firehawk", exact="1")  # "just the words"
         self.assertEqual([p for path, p in self.fake.calls if path == "/threads"][-1]["q"], "firehawk")
