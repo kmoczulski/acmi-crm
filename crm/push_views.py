@@ -15,7 +15,9 @@ from .permissions import is_partner
 
 SERVICE_WORKER = """// ACMI hub browser notifications (crm/push_views.py). Shows each push and opens its record when clicked.
 self.addEventListener('install', () => self.skipWaiting());
-self.addEventListener('activate', e => e.waitUntil(self.clients.claim()));
+self.addEventListener('activate', e => { e.waitUntil(self.clients.claim()); });
+// Do not handle fetch. A home-screen app on iPhone goes blank when the worker answers navigations
+// (the page paints empty until Safari is opened and refreshed). Push and notification clicks still work.
 self.addEventListener('push', e => {
   let d = {};
   try { d = e.data ? e.data.json() : {}; } catch (err) { d = {body: e.data ? e.data.text() : ''}; }

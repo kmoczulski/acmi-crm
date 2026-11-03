@@ -85,7 +85,7 @@ class MeetingTests(TestCase):
     def test_calendar_popup_and_make_task(self):
         meetings.import_meetings(self.data)
         g = Meeting.objects.get(external_id="granola:g1")
-        r = self.client.get(reverse("crm:meeting_list") + f"?month={g.start:%Y-%m}")
+        r = self.client.get(reverse("crm:meeting_list") + f"?month={timezone.localtime(g.start):%Y-%m}")
         self.assertContains(r, "HITT / ARA interview")
         panel = self.client.get(reverse("crm:meeting_panel", args=[g.pk]))
         self.assertContains(panel, "Wrap up remaining GC interviews")
