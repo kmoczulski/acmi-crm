@@ -77,6 +77,15 @@ def recent_activity(qs=None, limit=25, include_sent=False):
         .select_related("company", "person", "actor", "opportunity").prefetch_related("projects", "team_members")[:limit]
     )
 
+# Task.Meta.ordering spelled out: a GROUP BY (the comment count) drops Meta.ordering, so lists say it again.
+TASK_ORDER = ("done", F("due_date").asc(nulls_last=True), "-created_at")
+
+
+def task_rows(qs):
+    """Tasks for a record page's list, with what each row shows (assignee, record, comment count) in one query."""
+    return (qs.select_related("assignee", "company", "person", "opportunity").annotate(n_comments=Count("comments"))
+            .order_by(*TASK_ORDER))
+
 def _record_from_post(request):
     """Resolve company/person/opportunity ids posted from a record page."""
     links = {}
