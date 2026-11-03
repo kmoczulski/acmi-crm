@@ -198,8 +198,8 @@ def create_event(user, *, event_id, title, start, end, attendees, description=""
     is chosen by the caller (letters a-v and digits), so asking twice for the same meeting finds the first instead of
     inviting everyone again. Returns (event, created): created is False when Google already had that id.
 
-    video: "meet" adds a Google Meet link, "teams" puts a Teams link in the place and the notes (Google cannot create
-    a Teams meeting), "" is in person. `meet=True` still means Meet, for the callers that don't pass video."""
+    video: "meet" adds a Google Meet link, "teams" asks the Teams add-on on this person's Google Calendar to make
+    the meeting (the same add-on the Calendar app uses), "" is in person. `meet=True` still means Meet."""
     session = session or requests
     token = token_for(user)
     if token is None:
@@ -215,13 +215,8 @@ def create_event(user, *, event_id, title, start, end, attendees, description=""
         body["conferenceData"] = {"createRequest": {"requestId": event_id,
                                                     "conferenceSolutionKey": {"type": "hangoutsMeet"}}}
     elif kind == "teams":
-        link = (location or "").strip()
-        if link and not link.startswith("http"):
-            link = "https://" + link
-        if link:
-            body["location"] = link
-            note = f"Join Microsoft Teams: {link}"
-            body["description"] = f"{note}\n\n{description}".strip() if description else note
+        body["conferenceData"] = {"createRequest": {"requestId": event_id,
+                                                    "conferenceSolutionKey": {"type": "addOn"}}}
     headers = {"Authorization": f"Bearer {access_token(token, session)}"}
     r = session.post(EVENTS_URL, params={"sendUpdates": "all", "conferenceDataVersion": "1"}, json=body,
                      headers=headers, timeout=TIMEOUT)
@@ -233,7 +228,27 @@ def create_event(user, *, event_id, title, start, end, attendees, description=""
             raise CalendarError("That meeting was cancelled in Google Calendar. Reload the page to schedule it again.")
         return found, False
     _check(r, "put a meeting on your calendar")
-    return r.json(), True
+    event = r.json()
+    if kind == "teams":
+        event = _wait_for_conference(event_id, headers, session) or event
+    return event, True
+
+
+def _wait_for_conference(event_id, headers, session, tries=4):
+    """The Teams add-on fills the link in after the event is made. A few short waits, then give up."""
+    import time
+    for _ in range(tries):
+        time.sleep(1.5)
+        r = session.get(f"{EVENTS_URL}/{event_id}", headers=headers, timeout=TIMEOUT)
+        if r.status_code != 200:
+            return None
+        event = r.json()
+        status = ((event.get("conferenceData") or {}).get("createRequest") or {}).get("status") or {}
+        if status.get("statusCode") == "success" or (event.get("conferenceData") or {}).get("entryPoints"):
+            return event
+        if status.get("statusCode") == "failure":
+            return event
+    return None
 
 
 def to_meeting(event):

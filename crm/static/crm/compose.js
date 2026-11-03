@@ -283,11 +283,7 @@
       const first = picked[0];
       const err = panel.querySelector('[data-times-error]');
       err.hidden = true;
-      if (video === 'teams') {
-        const link = window.prompt('Paste the Teams meeting link', 'https://teams.microsoft.com/');
-        if (!link) return;
-        first.teams = link.trim();
-      }
+      if (video === 'teams') first.teams = '';
       const body = new URLSearchParams({
         request: Array.from(crypto.getRandomValues(new Uint8Array(16)), b => b.toString(16).padStart(2, '0')).join(''),
         title: ((target && target.form && target.form.querySelector('[name=subject]')) || {}).value || 'Meeting',

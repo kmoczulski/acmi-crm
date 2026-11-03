@@ -216,8 +216,6 @@ def meeting_fields(user, data, now=None):
     video = (data.get("video") or "").strip().lower()
     if video not in ("meet", "teams", ""):
         video = "meet" if str(data.get("meet", "")).lower() in ("1", "true", "on", "yes") else ""
-    if video == "teams" and not location.startswith("http"):
-        raise ScheduleError("Paste a Teams meeting link for the place, or choose Google Meet.")
     if len(description) > 4000 or len(location) > 300:
         raise ScheduleError("The notes or the place are too long.")
     return {"title": title, "start": begin, "end": begin + timedelta(minutes=minutes), "minutes": minutes,
