@@ -14,11 +14,19 @@
 <form method="get" class="inline-form" style="margin:0 0 12px;flex-wrap:wrap">
   <input type="hidden" name="view" value="{{ cal.view }}">
   <input type="hidden" name="when" value="{{ cal.anchor }}">
-  <input type="hidden" name="who_set" value="1">
-  <span class="muted lc-small" style="margin-right:6px">Show</span>
-  {% for u in people %}
-    <label class="chip" style="cursor:pointer"><input type="checkbox" name="who" value="{{ u.pk }}"{% if not who_set %} checked{% elif u.pk in picked %} checked{% endif %} onchange="this.form.submit()"> {{ u|username }}</label>
-  {% empty %}<span class="muted">No teammates yet.</span>{% endfor %}
+  <label class="muted lc-small">Campus
+    <select name="campus" onchange="this.form.submit()">
+      <option value="">All campuses</option>
+      {% for c in campuses %}<option value="{{ c.pk }}"{% if campus_id == c.pk|stringformat:"s" %} selected{% endif %}>{{ c.code }}</option>{% endfor %}
+    </select>
+  </label>
+  <label class="muted lc-small">Project
+    <select name="project" onchange="this.form.submit()">
+      <option value="">All projects</option>
+      {% for p in projects %}<option value="{{ p.pk }}"{% if project_id == p.pk|stringformat:"s" %} selected{% endif %}>{{ p.name }}{% if p.campus %} · {{ p.campus.code }}{% endif %}</option>{% endfor %}
+    </select>
+  </label>
+  {% if campus_id or project_id %}<a class="btn btn-small" href="?view={{ cal.view }}&when={{ cal.anchor }}">Clear</a>{% endif %}
 </form>
 {% include "crm/partials/critical_calendar.html" with cal=cal %}
 {% endblock %}

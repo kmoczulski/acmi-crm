@@ -9,8 +9,13 @@
   <a class="btn" href="{% qs_set month=next|date:'Y-m' open='' %}">›</a>
   <a class="btn" href="{% qs_set month='' open='' %}">Today</a>
   <span class="spacer"></span>
-  <a class="btn {% if who == 'all' %}btn-primary{% endif %}" href="{% qs_set who='' %}">Everyone</a>
-  <a class="btn {% if who == 'me' %}btn-primary{% endif %}" href="{% qs_set who='me' %}">Mine</a>
+  <span class="btn-row">
+    <a class="btn btn-small{% if view == 'day' %} btn-primary{% endif %}" href="{% qs_set view='day' %}">Day</a>
+    <a class="btn btn-small{% if view == 'week' %} btn-primary{% endif %}" href="{% qs_set view='week' %}">Week</a>
+    <a class="btn btn-small{% if view != 'day' and view != 'week' %} btn-primary{% endif %}" href="{% qs_set view='' %}">Month</a>
+  </span>
+  <a class="btn {% if who == 'me' or not who %}btn-primary{% endif %}" href="{% qs_set who='me' %}">Mine</a>
+  <a class="btn {% if who == 'all' %}btn-primary{% endif %}" href="{% qs_set who='all' %}">Everyone</a>
   <a class="btn {% if who == 'outside' %}btn-primary{% endif %}" href="{% qs_set who='outside' %}">With companies</a>
   <a class="btn {% if who == 'unfiled' %}btn-primary{% endif %}" href="{% qs_set who='unfiled' %}" title="Outside attendees no person, company or firm knows yet">No record</a>
 </div>

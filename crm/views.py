@@ -403,7 +403,7 @@ def task_rows(qs):
 
 
 def week_calendar(request):
-    """This week's meetings, Monday to Friday (weekend days only when something is on), for the Dashboard."""
+    """This week's meetings for the signed-in person only (dashboard widget)."""
     from datetime import timedelta
 
     today = timezone.localdate()
@@ -413,17 +413,14 @@ def week_calendar(request):
         offset = 0
     monday = today - timedelta(days=today.weekday()) + timedelta(weeks=offset)
     days = [monday + timedelta(days=i) for i in range(7)]
-    everyone = request.GET.get("cal") == "all"
-    qs = Meeting.objects.filter(start__date__gte=days[0], start__date__lte=days[-1]).prefetch_related("companies", "firms")
-    if not everyone:
-        qs = qs.filter(team=request.user).distinct()
+    qs = Meeting.objects.filter(start__date__gte=days[0], start__date__lte=days[-1], team=request.user).prefetch_related("companies", "firms").distinct()
     by_day = {}
     for m in qs.order_by("start"):
         by_day.setdefault(timezone.localtime(m.start).date(), []).append(m)
     shown = [d for d in days if d.weekday() < 5 or by_day.get(d)]
     return {
         "days": [{"date": d, "meetings": by_day.get(d, []), "today": d == today, "past": d < today} for d in shown],
-        "offset": offset, "everyone": everyone, "monday": monday, "sunday": days[-1],
+        "offset": offset, "monday": monday, "sunday": days[-1],
         "count": sum(len(v) for v in by_day.values()),
     }
 
@@ -485,6 +482,8 @@ def home(request):
             LandSite.objects.filter(Q(owner=request.user) | Q(team=request.user)).exclude(status=LandSite.Status.DROPPED)
             .select_related("campus", "project").distinct().order_by("-created_at")[:30]
         )
+    if request.GET.get("partial") == "1" and "week" in request.GET:
+        return render(request, "crm/widgets/week.html", ctx)
     return render(request, "crm/home.html", ctx)
 
 
@@ -1387,9 +1386,10 @@ def meeting_list(request):
     weeks = cal.Calendar(firstweekday=6).monthdatescalendar(first.year, first.month)
     qs = (Meeting.objects.filter(start__date__gte=weeks[0][0], start__date__lte=weeks[-1][-1])
           .prefetch_related("companies", "firms"))
-    who = request.GET.get("who", "all")
-    if who == "me":
+    who = request.GET.get("who", "me")
+    if who == "me" or not who:
         qs = qs.filter(team=request.user)
+        who = "me"
     elif who == "outside":
         qs = qs.filter(companies__isnull=False).distinct()
     elif who == "unfiled":  # outside attendees no record knows (crm/needs_filing.py)
