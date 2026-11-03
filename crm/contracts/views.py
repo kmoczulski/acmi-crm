@@ -894,7 +894,10 @@ def contract_timeline(request, pk):
         return _timeline_post(request, contract, docs, today)
     eff = _effective(request, contract, today)
     versions = _versions(contract, docs)
-    picked = request.GET.getlist("v") or [v["id"] for v in versions[-2:]]
+    # For land LOI/PSA, default to comparing all proposed versions side by side.
+    land = contract.kind in (Contract.Kind.LOI, Contract.Kind.PSA, Contract.Kind.OPTION)
+    default_picked = [v["id"] for v in versions] if land and len(versions) > 1 else [v["id"] for v in versions[-2:]]
+    picked = request.GET.getlist("v") or default_picked
     shown = [v for v in versions if v["id"] in picked]
     for v in shown:
         v["rows"] = timeline.compute(v["terms"], eff, prefer_rules=not v["kept"] or eff != contract.effective_date,

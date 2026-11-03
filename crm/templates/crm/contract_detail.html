@@ -14,7 +14,7 @@
   </div>
   <div class="record-nav">
     {% if compare_pair|length == 2 %}<a class="btn" href="{% url 'crm:contract_compare' contract.pk %}?a={{ compare_pair.0.pk }}&b={{ compare_pair.1.pk }}">Redline</a>{% endif %}
-    <a class="btn" href="{% url 'crm:contract_timeline' contract.pk %}">Timeline</a>
+    <a class="btn" href="{% url 'crm:contract_timeline' contract.pk %}">{% if contract.kind == "loi" or contract.kind == "psa" or contract.kind == "option" %}Compare timelines{% else %}Timeline{% endif %}</a>
     <a class="btn" href="#details">Edit details</a>
   </div>
 </div>
