@@ -510,6 +510,10 @@ def save_to_drive_back(request):
     pending = request.session.pop("drive_save", None) or {}
     messages.success(request, "Drive access allowed. Press Save to Drive on the attachment again.")
     return redirect(pending.get("next") or "crm:inbox")
+
+
+@mail_required
+def message_part(request, mailbox, client, message_id, part_id):
     """An attachment, streamed from Gmail and never stored. Always a download, except an inline picture (png, jpeg,
     gif, webp) that a message shows in its body."""
     try:
