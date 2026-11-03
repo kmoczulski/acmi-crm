@@ -15,6 +15,7 @@ from django.utils.dateparse import parse_date
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
+from . import ai, company_page, documents, gcal, meetings, merge, notify, pipeline, prefs
 from .company_pdf import tenant_rows
 from . import projects as project_tagging
 from .boards import logic as board_logic

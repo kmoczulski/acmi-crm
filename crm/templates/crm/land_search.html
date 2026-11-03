@@ -1030,6 +1030,8 @@
       ['Free of arcs', ac(summary.unencumbered_acres)], ['Arc area off the parcel', ac(summary.off_site_acres)]);
     QD.summary.innerHTML = `<div class="qd-verdict ${summary.all_clear ? 'ok' : 'bad'}">${summary.all_clear ? 'Layout clears: arcs on site, spacing OK' : 'Layout has problems: see Status'}</div>`
       + rows.map(([k, v]) => `<div class="qd-kv"><span>${k}</span><b>${v}</b></div>`).join('')
+      + (QD.buildings.some(b => b.result && b.result.max_newqd != null && !b.result.inside)
+        ? `<div class="overdue" style="margin:6px 0">A building is off the parcel. Max NEW where it stands is in the Max NEWQD column. Press Use to set it.</div>` : '')
       + `<div class="muted lc-small">${escapeHtml((QD.buildings[0].dist || {}).governing || '')}</div>`
       + '<div class="muted lc-small">Screening per DoD 6055.09-M V3.E3 (QD CALCS v20). 360° arcs; ECM arcs are really directional. Not a DDESB submission.</div>';
   }
@@ -1396,7 +1398,12 @@
     const checks = s.checks.map(c => `<div class="qd-kv"><span>${c.label}</span><b class="${c.ok ? '' : 'overdue'}">${c.key === 'far' ? c.value.toFixed(2) : pct(c.value)}${c.limit != null ? ' / ' + (c.key === 'far' ? c.limit : pct(c.limit)) : ''}</b></div>`).join('');
     const types = s.by_type.map(t => `<div class="qd-kv"><span>${escapeHtml(t.label)} × ${t.buildings}</span><b>${n(t.gfa)} sf</b></div>`).join('');
     const ok = s.checks.every(c => c.ok);
+    const over = s.checks.filter(c => !c.ok && c.limit != null);
+    const overLine = over.length
+      ? `<div class="overdue" style="margin:6px 0">Over the county limit: ${over.map(c => `${c.label} ${c.key === 'far' ? c.value.toFixed(2) : pct(c.value)} / ${c.key === 'far' ? c.limit : pct(c.limit)}`).join('; ')}. Lower the building count or the target size.</div>`
+      : '';
     spSummary.innerHTML = `<div class="qd-verdict ${ok && s.buildings ? 'ok' : 'bad'}">${s.buildings ? `${n(s.gfa_sf)} sf in ${s.buildings} building${s.buildings === 1 ? '' : 's'}` : 'Nothing fits with these settings'}</div>`
+      + overLine
       + `<div class="qd-kv"><span>Site</span><b>${s.site_acres} ac</b></div><div class="qd-kv"><span>Buildable envelope</span><b>${s.envelope_acres} ac</b></div>`
       + (s.excluded_acres ? `<div class="qd-kv"><span>Floodplain / wetlands kept clear</span><b>${s.excluded_acres} ac</b></div>` : '')
       + types + `<div class="qd-kv"><span>Parking</span><b>${n(s.stalls)} stalls</b></div>`
