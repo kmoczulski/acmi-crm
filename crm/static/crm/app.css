@@ -2846,3 +2846,18 @@ body[data-chat-list] .dock-main > p, body[data-chat-list] .dock-main > a { margi
   .appbar .brand { margin-right: 6px; }
   table.data th, table.data td { padding: 8px; }
 }
+
+/* Swipe a mail row on a phone: right archives, left trashes. */
+.mail-row { position: relative; }
+.mail-row.swiping a { transition: none; }
+.mail-row a { transition: transform .18s ease; }
+.mail-row.swiping a { transform: translateX(var(--swipe, 0)); }
+.mail-row.swipe-right::before, .mail-row.swipe-left::before {
+  content: attr(data-swipe); position: absolute; inset: 0; display: flex; align-items: center; padding: 0 18px;
+  color: #fff; font-weight: 600; font-size: 13px; }
+.mail-row.swipe-right::before { content: attr(data-right); background: #15803d; justify-content: flex-start; }
+.mail-row.swipe-left::before { content: attr(data-left); background: #b42318; justify-content: flex-end; }
+.mail-row.swipe-gone { max-height: 0; overflow: hidden; border: 0; transition: max-height .2s ease; }
+.mail-swipe-toast { position: fixed; left: 12px; right: 12px; bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  z-index: 3000; display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  background: #1e2a3a; color: #fff; border-radius: 10px; padding: 10px 14px; box-shadow: 0 8px 24px rgba(0,0,0,.25); }

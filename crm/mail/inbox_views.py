@@ -325,12 +325,19 @@ def act(request, mailbox, client):
         return redirect(nxt)
     shared.log(mailbox, request.user, "change", ids[0] if len(ids) == 1 else "", f"{action} ({len(ids)})")
     request.session.pop("mail_undo", None)
+    wants_json = "application/json" in request.headers.get("Accept", "")
     if undoing:
+        if wants_json:
+            return JsonResponse({"ok": True, "text": "Undone."})
         messages.success(request, "Undone.")
     elif undo:
         request.session["mail_undo"] = {**undo, "text": text}
     else:
+        if wants_json:
+            return JsonResponse({"ok": True, "text": text})
         messages.success(request, text)
+    if wants_json:
+        return JsonResponse({"ok": True, "text": text, "undo": undo or None})
     if action in mail_actions.LEAVES_THE_LIST and not undoing:
         parts = urlsplit(nxt)
         query = [(k, v) for k, v in parse_qsl(parts.query) if not (k == "t" and v in ids)]
