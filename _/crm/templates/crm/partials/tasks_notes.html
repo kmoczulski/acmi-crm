@@ -1,0 +1,36 @@
+{% load crm_tags %}
+<div class="grid-2">
+<div class="panel">
+  <h3>Tasks</h3>
+  <ul class="tasklist">
+    {% for t in open_tasks %}
+    <li>
+      <form method="post" action="{% url 'crm:task_toggle' t.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><input type="checkbox" onchange="this.form.submit()" title="Mark done"></form>
+      <div><a href="{{ t.get_absolute_url }}">{{ t.title }}</a>{% if t.repeat %} <span class="muted" title="{{ t.get_repeat_display }}">↻</span>{% endif %}
+        <div class="muted" style="font-size:12px">{% if t.due_date %}<span class="{% if t.is_overdue %}overdue{% endif %}">Due {{ t.due_date|date:"M j" }}{% if t.due_time %} {{ t.due_time|time:"g:i A" }}{% endif %}</span> · {% endif %}{{ t.assignee|username }}{% with n=t.comments.count %}{% if n %} · 💬 {{ n }}{% endif %}{% endwith %}</div></div>
+    </li>
+    {% empty %}<li class="muted">No open tasks.</li>{% endfor %}
+  </ul>
+  <form method="post" action="{% url 'crm:task_add' %}" class="inline-form" style="margin-top:10px">{% csrf_token %}
+    <input type="hidden" name="{{ record_field }}" value="{{ record.pk }}">
+    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+    {{ task_form.title }} {{ task_form.due_date }} {{ task_form.due_time }} {{ task_form.assignee }} {{ task_form.repeat }}
+    <button class="btn-small">Add task</button>
+  </form>
+</div>
+<div class="panel">
+  <h3>Notes</h3>
+  <form method="post" action="{% url 'crm:note_add' %}">{% csrf_token %}
+    <input type="hidden" name="{{ record_field }}" value="{{ record.pk }}">
+    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+    {{ note_form.body }}
+    <button class="btn-small" style="margin-top:6px">Add note</button>
+  </form>
+  {% for n in notes %}
+    <div style="border-top:1px solid var(--line);padding-top:8px;margin-top:8px">
+      <div style="white-space:pre-wrap">{{ n.body }}</div>
+      <div class="muted" style="font-size:12px">{{ n.author|username }} · {{ n.created_at|date:"M j, Y" }}</div>
+    </div>
+  {% endfor %}
+</div>
+</div>

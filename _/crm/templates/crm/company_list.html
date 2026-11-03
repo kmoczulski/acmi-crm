@@ -1,0 +1,47 @@
+{% extends "crm/base.html" %}
+{% load crm_tags %}
+{% block title %}Companies · ACMI CRM{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Companies</h1>
+  <span class="spacer"></span>
+  <a class="btn" href="{% url 'crm:duplicates' %}">Possible duplicates</a>
+  <a class="btn" href="{% url 'crm:sheet_import' %}" title="Companies and contacts from an Excel or CSV file">Import</a>
+  <a class="btn btn-primary" href="{% url 'crm:company_create' %}">New company</a>
+</div>
+<div class="chips">
+  {% with scope=request.GET.scope %}
+  <a class="{% if scope == 'active' %}on{% endif %}" href="{% qs_set scope='active' _v='' %}" title="In a deal, met or engaged, or emailed in the last 30 days">Active</a>
+  <a class="{% if scope == 'deal' %}on{% endif %}" href="{% qs_set scope='deal' _v='' %}">In a tenant deal</a>
+  <a class="{% if not scope %}on{% endif %}" href="{% qs_set scope='' _v='all' %}">All companies</a>
+  <span class="muted" style="font-size:12.5px">{{ page.paginator.count }} compan{{ page.paginator.count|pluralize:"y,ies" }}</span>
+  {% endwith %}
+</div>
+{% view_bar "company" %}
+{% include "crm/partials/filters.html" with search_placeholder="Name, sector, domain" %}
+<form method="post" action="{% url 'crm:company_bulk_owner' %}" id="bulk-form" class="bulkbar" hidden>{% csrf_token %}
+  <input type="hidden" name="next" value="{{ request.get_full_path }}">
+  <strong><span id="bulk-count">0</span> selected</strong>
+  <select name="owner" required>
+    <option value="">Set owner to…</option>
+    <option value="connection">Whoever knows them best</option>
+    {% for u in users %}<option value="{{ u.pk }}">{{ u.get_full_name|default:u.username }}</option>{% endfor %}
+    <option value="none">Nobody (clear)</option>
+  </select>
+  <button class="btn-small btn-primary">Apply</button>
+</form>
+{% include "crm/partials/table.html" with bulk=True %}
+{% endblock %}
+{% block scripts %}
+<script>
+  (function () {
+    const bar = document.getElementById('bulk-form'), count = document.getElementById('bulk-count');
+    const boxes = () => [...document.querySelectorAll('.row-check')];
+    function refresh() { const n = boxes().filter(b => b.checked).length; count.textContent = n; bar.hidden = n === 0; }
+    document.addEventListener('change', e => {
+      if (e.target.id === 'select-all') boxes().forEach(b => { b.checked = e.target.checked; });
+      if (e.target.id === 'select-all' || e.target.classList.contains('row-check')) refresh();
+    });
+  })();
+</script>
+{% endblock %}

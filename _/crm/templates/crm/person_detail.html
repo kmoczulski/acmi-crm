@@ -1,0 +1,66 @@
+{% extends "crm/base.html" %}
+{% load crm_tags %}
+{% block title %}{{ person }} · ACMI CRM{% endblock %}
+{% block content %}
+<nav class="crumbs no-print" aria-label="Breadcrumb"><a href="{% url 'crm:person_list' %}">People</a> ›{% if person.company %} <a href="{{ person.company.get_absolute_url }}">{{ person.company.name }}</a> ›{% endif %} <span>{{ person }}</span></nav>
+<div class="record-head">
+  <h1>{{ person }}</h1>
+  {% if person.company %}<a href="{{ person.company.get_absolute_url }}">{{ person.company.name }}</a>{% endif %}
+  {% if MAIL_ON and person.email %}<a class="btn btn-small" href="{% url 'crm:inbox_compose' %}?to={{ person.email|urlencode }}">✉ Email</a>{% endif %}
+  {{ person.priority|pill }}
+  {% for f in person.flags %}<span class="tag">{{ f }}</span>{% endfor %}
+  {% url 'crm:person_list' as back_url %}
+  {% include "crm/partials/record_nav.html" with detail_url="crm:person_detail" back_url=back_url %}
+</div>
+
+<div class="record">
+  <aside>
+    <div class="panel">
+      <h3>Details <button type="button" class="btn btn-small" style="float:right" onclick="document.getElementById('edit-dialog').showModal()">Edit</button></h3>
+      {% include "crm/partials/person_details.html" %}
+      {% include "crm/partials/edit_dialog.html" with title="person" %}
+      {% if IS_MANAGER %}<form method="post" action="{% url 'crm:person_delete' person.pk %}" style="margin-top:10px"
+            onsubmit="return confirm('Delete {{ person|escapejs }}? Their emails stay on the company timeline; their tasks and notes are deleted.')">{% csrf_token %}
+        <button class="btn-small btn-danger">Delete person</button>
+      </form>{% endif %}
+    </div>
+    {% include "crm/partials/record_side.html" %}
+  </aside>
+
+  <section>
+    <nav class="tabs">
+      <a href="{% qs_set tab='' bg='' tpage='' %}" class="{% if tab == 'overview' %}active{% endif %}">Overview</a>
+      <a href="{% qs_set tab='activity' %}" class="{% if tab == 'activity' %}active{% endif %}">Activity</a>
+    </nav>
+
+    {% if tab == 'overview' %}
+      <div class="cards">
+        <div class="card"><div class="label">Owner</div><div class="value">{{ person.owner|username|default:"—" }}</div></div>
+        <div class="card"><div class="label">Last touch</div>
+          <div class="value">{% if person.last_interaction_at %}{{ person.days_since_touch }} days ago{% else %}Never{% endif %}</div></div>
+        <div class="card"><div class="label">Outreach emails</div><div class="value">{{ person.touch_count }}</div>
+          <div class="sub">Last sent {{ person.last_outreach_at|date:"M j, Y"|default:"never" }}</div></div>
+        <div class="card"><div class="label">Last response</div><div class="value">{{ person.last_response|default:"—" }}</div>
+          <div class="sub">{{ person.last_response_at|date:"M j, Y" }}</div></div>
+        <div class="card"><div class="label">Who knows them</div><div class="value">{{ person.strongest_connection_user|username|default:"—" }}</div>
+          {% if person.connection_strength %}<div class="sub">{{ person.connection_strength }} connection{% if team|length > 1 %} · {{ team|length }} teammates in touch{% endif %}</div>{% endif %}</div>
+        <div class="card"><div class="label">Next meeting</div><div class="value">{{ person.next_interaction_at|date:"M j"|default:"—" }}</div></div>
+        <div class="card"><div class="label">Open tasks</div><div class="value">{{ open_tasks|length }}</div></div>
+      </div>
+      {% include "crm/partials/ai_summary.html" %}
+      <div class="panel">
+        <h3>Recent activity <a href="{% qs_set tab='activity' %}" style="float:right;text-transform:none;letter-spacing:0">View all</a></h3>
+        <ul class="timeline">{% for a in recent_activity %}{% include "crm/partials/timeline_item.html" %}{% empty %}<li><span></span><span class="muted">No activity yet.</span></li>{% endfor %}</ul>
+      </div>
+      {% if opportunities %}
+      <div class="panel"><h3>Tenant deals</h3>
+        {% for o in opportunities %}<div><a href="{{ o.get_absolute_url }}">{{ o.name }}</a> <span class="stage stage-{{ o.stage }}">{{ o.get_stage_display }}</span></div>{% endfor %}
+      </div>
+      {% endif %}
+      {% include "crm/partials/tasks_notes.html" %}
+    {% else %}
+      <div class="panel">{% include "crm/partials/timeline.html" %}</div>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

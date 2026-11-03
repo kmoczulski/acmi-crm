@@ -1,0 +1,34 @@
+* Host hub.acmiproperties.com:443 was resolved.
+* IPv6: (none)
+* IPv4: 142.250.9.121
+*   Trying 142.250.9.121:443...
+* schannel: disabled automatic use of client certificate
+* ALPN: curl offers http/1.1
+* ALPN: server accepted http/1.1
+* Established connection to hub.acmiproperties.com (142.250.9.121 port 443) from 192.168.1.245 port 63614 
+  % Total    % Received % Xferd  Average Speed  Time    Time    Time   Current
+                                 Dload  Upload  Total   Spent   Left   Speed
+  0      0   0      0   0      0      0      0                              0* using HTTP/1.x
+> GET /inbox/ HTTP/1.1
+> Host: hub.acmiproperties.com
+> User-Agent: curl/8.21.0
+> Accept: */*
+> 
+* Request completely sent off
+< HTTP/1.1 302 Found
+< content-type: text/html; charset=utf-8
+< location: /accounts/login/?next=/inbox/
+< x-frame-options: SAMEORIGIN
+< vary: Cookie
+< content-security-policy: script-src 'self' 'unsafe-inline' https://unpkg.com; object-src 'none'; base-uri 'self'; frame-ancestors 'self'
+< strict-transport-security: max-age=31536000; includeSubDomains
+< x-content-type-options: nosniff
+< referrer-policy: same-origin
+< cross-origin-opener-policy: same-origin
+< x-cloud-trace-context: 44a4d241847610d1dacf8e96bfccc4fb
+< date: Tue, 03 Nov 2026 18:29:48 GMT
+< server: Google Frontend
+< Content-Length: 0
+< 
+  0      0   0      0   0      0      0      0                              0  0      0   0      0   0      0      0      0                              0  0      0   0      0   0      0      0      0                              0
+* Connection #0 to host hub.acmiproperties.com:443 left intact

@@ -1,0 +1,17 @@
+{% load crm_tags %}
+<dl class="details">
+  <dt>Stage</dt><dd><span class="stage stage-{{ company.status }}">{{ company.get_status_display }}</span></dd>
+  {% if company.priority %}<dt>Priority</dt><dd>{{ company.priority|pill }}</dd>{% endif %}
+  {% if company.owner %}<dt>Owner</dt><dd>{{ company.owner|username }}</dd>{% endif %}
+  {% if company.sector %}<dt>Sector</dt><dd>{{ company.sector }}</dd>{% endif %}
+  {% if company.fit_score %}<dt>Fit score</dt><dd>{{ company.fit_score }} / 5 <span class="muted">· {{ fit_definition }}</span></dd>{% endif %}
+  {% if company.campus_label %}<dt>Campus of interest</dt><dd>{{ company.campus_label }}</dd>{% endif %}
+  {% if company.domains %}<dt>Domains</dt><dd>{% for d in company.domains %}<span class="tag">{{ d }}</span> {% endfor %}</dd>{% endif %}
+  {% if company.hq_location %}<dt>HQ</dt><dd>{{ company.hq_location }}</dd>{% endif %}
+  {% if company.website %}<dt>Website</dt><dd><a href="{{ company.website }}" target="_blank" rel="noopener">{{ company.website|cut:"https://"|cut:"http://" }}</a></dd>{% endif %}
+  {% if company.linkedin %}<dt>LinkedIn</dt><dd><a href="{{ company.linkedin }}" target="_blank" rel="noopener">Profile</a></dd>{% endif %}
+  {% if company.categories %}<dt>Categories</dt><dd>{% for c in company.categories %}<span class="tag">{{ c }}</span> {% endfor %}</dd>{% endif %}
+  {% if company.flags %}<dt>Flags</dt><dd>{% for f in company.flags %}<span class="tag">{{ f }}</span> {% endfor %}</dd>{% endif %}
+  {% if company.description %}<dt>Description</dt><dd class="prose">{{ company.description|linebreaksbr }}</dd>{% endif %}
+  {% if company.notes %}<dt>Notes</dt><dd class="prose">{{ company.notes|linebreaksbr }}</dd>{% endif %}
+</dl>

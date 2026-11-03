@@ -1,0 +1,13 @@
+{% load crm_tags %}<div class="cap-stack">
+  {% for g in stack.groups %}
+    <div class="lc-small muted" style="margin-top:4px">{{ g.name }}{% if g.sought %} · {{ g.sought|money }} sought{% endif %}{% if g.committed %} · <b>{{ g.committed|money }} committed</b>{% endif %}</div>
+    {% for s in g.rows %}
+      <a class="cap-layer {% if g.name == 'Equity' %}cap-equity{% elif g.name == 'Debt' %}cap-debt{% elif g.name == 'Grants and incentives' %}cap-grants{% endif %}{% if s.status == 'passed' or s.status == 'declined' %} cap-out{% endif %}" href="{{ s.get_absolute_url }}" style="color:inherit;text-decoration:none">
+        <span><b>{{ s.provider }}</b> <span class="muted">· {{ s.label|default:s.get_kind_display }}</span> <span class="pill cap-{{ s.status }}">{{ s.get_status_display }}</span></span>
+        <span class="lc-small">{% if s.amount_committed %}<b>{{ s.amount_committed|money }}</b> committed{% elif s.amount_sought %}{{ s.amount_sought|money }} sought{% endif %}</span>
+      </a>
+    {% endfor %}
+  {% empty %}<p class="muted lc-small" style="margin:0">No sources yet.</p>{% endfor %}
+  {% if stack.groups %}<div class="lc-small" style="margin-top:6px">Total {{ stack.total.sought|money|default:"$0" }} sought · {{ stack.total.committed|money|default:"$0" }} committed
+    <span class="muted">(lenders quoting the same loan count once)</span></div>{% endif %}
+</div>

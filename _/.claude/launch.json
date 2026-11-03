@@ -1,0 +1,50 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "crm-dev",
+      "runtimeExecutable": ".venv/Scripts/python.exe",
+      "runtimeArgs": [
+        "manage.py",
+        "runserver",
+        "8000"
+      ],
+      "port": 8000
+    },
+    {
+      "name": "render-preview",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8765",
+        "--directory",
+        "C:/Users/Kemoc/AppData/Local/Temp/claude/C--Users-Kemoc-Desktop-ACMI-CRM/37269e9e-599d-4490-b38f-45324c6875e6/scratchpad"
+      ],
+      "port": 8765
+    },
+    {
+      "name": "crm-test",
+      "runtimeExecutable": ".venv/Scripts/python.exe",
+      "runtimeArgs": [
+        "manage.py",
+        "runserver",
+        "8002",
+        "--noreload"
+      ],
+      "port": 8002
+    },
+    {
+      "name": "brief-preview",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8766",
+        "--directory",
+        "C:/Users/Kemoc/AppData/Local/Temp/claude/C--Users-Kemoc-Desktop-ACMI-CRM/5090c830-f7ab-4320-9b39-895ce6f7b5f9/scratchpad/brief"
+      ],
+      "port": 8766
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{% load crm_tags humanize %}{# Dashboard widget: pipeline numbers (summary, at_risk_count) #}
+<div class="cards">
+  <a class="card" href="{% url 'crm:opportunity_board' %}"><div class="label">Open pipeline</div><div class="value">{{ summary.open_total|money|default:"$0" }}</div>
+    <div class="sub">{{ summary.open_count }} deal{{ summary.open_count|pluralize }}{% if summary.unpriced %} · {{ summary.unpriced }} not priced{% endif %}</div></a>
+  <a class="card" href="{% url 'crm:opportunity_board' %}"><div class="label">Weighted pipeline</div><div class="value">{{ summary.weighted_total|money|default:"$0" }}</div>
+    <div class="sub">Value × stage probability</div></a>
+  <a class="card" href="{% url 'crm:opportunity_board' %}?stage=signed"><div class="label">Signed</div><div class="value">{{ summary.signed_total|money|default:"$0" }}</div>
+    <div class="sub">{{ summary.signed_count }} lease{{ summary.signed_count|pluralize }} / DMA{{ summary.signed_count|pluralize }}</div></a>
+  <a class="card" href="{% url 'crm:opportunity_board' %}?risk=1"><div class="label">Need attention</div><div class="value">{{ at_risk_count }}</div>
+    <div class="sub">No next step, overdue or gone quiet</div></a>
+  {% for c in summary.by_campus %}
+  <a class="card" href="{% url 'crm:opportunity_board' %}{% if c.label != 'Other / TBD' %}?campus={{ c.label }}{% else %}?campus=none{% endif %}"><div class="label">{{ c.label }}</div><div class="value">{{ c.total|money|default:"—" }}</div>
+    <div class="sub">{{ c.count }} deal{{ c.count|pluralize }}{% if c.sf %} · {{ c.sf|intcomma }} sf{% endif %}</div></a>
+  {% endfor %}
+</div>

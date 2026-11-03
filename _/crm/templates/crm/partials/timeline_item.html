@@ -1,0 +1,11 @@
+{% load crm_tags %}
+<li class="{% if a.is_background %}bg{% endif %}">
+  <span class="icon" title="{{ a.get_kind_display }}">{{ a.kind|kind_icon }}</span>
+  <div>
+    <div>{% if a.url %}<a href="{{ a.url }}" target="_blank" rel="noopener">{{ a.summary }}</a>{% else %}{{ a.summary }}{% endif %}
+      {% if a.outcome %} {{ a.outcome|pill:"response" }}{% endif %}</div>
+    <div class="meta">{% context_chip a %}{{ a.get_kind_display }} · {% conversation a %}{% if MAIL_ON and a.message_id and a.source == "gmail" %} · <a href="{% url 'crm:inbox_open' %}?m={{ a.message_id|urlencode }}">Open in Mail</a>{% endif %}</div>
+    {% with text=a|body_text %}{% if text %}<div class="body">{{ text }}</div>{% endif %}{% endwith %}
+  </div>
+  <span class="when">{{ a.occurred_at|date:"M j, Y" }}</span>
+</li>

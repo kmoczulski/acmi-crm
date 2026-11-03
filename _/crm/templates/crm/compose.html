@@ -1,0 +1,60 @@
+{% extends "crm/base.html" %}
+{% load static %}
+{% block title %}{% if f.mode == "forward" %}Forward{% elif f.mode == "new" %}New message{% else %}Reply{% endif %} · Mail · ACMI CRM{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>{% if f.mode == "forward" %}Forward{% elif f.mode == "all" %}Reply all{% elif f.mode == "reply" %}Reply{% else %}New message{% endif %}</h1>
+  <span class="spacer"></span>
+  <span class="muted lc-small" data-draft-state aria-live="polite"></span>
+</div>
+{% if error %}<p class="mail-error">{{ error }}</p>{% endif %}
+{% if not sending_on %}<p class="mail-error">Sending is switched off on this hub (ACMI_MAIL_SEND). You can still save drafts.</p>{% endif %}
+<form class="panel compose" method="post" enctype="multipart/form-data" action="{% url 'crm:inbox_compose' %}" data-compose
+      data-draft-url="{% url 'crm:inbox_draft' %}" data-calendar-url="{% url 'crm:inbox_calendar' %}">
+  {% csrf_token %}
+  <input type="hidden" name="mode" value="{{ f.mode }}">
+  <input type="hidden" name="reply_to_id" value="{{ f.reply_to_id }}">
+  <input type="hidden" name="thread_id" value="{{ f.thread_id }}">
+  <input type="hidden" name="in_reply_to" value="{{ f.in_reply_to }}">
+  <input type="hidden" name="references" value="{{ f.references }}">
+  <input type="hidden" name="draft_id" value="{{ draft_id }}" data-draft-id>
+  <input type="hidden" name="back" value="{{ back }}">
+  <label class="compose-row"><span>To</span><input type="text" name="to" value="{{ f.to }}" autocomplete="off" {% if f.mode != "forward" %}autofocus{% endif %} placeholder="name@company.com, …"></label>
+  <details class="compose-more"{% if f.cc or f.bcc %} open{% endif %}><summary class="lc-small">Cc / Bcc</summary>
+    <label class="compose-row"><span>Cc</span><input type="text" name="cc" value="{{ f.cc }}" autocomplete="off"></label>
+    <label class="compose-row"><span>Bcc</span><input type="text" name="bcc" value="{{ f.bcc|default:'' }}" autocomplete="off"></label>
+  </details>
+  <label class="compose-row"><span>Subject</span><input type="text" name="subject" value="{{ f.subject }}" maxlength="500"></label>
+  {% if templates %}
+  <div class="compose-row"><span>Template</span>
+    <select data-template aria-label="Insert a template">
+      <option value="">Insert a template…</option>
+      {% for t in templates %}<option value="{{ forloop.counter0 }}">{{ t.template_id }} · {{ t.name }}</option>{% endfor %}
+    </select>
+  </div>
+  {{ templates|json_script:"compose-templates" }}
+  {% endif %}
+  <textarea name="body" rows="12" class="compose-body" aria-label="Message" {% if f.mode == "forward" %}autofocus{% endif %} data-first-name="{{ first_name }}" data-html="{{ body_html }}">{{ body }}</textarea>
+  {% if signature_html %}<div class="compose-sig"><span class="muted lc-small">Your signature goes under it · <a href="{% url 'crm:mail_settings' %}#signature">Change</a></span><div class="compose-sig-preview">{{ signature_html|safe }}</div></div>{% endif %}
+  {% if original %}
+  <details class="compose-original"><summary class="lc-small">{% if f.mode == "forward" %}Forwarding{% else %}Replying to{% endif %} {{ original.from_name }}, {{ original.date|date:"M j, g:i a" }}</summary>
+    <p class="muted lc-small">{{ original.snippet }}</p>
+  </details>
+  {% endif %}
+  {% if f.forward_files %}
+  <fieldset class="compose-files"><legend class="lc-small">Attachments from the original</legend>
+    {% for a in f.forward_files %}<label class="lc-small"><input type="checkbox" name="forward_part" value="{{ a.part }}"{% if not kept_parts or a.part in kept_parts %} checked{% endif %}> 📎 {{ a.name }} <span class="muted">{{ a.size|filesizeformat }}</span></label>{% endfor %}
+  </fieldset>
+  {% endif %}
+  <label class="compose-attach lc-small">📎 Attach files <input type="file" name="files" multiple></label>
+  <div class="compose-actions">
+    <button class="btn-primary" data-send{% if not sending_on %} disabled{% endif %}>Send</button>
+    <span class="compose-countdown" data-countdown hidden>Sending in <strong data-seconds>10</strong>… <button type="button" class="btn btn-small" data-undo-send>Undo</button></span>
+    <span class="spacer"></span>
+    <button class="btn btn-small" formaction="{% url 'crm:inbox_draft_discard' %}" formnovalidate data-discard>Discard</button>
+  </div>
+</form>
+<script src="{% static 'crm/compose.js' %}?v={{ ASSET_VERSION }}"></script>
+<script src="{% static 'crm/attach.js' %}?v={{ ASSET_VERSION }}"></script>
+<script src="{% static 'crm/recipients.js' %}?v={{ ASSET_VERSION }}" data-url="{% url 'crm:inbox_suggest' %}"></script>
+{% endblock %}

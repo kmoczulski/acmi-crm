@@ -1,0 +1,40 @@
+{% extends "crm/base.html" %}
+{% load crm_tags %}
+{% block title %}{{ list.name }} · ACMI CRM{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>{{ list.name }}</h1>
+  <span class="muted">{{ entries|length }} {{ list.get_object_type_display|lower }}</span>
+  <span class="spacer"></span>
+  <a class="btn {% if view == 'board' %}btn-primary{% endif %}" href="?view=board">Board</a>
+  <a class="btn {% if view == 'table' %}btn-primary{% endif %}" href="?view=table">Table</a>
+</div>
+{% if list.description %}<p class="muted">{{ list.description }}</p>{% endif %}
+<p class="muted" style="font-size:12px">Add records from their page (“Add to list”).</p>
+
+{% if view == 'table' %}
+<div class="table-wrap"><table class="data">
+  <thead><tr><th>Record</th><th>Stage</th><th>Added</th><th></th></tr></thead>
+  <tbody>{% for e in entries %}{% with r=e.record %}
+    <tr><td><a href="{{ r.get_absolute_url }}">{{ r }}</a></td><td>{{ e.stage }}</td><td>{{ e.added_at|date:"M j, Y" }}</td>
+    <td><form method="post" action="{% url 'crm:list_entry_remove' e.pk %}">{% csrf_token %}<button class="btn-small">Remove</button></form></td></tr>
+  {% endwith %}{% empty %}<tr><td colspan="4" class="muted">Empty list.</td></tr>{% endfor %}</tbody>
+</table></div>
+{% else %}
+<div class="board">
+  {% for col in columns %}
+  <div class="column" data-stage="{{ col.stage }}">
+    <h4><span>{{ col.stage|default:"No stage" }} <span class="muted">{{ col.items|length }}</span></span></h4>
+    {% for e in col.items %}{% with r=e.record %}
+    <div class="kcard" draggable="true" data-url="{% url 'crm:list_entry_stage' e.pk %}">
+      <a href="{{ r.get_absolute_url }}">{{ r }}</a>
+      {% if e.person and e.person.company %}<div class="sub">{{ e.person.company.name }}</div>{% endif %}
+      {% if e.company %}<div class="sub">{{ e.company.get_status_display }}{% if e.company.last_interaction_at %} · touched {{ e.company.days_since_touch }}d ago{% endif %}</div>{% endif %}
+    </div>
+    {% endwith %}{% endfor %}
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}
+{% block scripts %}{% if view != 'table' %}{% include "crm/partials/board_js.html" %}{% endif %}{% endblock %}

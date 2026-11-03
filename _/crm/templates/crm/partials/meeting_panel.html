@@ -1,0 +1,40 @@
+{% load crm_tags humanize %}
+<div class="meeting-panel">
+  <div class="mp-head">
+    <div>
+      <h2>{{ m.title }}</h2>
+      <div class="muted">{{ m.start|date:"l, F j, Y · g:i A" }}{% if m.end %} – {{ m.end|time:"g:i A" }}{% endif %}</div>
+      <div style="margin-top:6px">
+        {% for c in m.companies.all %}<a class="chip chip-project" href="{{ c.get_absolute_url }}">{{ c.name }}</a>{% endfor %}
+        {% for f in m.firms.all %}{% include "crm/partials/firm_chip.html" %}{% endfor %}
+        {% if m.source == "invite" %}<span class="chip chip-prospecting" title="Read from an invite someone emailed or forwarded">Emailed invite</span>{% endif %}
+        {% if m.url %}<a href="{{ m.url }}" target="_blank" rel="noopener" style="font-size:12px">{% if m.source == 'granola' %}Open in Granola{% else %}Open in Google Calendar{% endif %} ↗</a>{% endif %}
+        {% if IS_MANAGER and m.transcript %}<a href="{% url 'crm:meeting_transcript' m.pk %}" style="font-size:12px;margin-left:8px">Transcript (.txt, {{ m.transcript.words|intcomma }} words)</a>{% endif %}
+      </div>
+    </div>
+    <button type="button" class="btn btn-small" data-close>Close</button>
+  </div>
+
+  <div class="mp-grid">
+    <div>
+      {% if m.unfiled %}{% include "crm/partials/unfiled_marker.html" %}{% endif %}
+      {% if items %}
+      <h3>Action items</h3>
+      {% if untasked > 1 %}<form method="post" action="{% url 'crm:meeting_make_tasks' m.pk %}" style="margin:0 0 8px">{% csrf_token %}
+        <input type="hidden" name="next" value="{{ next|default:request.get_full_path }}">
+        <button class="btn-small" title="Owners from the names in brackets, dates from phrases like &quot;by Friday&quot;; the same item from another meeting this week joins that task">Make tasks for all {{ untasked }} items</button></form>{% endif %}
+      {% for i in items %}{% include "crm/partials/action_item.html" %}{% endfor %}
+      {% endif %}
+
+      <h3>Summary</h3>
+      {% if summary_html %}<div class="granola">{{ summary_html }}</div>
+      {% else %}<p class="muted">No Granola notes for this meeting.</p>{% endif %}
+    </div>
+    <div>
+      <h3>Attendees ({{ m.attendees|length }})</h3>
+      <ul class="attendees">
+        {% for a in m.attendees %}<li>{{ a.name|default:a.email }}<span class="muted"> · {{ a.email }}</span>{% if a.email|lower in m.unfiled_emails %} <span class="tag" title="No person, company or firm has this address yet">No record</span>{% endif %}</li>{% endfor %}
+      </ul>
+    </div>
+  </div>
+</div>

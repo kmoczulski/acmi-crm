@@ -1,0 +1,11 @@
+{% if "zoning" not in page_hide and zoning.districts or "zoning" not in page_hide and zoning.undocumented or "zoning" not in page_hide and zoning.no_layer %}
+<article class="brief brief-zoning">
+  <div class="brief-top">{% include "crm/partials/report_logo.html" with width="105" %}<span>Zoning districts and permitted uses</span></div>
+  <h1>Zoning districts on these sites</h1>
+  <p class="sub">What each zoning code means, what it allows and its main standards, summarised from the jurisdiction's published zoning code. A summary is not a zoning verification letter: confirm uses and standards with the planning department, especially for uses the code does not name (data centers, explosives or energetics manufacturing).</p>
+  {% for ref in zoning.districts %}{% include "crm/partials/zoning_district.html" %}{% endfor %}
+  {% if zoning.undocumented %}<p class="small"><b>Codes with no researched definition:</b> {% for j, c in zoning.undocumented %}{{ c }} ({{ j }}){% if not forloop.last %}, {% endif %}{% endfor %}. Check the code or the zoning map legend.</p>{% endif %}
+  {% for county, text in zoning.no_layer.items %}<p class="small"><b>{{ county }}:</b> {{ text }}</p>{% endfor %}
+  <div class="brief-foot">Districts marked "check source" were read from a third-party copy of the code. Fields shown as not captured were not available in the text reviewed.</div>
+</article>
+{% endif %}

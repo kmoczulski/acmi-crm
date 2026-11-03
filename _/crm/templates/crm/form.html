@@ -1,0 +1,15 @@
+{% extends "crm/base.html" %}
+{% block title %}{{ title }} · ACMI CRM{% endblock %}
+{% block content %}
+<div class="page-head"><h1>{{ title }}</h1></div>
+<div class="panel" style="max-width:640px">
+  <form method="post" class="fields">{% csrf_token %}
+    {{ form.as_p }}
+    <button class="btn-primary">Save</button>
+    <a class="btn" href="{{ cancel }}">Cancel</a>
+  </form>
+</div>
+{% endblock %}
+{% block scripts %}
+{% if provider_names %}<datalist id="provider-names"></datalist>{% include "crm/partials/provider_names_js.html" %}{% endif %}
+{% endblock %}

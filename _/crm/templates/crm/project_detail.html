@@ -1,0 +1,89 @@
+{% extends "crm/base.html" %}
+{% load crm_tags %}
+{% block title %}{{ project.name }} · ACMI CRM{% endblock %}
+{% block content %}
+<nav class="crumbs no-print" aria-label="Breadcrumb"><a href="{% url 'crm:project_list' %}">Projects</a> › <span>{{ project.name }}</span></nav>
+<div class="record-head">
+  <h1>{{ project.name }}</h1>
+  {% if project.parent %}<a class="chip chip-project" href="{{ project.parent.get_absolute_url }}">{{ project.parent.name }}</a>{% endif %}
+  {% if project.address %}<span class="muted">{{ project.address }}</span>{% endif %}
+  <div class="record-nav"><a href="{% url 'crm:project_list' %}">All projects</a></div>
+</div>
+<div class="record">
+  <aside>
+    <div class="panel">
+      <h3>Details <button type="button" class="btn btn-small" style="float:right" onclick="document.getElementById('edit-dialog').showModal()">Edit</button></h3>
+      <dl class="details">
+        {% if project.campus %}<dt>Campus</dt><dd>{{ project.campus.name }}</dd>{% endif %}
+        {% if project.address %}<dt>Address</dt><dd>{{ project.address }}</dd>{% endif %}
+        <dt>Keywords</dt><dd>{% for k in project.keywords %}<span class="tag">{{ k }}</span> {% empty %}<span class="muted">none: nothing will be tagged</span>{% endfor %}</dd>
+        {% with sites=project.sites.all %}{% if sites %}<dt>Sites</dt><dd>{% for s in sites %}<a class="chip chip-project" href="{{ s.get_absolute_url }}">{{ s.name }}</a>{% endfor %}</dd>{% endif %}{% endwith %}
+        {% if project.description %}<dt>Notes</dt><dd>{{ project.description|linebreaksbr }}</dd>{% endif %}
+      </dl>
+      {% include "crm/partials/edit_dialog.html" %}
+    </div>
+    <div class="panel">
+      <h3>Companies involved ({{ companies|length }})</h3>
+      {% for c in companies %}
+        <div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--line);font-size:13px">
+          <a href="{{ c.get_absolute_url }}">{{ c.name }}</a><span class="muted">{{ c.n }} · {{ c.last|date:"M j" }}</span>
+        </div>
+      {% empty %}<p class="muted" style="margin:0">None yet.</p>{% endfor %}
+    </div>
+    {% include "crm/partials/drive_panel_slot.html" with kind="project" pk=project.pk %}
+  </aside>
+  <section>
+    <section class="panel" id="build">
+      <h3>Build <a href="{% url 'crm:project_build' project.pk %}" style="float:right;text-transform:none;letter-spacing:0">{% if build.empty %}Start{% else %}Open{% endif %}</a></h3>
+      {% if build.empty %}<p class="muted lc-small" style="margin:0">Schedule, team, GC selection, budget, change orders and draws, kept at the summary level.</p>
+      {% else %}
+        {% with m=build.schedule.next %}{% if m %}<div class="row-line"><span>Next: <b>{{ m.name }}</b></span><span class="lc-small">{% firstof m.forecast|date:"M j, Y" m.baseline|date:"M j, Y" %}{% if m.slip and m.slip > 0 %} <span class="overdue">+{{ m.slip }} d</span>{% endif %}</span></div>{% endif %}{% endwith %}
+        {% if build.gc %}<div class="row-line"><span>GC</span><span class="lc-small">{{ build.gc }}</span></div>{% elif build.bids %}<div class="row-line"><span>GC selection</span><span class="lc-small">{{ build.bids_in|length }} proposal{{ build.bids_in|length|pluralize }} in</span></div>{% endif %}
+        {% with t=build.budget.totals %}{% if build.budget.lines %}<div class="row-line"><span>Budget {{ t.current|money }}</span><span class="lc-small {% if t.variance > 0 %}overdue{% endif %}">forecast {{ t.forecast_total|money }}</span></div>{% endif %}{% endwith %}
+        {% if build.pending %}<div class="row-line"><span>Change orders pending</span><span class="lc-small">{{ build.pending|length }} · {{ build.pending_total|money }}</span></div>{% endif %}
+      {% endif %}
+    </section>
+    <section class="panel" id="capital">
+      <h3>Capital <a href="{% url 'crm:project_capital' project.pk %}" style="float:right;text-transform:none;letter-spacing:0">{% if capital.empty %}Start{% else %}Open{% endif %}</a></h3>
+      {% if capital.empty %}<p class="muted lc-small" style="margin:0">The capital stack: equity, the lenders being asked for debt, grants; their term sheets and every meeting and email with them.</p>
+      {% else %}
+        <div class="row-line"><span>{{ capital.stack.total.sought|money|default:"$0" }} sought</span><span class="lc-small">{{ capital.stack.total.committed|money|default:"$0" }} committed</span></div>
+        {% for s in capital.active %}<div class="row-line"><span><a href="{{ s.get_absolute_url }}">{{ s.provider }}</a> <span class="muted lc-small">· {{ s.get_kind_display }}</span></span><span class="pill cap-{{ s.status }}">{{ s.get_status_display }}</span></div>{% endfor %}
+        {% with s=capital.expiring %}{% if s %}<div class="row-line"><span>{{ s.provider }}'s {{ s.ts.get_kind_display|lower }}</span><span class="lc-small {% if s.expiring_in <= 14 %}overdue{% endif %}">{% if s.expiring_in < 0 %}expired{% else %}expires{% endif %} {{ s.ts.expires_on|date:"M j" }}</span></div>{% endif %}{% endwith %}
+      {% endif %}
+    </section>
+    <section class="panel" id="land-sites">
+      <h3>Land sites ({{ land_sites|length }}) <a href="{% url 'crm:land_search' %}" style="float:right;text-transform:none;letter-spacing:0">Find land</a></h3>
+      {% for s in land_sites %}
+        <div class="row-line">
+          <span><a href="{% url 'crm:land_site_detail' s.pk %}">{{ s.name }}</a> <span class="tag">{{ s.get_status_display }}</span></span>
+          <span class="lc-small">{% with acres=s.acres %}{% if acres %}{{ acres|floatformat:0 }} ac · {% endif %}{% endwith %}{{ s.parcels.all|length }} parcel{{ s.parcels.all|length|pluralize }}
+            <form method="post" action="{% url 'crm:project_site_set' project.pk %}" style="display:inline">{% csrf_token %}<input type="hidden" name="site" value="{{ s.pk }}"><button name="action" value="remove" class="btn-link" title="Take off this project">Remove</button></form></span>
+        </div>
+      {% empty %}<p class="muted lc-small" style="margin:0 0 8px">None yet. Click a parcel on the land search map and use “Add to project”, or add an existing site below.</p>{% endfor %}
+      {% if other_sites %}<form method="post" action="{% url 'crm:project_site_set' project.pk %}" style="display:flex;gap:6px;margin-top:8px">{% csrf_token %}
+        <select name="site" required style="flex:1"><option value="">Add an existing land site…</option>{% for s in other_sites %}<option value="{{ s.pk }}">{{ s.name }}{% if s.project %} (now in {{ s.project.name }}){% endif %}</option>{% endfor %}</select>
+        <button name="action" value="add" class="btn btn-small">Add</button></form>{% endif %}
+    </section>
+    {% with add_url=new_approval_url show_matrix=True for_project=project %}{% include "crm/partials/approval_panel.html" %}{% endwith %}
+    <div class="panel">
+      <h3>Correspondence</h3>
+      <ul class="timeline">{% for a in page %}
+        <li>
+          <span class="icon">{{ a.kind|kind_icon }}</span>
+          <div>
+            <div>{{ a.summary }}{% if a.outcome %} {{ a.outcome|pill:"response" }}{% endif %}</div>
+            <div class="meta">{% context_chip a %}{% if a.company %}<a href="{{ a.company.get_absolute_url }}">{{ a.company.name }}</a> · {% endif %}{% conversation a %}</div>
+          </div>
+          <span class="when">{{ a.occurred_at|date:"M j, Y" }}</span>
+        </li>
+      {% empty %}<li><span></span><span class="muted">No tagged correspondence yet.</span></li>{% endfor %}</ul>
+      {% if page.has_other_pages %}<div class="pager">
+        {% if page.has_previous %}<a href="?page={{ page.previous_page_number }}">‹ Newer</a>{% endif %}
+        <span>Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
+        {% if page.has_next %}<a href="?page={{ page.next_page_number }}">Older ›</a>{% endif %}
+      </div>{% endif %}
+    </div>
+  </section>
+</div>
+{% endblock %}

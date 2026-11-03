@@ -1,0 +1,35 @@
+{% extends "crm/base.html" %}
+{% load crm_tags %}
+{% block title %}News review · ACMI CRM{% endblock %}
+{% block content %}
+<div class="page-head"><h1>News review</h1></div>
+<p class="muted" style="margin-top:0">Weekly prospect news scans from <code>{{ folder }}</code>. Open a scan to review it: decide on each company,
+  edit its Gmail draft, then apply. Applying adds contacts, logs the decisions on each company's timeline, creates tasks
+  for contact research and new leads, saves draft edits and moves declined drafts to Gmail Trash.</p>
+<div class="grid-2">
+  <div class="panel">
+    <h3>Scan files</h3>
+    {% for f in files %}
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--line)">
+        <span>{{ f.name }}</span>
+        {% if f.scan %}
+          <a class="btn btn-small" href="{{ f.scan.get_absolute_url }}">{% if f.scan.status == 'applied' %}View (applied){% else %}Continue review{% endif %}</a>
+        {% else %}
+          <form method="post" action="{% url 'crm:news_import' %}" style="margin:0" onsubmit="this.querySelector('button').textContent='Reading scan and Gmail drafts…';this.querySelector('button').disabled=true">{% csrf_token %}
+            <input type="hidden" name="path" value="{{ f.path }}"><button class="btn-small btn-primary">Open for review</button>
+          </form>
+        {% endif %}
+      </div>
+    {% empty %}<p class="muted">No scan files found in that folder.</p>{% endfor %}
+  </div>
+  <div class="panel">
+    <h3>Reviews</h3>
+    {% for s in scans %}
+      <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--line)">
+        <a href="{{ s.get_absolute_url }}">{{ s }}</a>
+        <span class="muted" style="font-size:12px">{% if s.status == 'applied' %}applied {{ s.applied_at|date:"M j" }} by {{ s.applied_by|username }}{% else %}in review{% endif %}</span>
+      </div>
+    {% empty %}<p class="muted">None yet.</p>{% endfor %}
+  </div>
+</div>
+{% endblock %}

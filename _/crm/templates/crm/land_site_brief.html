@@ -1,0 +1,16 @@
+{% extends "crm/base.html" %}
+{% load static %}
+{% block title %}Brief · {{ site.name }} · ACMI CRM{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="{% static 'crm/brief.css' %}?v={{ ASSET_VERSION }}">
+<div class="brief-toolbar no-print">
+  <a href="{% url 'crm:land_site_detail' site.pk %}">← {{ site.name }}</a>
+  <span class="spacer"></span>
+  <a class="btn" href="{% url 'crm:land_site_customize' site.pk %}">Add / remove sections</a>
+  <a class="btn" href="{% url 'crm:land_site_listing' site.pk %}">Edit listing details</a>
+  <form method="post" style="display:inline">{% csrf_token %}<button class="btn">Re-run live checks</button></form>
+  <a class="btn btn-primary" href="?format=pdf" title="Downloads this brief and its notes as a PDF">Save as PDF</a>
+  <button class="btn" onclick="window.print()">Print</button>
+</div>
+{% if brief %}{% include "crm/partials/site_brief.html" with b=brief %}{% include "crm/partials/site_brief_detail.html" with b=brief %}{% include "crm/partials/brief_zoning.html" %}{% include "crm/partials/brief_notes.html" %}{% else %}<p class="muted">This site has no parcels yet.</p>{% endif %}
+{% endblock %}

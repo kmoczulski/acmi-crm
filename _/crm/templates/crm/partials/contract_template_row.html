@@ -1,0 +1,7 @@
+{% load crm_tags %}<div class="ct-template">
+  <div><b>{{ t.name }}</b> <span class="muted lc-small">· {{ t.points|length }} point{{ t.points|length|pluralize }}{% if t.runs %} · used {{ t.runs }} time{{ t.runs|pluralize }}{% endif %}</span>
+    <a class="btn btn-small" href="{% url 'crm:contract_template_edit' t.pk %}">{% if t.builtin %}Copy{% else %}Edit{% endif %}</a></div>
+  {% if t.description %}<div class="lc-small">{{ t.description }}</div>{% endif %}
+  <div class="muted lc-small">{% if t.kinds %}For {% for k in t.kinds %}{{ kind_labels|get_item:k }}{% if not forloop.last %}, {% endif %}{% endfor %}{% else %}Any agreement{% endif %}</div>
+  <details class="lc-small"><summary>Points</summary><ol>{% for p in t.points %}<li><b>{{ p.label }}</b>{% if p.ask %}: {{ p.ask }}{% endif %}</li>{% endfor %}</ol></details>
+</div>

@@ -1,0 +1,28 @@
+{% extends "crm/base.html" %}
+{% load crm_tags %}
+{% block title %}{{ batch }} · Outreach{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>{{ batch }}</h1>
+  <span class="pill {% if batch.status == 'done' %}pill-good{% elif batch.status == 'failed' %}pill-bad{% endif %}">{{ batch.get_status_display }}</span>
+  <span class="spacer"></span>
+  {% if active %}<form method="post" action="{% url 'crm:send_batch_stop' batch.pk %}" style="margin:0">{% csrf_token %}<button class="btn-small btn-danger">Stop</button></form>{% endif %}
+  <a class="btn" href="{% url 'crm:outreach_home' %}">Outreach</a>
+</div>
+{% if batch.error %}<div class="panel" style="background:var(--bad-bg)">{{ batch.error }}</div>{% endif %}
+<div class="cards">
+  <div class="card"><div class="label">Sent</div><div class="value">{{ counts.sent|default:0 }}</div></div>
+  <div class="card"><div class="label">Waiting</div><div class="value">{{ counts.pending|default:0 }}</div></div>
+  <div class="card"><div class="label">Failed</div><div class="value">{{ counts.failed|default:0 }}</div></div>
+  {% if counts.sending and not active %}<div class="card" title="These were being sent when the process stopped: check Gmail Sent before resending."><div class="label">Unconfirmed</div><div class="value">{{ counts.sending }}</div></div>{% endif %}
+  <div class="card"><div class="label">Started</div><div class="value" style="font-size:14px">{{ batch.started_at|date:"M j, g:i a"|default:"—" }}</div><div class="sub">by {{ batch.created_by|username }}</div></div>
+</div>
+<div class="table-wrap"><table class="data">
+  <thead><tr><th>Person</th><th>Email</th><th>Template</th><th>Status</th><th>Sent</th></tr></thead>
+  <tbody>{% for i in items %}
+    <tr><td>{% if i.person %}<a href="{{ i.person.get_absolute_url }}">{{ i.person }}</a>{% endif %}</td><td>{{ i.email }}</td><td>{{ i.template.template_id }}</td>
+      <td>{% if i.status == 'failed' %}<span class="overdue" title="{{ i.error }}">Failed</span>{% else %}{{ i.get_status_display }}{% endif %}</td><td>{{ i.sent_at|date:"g:i:s a" }}</td></tr>
+  {% endfor %}</tbody>
+</table></div>
+{% endblock %}
+{% block scripts %}{% if active %}<script>setTimeout(() => location.reload(), 5000);</script>{% endif %}{% endblock %}

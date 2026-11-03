@@ -1,0 +1,9 @@
+{% load crm_tags %}<ul class="ct-deadlines">
+  {% for r in d.overdue %}<li class="overdue-row"><span class="ct-when overdue">{{ r.date|date:"M j" }}</span>
+    <span>{% if r.tag %}<span class="tag">{{ r.tag }}</span> {% endif %}<a href="{{ r.url }}">{{ r.what }}</a>: {{ r.label }}{% if r.amount %} · {{ r.amount|money }}{% endif %}
+    <span class="overdue lc-small">{{ r.late }} day{{ r.late|pluralize }} late</span></span></li>{% endfor %}
+  {% for r in d.soon %}<li><span class="ct-when{% if r.left <= 7 %} soon{% endif %}">{{ r.date|date:"M j" }}</span>
+    <span>{% if r.tag %}<span class="tag">{{ r.tag }}</span> {% endif %}<a href="{{ r.url }}">{{ r.what }}</a>: {{ r.label }}{% if r.amount %} · {{ r.amount|money }}{% endif %}
+    <span class="muted lc-small">{% if r.left == 0 %}today{% else %}in {{ r.left }} day{{ r.left|pluralize }}{% endif %}{% if r.who %} · {{ r.who|username }}{% endif %}</span></span></li>{% endfor %}
+  {% if not d.overdue and not d.soon %}<li class="muted">Nothing due in the next {{ d.days }} days.</li>{% endif %}
+</ul>

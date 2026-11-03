@@ -1,0 +1,8 @@
+{% if nav %}
+<div class="record-nav">
+  <a href="{{ back_url }}{{ nav.back }}">Back to list</a>
+  {% if nav.prev %}<a class="btn btn-small" href="{% url detail_url nav.prev %}{{ nav.suffix }}" title="Previous">‹</a>{% endif %}
+  <span>{{ nav.position }} of {{ nav.total }}</span>
+  {% if nav.next %}<a class="btn btn-small" href="{% url detail_url nav.next %}{{ nav.suffix }}" title="Next">›</a>{% endif %}
+</div>
+{% endif %}

@@ -1,0 +1,12 @@
+<div class="clist" data-limit="10">
+{% for s in suggestions %}
+  <div class="row-line" style="align-items:flex-start">
+    <span><a href="{{ s.company.get_absolute_url }}"><strong>{{ s.company.name }}</strong></a> <span class="muted">→ {{ s.stage_label }}</span>
+      <div class="muted" style="font-size:12px">{% for f in s.files %}<span class="tag">{{ f.category }}</span> {{ f.filename|truncatechars:60 }} · {{ f.activity.occurred_at|date:"M j" }}{% if not forloop.last %}<br>{% endif %}{% endfor %}</div></span>
+    <span style="white-space:nowrap">
+      <form method="post" action="{% url 'crm:suggestion_create' s.company.pk %}" style="display:inline">{% csrf_token %}<button class="btn-small btn-primary">Create deal</button></form>
+      <form method="post" action="{% url 'crm:suggestion_dismiss' s.company.pk %}" style="display:inline">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button class="btn-small" title="Not a deal">Not a deal</button></form>
+    </span>
+  </div>
+{% endfor %}
+</div>

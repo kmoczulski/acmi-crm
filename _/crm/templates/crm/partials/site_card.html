@@ -1,0 +1,126 @@
+{% load crm_tags %}
+{% load humanize %}
+<div class="scard site-{{ site.status }}" data-site="{{ site.pk }}">
+  <header class="scard-head">
+    <div class="scard-title">
+      <span class="pill site-{{ site.status }}">{{ site.get_status_display }}</span>
+      <h2>{{ site.name }}</h2>
+      <div class="muted lc-small">{{ site.home_label }}{% if counties %} · {{ counties|join:" · " }}{% endif %}</div>
+    </div>
+    <button type="button" class="scard-x" data-card-close aria-label="Close">×</button>
+  </header>
+  {% if error %}<div class="scard-error">{{ error }}</div>{% endif %}
+  <div class="scard-body">
+    <main class="scard-main">
+      <div class="scard-facts">
+        <div><b>{{ acres|floatformat:1|intcomma }}</b><span>acres</span></div>
+        <div><b>{% if net is not None %}{{ net|floatformat:0|intcomma }}{% else %}–{% endif %}</b><span>net usable</span></div>
+        <div><b>{{ n_parcels }}</b><span>parcel{{ n_parcels|pluralize }}</span></div>
+        <div><b>{{ owners|length }}</b><span>owner{{ owners|length|pluralize }}</span></div>
+        <div><b>{% if score is not None %}{{ score }}{% else %}–{% endif %}</b><span>best score</span></div>
+        <div><b>{% if clock %}{{ clock.days }}d{% else %}–{% endif %}</b><span>deal clock</span></div>
+      </div>
+
+      <section class="scard-sec scard-ai">
+        <h3>✦ AI summary {% if summary.when %}<span class="muted lc-small">· {{ summary.when|date:"M j, g:i A" }}{% if summary.stale %} · new activity since{% endif %}</span>{% endif %}</h3>
+        {% if summary %}
+          <p class="scard-headline">{{ summary.headline }}</p>
+          <p>{{ summary.status }}</p>
+          {% if summary.risks %}<ul class="scard-risks">{% for r in summary.risks %}<li>{{ r }}</li>{% endfor %}</ul>{% endif %}
+          {% if summary.next_step %}<p class="scard-next"><b>Next:</b> {{ summary.next_step }}</p>{% endif %}
+        {% else %}<p class="muted">No summary yet. Claude reads the site's land, stage, timeline, contracts, tenants, diligence and comments and writes where it stands.</p>{% endif %}
+        <form method="post" data-card-form>{% csrf_token %}<input type="hidden" name="action" value="summary"><button class="btn btn-small" data-busy="Writing…">{% if summary %}Refresh summary{% else %}Write summary{% endif %}</button></form>
+      </section>
+
+      <section class="scard-sec">
+        <h3>Timeline {% if clock %}<span class="muted lc-small">· {{ clock.days }} days since {{ clock.start_label|lower }}{% if not clock.closed %}, {{ clock.since_last }}d since {{ clock.last_label|lower }}{% endif %}</span>{% endif %}</h3>
+        <ol class="scard-steps">{% for m in milestones %}
+          <li class="{% if m.date %}done{% endif %}{% if m.date and m.date > today %} future{% endif %}"><i></i><span>{{ m.label }}</span><span class="muted">{% if m.date %}{{ m.date|date:"M j, Y" }}{% if m.gap %} · +{{ m.gap }}d{% endif %}{% else %}–{% endif %}</span></li>{% endfor %}
+        </ol>
+        {% if events %}<details class="scard-log"><summary>Recent changes ({{ events|length }})</summary>{% for e in events %}<div><span class="muted">{{ e.when|date:"M j" }}</span> {{ e.text }}{% if e.user %} <span class="muted">· {{ e.user.first_name|default:e.user.username }}</span>{% endif %}</div>{% endfor %}</details>{% endif %}
+      </section>
+
+      {% if critical %}<section class="scard-sec">
+        <h3>Critical dates <span class="muted lc-small">from the contracts</span></h3>
+        {% for d in critical %}<a class="scard-date{% if d.done %} done{% elif d.left < 0 %} late{% elif d.left <= 14 %} soon{% endif %}" href="{{ d.contract.get_absolute_url }}">
+          <span class="sd-when">{% if d.date %}{{ d.date|date:"M j, Y" }}{% else %}Not fixed{% endif %}</span>
+          <span>{{ d.label }}{% if not d.confirmed %} <span class="tag">to confirm</span>{% endif %}<span class="muted lc-small"> · {{ d.contract.title }}{% if d.rule %} · {{ d.rule }}{% endif %}</span></span>
+          <span class="sd-left">{% if d.done %}✓ Done{% elif d.left < 0 %}{{ d.left|stringformat:"d"|slice:"1:" }}d late{% elif d.left == 0 %}today{% else %}{{ d.left }}d{% endif %}</span>
+        </a>{% endfor %}
+      </section>{% endif %}
+
+      <section class="scard-sec">
+        <h3>Contracts <span class="muted lc-small">{{ contracts|length }}</span></h3>
+        {% for c in contracts %}<a class="scard-row" href="{{ c.get_absolute_url }}">
+          <div><b>{{ c.title }}</b> <span class="tag">{{ c.get_kind_display }}</span> <span class="tag">{{ c.get_status_display }}</span></div>
+          <div class="muted lc-small">{% if c.counterparty %}{{ c.counterparty }} · {% endif %}{% if c.price %}${{ c.price|floatformat:0|intcomma }} · {% endif %}{% if c.acres %}{{ c.acres|floatformat:0 }} ac · {% endif %}{% if c.effective_date %}effective {{ c.effective_date|date:"M j, Y" }}{% else %}not signed{% endif %}{% if c.waiting_on %} · ball with {{ c.get_waiting_on_display|lower }}{% endif %}</div>
+          {% if c.next %}<div class="lc-small {% if c.next.left <= 14 %}overdue{% endif %}">Next date: {{ c.next.label }}{% if c.next.date %}, {{ c.next.date|date:"M j, Y" }}{% endif %}</div>{% endif %}
+          {% if c.next_step %}<div class="lc-small">Next step: {{ c.next_step }}</div>{% endif %}
+        </a>{% empty %}<p class="muted lc-small">No contracts on this site.</p>{% endfor %}
+      </section>
+
+      <section class="scard-sec">
+        <h3>Tenants <span class="muted lc-small">{{ tenants|length }} linked</span></h3>
+        {% for o in tenants %}<a class="scard-row" href="{{ o.get_absolute_url }}">
+          <div><b>{{ o.company.name|default:o.name }}</b> <span class="tag">{{ o.get_stage_display }}</span></div>
+          <div class="muted lc-small">{{ o.name }}{% if o.acreage_need %} · {{ o.acreage_need|floatformat:0 }} ac{% endif %}{% if o.sq_ft_need %} · {{ o.sq_ft_need|intcomma }} sf{% endif %}{% if o.power_need_mw %} · {{ o.power_need_mw|floatformat:0 }} MW{% endif %}{% if o.target_close %} · close {{ o.target_close|date:"M Y" }}{% endif %}{% if o.owner %} · {{ o.owner.first_name|default:o.owner.username }}{% endif %}</div>
+        </a>{% empty %}<p class="muted lc-small">No tenant deals linked.{% if unlinked_campus %} {{ unlinked_campus|length }} open at {{ site.campus.code }}: link them below.{% endif %}</p>{% endfor %}
+        {% if tenant_choices %}<form method="post" data-card-form class="scard-add">{% csrf_token %}<input type="hidden" name="action" value="tenant_link">
+          <select name="opportunity" style="flex:1;min-width:0">{% for o in tenant_choices %}<option value="{{ o.pk }}">{{ o.company.name|default:"" }} · {{ o.name }}{% if o in unlinked_campus %} (at {{ site.campus.code }}){% endif %}</option>{% endfor %}</select>
+          <button class="btn btn-small">Link</button></form>{% endif %}
+      </section>
+
+      {% if dd or approvals %}<section class="scard-sec scard-two">
+        <div><h3>Due diligence</h3>{% if dd %}<p class="lc-small"><b>{{ dd.cleared }}</b> of {{ dd.count }} cleared{% if dd.issues %} · <span class="overdue">{{ dd.issues|length }} issue{{ dd.issues|length|pluralize }}</span>{% endif %}{% if dd.end %}<br>Feasibility ends {{ dd.end|date:"M j, Y" }}{% if dd.days_left is not None %} ({% if dd.days_left >= 0 %}{{ dd.days_left }}d left{% else %}{{ dd.days_ago }}d ago{% endif %}){% endif %}{% endif %}</p>{% else %}<p class="muted lc-small">Not started.</p>{% endif %}</div>
+        <div><h3>Approvals</h3>{% for a in approvals %}<div class="lc-small">{{ a.get_kind_display }} <span class="muted">· {{ a.get_status_display }}</span></div>{% empty %}<p class="muted lc-small">None tracked.</p>{% endfor %}</div>
+      </section>{% endif %}
+
+      <section class="scard-sec">
+        <h3>Checklist <span class="muted lc-small">{{ open_tasks }} open</span></h3>
+        {% for t in tasks %}<form method="post" data-card-form class="scard-task{% if t.done %} done{% endif %}">{% csrf_token %}<input type="hidden" name="action" value="task_toggle"><input type="hidden" name="task" value="{{ t.pk }}">
+          <button class="scard-tick" aria-label="{% if t.done %}Reopen{% else %}Mark done{% endif %}">{% if t.done %}✓{% endif %}</button>
+          <a href="{{ t.get_absolute_url }}">{% if t.label %}<span class="tlabel tl-{{ t.label }}">{{ t.get_label_display }}</span> {% endif %}{{ t.title }}</a>
+          <span class="muted lc-small{% if t.is_overdue %} overdue{% endif %}">{% if t.due_date %}{{ t.due_date|date:"M j" }}{% if t.due_time %} {{ t.due_time|time:"g:i A" }}{% endif %}{% endif %}{% if t.assignee %} · {{ t.assignee.first_name|default:t.assignee.username }}{% endif %}</span>
+        </form>{% endfor %}
+        <form method="post" data-card-form class="scard-add">{% csrf_token %}<input type="hidden" name="action" value="task_add">
+          <input name="title" placeholder="Add an item…" required maxlength="300">
+          <select name="label" title="Label"><option value="">Label</option>{% for v, l in labels|offer %}<option value="{{ v }}">{{ l }}</option>{% endfor %}</select>
+          <input type="date" name="due_date" title="Due date"><input type="time" name="due_time" title="Time (optional)">
+          <select name="assignee" title="Who">{% for u in users %}<option value="{{ u.pk }}"{% if u == request.user %} selected{% endif %}>{{ u.first_name|default:u.username }}</option>{% endfor %}</select>
+          <button class="btn btn-small">Add</button>
+        </form>
+      </section>
+
+      <section class="scard-sec">
+        <h3>Comments</h3>
+        <form method="post" data-card-form class="scard-comment">{% csrf_token %}<input type="hidden" name="action" value="comment">
+          <textarea name="text" rows="2" placeholder="Write a comment… @name to notify someone" required></textarea>
+          <button class="btn btn-small btn-primary">Save</button>
+        </form>
+        {% for c in comments %}<div class="scard-cmt"><b>{{ c.author.first_name|default:c.author.username|default:"Someone" }}</b> <span class="muted lc-small">{{ c.created_at|date:"M j, g:i A" }}</span><div>{{ c.body|linebreaksbr }}</div></div>{% endfor %}
+      </section>
+    </main>
+
+    <aside class="scard-side">
+      <a class="btn btn-primary" href="{% url 'crm:land_site_detail' site.pk %}">Open site page →</a>
+      <a class="btn" href="{% url 'crm:land_site_brief' site.pk %}">Site brief</a>
+      <a class="btn" href="{{ site.map_url }}">Show on map</a>
+      <form method="post" data-card-form>{% csrf_token %}<input type="hidden" name="action" value="status">
+        <label class="scard-label">Stage</label>
+        <select name="status" data-autosubmit>{% for v, l in statuses|offer:site.status %}<option value="{{ v }}"{% if v == site.status %} selected{% endif %}>{{ l }}</option>{% endfor %}</select>
+      </form>
+      <form method="post" data-card-form>{% csrf_token %}<input type="hidden" name="action" value="people">
+        <label class="scard-label">Run by</label>
+        <select name="owner" data-autosubmit><option value="">Nobody</option>{% for u in users %}<option value="{{ u.pk }}"{% if u.pk == site.owner_id %} selected{% endif %}>{{ u.first_name|default:u.username }}</option>{% endfor %}</select>
+        {% for u in site.team.all %}<input type="hidden" name="team" value="{{ u.pk }}">{% endfor %}
+      </form>
+      {% if site.team.all %}<div class="scard-label">Team</div><div class="scard-members">{% for u in site.team.all %}<span class="avatar" title="{{ u.get_full_name|default:u.username }}">{{ u.first_name|default:u.username|slice:":1"|upper }}{{ u.last_name|slice:":1"|upper }}</span>{% endfor %}</div>{% endif %}
+      <div class="scard-label">Landowners</div>
+      {% for o, ac in owners|slice:":5" %}<div class="lc-small">{{ o|title }} <span class="muted">{{ ac|floatformat:0 }} ac</span></div>{% endfor %}{% if owners|length > 5 %}<div class="muted lc-small">+{{ owners|length|add:"-5" }} more</div>{% endif %}
+      <div class="scard-label">Zoning</div>
+      {% for z, ac in zoning %}<div class="lc-small">{{ z }} <span class="muted">{{ ac|floatformat:0 }} ac</span></div>{% endfor %}
+      {% if killers %}<div class="scard-label">Deal-killers</div>{% for k in killers %}<div class="sc-flag" title="{{ k }}">⛔ {{ k }}</div>{% endfor %}{% endif %}
+      {% if site.notes %}<div class="scard-label">Notes</div><div class="lc-small scard-notes">{{ site.notes|truncatechars:400|linebreaksbr }}</div>{% endif %}
+    </aside>
+  </div>
+</div>

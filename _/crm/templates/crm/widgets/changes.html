@@ -1,0 +1,11 @@
+{% load crm_tags humanize %}{# Dashboard widget: pipeline changes this week (changes) #}
+<div class="clist" data-limit="10">
+      {% for m in changes.moves %}
+        <div class="row-line"><span><a href="{{ m.opp.get_absolute_url }}">{{ m.opp.name }}</a>: {{ m.old_value|default:"—" }} → <strong>{{ m.new_value }}</strong></span>
+          <span class="muted">{{ m.changed_at|date:"M j" }}{% if m.changed_by %} · {{ m.changed_by|username }}{% endif %}</span></div>
+      {% endfor %}
+      {% for o in changes.new %}
+        <div class="row-line"><span>New: <a href="{{ o.get_absolute_url }}">{{ o.name }}</a></span><span class="muted">{{ o.created_at|date:"M j" }}</span></div>
+      {% endfor %}
+      </div>
+      {% if not changes.moves and not changes.new %}<p class="muted" style="margin:0">No stage changes in the last 7 days.</p>{% endif %}

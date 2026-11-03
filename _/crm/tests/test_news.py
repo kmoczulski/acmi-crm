@@ -1,0 +1,179 @@
+import tempfile
+from pathlib import Path
+from unittest.mock import patch
+
+from django.contrib.auth import get_user_model
+from django.test import TestCase, override_settings
+
+from crm.models import Activity, Company, Mailbox, NewsItem, NewsScan, Note, Person, Task
+from crm.news import review
+
+ME = "kmoczulski@acmigroup.com"
+
+SCAN_TEXT = [
+    "Weekly Prospect News Scan",
+    "October 14, 2026",
+    "This week's scan covered 3 companies.",
+    "Active Discussions",
+    "Firehawk Aerospace",
+    "Headline: Firehawk opens Texas propellant plant",
+    "Date: 2026-10-12",
+    "Source: https://example.com/firehawk",
+    "Synopsis: New 100k sf plant.",
+    "Outreach action: Outreach draft created in Gmail - follow-up to Ben Allen",
+    "Framing: Congratulate, ask about east coast capacity.",
+    "Trello card: Updated",
+    "Valinor",
+    "Headline: Valinor raises $85M",
+    "Date: 2026-10-10",
+    "Source: https://example.com/valinor",
+    "Synopsis: Defense holding company raise.",
+    "Outreach action: Outreach draft created in Gmail - needs contact lookup",
+    "Framing: Intro.",
+    "Trello card: Updated",
+    "Cold",
+    "Old Co",
+    "Headline: Old Co restructures",
+    "Date: 2026-10-01",
+    "Source: https://example.com/oldco",
+    "Synopsis: Layoffs.",
+    "Outreach action: Outreach draft created in Gmail - cold intro to Pat Smith",
+    "Framing: Skip.",
+    "Trello card: Updated",
+]
+
+
+def make_docx(folder, name="Weekly Prospect News Scan - October 14, 2026.docx"):
+    import docx
+
+    d = docx.Document()
+    for line in SCAN_TEXT:
+        d.add_paragraph(line)
+    path = Path(folder) / name
+    d.save(path)
+    return path
+
+
+DRAFTS = [
+    {"uid": "11", "subject": "ACMI x Firehawk Aerospace: Texas plant", "to": "Ben Allen <ben@firehawkaerospace.com>",
+     "cc": "", "html": "<p>Hi Ben</p>", "snippet": "Hi Ben", "too_large": False},
+    {"uid": "12", "subject": "ACMI x Valinor: congrats", "to": ME, "cc": "",
+     "html": "<p>No verified contact found for Valinor</p>", "snippet": "No verified contact found for Valinor",
+     "too_large": False},
+    {"uid": "13", "subject": "ACMI x Old Co: hello", "to": "Pat Smith <pat@oldco.com>", "cc": "",
+     "html": "<p>Hi Pat</p>", "snippet": "Hi Pat", "too_large": False},
+]
+
+
+class FakeDrafts:
+    """Stands in for crm.news.drafts.Drafts."""
+
+    calls = []
+
+    def __init__(self, mailbox):
+        pass
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+    def list(self):
+        return [dict(d) for d in DRAFTS]
+
+    def update(self, uid, to, subject, html, cc=""):
+        FakeDrafts.calls.append(("update", uid, to, subject))
+        return "99"
+
+    def trash(self, uids):
+        FakeDrafts.calls.append(("trash", tuple(uids)))
+        return {u: "trashed" for u in uids}
+
+
+class NewsReviewTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create(username="kellen", email=ME)
+        Mailbox.objects.create(user=self.user, email=ME)
+        self.client.force_login(self.user)
+        self.firehawk = Company.objects.create(name="Firehawk Aerospace, Inc.")
+        self.tmp = tempfile.TemporaryDirectory()
+        self.path = make_docx(self.tmp.name)
+        FakeDrafts.calls = []
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def open_scan(self):
+        with override_settings(NEWS_WATCH_FOLDER=self.tmp.name), patch("crm.news.drafts.Drafts", FakeDrafts):
+            self.assertContains(self.client.get("/news/"), "October 14, 2026")
+            r = self.client.post("/news/import/", {"path": str(self.path)})
+        scan = NewsScan.objects.get()
+        self.assertRedirects(r, scan.get_absolute_url())
+        return scan
+
+    def item(self, scan, name):
+        return scan.items.get(company_name=name)
+
+    def test_import_parses_and_matches(self):
+        scan = self.open_scan()
+        self.assertEqual(scan.scan_date, "October 14, 2026")
+        self.assertEqual(scan.items.filter(kind="board").count(), 3)
+        fh = self.item(scan, "Firehawk Aerospace")
+        self.assertEqual(fh.company, self.firehawk)  # matched despite ", Inc."
+        self.assertEqual((fh.section, fh.draft_uid), ("Active Discussions", "11"))
+        self.assertEqual(self.item(scan, "Valinor").draft_uid, "12")
+        page = self.client.get(scan.get_absolute_url())
+        self.assertContains(page, "Firehawk opens Texas propellant plant")
+        self.assertContains(page, "No contact identified")  # Valinor's draft is addressed only to us
+
+    def test_review_and_apply(self):
+        scan = self.open_scan()
+        fh, val, old = (self.item(scan, n) for n in ("Firehawk Aerospace", "Valinor", "Old Co"))
+        self.client.post(f"/news/items/{fh.pk}/", {"decision": "proceed", "note": "Push for a site tour",
+                                                   "edit_subject": "ACMI x Firehawk: Texas plant + Indiana"})
+        self.client.post(f"/news/items/{val.pk}/", {"decision": "proceed"})
+        self.client.post(f"/news/items/{old.pk}/", {"decision": "decline"})
+        plan = self.client.get(f"/news/{scan.pk}/plan/")
+        self.assertContains(plan, "Find contact at Valinor")
+        self.assertContains(plan, "ben@firehawkaerospace.com")
+
+        with patch("crm.news.drafts.Drafts", FakeDrafts):
+            self.client.post(f"/news/{scan.pk}/plan/")
+            self.client.post(f"/news/{scan.pk}/plan/")  # a second click must not apply again
+        scan.refresh_from_db()
+        self.assertEqual(scan.status, "applied")
+        self.assertIn(("update", "11", "Ben Allen <ben@firehawkaerospace.com>", "ACMI x Firehawk: Texas plant + Indiana"),
+                      FakeDrafts.calls)
+        self.assertIn(("trash", ("13",)), FakeDrafts.calls)
+        self.assertEqual(sum(c[0] == "trash" for c in FakeDrafts.calls), 1)
+
+        ben = Person.objects.get(email="ben@firehawkaerospace.com")
+        self.assertEqual((ben.full_name, ben.company), ("Ben Allen", self.firehawk))
+        valinor = Company.objects.get(name="Valinor")  # created for the research task
+        self.assertTrue(Task.objects.filter(title="Find contact at Valinor", company=valinor, assignee=self.user).exists())
+        self.assertFalse(Company.objects.filter(name="Old Co").exists())  # declined, not in CRM: nothing created
+        log = Activity.objects.get(source="news_scan", company=self.firehawk, kind="news_trigger")
+        self.assertEqual((log.outcome, log.context), ("Approved", "prospecting"))
+        self.assertTrue(Note.objects.filter(company=self.firehawk, body__contains="Push for a site tour").exists())
+        self.assertEqual(scan.results["contacts_added"], 1)
+        # Locked after apply.
+        r = self.client.post(f"/news/items/{fh.pk}/", {"decision": "decline"})
+        self.assertEqual(r.status_code, 409)
+
+    def test_prospect_pursue_creates_company_and_task(self):
+        scan = self.open_scan()
+        p = NewsItem.objects.create(scan=scan, kind="prospect", tier="strong", company_name="Aventra",
+                                    hq="Virginia", what_they_do="Glide bombs", why_fits="Munitions maker",
+                                    headline="Raised $17.5M", position=1000)
+        self.client.post(f"/news/items/{p.pk}/", {"decision": "pursue"})
+        with patch("crm.news.drafts.Drafts", FakeDrafts):
+            review.apply(scan, self.user)
+        aventra = Company.objects.get(name="Aventra")
+        self.assertEqual((aventra.hq_location, aventra.description), ("Virginia", "Glide bombs"))
+        self.assertTrue(Task.objects.filter(title="Research new lead: Aventra").exists())
+
+    def test_bad_decision_rejected(self):
+        scan = self.open_scan()
+        r = self.client.post(f"/news/items/{self.item(scan, 'Valinor').pk}/", {"decision": "pursue"})
+        self.assertEqual(r.status_code, 400)

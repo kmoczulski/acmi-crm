@@ -1,0 +1,77 @@
+{% extends "crm/base.html" %}
+{% load crm_tags %}
+{% block title %}{{ task.title }} · ACMI CRM{% endblock %}
+{% block content %}
+<nav class="crumbs no-print" aria-label="Breadcrumb"><a href="{% url 'crm:task_list' %}">My tasks</a>{% if task.company %} › <a href="{{ task.company.get_absolute_url }}">{{ task.company.name }}</a>{% endif %}</nav>
+<div class="record-head">
+  <form method="post" action="{% url 'crm:task_toggle' task.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}">
+    <input type="checkbox" {% if task.done %}checked{% endif %} onchange="this.form.submit()" title="Mark done" style="width:18px;height:18px"></form>
+  <div class="te-title" data-edit-box>
+    <div data-view>
+      <h1 class="{% if task.done %}done{% endif %}" data-open title="Click to rename">{{ task.title }}</h1>
+      <button type="button" class="btn-link te-pencil" data-open title="Rename task" aria-label="Rename task">✎</button>
+    </div>
+    <form method="post" action="{% url 'crm:task_text' task.pk %}" data-form hidden>{% csrf_token %}
+      <input name="title" value="{{ task.title }}" maxlength="300" required aria-label="Task name">
+      <button class="btn-small btn-primary">Save</button> <button type="button" class="btn-small" data-cancel>Cancel</button>
+    </form>
+  </div>
+  {% if task.repeat %}<span class="tag" title="Repeats">↻ {{ task.get_repeat_display }}</span>{% endif %}
+  {% if task.due_date %}<span class="{% if task.is_overdue %}overdue{% endif %}">Due {{ task.due_date|date:"D M j, Y" }}{% if task.due_time %} at {{ task.due_time|time:"g:i A" }}{% endif %}</span>{% endif %}
+  <div class="record-nav"><a href="{% url 'crm:task_list' %}">All tasks</a></div>
+</div>
+<div class="record te-record">
+  <aside>
+    <div class="panel">
+      <h3>Card</h3>
+      <form method="post" class="stack-form">{% csrf_token %}
+        {% for f in form %}{% if f.name != "title" and f.name != "notes" %}<label class="muted" style="font-size:12px;display:block">{{ f.label }}</label>{{ f }}{% if f.errors %}<div class="errorlist">{{ f.errors.0 }}</div>{% endif %}{% endif %}{% endfor %}
+        <button class="btn-small btn-primary">Save</button>
+      </form>
+    </div>
+    <div class="panel">
+      <h3>Linked to</h3>
+      <dl class="details">
+        {% if task.company %}<dt>Company</dt><dd><a href="{{ task.company.get_absolute_url }}">{{ task.company.name }}</a></dd>{% endif %}
+        {% if task.opportunity %}<dt>Deal</dt><dd><a href="{{ task.opportunity.get_absolute_url }}">{{ task.opportunity.name }}</a></dd>{% endif %}
+        {% if task.person %}<dt>Person</dt><dd><a href="{{ task.person.get_absolute_url }}">{{ task.person }}</a></dd>{% endif %}
+        {% with ms=task.meetings.all %}{% if ms %}<dt>Meeting{{ ms|length|pluralize }}</dt><dd>{% for x in ms %}<a href="{{ x.get_absolute_url }}">{{ x.title }}</a> <span class="muted">{{ x.start|date:"M j" }}</span>{% if not forloop.last %}<br>{% endif %}{% endfor %}</dd>{% endif %}{% endwith %}
+        <dt>Created</dt><dd>{{ task.created_at|date:"M j, Y" }}{% if task.created_by %} by {{ task.created_by|username }}{% endif %}</dd>
+      </dl>
+    </div>
+  </aside>
+  <section>
+    <div class="panel" id="description" data-edit-box>
+      <h3>Description <button type="button" class="btn btn-small te-edit" data-open>{% if task.notes %}Edit{% else %}Add details{% endif %}</button></h3>
+      <div data-view>
+        {% if task.notes %}<div class="prose" style="white-space:pre-wrap">{{ task.notes|urlize }}</div>
+        {% else %}<p class="muted te-empty" data-open>No details yet. Click to add notes, links or what done looks like.</p>{% endif %}
+      </div>
+      <form method="post" action="{% url 'crm:task_text' task.pk %}" data-form hidden>{% csrf_token %}
+        <textarea name="notes" rows="8" aria-label="Description">{{ task.notes }}</textarea>
+        <div style="margin-top:6px"><button class="btn-small btn-primary">Save</button> <button type="button" class="btn-small" data-cancel>Cancel</button>
+          <span class="muted" style="font-size:12px;margin-left:6px">Ctrl+Enter saves · Esc cancels</span></div>
+      </form>
+    </div>
+    {% include "crm/partials/comments.html" %}
+  </section>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+  // Rename and Description: click to edit in place; Esc cancels, Ctrl+Enter saves the description.
+  document.querySelectorAll('[data-edit-box]').forEach(box => {
+    const view = box.querySelector('[data-view]'), form = box.querySelector('[data-form]');
+    const field = form.querySelector('[name=title], [name=notes]'), original = field.value;
+    const open = () => { view.hidden = true; form.hidden = false; box.classList.add('editing'); field.focus(); field.setSelectionRange(field.value.length, field.value.length); };
+    const close = () => { field.value = original; form.hidden = true; view.hidden = false; box.classList.remove('editing'); };
+    box.querySelectorAll('[data-open]').forEach(el => el.addEventListener('click', open));
+    form.querySelector('[data-cancel]').addEventListener('click', close);
+    field.addEventListener('keydown', e => {
+      if (e.key === 'Escape') close();
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && field.tagName === 'TEXTAREA') form.requestSubmit();
+    });
+  });
+  if (location.hash === '#edit') document.querySelector('.te-title [data-open]').click();  // the pencil on task lists
+</script>
+{% endblock %}

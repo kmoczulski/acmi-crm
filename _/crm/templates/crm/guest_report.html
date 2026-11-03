@@ -1,0 +1,10 @@
+{% extends "crm/guest_base.html" %}
+{% block title %}{{ c.site.name }}{% endblock %}
+{% block crumb %}{{ a.name }}{% endblock %}
+{% block body %}
+<a class="g-back no-print" href="{% url 'crm:guest_home' token %}">← All sites in {{ a.name }}</a>
+<div class="g-card">
+  <button class="g-print no-print" onclick="window.print()">Print / save as PDF</button>
+  {% include "crm/partials/dd_report.html" %}
+</div>
+{% endblock %}

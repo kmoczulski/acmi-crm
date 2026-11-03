@@ -1,0 +1,142 @@
+{% extends "crm/base.html" %}
+{% load crm_tags humanize %}
+{% block title %}Due diligence · {{ site.name }} · ACMI CRM{% endblock %}
+{% block content %}
+{% include "crm/partials/report_logo.html" %}
+<div class="record-head">
+  <div>
+    <div class="muted lc-small no-print"><a href="{% url 'crm:land_sites_page' %}">Sites</a> › <a href="{% url 'crm:land_site_detail' site.pk %}">{{ site.name }}</a></div>
+    <h1>Due diligence · {{ site.name }} <span class="pill site-{{ site.status }}">{{ site.get_status_display }}</span></h1>
+    <div class="muted">{{ site.home_label }}{% if s.contract %} · runs against <a href="{{ s.contract.get_absolute_url }}">{{ s.contract.title }}</a>{% endif %}</div>
+  </div>
+  <div class="record-nav no-print">
+    {% if contracts|length > 1 %}<form method="get"><select name="contract" onchange="this.form.submit()">{% for c in contracts %}<option value="{{ c.pk }}"{% if c.pk == s.contract.pk %} selected{% endif %}>{{ c.title }}</option>{% endfor %}</select></form>{% endif %}
+    <button type="button" class="btn" onclick="window.print()">Print / PDF</button>
+  </div>
+</div>
+
+<div class="dd-strip">
+  <div><div class="label">Feasibility ends</div>
+    {% if s.end %}<div class="value{% if s.days_left < 0 %} overdue{% elif s.days_left <= 14 %} soon{% endif %}">{{ s.end|date:"M j, Y" }}</div>
+      <div class="muted lc-small">{% if s.days_left < 0 %}{{ s.days_ago }} day{{ s.days_ago|pluralize }} ago{% elif s.days_left == 0 %}today{% else %}in {{ s.days_left }} day{{ s.days_left|pluralize }}{% endif %} · from {{ s.end_from }}</div>
+    {% else %}<div class="value muted">Not set</div><div class="muted lc-small">Add it on the contract's critical dates{% if not s.contract %} (add the PSA first){% endif %}.</div>{% endif %}</div>
+  <div><div class="label">Progress</div><div class="value">{{ s.cleared }} of {{ s.count }} cleared</div>
+    <div class="muted lc-small">{% if s.issues %}<span class="overdue">{{ s.issues|length }} issue{{ s.issues|length|pluralize }}</span> · {% endif %}{{ s.open|length }} open</div></div>
+  <div><div class="label">Budget</div><div class="value">{% if s.budget %}{{ s.budget|money }}{% else %}–{% endif %}</div>
+    <div class="muted lc-small">invoiced {{ s.invoiced|money|default:"$0" }} · committed {{ s.committed|money|default:"$0" }}</div></div>
+  <div id="decision"><div class="label">Decision</div>
+    {% if s.contract and s.contract.decision %}<div class="value">{{ s.contract.get_decision_display }}</div>
+      <div class="muted lc-small">{{ s.contract.decision_on|date:"M j" }}{% if s.contract.decision_by %} · {{ s.contract.decision_by|username }}{% endif %}{% if s.contract.decision_note %} · {{ s.contract.decision_note|truncatechars:80 }}{% endif %}</div>
+    {% else %}<div class="value muted">Not decided</div>{% endif %}
+    {% if s.contract %}<details class="no-print lc-small"><summary>{% if s.contract.decision %}change{% else %}record the decision{% endif %}</summary>
+      <form method="post" class="fields">{% csrf_token %}<input type="hidden" name="action" value="decision">
+        <select name="decision">{% for v, l in decisions|offer:s.contract.decision %}<option value="{{ v }}"{% if v == s.contract.decision %} selected{% endif %}>{{ l }}</option>{% endfor %}</select>
+        <textarea name="decision_note" rows="2" placeholder="Why (issues found, price, terms)">{{ s.contract.decision_note }}</textarea>
+        <button class="btn btn-small btn-primary">Save</button></form></details>{% endif %}</div>
+</div>
+
+{% if s.at_risk %}
+<section class="panel dd-risk">
+  <h3>At risk before the deadline</h3>
+  <ul>{% for i in s.at_risk %}<li><a href="#dd-{{ i.pk }}">{{ i.name }}</a> · {{ i.get_status_display }}
+    {% if i.late %}<span class="overdue">due {{ i.due_on|date:"M j" }}, late</span>{% elif i.after_deadline %}<span class="overdue">due {{ i.due_on|date:"M j" }}, after feasibility ends</span>{% elif i.due_on %}due {{ i.due_on|date:"M j" }}{% else %}<span class="soon">no due date</span>{% endif %}
+    {% if i.owner %}<span class="muted">· {{ i.owner|username }}</span>{% endif %}</li>{% endfor %}</ul>
+</section>
+{% endif %}
+
+{% if not s.items %}
+<section class="panel no-print">
+  <h3>Start the checklist</h3>
+  <p>The same checklist the client diligence reports use. Start small and add what the deal needs, or take the whole list and mark what doesn't apply.</p>
+  <form method="post" class="inline-form">{% csrf_token %}<input type="hidden" name="action" value="start">
+    <button class="btn btn-primary" name="which" value="standard">Standard: {{ standard }} items</button>
+    <button class="btn" name="which" value="full">Full checklist: {{ full }} items</button>
+  </form>
+  <p class="muted lc-small">Standard: title commitment, ALTA survey, easements, existing leases, zoning letter and use, Phase I, wetlands, species,
+    cultural resources, geotech borings, electric, water and sewer will-serves, road access.</p>
+</section>
+{% endif %}
+
+{% for block, rows in s.groups %}
+<section class="panel">
+  <h3>{{ block }}</h3>
+  <table class="data compact dd-table">
+    <thead><tr><th></th><th>Item</th><th>Status</th><th>Consultant</th><th>Due</th><th>Received</th><th class="num">Budget</th><th class="num">Invoiced</th><th>Report</th></tr></thead>
+    <tbody>{% for i in rows %}
+      <tr id="dd-{{ i.pk }}" class="dd-{{ i.status }}{% if i.late or i.after_deadline %} dd-late{% endif %}">
+        <td class="muted lc-small">{{ i.ref }}</td>
+        <td class="wrap"><b>{{ i.name }}</b>{% if i.how %}<div class="muted lc-small">{{ i.how }}</div>{% endif %}
+          {% if i.findings %}<div class="lc-small dd-findings">{{ i.findings|linebreaksbr }}</div>{% endif %}</td>
+        <td><form method="post" class="no-print">{% csrf_token %}<input type="hidden" name="action" value="status"><input type="hidden" name="item" value="{{ i.pk }}">
+            <select name="status" class="dd-status" onchange="this.form.submit()">{% for v, l in statuses|offer:i.status %}<option value="{{ v }}"{% if v == i.status %} selected{% endif %}>{{ l }}</option>{% endfor %}</select></form>
+          <span class="print-only">{{ i.get_status_display }}</span>
+          {% if i.owner %}<div class="muted lc-small">{{ i.owner|username }}</div>{% endif %}</td>
+        <td class="wrap lc-small">{{ i.consultant|default:"–" }}{% if i.ordered_on %}<div class="muted">ordered {{ i.ordered_on|date:"M j" }}</div>{% endif %}</td>
+        <td class="lc-small">{% if i.due_on %}<span class="{% if i.late or i.after_deadline %}overdue{% elif i.is_open and i.days_left <= 7 %}soon{% endif %}">{{ i.due_on|date:"M j" }}</span>{% if i.after_deadline %}<div class="overdue">after feasibility</div>{% endif %}{% else %}–{% endif %}</td>
+        <td class="lc-small">{{ i.received_on|date:"M j"|default:"–" }}</td>
+        <td class="num">{{ i.budget|money }}</td>
+        <td class="num">{{ i.cost|money }}</td>
+        <td class="lc-small">{% if i.href %}<a href="{{ i.href }}" target="_blank" rel="noopener">{% if i.file %}{{ i.pages|default:"" }}{% if i.pages %} p.{% else %}file{% endif %}{% else %}link{% endif %}</a>{% else %}–{% endif %}</td>
+      </tr>
+      <tr class="dd-more no-print"><td></td><td colspan="8">
+        {% if i.summary_html %}<details class="dd-summary"><summary>Claude's summary of the report <span class="muted lc-small">· {{ i.summary_at|date:"M j" }}</span></summary>
+          <div class="ct-a">{{ i.summary_html }}</div>
+          {% if i.sources %}<details class="ct-sources"><summary>{{ i.sources|length }} source{{ i.sources|pluralize }}</summary>
+            <ol>{% for src in i.sources %}<li value="{{ src.n }}"><a href="{{ src.href }}" target="_blank" rel="noopener">{% if src.page %}p. {{ src.page }}{% else %}report{% endif %}</a> <q>{{ src.quote|truncatechars:300 }}</q></li>{% endfor %}</ol></details>{% endif %}
+        </details>{% endif %}
+        <details class="ct-edit lc-small"><summary>edit</summary>
+          <form method="post" enctype="multipart/form-data" class="dd-form">{% csrf_token %}<input type="hidden" name="action" value="edit"><input type="hidden" name="item" value="{{ i.pk }}">
+            <label>Item <input name="name" value="{{ i.name }}" required></label>
+            <label>Group <input name="block" value="{{ i.block }}" required></label>
+            <label>Deliverable / how verified <input name="how" value="{{ i.how }}"></label>
+            <label>Status <select name="status">{% for v, l in statuses|offer:i.status %}<option value="{{ v }}"{% if v == i.status %} selected{% endif %}>{{ l }}</option>{% endfor %}</select></label>
+            <label>Consultant <input name="consultant" value="{{ i.consultant }}"></label>
+            <label>Chased by <select name="owner"><option value="">–</option>{% for u in users %}<option value="{{ u.pk }}"{% if u.pk == i.owner_id %} selected{% endif %}>{{ u|username }}</option>{% endfor %}</select></label>
+            <label>Budget ($) <input name="budget" value="{{ i.budget|default_if_none:'' }}"></label>
+            <label>Invoiced ($) <input name="cost" value="{{ i.cost|default_if_none:'' }}"></label>
+            <label>Ordered <input type="date" name="ordered_on" value="{{ i.ordered_on|date:'Y-m-d' }}"></label>
+            <label>Due <input type="date" name="due_on" value="{{ i.due_on|date:'Y-m-d' }}"></label>
+            <label>Received <input type="date" name="received_on" value="{{ i.received_on|date:'Y-m-d' }}"></label>
+            <label>Link <input name="url" value="{{ i.url }}"></label>
+            <label class="dd-wide">Findings <textarea name="findings" rows="3">{{ i.findings }}</textarea></label>
+            <label class="dd-wide">Report (PDF or Word) <input type="file" name="file"></label>
+            <div class="dd-wide inline-form"><button class="btn btn-small btn-primary">Save</button>
+              {% if can_manage %}<button class="btn-link lc-small" name="action" value="delete" formnovalidate onclick="return confirm('Remove this item?')">Remove item</button>{% endif %}</div>
+          </form>
+        </details>
+        {% if i.text and ai_ready %}<form method="post" class="dd-claude" data-busy="Reading the report… about a minute">{% csrf_token %}<input type="hidden" name="action" value="summarize"><input type="hidden" name="item" value="{{ i.pk }}">
+          <button class="btn-link lc-small">{% if i.summary %}Summarize again with Claude{% else %}Summarize the report with Claude{% endif %}</button></form>
+        {% elif i.text_status == "scan" and ai_ready %}<form method="post" class="dd-claude" data-busy="Reading the scan… about a minute">{% csrf_token %}<input type="hidden" name="action" value="summarize"><input type="hidden" name="item" value="{{ i.pk }}">
+          <button class="btn-link lc-small">Summarize the scanned report with Claude</button></form>{% endif %}
+      </td></tr>
+    {% endfor %}</tbody>
+  </table>
+</section>
+{% endfor %}
+
+{% if s.items %}
+<section class="panel no-print">
+  <h3>Add an item</h3>
+  <form method="post" enctype="multipart/form-data" class="dd-form">{% csrf_token %}<input type="hidden" name="action" value="add">
+    <label>Item <input name="name" required placeholder="e.g. Traffic impact study"></label>
+    <label>Group <input name="block" value="Other" required></label>
+    <label>Consultant <input name="consultant"></label>
+    <label>Status <select name="status">{% for v, l in statuses|offer %}<option value="{{ v }}">{{ l }}</option>{% endfor %}</select></label>
+    <label>Due <input type="date" name="due_on"></label>
+    <label>Budget ($) <input name="budget"></label>
+    <div class="dd-wide"><button class="btn btn-small btn-primary">Add</button></div>
+  </form>
+  <form method="post" class="inline-form" style="margin-top:8px">{% csrf_token %}<input type="hidden" name="action" value="start">
+    <span class="muted lc-small">Missing checklist items:</span> <button class="btn-link lc-small" name="which" value="full">add the rest of the full checklist</button></form>
+</section>
+{% endif %}
+<p class="muted lc-small">Status changes are logged on the site. Whoever chases an item (or the contract's owner) gets a reminder 7 and 1 days before it's due.
+  Claude's summaries cite the report's pages; check them before relying on them.</p>
+{% endblock %}
+{% block scripts %}
+<script>
+  document.querySelectorAll('form[data-busy]').forEach(f => f.addEventListener('submit', () => {
+    const btn = f.querySelector('button'); btn.disabled = true; btn.textContent = f.dataset.busy;
+  }));
+</script>
+{% endblock %}

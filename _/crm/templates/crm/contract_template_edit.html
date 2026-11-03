@@ -1,0 +1,20 @@
+{% extends "crm/base.html" %}
+{% block title %}{% if template.pk %}{{ template.name }}{% else %}New template{% endif %} · ACMI CRM{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><div class="muted lc-small"><a href="{% url 'crm:contract_list' %}">Contracts</a> › <a href="{% url 'crm:contract_templates' %}">Abstract templates</a></div>
+    <h1>{% if copy_of %}Copy of {{ copy_of.name }}{% elif template.pk %}{{ template.name }}{% else %}New template{% endif %}</h1></div>
+</div>
+<div class="panel" style="max-width:760px">
+  {% if copy_of %}<p class="muted lc-small" style="margin-top:0">Built-in templates follow the app's updates, so saving makes ACMI's own copy to change freely.</p>{% endif %}
+  <form method="post" class="fields">{% csrf_token %}
+    {{ form.as_p }}
+    <button class="btn-primary">Save</button>
+    <a class="btn" href="{% url 'crm:contract_templates' %}">Cancel</a>
+  </form>
+  {% if template.pk and not template.builtin and IS_MANAGER %}
+  <form method="post" style="margin-top:12px" onsubmit="return confirm('Delete this template? Abstracts already written stay.')">{% csrf_token %}
+    <button class="btn btn-danger btn-small" name="action" value="delete">Delete template</button></form>
+  {% endif %}
+</div>
+{% endblock %}

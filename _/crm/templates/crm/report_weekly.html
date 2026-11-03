@@ -1,0 +1,16 @@
+{% extends "crm/base.html" %}
+{% block title %}Weekly report · ACMI CRM{% endblock %}
+{% block content %}
+{% include "crm/partials/report_logo.html" %}
+<div class="page-head">
+  <h1>Weekly outreach report</h1>
+  <a class="btn btn-small" href="?week={{ prev_week|date:'Y-m-d' }}">‹ Previous week</a>
+  {% if next_week %}<a class="btn btn-small" href="?week={{ next_week|date:'Y-m-d' }}">Next week ›</a>{% endif %}
+  <span class="spacer"></span>
+  <form method="post" style="margin:0" onsubmit="return confirm('Email this report to {{ recipients|escapejs }}?')">{% csrf_token %}
+    <button class="btn-primary">Email this report</button>
+  </form>
+</div>
+<p class="muted" style="margin-top:0">Recipients: {{ recipients|default:"none set (Outreach → Settings)" }}</p>
+<div class="panel">{% include "crm/partials/report_body.html" %}</div>
+{% endblock %}

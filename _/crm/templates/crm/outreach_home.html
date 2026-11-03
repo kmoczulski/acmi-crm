@@ -1,0 +1,64 @@
+{% extends "crm/base.html" %}
+{% load crm_tags %}
+{% block title %}Outreach · ACMI CRM{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Outreach</h1>
+  <span class="tag">Campaign: {{ settings.current_campaign }}</span>
+  <span class="spacer"></span>
+  <a class="btn" href="{% url 'crm:template_list' %}">Templates</a>
+  {% if IS_MANAGER %}<a class="btn" href="{% url 'crm:outreach_settings' %}">Settings</a>{% endif %}
+  <a class="btn" href="{% url 'crm:weekly_report' %}">Weekly report</a>
+</div>
+
+{% if running %}<div class="panel" style="background:var(--accent-soft)">A send is in progress: <a href="{{ running.get_absolute_url }}">{{ running }}</a></div>{% endif %}
+{% if not mailbox %}<div class="panel" style="background:var(--warn-bg)">Connect your mailbox on the <a href="{% url 'crm:needs_filing' %}#mail-setup">Needs filing page</a> to send.</div>{% endif %}
+
+<div class="cards">
+  <div class="card"><div class="label">Ready to send</div><div class="value">{{ queue_size }}</div></div>
+  <div class="card"><div class="label">Sent today</div><div class="value">{{ sent_today }}</div><div class="sub">cap {{ settings.daily_cap }}</div></div>
+  <div class="card"><div class="label">Templates in campaign</div><div class="value">{{ templates|length }}</div>
+    <div class="sub">{% for t in templates %}{{ t.template_id }}{% if not forloop.last %}, {% endif %}{% empty %}<span class="overdue">none: nothing will send</span>{% endfor %}</div></div>
+  <div class="card"><div class="label">Rules</div><div class="sub" style="color:var(--text)">Cooldown {{ settings.cooldown_days }}d · max {{ settings.max_touches }} touches · {{ settings.delay_seconds }}s between emails</div></div>
+</div>
+
+<div class="grid-2">
+  <div class="panel">
+    <h3>Send</h3>
+    <form method="post" action="{% url 'crm:outreach_test' %}" class="inline-form" style="margin-bottom:12px">{% csrf_token %}
+      <select name="template">{% for t in templates %}<option value="{{ t.pk }}">{{ t.template_id }} · {{ t.name }}</option>{% endfor %}</select>
+      <button class="btn-small" {% if not mailbox or not templates %}disabled{% endif %}>Send a test to {{ mailbox.email|default:"me" }}</button>
+    </form>
+    {% if IS_MANAGER %}<form method="post" action="{% url 'crm:outreach_start' %}" class="inline-form">{% csrf_token %}
+      <label class="muted" style="font-size:12px">How many <input name="limit" type="number" min="1" max="{{ remaining_today }}" value="{% if queue_size < remaining_today %}{{ queue_size }}{% else %}{{ remaining_today }}{% endif %}" style="width:90px"></label>
+      <label class="muted" style="font-size:12px">Type {{ confirm_word }} to confirm <input name="confirm" autocomplete="off" style="width:90px"></label>
+      <button class="btn-primary" {% if not mailbox or running or not queue_size %}disabled{% endif %}>Start sending</button>
+    </form>{% else %}<p class="muted" style="font-size:12px">Only managers can start a send.</p>{% endif %}
+    <p class="muted" style="font-size:12px;margin-bottom:0">Sends run in the background with {{ settings.delay_seconds }}s between emails; you can stop a send from its progress page. Each email is logged on the person's timeline straight away.</p>
+  </div>
+  <div class="panel">
+    <h3>Not in the queue</h3>
+    {% for label, n in skipped %}<div style="display:flex;justify-content:space-between;font-size:13px;padding:2px 0"><span>{{ label }}</span><span class="muted">{{ n }}</span></div>{% empty %}<p class="muted" style="margin:0">Nobody skipped.</p>{% endfor %}
+  </div>
+</div>
+
+<div class="panel">
+  <h3>Next up (first {{ preview|length }} of {{ queue_size }})</h3>
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th>Person</th><th>Company</th><th>Priority</th><th>Last touch</th><th>Touches</th><th>Template</th><th>Subject</th></tr></thead>
+    <tbody>{% for p in preview %}{% with e=p.entry %}
+      <tr><td><a href="{{ e.person.get_absolute_url }}">{{ e.person }}</a> <span class="muted">{{ e.person.email }}</span></td>
+        <td>{% if e.person.company %}<a href="{{ e.person.company.get_absolute_url }}">{{ e.person.company.name }}</a>{% endif %}</td>
+        <td>{% if not e.person.priority and e.person.company %}{{ e.person.company.priority|pill }}{% else %}{{ e.person.priority|pill }}{% endif %}</td><td>{{ e.person.last_interaction_at|ago }}</td>
+        <td>{{ e.person.touch_count }}</td><td>{{ e.template.template_id }}</td><td class="wrap">{{ p.subject|truncatechars:70 }}</td></tr>
+    {% endwith %}{% empty %}<tr><td colspan="7" class="muted">Nobody is eligible right now.</td></tr>{% endfor %}</tbody>
+  </table></div>
+</div>
+
+<div class="panel">
+  <h3>Recent sends</h3>
+  {% for b in batches %}<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--line);font-size:13px">
+    <a href="{{ b.get_absolute_url }}">{{ b }}</a><span class="muted">{{ b.get_status_display }} · {{ b.created_by|username }}</span></div>
+  {% empty %}<p class="muted" style="margin:0">None yet.</p>{% endfor %}
+</div>
+{% endblock %}

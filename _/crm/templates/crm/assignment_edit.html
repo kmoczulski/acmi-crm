@@ -1,0 +1,90 @@
+{% extends "crm/base.html" %}
+{% block title %}Edit report · {{ e.site.name }} · ACMI CRM{% endblock %}
+{% block content %}
+<style>
+  .ed h3 { margin: 22px 0 8px; } .ed textarea, .ed input[type=text], .ed select { width: 100%; box-sizing: border-box; }
+  .ed table.data td { vertical-align: top; padding: 4px; } .ed table.data textarea { min-height: 54px; }
+  .ed .grid2 { display: grid; grid-template-columns: 180px 1fr; gap: 6px 12px; align-items: start; }
+  .ed .savebar { position: sticky; bottom: 0; background: #fff; border-top: 1px solid #e3e7ec; padding: 10px 0; display: flex; gap: 10px; }
+</style>
+<div class="record-head"><div>
+  <div class="muted lc-small"><a href="{% url 'crm:assignments' %}">Client searches</a> › <a href="{{ a.get_absolute_url }}">{{ a.name }}</a> › <a href="{% url 'crm:assignment_report' a.pk e.pk %}">{{ e.site.name }}</a></div>
+  <h1>Edit report: {{ e.site.name }}</h1>
+  <div class="muted lc-small">Everything here is shown to the client except what you leave blank. Overview fields left empty fall back to the CRM's parcel data (shown in grey). Never put owner names or internal notes in these boxes.</div>
+</div></div>
+
+<form method="post" class="panel ed">{% csrf_token %}
+  <h3>Executive summary</h3>
+  <textarea name="summary" rows="5">{{ rep.summary }}</textarea>
+
+  <h3>Category ratings</h3>
+  <table class="data"><thead><tr><th style="width:170px">Category</th><th style="width:145px">Rating</th><th>Key finding</th><th>Mitigation</th><th style="width:130px">Owner</th><th style="width:90px">Flags</th></tr></thead><tbody>
+    {% for key, label, cat in cats %}<tr><td><b>{{ label }}</b></td>
+      <td><select name="cat_{{ key }}_rating"><option value="">Not yet rated</option>{% for v, l in ratings %}<option value="{{ v }}" {% if cat.rating == v %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></td>
+      <td><textarea name="cat_{{ key }}_finding">{{ cat.finding }}</textarea></td>
+      <td><textarea name="cat_{{ key }}_mitigation">{{ cat.mitigation }}</textarea></td>
+      <td><input type="text" name="cat_{{ key }}_owner" value="{{ cat.owner }}" placeholder="e.g. Counsel"></td>
+      <td class="lc-small"><label title="Gating fact confirmed with a document"><input type="checkbox" name="cat_{{ key }}_confirmed" {% if cat.confirmed %}checked{% endif %}> confirmed</label><br>
+        <label title="Moderate item that sits on an externally imposed deadline (ranking tie-break)"><input type="checkbox" name="cat_{{ key }}_critical" {% if cat.critical %}checked{% endif %}> deadline-critical</label></td></tr>{% endfor %}
+  </tbody></table>
+
+  <h3>Site overview</h3>
+  <div class="grid2">{% for k, label, val, pre in overview %}
+    <label>{{ label }}</label><textarea name="ov_{{ k }}" rows="{% if k == 'parcel_ids' %}3{% else %}1{% endif %}" placeholder="{{ pre|truncatechars:80 }}">{{ val }}</textarea>{% endfor %}</div>
+
+  <h3>Net usable acreage <span class="muted lc-small">gross {{ c.gross }} ac from the CRM; enter acres to subtract</span></h3>
+  <div class="grid2">
+    <label>Less: wetlands</label><input type="text" name="net_wetlands" value="{{ net.wetlands }}">
+    <label>Less: floodway</label><input type="text" name="net_floodway" value="{{ net.floodway }}">
+    <label>Less: easements and ROW</label><input type="text" name="net_easements" value="{{ net.easements }}">
+    <label>Less: required QD setback area</label><input type="text" name="net_qd" value="{{ net.qd }}">
+  </div>
+
+  <h3>Priority actions</h3>
+  <table class="data"><thead><tr><th>Action (start with a verb)</th><th>Why it is critical path</th><th style="width:130px">Owner</th><th style="width:120px">Deadline</th></tr></thead><tbody>
+    {% for i, r in actions %}<tr><td><textarea name="pa_{{ i }}_action">{{ r.action }}</textarea></td><td><textarea name="pa_{{ i }}_why">{{ r.why }}</textarea></td>
+      <td><input type="text" name="pa_{{ i }}_owner" value="{{ r.owner }}"></td><td><input type="text" name="pa_{{ i }}_deadline" value="{{ r.deadline }}"></td></tr>{% endfor %}
+  </tbody></table>
+
+  <h3>Market overview</h3>
+  <textarea name="market" rows="5">{{ rep.market }}</textarea>
+
+  {% for k, label, text in sections %}<h3>{{ label }}</h3><textarea name="sec_{{ k }}" rows="4">{{ text }}</textarea>{% endfor %}
+
+  <h3>Utilities: capacity and gap analysis</h3>
+  <table class="data"><thead><tr><th>Utility</th><th>Provider</th><th>Infrastructure</th><th>Available today</th><th>Committed path</th><th>Gap risk</th><th>Action to close</th></tr></thead><tbody>
+    {% for i, r in utilities %}<tr><td><input type="text" name="ut_{{ i }}_utility" value="{{ r.utility }}"></td><td><input type="text" name="ut_{{ i }}_provider" value="{{ r.provider }}"></td>
+      <td><textarea name="ut_{{ i }}_infrastructure">{{ r.infrastructure }}</textarea></td><td><input type="text" name="ut_{{ i }}_available" value="{{ r.available }}"></td>
+      <td><input type="text" name="ut_{{ i }}_committed" value="{{ r.committed }}"></td><td><input type="text" name="ut_{{ i }}_gap" value="{{ r.gap }}"></td>
+      <td><textarea name="ut_{{ i }}_action">{{ r.action }}</textarea></td></tr>{% endfor %}
+  </tbody></table>
+
+  <h3>Permit matrix</h3>
+  <table class="data"><thead><tr><th>Approval / permit</th><th>Authority</th><th style="width:120px">Typical duration</th><th>Sequencing note</th></tr></thead><tbody>
+    {% for i, r in permits %}<tr><td><input type="text" name="pm_{{ i }}_approval" value="{{ r.approval }}"></td><td><input type="text" name="pm_{{ i }}_authority" value="{{ r.authority }}"></td>
+      <td><input type="text" name="pm_{{ i }}_duration" value="{{ r.duration }}" placeholder="TBD"></td><td><input type="text" name="pm_{{ i }}_note" value="{{ r.note }}"></td></tr>{% endfor %}
+  </tbody></table>
+
+  <h3>Critical dates <span class="muted lc-small">externally imposed deadlines only</span></h3>
+  <table class="data"><thead><tr><th>Item</th><th style="width:130px">Date</th><th>Consequence of missing</th><th style="width:130px">Owner</th></tr></thead><tbody>
+    {% for i, r in dates %}<tr><td><input type="text" name="dt_{{ i }}_item" value="{{ r.item }}"></td><td><input type="text" name="dt_{{ i }}_date" value="{{ r.date }}" placeholder="2026-11-30"></td>
+      <td><textarea name="dt_{{ i }}_consequence">{{ r.consequence }}</textarea></td><td><input type="text" name="dt_{{ i }}_owner" value="{{ r.owner }}"></td></tr>{% endfor %}
+  </tbody></table>
+
+  <h3>ROM to pad-ready <span class="muted lc-small">dollar amounts; incentive-eligible "Yes" lines are netted out for ranking</span></h3>
+  <table class="data"><thead><tr><th>Cost category</th><th>Basis of estimate</th><th style="width:140px">Amount ($)</th><th style="width:110px">Incentive eligible</th></tr></thead><tbody>
+    {% for i, r in rom %}<tr><td><input type="text" name="rom_{{ i }}_category" value="{{ r.category }}"></td><td><input type="text" name="rom_{{ i }}_basis" value="{{ r.basis }}"></td>
+      <td><input type="text" name="rom_{{ i }}_amount" value="{{ r.amount }}"></td>
+      <td><select name="rom_{{ i }}_incentive"><option value=""></option>{% for v in incentive %}<option {% if r.incentive == v %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></td></tr>{% endfor %}
+  </tbody></table>
+
+  <h3>Master checklist</h3>
+  <table class="data"><thead><tr><th style="width:60px">Ref</th><th>Item</th><th style="width:140px">Status</th><th>Note</th></tr></thead><tbody>
+    {% for r in c.checklist %}<tr><td>{{ r.ref }}</td><td>{{ r.item }}<div class="muted lc-small">{{ r.how }}</div></td>
+      <td><select name="ck_{{ r.ref }}_status">{% for s in statuses %}<option {% if r.status == s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select></td>
+      <td><input type="text" name="ck_{{ r.ref }}_note" value="{{ r.note }}"></td></tr>{% endfor %}
+  </tbody></table>
+
+  <div class="savebar"><button class="btn btn-primary">Save report</button><a class="btn" href="{% url 'crm:assignment_report' a.pk e.pk %}">Cancel</a></div>
+</form>
+{% endblock %}

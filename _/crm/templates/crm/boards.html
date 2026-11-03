@@ -1,0 +1,66 @@
+{% extends "crm/base.html" %}
+{% load crm_tags %}
+{% block title %}Boards · ACMI CRM{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Boards</h1>
+  <span class="spacer"></span>
+  {% if show_archived %}<a class="btn" href="{% url 'crm:boards' %}">Open boards</a>{% else %}<a class="btn" href="?archived=1">Archived boards</a>{% endif %}
+  <a class="btn" href="?new=card">+ New card</a>
+  <a class="btn btn-primary" href="?new=board">+ New board</a>
+</div>
+<p class="muted" style="max-width:72ch">Trello-style boards on the CRM's records: a card can stand for a deal, site, contract, firm, entitlement, capital source, meeting or task, and moves with it. Drag cards between lists, or pick one up with Space and move it with the arrow keys.</p>
+
+{% if not show_archived %}
+<h2 class="bl-h2">My boards</h2>
+<div class="bl-tiles">
+  {% for b in mine %}{% include "crm/partials/board_tile.html" %}{% empty %}<p class="muted">You're not on any board yet. Open one below and use Members to join it, or start a new one.</p>{% endfor %}
+</div>
+<h2 class="bl-h2">{% if mine %}Other boards{% else %}All boards{% endif %}</h2>
+{% endif %}
+<div class="bl-tiles">
+  {% for b in others %}{% include "crm/partials/board_tile.html" %}{% empty %}<p class="muted">{% if show_archived %}No archived boards.{% elif not mine %}No boards yet. Start one with <strong>+ New board</strong>: the Project board template has the MEIH Trello layout.{% else %}Every board is yours.{% endif %}</p>{% endfor %}
+</div>
+
+<dialog id="new-board" class="edit-dialog" {% if new == 'board' %}data-open-on-load{% endif %}>
+  <form method="post" action="{% url 'crm:board_create' %}" class="fields">{% csrf_token %}
+    <div class="dialog-head"><h2>New board</h2><button type="button" class="btn-link" onclick="this.closest('dialog').close()" aria-label="Close">✕</button></div>
+    <div class="dialog-body">
+      <p><label for="nb-name">Name <span class="req">Required</span></label><input id="nb-name" name="name" maxlength="120" required autofocus placeholder="e.g. MEIH deal board"></p>
+      <p><label for="nb-template">Start from</label><select id="nb-template" name="template">{% for v, l in form.fields.template.choices %}<option value="{{ v }}" {% if v == 'project' %}selected{% endif %}>{{ l }}{% if v == 'project' %} (Land sites, Critical dates, Deal and design, Contacts and consultants, Open tasks){% elif v == 'deal' %} (To do, Doing, Waiting on them, Done){% elif v|slice:':7' == 'record:' %} (a list per status, a card per record){% endif %}</option>{% endfor %}</select></p>
+      <p class="muted lc-small">Land sites, Critical dates and Open tasks fill themselves from the campus or project you pick. A record board keeps a card for every record in that campus or project, in the list for its status; moving a card changes the record.</p>
+      <div class="grid-2" style="gap:10px">
+        <p><label for="nb-kind">Kind</label><select id="nb-kind" name="kind">{% for v, l in form.fields.kind.choices %}<option value="{{ v }}">{{ l }}</option>{% endfor %}</select></p>
+        <p><label for="nb-colour">Colour</label><select id="nb-colour" name="colour">{% for v, l in form.fields.colour.choices %}<option value="{{ v }}">{{ l }}</option>{% endfor %}</select></p>
+        <p><label for="nb-campus">Campus</label><select id="nb-campus" name="campus"><option value="">—</option>{% for c in form.fields.campus.queryset %}<option value="{{ c.pk }}">{{ c.code }} · {{ c.name }}</option>{% endfor %}</select></p>
+        <p><label for="nb-project">Project</label><select id="nb-project" name="project"><option value="">—</option>{% for p in form.fields.project.queryset %}<option value="{{ p.pk }}">{{ p.name }}</option>{% endfor %}</select></p>
+      </div>
+      <p><label for="nb-desc">Description</label><textarea id="nb-desc" name="description" rows="2" placeholder="What this board is for"></textarea></p>
+    </div>
+    <div class="dialog-foot"><button type="button" class="btn" onclick="this.closest('dialog').close()">Cancel</button><button class="btn-primary">Create board</button></div>
+  </form>
+</dialog>
+
+<dialog id="new-card" class="edit-dialog" {% if new == 'card' %}data-open-on-load{% endif %}>
+  <form method="post" action="{% url 'crm:quick_card' %}" class="fields" id="new-card-form">{% csrf_token %}
+    <div class="dialog-head"><h2>New card</h2><button type="button" class="btn-link" onclick="this.closest('dialog').close()" aria-label="Close">✕</button></div>
+    <div class="dialog-body">
+      <p><label for="nc-title">Title <span class="req">Required</span></label><input id="nc-title" name="title" maxlength="300" required autofocus placeholder="What needs doing"></p>
+      <p><label for="nc-board">Board</label><select id="nc-board" name="board" required>{% for b in all_boards %}<option value="{{ b.pk }}">{{ b.name }}</option>{% endfor %}</select></p>
+      <p><label for="nc-list">List</label><select id="nc-list" name="list" required></select></p>
+      <p class="muted" style="font-size:12px">You're added to the card. Open it afterwards to link a record, set a date or add people.</p>
+    </div>
+    <div class="dialog-foot"><button type="button" class="btn" onclick="this.closest('dialog').close()">Cancel</button><button class="btn-primary">Add card</button></div>
+  </form>
+</dialog>
+{{ lists_json|json_script:"board-lists" }}
+<script>
+  (function () {
+    const lists = JSON.parse(document.getElementById('board-lists').textContent || '{}');
+    const board = document.getElementById('nc-board'), list = document.getElementById('nc-list');
+    if (!board || !list) return;
+    const fill = () => { list.innerHTML = (lists[board.value] || []).map(l => `<option value="${l.id}">${l.name.replace(/</g, '&lt;')}</option>`).join('') || '<option value="">(this board has no lists yet)</option>'; };
+    board.addEventListener('change', fill); fill();
+  })();
+</script>
+{% endblock %}

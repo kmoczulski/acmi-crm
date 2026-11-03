@@ -1,0 +1,86 @@
+{% extends "crm/base.html" %}
+{% load crm_tags humanize static %}
+{% block content %}
+<section class="hero">
+  <div class="hero-top">
+    <h1><span data-greeting>{% greeting %}</span>, {{ user.first_name|default:user.username }}</h1>
+    <span class="spacer"></span>
+    <button type="button" class="btn hero-btn" data-customize>{% if customize %}Done customizing{% else %}Customize dashboard{% endif %}</button>
+  </div>
+  <div class="hero-search" data-hero-search>
+    <span class="search-icon" aria-hidden="true">⌕</span>
+    <input type="search" placeholder="Search anything: a company, tenant deal, person, site, contract, meeting or page" autocomplete="off" spellcheck="false" aria-label="Search everything">
+    <kbd>/</kbd>
+    <div class="palette-results hero-results" role="listbox" hidden></div>
+  </div>
+  <div class="hero-links">
+    <a href="{% url 'crm:opportunity_board' %}">Tenant pipeline</a>
+    <a href="{% url 'crm:company_list' %}">Companies</a>
+    <a href="{% url 'crm:land_sites_page' %}">Sites</a>
+    <a href="{% url 'crm:land_search' %}">Map</a>
+    <a href="{% url 'crm:contract_list' %}">Contracts</a>
+    <a href="{% url 'crm:task_list' %}">My tasks</a>
+  </div>
+</section>
+
+<div class="welcome-tip" data-tip="welcome" hidden>
+  <strong>New here?</strong>
+  <span>Type in the search box (or press <kbd>/</kbd> anywhere) to jump to any company, deal, person, site or page.
+    <strong>+ New</strong> at the top adds a deal, company, task and more. <strong>Customize dashboard</strong> lets you move, resize, hide and add sections.</span>
+  <button type="button" class="widget-x" data-tip-close title="Got it" aria-label="Dismiss tip">×</button>
+</div>
+<script>
+  (function () {
+    const tip = document.querySelector('[data-tip="welcome"]');
+    let seen = false;
+    try { seen = localStorage.getItem('tip:welcome') === '1'; } catch (e) {}
+    tip.hidden = seen;
+    tip.querySelector('[data-tip-close]').addEventListener('click', () => { tip.hidden = true; try { localStorage.setItem('tip:welcome', '1'); } catch (e) {} });
+  })();
+</script>
+
+<div class="customize-bar" {% if not customize %}hidden{% endif %}>
+  <strong>Customizing your dashboard.</strong>
+  <span class="muted">Drag a widget by its title or ⠿ to put it anywhere, side by side or stacked; drag its bottom-right corner to resize; × hides it. With the keyboard: focus ⠿, then arrows move it and Shift + arrows resize it.</span>
+  <span class="spacer"></span>
+  <details class="menu-wrap add-widget">
+    <summary class="btn btn-small">+ Add widget</summary>
+    <div class="menu">
+      {% for w in gallery %}<button type="button" class="menu-btn" data-add-widget="{{ w.id }}" {% if w.shown %}disabled{% endif %}>
+        <strong>{{ w.title }}{% if w.shown %} <span class="muted">(on the dashboard)</span>{% endif %}</strong><span class="muted">{{ w.description }}</span></button>{% endfor %}
+    </div>
+  </details>
+  <button type="button" class="btn btn-small" data-reset-dashboard>Reset to default</button>
+  <button type="button" class="btn btn-small btn-primary" data-customize>Done</button>
+</div>
+
+<div class="widgets {% if customize %}customizing{% endif %}" id="widgets">
+  {% for w in layout %}
+  <section class="widget{% if w.id in headless %} headless{% endif %}" data-widget="{{ w.id }}" data-w="{{ w.w }}" data-h="{{ w.h }}"{% if w.x is not None %} data-x="{{ w.x }}" data-y="{{ w.y }}"{% endif %} style="--w:{{ w.w }}{% if w.h %};--h:{{ w.h }}px{% endif %}" aria-label="{{ w.title }}">
+    <button type="button" class="widget-grip" data-grip aria-label="Move {{ w.title }}: arrow keys move, Shift + arrows resize" title="Drag to move (or focus and use the arrow keys)">⠿</button>
+    <header class="widget-head">
+      <h3>{{ w.title }}</h3>
+      <span class="widget-tools">
+        <span class="widget-order"><button type="button" data-order="-1" aria-label="Move {{ w.title }} up">↑</button><button type="button" data-order="1" aria-label="Move {{ w.title }} down">↓</button></span>
+        <span class="widget-size" title="Width">{% for n in widths %}<button type="button" data-width="{{ n }}" class="{% if n == w.w %}on{% endif %}">{% if n == 3 %}¼{% elif n == 4 %}⅓{% elif n == 6 %}½{% elif n == 8 %}⅔{% else %}Full{% endif %}</button>{% endfor %}</span>
+        <button type="button" class="widget-x" data-hide title="Hide this widget">×</button>
+      </span>
+    </header>
+    <div class="widget-body">{% include "crm/widgets/"|add:w.id|add:".html" %}</div>
+    <span class="widget-resize" title="Drag to resize"></span>
+  </section>
+  {% empty %}
+  <p class="muted">Your dashboard is empty. Use <strong>Customize dashboard</strong> above to add widgets.</p>
+  {% endfor %}
+</div>
+<div id="widgets-live" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+{% include "crm/partials/meeting_dialog.html" %}
+{% endblock %}
+{% block scripts %}<script>
+  // The greeting follows the viewer's own clock (Eastern, Central, travelling...); the server's is the fallback.
+  (function () {
+    const el = document.querySelector('[data-greeting]'); if (!el) return;
+    const h = new Date().getHours();
+    el.textContent = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+  })();
+</script><script src="{% static 'crm/dashboard.js' %}?v={{ ASSET_VERSION }}"></script>{% endblock %}

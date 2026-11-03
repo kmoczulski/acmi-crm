@@ -1,0 +1,9 @@
+{% load crm_tags humanize %}{# Dashboard widget: pipeline by stage (summary) #}
+<a class="widget-link" href="{% url 'crm:opportunity_board' %}">Board</a>
+      <table class="data compact">
+        <thead><tr><th>Stage</th><th class="num">Deals</th><th class="num">Value</th><th class="num">Win %</th><th class="num">Weighted</th></tr></thead>
+        <tbody>{% for s in summary.by_stage %}{% if s.count %}
+          <tr><td><a href="{% url 'crm:opportunity_board' %}?stage={{ s.value }}">{{ s.label }}</a></td><td class="num">{{ s.count }}</td>
+            <td class="num">{{ s.total|money }}</td><td class="num">{{ s.probability }}%</td><td class="num">{{ s.weighted|money }}</td></tr>
+        {% endif %}{% endfor %}</tbody>
+      </table>

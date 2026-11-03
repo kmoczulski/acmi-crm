@@ -1,0 +1,4 @@
+{% load crm_tags %}<div class="campus-update lc-small">
+  <span class="muted">{{ u.happened_on|date:"M j" }}</span> {{ u.text }}{% if u.waiting_on %} <span class="tag">{{ u.get_waiting_on_display }}</span>{% endif %}{% if u.promised_on %} <span class="muted">promised {{ u.promised_on|date:"M j" }}</span>{% endif %}{% if u.author %} <span class="muted">· {{ u.author|username }}</span>{% endif %}
+  <form method="post" action="{% url 'crm:campus_update_delete' u.pk %}" style="display:inline" onsubmit="return confirm('Remove this update?')">{% csrf_token %}<button class="btn-link btn-small" title="Remove">×</button></form>
+</div>

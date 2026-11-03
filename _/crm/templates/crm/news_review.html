@@ -1,0 +1,135 @@
+{% extends "crm/base.html" %}
+{% load crm_tags %}
+{% block title %}{{ scan }} · News review{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>{{ scan }}</h1>
+  {% if locked %}<span class="pill pill-good">Applied {{ scan.applied_at|date:"M j" }}</span>{% endif %}
+  <span class="spacer"></span>
+  <a class="btn" href="{% url 'crm:news_home' %}">All scans</a>
+  {% if not locked %}<a class="btn btn-primary" href="{% url 'crm:news_plan' scan.pk %}">Review what will happen →</a>{% else %}<a class="btn" href="{% url 'crm:news_plan' scan.pk %}">Results</a>{% endif %}
+</div>
+{% if scan.stats_line %}<p class="muted" style="margin-top:0">{{ scan.stats_line }}</p>{% endif %}
+
+<div class="cards">
+  <div class="card"><div class="label">Proceed</div><div class="value">{{ counts.proceed }}</div></div>
+  <div class="card"><div class="label">Decline</div><div class="value">{{ counts.decline }}</div></div>
+  <div class="card"><div class="label">Pursue / pass</div><div class="value">{{ counts.pursue }} / {{ counts.pass }}</div></div>
+  <div class="card"><div class="label">Left to decide</div><div class="value">{{ counts.left }}</div></div>
+  <div class="card"><div class="label">Drafts matched</div><div class="value">{{ counts.drafts }}</div>
+    <div class="sub">{% if scan.drafts_error %}<span class="overdue">{{ scan.drafts_error|truncatechars:60 }}</span>{% else %}checked {{ scan.drafts_checked_at|date:"M j, g:i a"|default:"never" }}{% endif %}</div></div>
+  <div class="card"><div class="label">Need a contact</div><div class="value">{{ counts.research }}</div></div>
+</div>
+
+{% if not locked %}
+<div class="filters" style="padding:8px 10px">
+  <span class="muted" style="font-size:12px">Keys: <strong>Y</strong> proceed/pursue · <strong>N</strong> decline/pass · <strong>U</strong> undo · <strong>J/K</strong> next/previous card</span>
+  <span style="flex:1"></span>
+  <form method="post" action="{% url 'crm:news_check_drafts' scan.pk %}" style="margin:0">{% csrf_token %}<button class="btn-small">Re-check Gmail drafts</button></form>
+  <form method="post" action="{% url 'crm:news_bulk' scan.pk %}" style="margin:0" class="inline-form">{% csrf_token %}
+    <button class="btn-small" name="action" value="proceed_all">Proceed with all undecided</button>
+    <button class="btn-small" name="action" value="clear" onclick="return confirm('Clear every decision on this scan?')">Clear all</button>
+  </form>
+</div>
+{% endif %}
+
+{% for section, items in sections %}
+  <h2 class="news-section">{{ section }} <span class="muted">{{ items|length }}</span></h2>
+  {% for i in items %}{% include "crm/partials/news_card.html" %}{% endfor %}
+{% endfor %}
+
+{% if strong or watching %}
+  <h2 class="news-section">New prospects: strong fit <span class="muted">{{ strong|length }}</span></h2>
+  {% for i in strong %}{% include "crm/partials/news_card.html" %}{% endfor %}
+  <h2 class="news-section">New prospects: worth watching <span class="muted">{{ watching|length }}</span></h2>
+  {% for i in watching %}{% include "crm/partials/news_card.html" %}{% endfor %}
+{% endif %}
+{% if weak %}
+  <details class="panel"><summary class="muted">Also surfaced, not pursued ({{ weak|length }})</summary>
+    <table class="data" style="margin-top:8px">{% for w in weak %}<tr><td>{{ w.company_name }}</td><td class="wrap">{{ w.headline }}</td></tr>{% endfor %}</table>
+  </details>
+{% endif %}
+
+{% if not locked %}<div style="text-align:right;margin:16px 0"><a class="btn btn-primary" href="{% url 'crm:news_plan' scan.pk %}">Review what will happen →</a></div>{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if not locked %}
+<script>
+  // Autosave each card; keyboard shortcuts across cards.
+  const cards = [...document.querySelectorAll('.news-card')];
+  let current = 0;
+  const timers = new Map();   // key -> {timer, fn}: saves waiting for typing to pause
+
+  function save(card, data) {
+    const state = card.querySelector('.save-state');
+    state.textContent = 'Saving…';
+    return csrfPost(card.dataset.url, data).then(r => r.json()).then(res => {
+      state.textContent = res.ok ? 'Saved' : (res.error || 'Not saved');
+      return res;
+    }).catch(() => { state.textContent = 'Not saved. Check the connection'; });
+  }
+  function later(card, key, fn, ms) {
+    const id = card.dataset.item + key;
+    clearTimeout(timers.get(id)?.timer);
+    timers.set(id, {fn, timer: setTimeout(() => { timers.delete(id); fn(); }, ms)});
+  }
+  function flushAll() {
+    const pending = [...timers.values()];
+    timers.clear();
+    return Promise.all(pending.map(p => { clearTimeout(p.timer); return p.fn(); }));
+  }
+  function setDecision(card, value) {
+    const buttons = card.querySelectorAll('[data-decision]');
+    const currentValue = [...buttons].find(b => b.classList.contains('btn-primary') || b.classList.contains('btn-danger-on'))?.dataset.decision || '';
+    const next = currentValue === value ? '' : value;   // clicking the same choice again clears it
+    save(card, {decision: next}).then(res => {
+      if (!res || !res.ok) return;
+      buttons.forEach(b => {
+        b.classList.remove('btn-primary', 'btn-danger-on');
+        if (b.dataset.decision === next) b.classList.add(['proceed', 'pursue'].includes(next) ? 'btn-primary' : 'btn-danger-on');
+      });
+      card.className = card.className.replace(/decided-\w+/g, '').trim() + (next ? ' decided-' + next : '');
+    });
+  }
+
+  cards.forEach((card, idx) => {
+    card.querySelectorAll('[data-decision]').forEach(b => b.addEventListener('click', () => setDecision(card, b.dataset.decision)));
+    card.addEventListener('focusin', () => { current = idx; });
+    const note = card.querySelector('.news-note');
+    note?.addEventListener('input', () => later(card, 'note', () => save(card, {note: note.value}), 600));
+    card.querySelector('.news-owner')?.addEventListener('change', e => save(card, {owner: e.target.value}));
+    const to = card.querySelector('.draft-to'), subject = card.querySelector('.draft-subject'), html = card.querySelector('.draft-html');
+    const saveDraft = () => later(card, 'draft', () => save(card, {edit_to: to.value, edit_subject: subject.value, edit_html: html.innerHTML}), 700);
+    [to, subject].forEach(el => el?.addEventListener('input', saveDraft));
+    html?.addEventListener('input', saveDraft);
+    card.querySelector('[data-revert]')?.addEventListener('click', () => save(card, {revert: '1'}).then(() => location.reload()));
+  });
+
+  // Save anything still pending before leaving for the plan page.
+  document.querySelectorAll('a[href$="/plan/"]').forEach(a => a.addEventListener('click', e => {
+    if (!timers.size) return;
+    e.preventDefault();
+    flushAll().then(() => { location.href = a.href; });
+  }));
+  window.addEventListener('beforeunload', e => { if (timers.size) { flushAll(); e.preventDefault(); } });
+
+  document.addEventListener('keydown', e => {
+    if (e.target.closest('input, textarea, select, [contenteditable="true"]') || e.ctrlKey || e.metaKey || e.altKey) return;
+    const card = cards[current];
+    if (!card) return;
+    const key = e.key.toLowerCase();
+    const yes = card.querySelector('[data-decision="proceed"],[data-decision="pursue"]');
+    const no = card.querySelector('[data-decision="decline"],[data-decision="pass"]');
+    if (key === 'y') { setDecision(card, yes.dataset.decision); }
+    else if (key === 'n') { setDecision(card, no.dataset.decision); }
+    else if (key === 'u') { save(card, {decision: ''}).then(() => location.reload()); }
+    else if (key === 'j' || key === 'k') {
+      current = Math.max(0, Math.min(cards.length - 1, current + (key === 'j' ? 1 : -1)));
+      cards[current].focus(); cards[current].scrollIntoView({block: 'center', behavior: 'smooth'});
+    } else return;
+    e.preventDefault();
+  });
+</script>
+{% endif %}
+{% endblock %}

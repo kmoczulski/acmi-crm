@@ -1,0 +1,28 @@
+{% load static %}<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>{% block title %}Site assessment{% endblock %} · ACMI Properties</title>
+<link rel="stylesheet" href="{% static 'crm/report.css' %}">
+<style>
+  body { margin: 0; background: #f4f6f9; color: #1d2733; font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  .g-top { background: #0b2545; color: #fff; padding: 14px 20px; display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+  .g-top b { font-size: 17px; letter-spacing: .02em; } .g-top span { opacity: .75; font-size: 13px; }
+  .g-top a { color: #fff; }
+  .g-top { align-items: center; } .g-logo { height: 34px; width: auto; } .g-logo-print { display: none; }
+  .g-wrap { max-width: 1100px; margin: 0 auto; padding: 22px 16px 60px; }
+  .g-card { background: #fff; border: 1px solid #e3e7ec; border-radius: 10px; padding: 20px 24px; margin-bottom: 18px; }
+  .g-foot { text-align: center; color: #7a8591; font-size: 12px; padding: 20px; }
+  .g-back { display: inline-block; margin-bottom: 12px; font-size: 13px; color: #1e4fbf; text-decoration: none; }
+  .g-print { float: right; font-size: 13px; padding: 5px 12px; border: 1px solid #c9d0d8; border-radius: 6px; background: #fff; cursor: pointer; }
+  @media print { .g-logo-screen { display: none; } .g-logo-print { display: block; } body { background: #fff; } .g-top { background: #fff; color: #000; border-bottom: 2px solid #000; } .g-card { border: 0; padding: 0; } }
+</style>
+</head>
+<body>
+<header class="g-top"><img class="g-logo g-logo-screen" src="{% static 'crm/logo.png' %}" alt="ACMI Properties" height="34"><img class="g-logo g-logo-print" src="{% static 'crm/logo_blue.png' %}" alt="ACMI Properties" height="34"><span>{% block crumb %}{% endblock %}</span></header>
+<main class="g-wrap">{% block body %}{% endblock %}</main>
+<footer class="g-foot">Confidential: prepared for {{ a.client|default:"the recipient" }} by ACMI Properties. Preliminary findings; not for onward distribution.</footer>
+</body>
+</html>

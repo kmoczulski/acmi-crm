@@ -1,0 +1,57 @@
+{% extends "crm/base.html" %}
+{% load crm_tags humanize %}
+{% block title %}Tenant pipeline report · ACMI CRM{% endblock %}
+{% block content %}
+<style>
+  /* On screen columns size to their content; on paper they share the page width. */
+  .pipeline-table th, .pipeline-table td { vertical-align: top; }
+  .pipeline-table td.wrap { white-space: normal; min-width: 180px; }
+  .pipeline-table .stage { white-space: nowrap; }
+  .pipeline-table th { position: static; }
+  .pipeline-table .rp-title th { background: none; color: var(--muted); font-size: 13px; text-transform: uppercase; letter-spacing: .04em;
+    padding: 18px 10px 6px; border-bottom: 0; }
+  .rp-sections tbody:first-child .rp-title th { padding-top: 4px; }
+  .rp-totals { float: right; text-transform: none; letter-spacing: 0; font-weight: 400; }
+  .pipeline-table .rp-head th { background: #002060; color: #fff; }
+  @media print { .rp-sections tbody { break-inside: avoid-page; } .rp-head th { print-color-adjust: exact; -webkit-print-color-adjust: exact; } }
+  @media print {
+    .pipeline-table { table-layout: fixed; width: 100%; }
+    .pipeline-table th, .pipeline-table td { overflow-wrap: anywhere; white-space: normal; }
+  }
+</style>
+{% include "crm/partials/pipeline_head.html" with tab="report" %}
+{% view_bar "report" %}
+<div class="report-sheet">
+{% include "crm/partials/report_logo.html" %}
+<div class="page-head">
+  <h1>ACMI Properties pipeline <span class="muted" style="font-weight:400;font-size:14px">as of {{ as_of|date:"F j, Y" }}</span></h1>
+</div>
+<p class="muted no-print" style="margin-top:-8px">{% if show_all %}Every deal in the CRM.{% else %}Deals ticked “On investor report”. Tick it on a deal's Edit form, or use Add to investor report on the company's Deals tab.{% endif %}
+  {% if custom_columns %}<span class="tag" title="Hidden columns are left out of the printout and the Excel download too">Showing {{ columns|length }} of {{ all_columns|length }} columns</span>{% endif %}</p>
+
+{# One table for all three sections, so their columns line up whichever columns are shown. #}
+<div class="panel rp-panel">
+  <div class="table-wrap"><table class="data compact pipeline-table rp-sections">
+    {% for s in sections %}<tbody>
+      <tr class="rp-title"><th colspan="{{ columns|length }}">{{ s.title }} <span class="rp-totals">{{ s.rows|length }} tenant{{ s.rows|length|pluralize }}{% if "size" in column_keys %} · {{ s.sf|intcomma }} sf{% endif %}{% if "cost" in column_keys %} · {{ s.cost|money|default:"$0" }}{% endif %}{% if "weighted" in column_keys and s.weighted %} · weighted {{ s.weighted|money }}{% endif %}</span></th></tr>
+      <tr class="rp-head">{% for c in columns %}<th class="{{ c.key|report_align }}">{{ c.label }}</th>{% endfor %}</tr>
+      {% for o in s.rows %}<tr>{% for c in columns %}<td class="{{ c.key|report_align }}">{% report_cell o c.key %}</td>{% endfor %}</tr>
+      {% empty %}<tr><td colspan="{{ columns|length }}" class="muted">None.</td></tr>{% endfor %}
+    </tbody>{% endfor %}
+  </table></div>
+</div>
+
+<div class="panel">
+  <h3>Development sites</h3>
+  <div class="table-wrap"><table class="data compact pipeline-table">
+    <thead><tr class="rp-head"><th>Site</th><th class="num">Tenants</th><th class="num">Acres</th><th class="num">Total sf</th>
+      {% if "cost" in column_keys %}<th class="num">Project cost</th>{% endif %}{% if "psf" in column_keys %}<th class="num">Avg $ PSF</th>{% endif %}{% if "weighted" in column_keys and "cost" in column_keys %}<th class="num">Weighted</th>{% endif %}</tr></thead>
+    <tbody>{% for r in sites %}
+      <tr><td>{{ r.site }}{% if r.campus %} <span class="muted">{{ r.campus.name }}</span>{% endif %}</td><td class="num">{{ r.tenants }}</td><td class="num">{% if r.acres %}{{ r.acres|floatformat:"-2"|intcomma }}{% endif %}</td>
+        <td class="num">{{ r.sf|intcomma }}</td>
+        {% if "cost" in column_keys %}<td class="num">${{ r.cost|floatformat:0|intcomma }}</td>{% endif %}{% if "psf" in column_keys %}<td class="num">{% if r.psf %}${{ r.psf|floatformat:0|intcomma }}{% endif %}</td>{% endif %}{% if "weighted" in column_keys and "cost" in column_keys %}<td class="num">${{ r.weighted|floatformat:0|intcomma }}</td>{% endif %}</tr>
+    {% endfor %}</tbody>
+  </table></div>
+</div>
+</div>
+{% endblock %}

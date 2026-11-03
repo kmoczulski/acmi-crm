@@ -1,0 +1,15 @@
+{% extends "crm/base.html" %}
+{% load crm_tags %}
+{% block title %}{{ r.campus.code }} update, week of {{ r.week_of|date:"M j" }} · ACMI CRM{% endblock %}
+{% block content %}
+{% include "crm/partials/report_logo.html" %}
+<div class="page-head">
+  <h1>{{ r.campus.code }} update · week of {{ r.week_of|date:"M j, Y" }}</h1>
+  <span class="pill {% if r.status == 'sent' %}pill-good{% endif %}">{{ r.get_status_display }}</span>
+  <span class="spacer"></span>
+  <button type="button" class="btn no-print" onclick="window.print()">Print / save as PDF</button>
+  <a class="btn no-print" href="{% url 'crm:campus_summary' r.campus.code %}#report">Back to the summary</a>
+</div>
+<p class="muted lc-small">{% if r.status == 'sent' %}Sent {{ r.sent_at|date:"M j, Y g:i a" }}{% if r.sent_by %} by {{ r.sent_by|username }}{% endif %} to {{ r.recipients }}.{% else %}Draft{% if r.generated_at %}, written by Claude {{ r.generated_at|date:"M j, g:i a" }}{% endif %}; not sent yet.{% endif %}</p>
+<div class="panel"><pre class="campus-report-print">{{ r.body }}</pre></div>
+{% endblock %}

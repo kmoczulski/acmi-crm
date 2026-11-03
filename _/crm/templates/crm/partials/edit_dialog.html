@@ -1,0 +1,10 @@
+<dialog id="edit-dialog" class="edit-dialog" {% if form.errors %}data-open-on-load{% endif %}>
+  <form method="post" class="fields">{% csrf_token %}
+    <div class="dialog-head"><h2>Edit {{ title }}</h2><button type="button" class="btn-link" onclick="this.closest('dialog').close()" aria-label="Close">✕</button></div>
+    <div class="dialog-body">{{ form.as_p }}</div>
+    <div class="dialog-foot">
+      <button type="button" class="btn" onclick="this.closest('dialog').close()">Cancel</button>
+      <button class="btn-primary">Save</button>
+    </div>
+  </form>
+</dialog>

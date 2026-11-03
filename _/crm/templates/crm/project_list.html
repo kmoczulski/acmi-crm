@@ -1,0 +1,66 @@
+{% extends "crm/base.html" %}
+{% load crm_tags humanize %}
+{% block title %}Projects · ACMI CRM{% endblock %}
+{% block content %}
+<div class="page-head"><h1>Campuses &amp; projects</h1></div>
+{% view_bar "projects" %}
+<p class="muted" style="margin-top:0">Correspondence is tagged with a project when its own text (not quoted replies or signatures)
+  mentions one of the project's keywords; projects inside a campus are tagged with the campus too. Campaign and news outreach is
+  tagged <span class="chip chip-prospecting">Prospecting</span> instead. Prospective land sites are saved from <a href="{% url 'crm:land_search' %}">Land search</a>.</p>
+<div class="proj-layout">
+  <div>
+    {% for g in groups %}
+    <section class="panel campus-card">
+      <div class="campus-head">
+        <div>
+          <h2>{% if g.home %}<a href="{{ g.home.project.get_absolute_url }}">{{ g.campus.code }}</a>{% else %}{{ g.campus.code }}{% endif %} <span class="muted">· {{ g.campus.name }}</span> <a class="btn btn-small" href="{% url 'crm:campus_edit' g.campus.pk %}">Edit</a> <a class="btn btn-small" href="{% url 'crm:capital_index' %}?campus={{ g.campus.code }}">Capital</a></h2>
+          <div class="muted lc-small">{{ g.campus.location }}{% if g.campus.state %}, {{ g.campus.state }}{% endif %}{% if g.campus.acreage %} · {{ g.campus.acreage|floatformat:0|intcomma }} ac{% endif %}{% if g.campus.status %} · {{ g.campus.status }}{% endif %}</div>
+        </div>
+        {% if g.home %}<div class="campus-stats"><b>{{ g.home.emails|intcomma }}</b> emails · <b>{{ g.home.companies }}</b> companies · last {{ g.home.last|ago }}{% if g.home.next %} · next meeting <span title="{{ g.home.next|date:'Y-m-d H:i' }}">{{ g.home.next|date:"M j" }}</span>{% endif %}</div>{% endif %}
+      </div>
+      <table class="data">
+        <thead><tr><th>Project in {{ g.campus.code }}</th><th>Emails</th><th>Companies</th><th>Last</th><th>Land sites</th></tr></thead>
+        <tbody>{% for r in g.projects %}
+          <tr><td><a href="{{ r.project.get_absolute_url }}">{{ r.project.name }}</a>{% if not r.project.active %} <span class="muted">(inactive)</span>{% endif %}
+            <div class="muted" style="font-size:12px;white-space:normal">{{ r.project.keywords|join:", " }}</div></td>
+            <td>{{ r.emails }}</td><td>{{ r.companies }}</td><td>{{ r.last|ago }}{% if r.next %}<div class="muted lc-small">next meeting {{ r.next|date:"M j" }}</div>{% endif %}</td>
+            <td class="wrap">{% for s in r.sites %}<span class="pill site-{{ s.status }}">{{ s.get_status_display }}</span> <a href="{{ s.get_absolute_url }}">{{ s.name }}</a> <span class="muted">{{ s.acres|intcomma }} ac</span><br>{% empty %}<span class="muted">–</span>{% endfor %}{% if r.archived %}<span class="muted lc-small">+{{ r.archived|length }} archived</span>{% endif %}</td></tr>
+        {% empty %}<tr><td colspan="5" class="muted">No projects in this campus yet.</td></tr>{% endfor %}</tbody>
+      </table>
+      {% if g.sites %}<div class="campus-sites"><b class="lc-small">Prospective sites for the campus</b>
+        {% for s in g.sites %}<div class="site-row"><span class="pill site-{{ s.status }}">{{ s.get_status_display }}</span> <a href="{{ s.get_absolute_url }}">{{ s.name }}</a> <span class="muted">{{ s.acres|intcomma }} ac · {{ s.parcels.all|length }} parcel{{ s.parcels.all|length|pluralize }}</span></div>{% endfor %}
+      </div>{% endif %}
+      {% if g.archived %}<details class="campus-sites archive-list"><summary class="lc-small"><b>Archived sites</b> <span class="muted">({{ g.archived|length }} dropped)</span></summary>
+        {% for s in g.archived %}<div class="site-row muted"><a href="{% url 'crm:land_site_detail' s.pk %}">{{ s.name }}</a> <span class="lc-small">{{ s.acres|intcomma }} ac{% if s.project %} · {{ s.project.name }}{% endif %}</span></div>{% endfor %}
+      </details>{% endif %}
+    </section>
+    {% endfor %}
+
+    {% if other or loose_sites %}
+    <section class="panel campus-card">
+      <div class="campus-head"><h2>Not in a campus</h2></div>
+      {% if other %}<table class="data">
+        <thead><tr><th>Project</th><th>Part of</th><th>Emails</th><th>Companies</th><th>Last</th><th>Land sites</th></tr></thead>
+        <tbody>{% for r in other %}
+          <tr><td><a href="{{ r.project.get_absolute_url }}">{{ r.project.name }}</a></td><td>{{ r.project.parent|default:"" }}</td>
+            <td>{{ r.emails }}</td><td>{{ r.companies }}</td><td>{{ r.last|ago }}{% if r.next %}<div class="muted lc-small">next meeting {{ r.next|date:"M j" }}</div>{% endif %}</td>
+            <td class="wrap">{% for s in r.sites %}<a href="{{ s.get_absolute_url }}">{{ s.name }}</a><br>{% empty %}<span class="muted">–</span>{% endfor %}</td></tr>{% endfor %}</tbody>
+      </table>{% endif %}
+      {% if loose_sites %}<div class="campus-sites"><b class="lc-small">Sites not assigned yet</b>
+        {% for s in loose_sites %}<div class="site-row"><span class="pill site-{{ s.status }}">{{ s.get_status_display }}</span> <a href="{{ s.get_absolute_url }}">{{ s.name }}</a> <span class="muted">{{ s.acres|intcomma }} ac</span></div>{% endfor %}
+      </div>{% endif %}
+    </section>
+    {% endif %}
+  </div>
+  <div>
+    <div class="panel">
+      <h3>New project</h3>
+      <form method="post" class="fields">{% csrf_token %}<input type="hidden" name="form" value="project">{{ form.as_p }}<button class="btn-primary">Add project</button></form>
+    </div>
+    <div class="panel">
+      <h3>New campus</h3>
+      <form method="post" class="fields">{% csrf_token %}<input type="hidden" name="form" value="campus">{{ campus_form.as_p }}<button class="btn">Add campus</button></form>
+    </div>
+  </div>
+</div>
+{% endblock %}

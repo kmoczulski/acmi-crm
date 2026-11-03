@@ -1,0 +1,30 @@
+{% extends "crm/base.html" %}
+{% load crm_tags %}
+{% block title %}Notifications · ACMI CRM{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Notifications</h1>
+  <a class="btn {% if show == 'unread' %}btn-primary{% endif %}" href="?show=unread">Unread</a>
+  <a class="btn {% if show == 'all' %}btn-primary{% endif %}" href="?show=all">All</a>
+  <span class="spacer"></span>
+  <a class="btn" href="{% url 'crm:notification_settings' %}">Settings</a>
+  <form method="post" action="{% url 'crm:notification_read_all' %}">{% csrf_token %}<button class="btn">Mark all read</button></form>
+</div>
+<div class="panel">
+  {% for n in page %}
+    <a class="notif {% if not n.read_at %}unread{% endif %}" href="{% url 'crm:notification_open' n.pk %}">
+      <span class="notif-kind">{{ n.get_kind_display }}</span>
+      <span class="notif-text">{{ n.text }}</span>
+      <span class="muted notif-when">{{ n.created_at|date:"M j, g:i A" }}</span>
+    </a>
+  {% empty %}<p class="muted" style="margin:0">{% if show == 'unread' %}You're all caught up.{% else %}No notifications yet.{% endif %}</p>{% endfor %}
+  {% if page.has_other_pages %}<div class="pager">
+    {% if page.has_previous %}<a href="{% qs_set page=page.previous_page_number %}">‹ Prev</a>{% endif %}
+    <span>Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
+    {% if page.has_next %}<a href="{% qs_set page=page.next_page_number %}">Next ›</a>{% endif %}
+  </div>{% endif %}
+</div>
+<p class="muted" style="font-size:12px">You get a notification when someone gives you a task, @mentions you, comments on a task, deal or company you own,
+  moves one of your deals, or a company you own replies by email; once a day for your tasks that are due or overdue; and 15 minutes before and at the time set on a task.
+  <a href="{% url 'crm:notification_settings' %}">Notification settings</a> picks which kinds reach you, here and as browser notifications.</p>
+{% endblock %}

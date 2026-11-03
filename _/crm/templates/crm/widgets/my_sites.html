@@ -1,0 +1,8 @@
+{% load crm_tags %}{# Dashboard widget: land sites you own or work on (my_sites) #}
+<a class="widget-link" href="{% url 'crm:land_sites_page' %}">All sites</a>
+<div class="clist" data-limit="8">
+  {% for s in my_sites %}
+    <div class="row-line"><span><a href="{{ s.get_absolute_url }}">{{ s.name }}</a> <span class="stage site-{{ s.status }}">{{ s.get_status_display }}</span></span>
+      <span class="muted" style="font-size:12px">{% if s.campus %}{{ s.campus.code }}{% elif s.project %}{{ s.project.name }}{% endif %}</span></div>
+  {% empty %}<p class="muted" style="margin:0">No sites yet. <a href="{% url 'crm:land_search' %}">Open the map</a> to build one.</p>{% endfor %}
+</div>

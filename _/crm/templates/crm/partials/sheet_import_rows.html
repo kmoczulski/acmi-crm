@@ -1,0 +1,26 @@
+{# What each row of an import does (preview) or did (results). rows: logic.result_row() dicts; done: after the import. #}
+<div class="chips">
+  {% for value, label in filters %}<a class="{% if show == value %}on{% endif %}" href="?show={{ value }}">{{ label }}</a>{% endfor %}
+</div>
+<div class="panel" style="padding:0;overflow-x:auto">
+<table class="data imp-rows">
+  <thead><tr><th class="num" style="width:52px">Row</th><th>Company</th><th>Contact</th><th>Notes</th></tr></thead>
+  <tbody>
+  {% for r in rows %}
+    <tr class="{% if r.skipped %}imp-skip{% endif %}">
+      <td class="num muted">{{ r.row }}</td>
+      {% if r.skipped %}
+        <td colspan="2"><span class="pill pill-bad">Skipped</span> {{ r.skipped }}</td>
+      {% else %}
+        <td>{% include "crm/partials/sheet_import_ref.html" with x=r.company row=r.row kind="company" %}</td>
+        <td>{% include "crm/partials/sheet_import_ref.html" with x=r.person row=r.row kind="contact" %}</td>
+      {% endif %}
+      <td class="imp-flags">{% for f in r.flags %}<span class="pill pill-mid">{{ f }}</span>{% endfor %}</td>
+    </tr>
+  {% empty %}
+    <tr><td colspan="4" class="muted">No rows here.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% if more %}<p class="muted lc-small">And {{ more }} more row{{ more|pluralize }} not shown.</p>{% endif %}
