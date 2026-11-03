@@ -297,29 +297,49 @@
   let resizing = null;
   addEventListener('resize', () => { clearTimeout(resizing); resizing = setTimeout(() => { makeRoom(null); layout(); }, 150); });
 
-  // The boxes this tab had open on the last page, then the pinned Chat list, then anything the address asks for (a
-  // browser notification that had to open the hub: /?dock=<box address>&read=<alert address>).
-  let chatsFolded = true;
+  // The boxes this tab had open on the last page, then anything the address asks for. The Chat list lives in the toolbar
+  // now, not as a bar at the bottom.
   stored().forEach(r => {
-    if (!r || !r.id) return;
-    if (r.kind === 'chats') chatsFolded = r.min !== false;
-    else if (r.kind === 'compose' || r.kind === 'thread' || r.kind === 'chat') add(r);
+    if (!r || !r.id || r.kind === 'chats') return;
+    if (r.kind === 'compose' || r.kind === 'thread' || r.kind === 'chat') add(r);
   });
-  if (PATH.chats) {
-    const hub = add({id: 'chats', kind: 'chats', url: PATH.chats + '?window=1&w=chats', key: 'chats', title: 'Chat', min: chatsFolded});
-    if (hub && cfg.chatPageUrl && location.pathname === cfg.chatPageUrl) hub.el.hidden = true;  // the Chat page is its own list
-  }
   makeRoom(null);
   layout();
 
-  // Chat: how many conversations are unread, on the pinned box and on any folded conversation box. Asking also turns
-  // new messages into alerts while the hub is open (crm/chat/views.py poll).
+  const chatBtn = document.querySelector('[data-chat-toggle]');
+  let chatPanel = null;
+  function toggleChat() {
+    if (!PATH.chats || !chatBtn) return;
+    if (chatPanel && !chatPanel.hidden) { chatPanel.hidden = true; chatBtn.setAttribute('aria-expanded', 'false'); return; }
+    if (!chatPanel) {
+      chatPanel = document.createElement('div');
+      chatPanel.className = 'chat-toolbar no-print';
+      chatPanel.hidden = true;
+      chatPanel.innerHTML = '<iframe class="chat-toolbar-frame" title="Chat"></iframe>';
+      chatPanel.querySelector('iframe').src = PATH.chats + '?window=1&w=chats';
+      document.body.append(chatPanel);
+    }
+    chatPanel.hidden = false;
+    chatBtn.setAttribute('aria-expanded', 'true');
+  }
+  if (chatBtn) chatBtn.addEventListener('click', toggleChat);
+  document.addEventListener('click', e => {
+    if (!chatPanel || chatPanel.hidden) return;
+    if (e.target.closest('[data-chat-toggle]') || e.target.closest('.chat-toolbar')) return;
+    chatPanel.hidden = true;
+    chatBtn.setAttribute('aria-expanded', 'false');
+  });
+
+  // Chat: how many conversations are unread, on the toolbar button and on any folded conversation box. Asking also
+  // turns new messages into alerts while the hub is open (crm/chat/views.py poll).
   async function pollChat() {
     if (!CHAT_POLL || document.hidden) return;
     try {
       const r = await fetch(CHAT_POLL, {credentials: 'same-origin'});
       if (!r.ok) return;
       const d = await r.json(), ids = d.ids || [];
+      const count = chatBtn && chatBtn.querySelector('[data-chat-count]');
+      if (count) { count.textContent = d.unread || ''; count.hidden = !d.unread; chatBtn.classList.toggle('has-unread', !!d.unread); }
       const nav = cfg.chatPageUrl && document.querySelector(`.topnav a.tn-link[href="${cfg.chatPageUrl}"]`);
       if (nav) {  // the number of unread conversations beside "Chat" in the top bar, like My tasks
         let n = nav.querySelector('.tn-count');
@@ -327,8 +347,7 @@
         if (n) { if (d.unread) n.textContent = d.unread; else { n.previousSibling && n.previousSibling.remove(); n.remove(); } }
       }
       wins.forEach(w => {
-        if (w.kind === 'chats') { w.count = d.unread || 0; paintTitle(w); }
-        else if (w.kind === 'chat') w.el.classList.toggle('unread', w.min && ids.includes(w.key));
+        if (w.kind === 'chat') w.el.classList.toggle('unread', w.min && ids.includes(w.key));
       });
       if (d.alerts && window.acmiAlerts && window.acmiAlerts.refresh) window.acmiAlerts.refresh();
     } catch (e) { /* offline: the next time */ }

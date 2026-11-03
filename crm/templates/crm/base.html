@@ -164,6 +164,7 @@
       </div>
     </details>
     {% if user.is_authenticated %}<button type="button" class="appbar-icon split-btn" data-split-toggle title="Open a page beside this one (or Alt+click any link)" aria-label="Open a page beside this one">◫</button>{% endif %}
+    {% if CHAT_ON %}<button type="button" class="appbar-icon chat-btn" data-chat-toggle title="Chat" aria-label="Chat" aria-expanded="false">💬<span class="count" data-chat-count hidden></span></button>{% endif %}
     <a href="{% url 'crm:notification_list' %}" class="appbar-icon bell {% if unread_notifications %}has-unread{% endif %}" title="Notifications" aria-label="Notifications">🔔{% if unread_notifications %}<span class="count">{{ unread_notifications }}</span>{% endif %}</a>
     <details class="menu-wrap user-menu">
       <summary class="avatar" title="{{ user.get_full_name|default:user.username }}">{{ user.first_name|default:user.username|slice:":1"|upper }}{{ user.last_name|slice:":1"|upper }}</summary>
