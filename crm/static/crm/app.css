@@ -1441,7 +1441,7 @@ tr.bd-total td { font-weight: 700; border-top: 2px solid var(--line); }
   --st-hold: #a16207; --st-hold-bg: #fdf3d8;
   --st-lost: #9f1239; --st-lost-bg: #fbe4ea;
   --today: #b45309; --today-bg: #fff3df;
-  --topbar-h: 52px;
+  --topbar-h: calc(52px + env(safe-area-inset-top, 0px));
 }
 .stage-prospect, .stage-contacted { background: var(--st-prospect-bg); color: var(--st-prospect); }
 .stage-qualified, .stage-engaged { background: var(--st-qualified-bg); color: var(--st-qualified); }
@@ -1475,7 +1475,7 @@ button.btn-primary, .btn.btn-primary { box-shadow: 0 1px 2px rgba(15, 23, 42, .1
 .shell { display: block; min-height: 100vh; }
 .main-col { min-width: 0; }
 .appbar { position: sticky; top: 0; z-index: 40; height: var(--topbar-h); display: flex; align-items: center; gap: 6px;
-  padding: 0 18px; background: var(--accent); color: #fff; box-shadow: 0 1px 0 rgba(0,0,0,.2), 0 2px 8px rgba(15, 23, 42, .12); }
+  padding: env(safe-area-inset-top, 0px) max(18px, env(safe-area-inset-right, 0px)) 0 max(18px, env(safe-area-inset-left, 0px)); background: var(--accent); color: #fff; box-shadow: 0 1px 0 rgba(0,0,0,.2), 0 2px 8px rgba(15, 23, 42, .12); }
 .appbar .spacer { flex: 1; }
 .appbar .brand { display: block; margin-right: 14px; flex: 0 0 auto; }
 .appbar .brand img { display: block; height: 30px; width: auto; }
@@ -2833,3 +2833,16 @@ body[data-chat-list] .dock-main > p, body[data-chat-list] .dock-main > a { margi
   box-shadow: 0 10px 40px rgba(0,0,0,.25); overflow: hidden; }
 .chat-toolbar[hidden] { display: none; }
 .chat-toolbar-frame { width: 100%; height: 100%; border: 0; background: var(--panel); }
+
+/* iPhone home-screen app: clear the notch and the home indicator, and make the common controls easy to tap. */
+@supports (padding: env(safe-area-inset-bottom)) {
+  body { padding-bottom: env(safe-area-inset-bottom); }
+  .mail-dock, .chat-toolbar { padding-bottom: env(safe-area-inset-bottom); }
+  #alert-toasts { bottom: calc(18px + env(safe-area-inset-bottom)); }
+}
+@media (max-width: 700px) {
+  .btn, .btn-small, .btn-primary, .appbar-icon, .tn-link, .tn-menu > summary { min-height: 44px; }
+  .appbar { gap: 2px; padding-left: max(10px, env(safe-area-inset-left)); padding-right: max(10px, env(safe-area-inset-right)); }
+  .appbar .brand { margin-right: 6px; }
+  table.data th, table.data td { padding: 8px; }
+}
