@@ -15,7 +15,7 @@ from django.utils.dateparse import parse_date
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
-from . import ai, company_page, documents, gcal, meetings, merge, notify, pipeline, prefs
+from .company_pdf import tenant_rows
 from . import projects as project_tagging
 from .boards import logic as board_logic
 from .build import logic as build_logic
@@ -552,6 +552,11 @@ def company_detail(request, pk):
         "team": team_connections(company=company),
         "documents": documents_for(company=company),
         "added_documents": company.documents.select_related("added_by", "opportunity"),
+        "tenant_facts": tenant_rows(
+            company,
+            list(company.contracts.select_related("lease_terms")),
+            list(Document.objects.filter(Q(company=company) | Q(opportunity__company=company)).distinct()),
+        ),
         "comments": company.comments.select_related("author", "opportunity", "task")[:50],
         "comment_target": ("company", company.pk),
         "document_categories": DOCUMENT_CATEGORIES,

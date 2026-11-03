@@ -56,7 +56,7 @@ def _date(raw):
 
 
 def find(*, lat=None, lon=None, miles=None, county=None, min_acres=None, max_acres=None, since=None, until=None,
-         arms="", land_only=False, outside=False, exclude_parcels=()):
+         arms="", land_only=False, outside=False, exclude_parcels=(), zonings=None):
     """Comps matching the filters, nearest first when there's a centre (newest first otherwise). Each comp gets
     .miles (None when it has no location). With a centre and a radius, comps without a location count when they
     are in `county`. arms: '' leaves out sales marked not arms-length, 'confirmed' keeps only arms-length ones,
@@ -80,6 +80,8 @@ def find(*, lat=None, lon=None, miles=None, county=None, min_acres=None, max_acr
         qs = qs.filter(sale_date__lte=until)
     if exclude_parcels:
         qs = qs.exclude(parcel_id__in=list(exclude_parcels))
+    if zonings:
+        qs = qs.filter(parcel__zoning__in=list(zonings))
     if lat is not None and lon is not None and miles:
         dlat, dlon = miles / 69.0, miles / (69.0 * max(math.cos(math.radians(lat)), 0.1))
         near = Q(lat__gte=lat - dlat, lat__lte=lat + dlat, lon__gte=lon - dlon, lon__lte=lon + dlon)
@@ -176,11 +178,11 @@ def site_value_range(site, today=None):
 
 
 def nearby(*, lat, lon, county, miles=DEFAULT_MILES, years=WIDER_YEARS, limit=6, outside=False, exclude_parcels=(),
-           today=None):
+           today=None, zonings=None):
     """The 'Sale comps nearby' panel: up to `limit` comps within `miles` from the last `years` years, nearest first,
     plus a summary of all of them."""
     today = today or date.today()
     comps = find(lat=lat, lon=lon, miles=miles, county=county, since=today - timedelta(days=round(365.25 * years)),
-                 outside=outside, exclude_parcels=exclude_parcels)
+                 outside=outside, exclude_parcels=exclude_parcels, zonings=zonings)
     return {"comps": comps[:limit], "total": len(comps), "summary": summarize(comps), "miles": miles, "years": years,
             "texas": bool(county and county.state == "TX"), "texas_note": TEXAS_NOTE}
