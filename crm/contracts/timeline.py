@@ -296,6 +296,27 @@ def compute(terms, effective, prefer_rules=True, today=None):
     return rows
 
 
+def recompute_dates(contract):
+    """Update stored ContractDate.date values from their rules when the effective date changes.
+
+    Dates with an anchor of "effective" (or that chain from another anchored date) get a new date.
+    Fixed dates (no anchor) are left alone. Returns the number of dates that changed.
+    """
+    terms = [term(d) for d in contract.dates.all()]
+    if not terms or not contract.effective_date:
+        return 0
+    rows = compute(terms, contract.effective_date, prefer_rules=True)
+    by_pk = {r["pk"]: r for r in rows if r.get("pk")}
+    changed = 0
+    for d in contract.dates.all():
+        row = by_pk.get(d.pk)
+        if row and row.get("computed") and row.get("when") and row["when"] != d.date:
+            d.date = row["when"]
+            d.save(update_fields=["date"])
+            changed += 1
+    return changed
+
+
 def compare(versions):
     """(rows, (first, last)) for the side-by-side table: [{"key", "label", "kind", "cells": [row or None per
     version], "changed"}] in date order, and the span of dates shown. `versions` is [{"rows": compute(...)}, ...]."""

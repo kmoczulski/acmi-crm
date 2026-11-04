@@ -319,11 +319,19 @@ def _post(request, contract):
     if action == "details":
         form = ContractForm(request.POST, instance=contract)
         if form.is_valid():
+            old_effective = contract.effective_date
             form.save()
             # Owners picked on a site it no longer belongs to stop getting its dates.
             contract.parcel_deals.remove(*contract.parcel_deals.exclude(site_id=contract.site_id))
+            if contract.effective_date and contract.effective_date != old_effective:
+                n = timeline.recompute_dates(contract)
+                if n:
+                    messages.success(request, f"Saved. Recalculated {n} critical date{'s' if n != 1 else ''} from the new effective date.")
+                else:
+                    messages.success(request, "Saved.")
+            else:
+                messages.success(request, "Saved.")
             dates.sync_site(contract, user)
-            messages.success(request, "Saved.")
         else:
             messages.error(request, "Not saved: " + "; ".join(f"{k}: {' '.join(v)}" for k, v in form.errors.items()))
     elif action == "upload":
