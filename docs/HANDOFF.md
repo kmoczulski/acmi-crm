@@ -3,8 +3,28 @@
 Read this first when picking the project up in a new chat, along with
 `attio_spec.md` in this folder. Start with "Pick up here"; the dated sections after it are the history.
 
-Newest (2026-11-04): **Apple-style look, pass 1** (Kellen: "I want it to feel like apple designed it"; keep navy and the top
-bar). Branch `worktree-apple-ui` (worktree `.claude/worktrees/apple-ui`, on `main` `9f8eb56`, not merged, not deployed; CSS
+Newest (2026-11-04): **Apple-style look, passes 1 and 2: merged to `main` and pushed to GitHub (`e77ee52`), NOT deployed.**
+Kellen: "I want it to feel like apple designed it"; keep navy and the top bar.
+
+**Pick this up here:**
+1. **Deploy when Kellen says so** (ask right before; see the deploy note in memory). No migration and no Python changes, only
+   `app.css` and template colours, so it is an image-only deploy and rollback is traffic back to the previous revision.
+2. **CI on `main` is red, and was red before the redesign**: run `41697036626` on `9f8eb56` ("Restore inbox.html") failed. The 5
+   failing tests (`test_land_sales.CompTests.test_same_zoning_keeps_only_matching_parcels`, three in `test_schedule`,
+   `test_company_page…test_the_side_column_shows_tenant_and_financials`) came in with the "Restore …" commits (views.py, cards.py,
+   inbox.html were truncated or overwritten and restored by hand). Fix those first; they are logic, not styling.
+3. **Not seen on screen yet:** the inbox reading pane (the preview's sign-in didn't carry into its frame) and team boards
+   with cards. Look at both, light and dark, on the hosted copy or a scratch preview.
+4. **Kellen's main folder is still on `calendar-fixes-v2`** with uncommitted edits to `app.css`, `board.js` and
+   `land_search.html`. That branch carries a stray `_/` copy of the whole repo; clean it out, then merge it onto the new
+   `main` (expect small `app.css` conflicts with the redesign).
+5. **Possible pass 3**, only if Kellen wants more: the ~570 inline `style=` spacing attributes, the contract reader, the
+   site-card dialog, data room and capital pages, the phone layout.
+
+How to preview a worktree safely (scratch DB, fake records, FakeGmail for the inbox): the memory note on previewing; this time
+the server was started from Bash in the background because the session couldn't edit the main checkout's `launch.json`.
+
+What changed. Pass 1: branch `worktree-apple-ui` (worktree `.claude/worktrees/apple-ui`, from `main` `9f8eb56`; CSS
 and template colours only, no migration, no Python changes). In `crm/static/crm/app.css`: a new palette at the top (Apple's
 system greys, ACMI navy kept for the bar and main buttons, system font stack incl. Segoe UI Variable on Windows), about 320
 hard-coded neutral colours swapped for variables (`--panel`, `--panel-2`, `--fill`, `--line`, `--text`, `--muted` …), pale tints
@@ -25,10 +45,11 @@ widths) and were left; the few colour ones are in print, email and PDF templates
 databases (light and dark): home, companies, a company, the deal board, the calendar, land search, the inbox (with the test
 suite's FakeGmail); the inbox reading pane and team boards with cards were not seen.
 Tests: 1,142 run, 5 fail (land comps zoning filter, three scheduling tests, the company page's "Tenant & financials"
-column); none of them looks at styling, so they look like they come from `main`'s recent "Restore …" commits (not re-run on
-plain `main` to confirm). Map marker colours inside `<script>` blocks were left as hex on purpose (Leaflet can't read CSS
-variables). The `calendar-fixes-v2` branch was not merged in (it carries a stray `_/` copy of the repo); merge it on its own.
-Newest (2026-10-30): branch `chat-parity` (worktree `.claude/worktrees/chat-parity`, on `schedule`, pushed to GitHub, not merged;
+column); none of them looks at styling, and CI on `main` was already failing before the redesign (run
+`41697036626`). Map marker colours inside `<script>` blocks were left as hex on purpose (Leaflet can't read CSS
+variables).
+
+Before it (2026-10-30): branch `chat-parity` (worktree `.claude/worktrees/chat-parity`, on `schedule`, pushed to GitHub, not merged;
 **live since 10:38 am Central on 2026-10-30**: revision `acmi-crm-00011-dlb`, image `c370d25`, built by `cloudbuild.yaml` in 5
 minutes, migration `0076` applied, the service and the three jobs have the same settings as before and only the image changed,
 Cloud SQL backup `1793374290231` taken first, rollback is traffic back to `acmi-crm-00010-pfw`): Kellen asked for everything
