@@ -3,14 +3,33 @@
 Read this first when picking the project up in a new chat, along with
 `attio_spec.md` in this folder. Start with "Pick up here"; the dated sections after it are the history.
 
-**Pick up here, end of 2026-11-04 (Claude on the laptop; Kellen: "pick up on handoff"): the merge of Chat with the calendar
-line is done and tested on branch `merge-chat-calendar`. It is NOT pushed and NOT deployed.** Worktree
-`.claude/worktrees/merge-chat-calendar`, cut from `calendar-fixes-v2` `1bf04b3`. Kellen's main folder is still on
-`calendar-fixes-v2`, clean.
-- **What is live right now: revision `acmi-crm-00021-86x`, image `5742155`** (10:21 am Central, just after the entries below
+**Pick up here, 2026-11-04 (Claude on the laptop; Kellen: "pick up on handoff", then "push and deploy everything"): the merge
+of Chat with the calendar line is done, tested, pushed and DEPLOYED: revision `acmi-crm-00022-fbx`, image `a799272`, live
+since 11:24 am Central.** Branch `merge-chat-calendar` (worktree `.claude/worktrees/merge-chat-calendar`, cut from
+`calendar-fixes-v2` `1bf04b3`); `main` was fast-forwarded to it after the deploy. Kellen's main folder is still on
+`calendar-fixes-v2`, clean, and its HANDOFF.md is the old one: read this file from `main` or the worktree.
+- **The deploy (11:12–11:25 am Central).** CI on the pushed commit (run 41874959891, Postgres) green in 6½ minutes; manual
+  Cloud SQL backup "before merge-chat-calendar a799272"; Cloud Build `c92c5fc9-8f8d-4d47-b0df-0750b6ed805a` (7 min, from a
+  clean `git archive` of `a799272`, `cloudbuild.yaml` with `_TAG=a799272`); the live image was re-read right before
+  (`5742155`, an ancestor of what shipped, so nothing live was dropped). After: the migrate job found **no migrations to
+  apply**; the service and the three jobs have **identical env / command / args / Cloud SQL settings** before and after
+  (md5 of each, only the image differs); no WARNING or ERROR logs on the new revision; the login page is 200, the pages
+  behind sign-in answer 302, and the served `app.css` carries the Apple layer and the restored Times rule. **Rollback:**
+  `gcloud run services update-traffic acmi-crm --to-revisions=acmi-crm-00021-86x=100 --region us-central1 --project
+  sincere-passage-511621-j3` (00021 is `5742155`, the calendar line; the schema is the same either way). **Not checked on
+  the hosted copy:** anything behind sign-in (Claude cannot sign in as Kellen): Chat, scheduling, the Apple look, the
+  add-to-directory card. Ask Kellen to click through them.
+- **What the deploy changed for everyone:** the Apple-style look and dark mode (first time live); Chat (the Chat link, and the
+  💬 button in the top bar for anyone who has turned it on) and Scheduling (Calendar menu and the Meetings header) are back;
+  add-a-person-from-an-email, inbox times and the phone fixes are back; the buy-box score is gone from the brief PDFs;
+  pipeline cards link to company and deal cards; the Meet / Teams choice in scheduling. **Chat and scheduling still need
+  Mel's Google steps** (`docs/FOR_MEL_GOOGLE_CHAT.md`, `docs/FOR_MEL_SCHEDULING.md`: the `calendar.events` scope on the
+  consent screen, then each person presses Allow scheduling once; until then "Open in Google Calendar" works). Whether Mel
+  did them is not known here; neither has been run against real Google as far as these notes say.
+- **Before it, live from 10:21 am Central: revision `acmi-crm-00021-86x`, image `5742155`** (just after the entries below
   were written; they still say 00020 / `ea95d55`). That is `calendar-fixes-v2` at `5742155`: calendar
-  views, lease / ROC, phone land-search filters, data room pipeline. **It has no Chat, no "add a person from an email" and no
-  inbox times.** Rollback: traffic back to `acmi-crm-00020-jgs` (no migration between 00020 and 00021).
+  views, lease / ROC, phone land-search filters, data room pipeline. **It had no Chat, no Scheduling, no "add a person from
+  an email" and no inbox times.**
 - **Features that had been live and were silently dropped.** Images `154e56a`, `417defa` and `f431408` (branch `person-phones`)
   ran as revisions 00012–00014 from 2026-10-30 until the 2026-11-03 redeploys (Grok's `main`, then the calendar line). They
   are: a name in an email adds that person to the directory (with Office and Cell phone boxes), the time beside the date in
@@ -64,25 +83,33 @@ line is done and tested on branch `merge-chat-calendar`. It is NOT pushed and NO
   land search (map, "N parcels" pill, the Filters & results sheet), the compose page with the Times side panel docked at the
   right, and no sideways scroll on a phone. **Not checked:** real Google Chat or Gmail, a real phone, Postgres (CI runs it;
   two earlier fixes were for Postgres ordering).
-- **To do next:**
-  1. With Kellen's OK, push `merge-chat-calendar` and let CI run (Postgres is the run that counts). `main` and
-     `calendar-fixes-v2` are both ancestors of it, so either can then be fast-forwarded to it; PRs 15 (`schedule`), 18 and 19
-     are then redundant (close them; their branches `fix-buybox-score`, `fix-card-nav` and worktrees can go).
-  2. Deploy when Kellen says so, image only: no new migration, the migrate job will find nothing to do. Check the live image
-     first (it was `5742155` / 00021 when this was written; `git merge-base --is-ancestor 5742155 <sha>` holds), take a
-     Cloud SQL backup anyway, and watch Chat: it has been off since the afternoon of 2026-11-03, and the 2026-10-30 notes
-     say it had not yet run against real Google. Rollback: traffic back to `acmi-crm-00021-86x`.
-  3. Ask Kellen: whether Tenant & financials should be an Overview widget (above); whether the Chat button in the top bar
+- **To do next** (the push, CI and deploy that were here are done, see above):
+  1. **Have Kellen click through the hosted copy** (Chat, Scheduling, the Apple look in light and dark, the add-to-directory
+     card, the compose Times panel) and watch the logs for a day: Chat and scheduling were off from the afternoon of
+     2026-11-03, and the Apple look has never run on the hosted copy.
+  2. **Mel's Google steps** for scheduling and Chat (above), if not done. A person pressing Allow scheduling before the
+     `calendar.events` scope is on the consent screen gets Google's "app blocked" screen.
+  3. **A latent problem this deploy ends (inferred from how Django adds columns, not seen failing):** while 00019–00021 ran,
+     the code did not know `CalendarSync.can_schedule`, which migration 0075 had already added to the database. Django adds
+     such a column NOT NULL and drops the temporary default, so that code could not have inserted a new `CalendarSync` row
+     (a person's first calendar connection); existing rows were fine, and a search of the production error logs for the
+     last three days found nothing. Rolling back to 00021 puts the same mismatch back. Old code does not run safely on a
+     schema that has gained a NOT NULL column.
+  4. **Housekeeping, nothing deleted yet:** PRs 15 (`schedule`), 18 and 19 are now inside `main` (GitHub marks them merged,
+     or close them); the local branches and worktrees `fix-buybox-score`, `fix-card-nav`, `lease-roc`, `deploy-lease-roc`,
+     `person-phones` (`ACMI_CRM_person_phones`), the `ACMI_CRM_deploy_154e56a` folder and `.claude/worktrees/merge-chat-calendar`
+     itself can go once Kellen is happy; `calendar-fixes-v2` still carries the stray `_/` files and can be fast-forwarded to `main`.
+  5. **Ask Kellen:** whether Tenant & financials should be an Overview widget (above); whether the Chat button in the top bar
      (main's) or the phone-only 💬 (person-phones') is the one wanted; whether `docs/GEMINI_*` and the other Gemini / Grok
      docs stay in the repo.
 
-Newest before that (2026-11-04): **Apple-style look, passes 1 and 2: merged to `main` and pushed to GitHub (`e77ee52`), NOT deployed.**
+Newest before that (2026-11-04): **Apple-style look, passes 1 and 2: merged to `main` and pushed to GitHub (`e77ee52`); deployed later the same day with the merge above (revision 00022).**
 Kellen: "I want it to feel like apple designed it"; keep navy and the top bar.
 
 **Its pick-up list (status at the end of the day in brackets):**
 1. **Deploy when Kellen says so** (ask right before; see the deploy note in memory). No migration and no Python changes, only
    `app.css` and template colours, so it is an image-only deploy and rollback is traffic back to the previous revision.
-   [Now part of the merged deploy above.]
+   [Deployed, as part of the merged deploy above.]
 2. **CI on `main` is red, and was red before the redesign**: run `41697036626` on `9f8eb56` ("Restore inbox.html") failed. The 5
    failing tests (`test_land_sales.CompTests.test_same_zoning_keeps_only_matching_parcels`, three in `test_schedule`,
    `test_company_page…test_the_side_column_shows_tenant_and_financials`) came in with the "Restore …" commits (views.py, cards.py,
