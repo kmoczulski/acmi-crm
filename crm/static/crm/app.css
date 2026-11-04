@@ -2895,7 +2895,8 @@ body[data-chat-list] .dock-main > p, body[data-chat-list] .dock-main > a { margi
    Apple-style layer (2026-11): quieter surfaces, soft shadows instead of outlines, rounded controls, frosted menus.
    It sits last so it wins over the older rules above without rewriting them. Navy and the top bar stay.
    ========================================================================== */
-:root { --bar: rgba(31, 58, 95, .9); --bar-solid: #1f3a5f; --glass: rgba(255, 255, 255, .82); }
+:root { --bar: rgba(31, 58, 95, .9); --bar-solid: #1f3a5f; --glass: rgba(255, 255, 255, .82);
+  --nav-hover: #2e4d7b; --nav-active: #3f6aa3; }  /* the top bar's hover and selected pills: solid, not see-through */
 ::selection { background: rgba(31, 58, 95, .2); }
 a { color: var(--link); }
 a:hover { text-decoration: none; opacity: .85; }
@@ -2959,15 +2960,15 @@ table.data tr:hover td { background: var(--hover); }
 .chips a:hover { background: var(--line-strong); color: var(--text); opacity: 1; }
 .chips a.on { background: var(--accent); color: #fff; }
 
-/* Top bar: still navy, now frosted, with soft pills for the current page. */
+/* Top bar: still navy, now frosted, with solid pills for the current page. */
 .appbar { background: var(--bar); box-shadow: 0 .5px 0 rgba(0, 0, 0, .3);
   -webkit-backdrop-filter: saturate(180%) blur(20px); backdrop-filter: saturate(180%) blur(20px); }
 .topnav { align-items: center; }
 .tn-menu { height: auto; }
 .tn-link, .tn-menu > summary { height: 32px; padding: 0 11px; border: 0; border-radius: 8px; color: rgba(255, 255, 255, .78);
   font-size: 13.5px; transition: background-color .15s var(--ease), color .15s var(--ease); }
-.tn-link:hover, .tn-menu > summary:hover, .tn-menu[open] > summary { background: rgba(255, 255, 255, .1); color: #fff; opacity: 1; }
-.tn-link.active, .tn-menu.active > summary { background: rgba(255, 255, 255, .16); color: #fff; }
+.tn-link:hover, .tn-menu > summary:hover, .tn-menu[open] > summary { background: var(--nav-hover); color: #fff; opacity: 1; }
+.tn-link.active, .tn-menu.active > summary { background: var(--nav-active); color: #fff; }
 .tn-count, .appbar .bell .count, .appbar .chat-btn .count { background: #ff3b30; }
 .tn-dot { background: #ffd60a; }
 .appbar-icon { border-radius: 8px; color: rgba(255, 255, 255, .82); }
@@ -2986,6 +2987,8 @@ kbd { border: 0; background: var(--fill); }
   background: var(--glass); color: var(--text); border: .5px solid var(--line); border-radius: 12px; box-shadow: var(--shadow-3);
   -webkit-backdrop-filter: saturate(180%) blur(28px); backdrop-filter: saturate(180%) blur(28px); }
 .tn-drop { top: calc(100% + 6px); padding: 6px; }
+/* The top bar's menus (the nav dropdowns, + New, the profile menu) are solid: nothing on the page shows through them. */
+.tn-drop, .menu-wrap .menu { background: var(--panel); -webkit-backdrop-filter: none; backdrop-filter: none; }
 .tn-drop a, .menu a, .menu .menu-btn { border-radius: 7px; }
 .tn-drop a:hover, .menu a:hover, .menu .menu-btn:hover { background: var(--accent-soft); opacity: 1; }
 .tn-drop a.on { background: var(--accent-soft); box-shadow: none; }
@@ -3038,6 +3041,7 @@ html[data-theme="dark"] {
   --shadow-2: 0 0 0 .5px rgba(255, 255, 255, .09), 0 6px 18px rgba(0, 0, 0, .4);
   --shadow-3: 0 0 0 .5px rgba(255, 255, 255, .1), 0 20px 56px rgba(0, 0, 0, .6);
   --bar: rgba(20, 36, 59, .88); --bar-solid: #172a44; --glass: rgba(40, 40, 44, .82);
+  --nav-hover: #26446e; --nav-active: #36629c;
   --st-prospect: #aeaeb2; --st-prospect-bg: rgba(174, 174, 178, .16);
   --st-qualified: #7aa7ff; --st-qualified-bg: rgba(10, 132, 255, .2);
   --st-loi: #c69cff; --st-loi-bg: rgba(191, 90, 242, .2);
