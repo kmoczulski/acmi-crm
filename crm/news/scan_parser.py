@@ -545,6 +545,19 @@ def parse_new_prospects(text):
 
 # ------------------------------------------------------------------ top-level
 
+_DATE_RE = re.compile(r"(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.? \d{1,2},? \d{4}|\d{4}-\d{2}-\d{2}")
+
+
+def _scan_date(head):
+    """The scan's date: the first date written out in the title or the next line ("November 4, 2026"). A second line
+    that is really a sentence ("Prepared for ...") is not a date and is ignored."""
+    for line in head[:2]:
+        m = _DATE_RE.search(line)
+        if m:
+            return m.group(0)
+    return ""
+
+
 def parse_scan(path):
     """Return (metadata, entries, prospects) parsed from the scan at `path`.
 
@@ -569,7 +582,7 @@ def parse_scan(path):
     head = text.strip().split("\n")
     metadata = {
         "title": _clean(head[0]) if head else "Weekly Prospect News Scan",
-        "scan_date": _clean(head[1]) if len(head) > 1 else "",
+        "scan_date": _scan_date(head),
         "stats_line": _clean(head[2]) if fmt == "current" and len(head) > 2 else "",
         "source_file": str(path),
         "entry_count": len(entries),
