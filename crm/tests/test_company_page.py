@@ -129,7 +129,7 @@ class CompanyPageTests(TestCase):
     def test_the_side_column_shows_tenant_and_financials(self):
         from crm.models import Document
         Document.objects.create(company=self.co, title="2025 financials.pdf", category="Financials")
-        r = self.client.get(self.url)
+        r = self.client.get(self.url, {"tab": "people"})  # the Overview is a widget grid; the other tabs have the column
         self.assertContains(r, "Tenant & financials")
         self.assertContains(r, "2025 financials.pdf")
         self.assertContains(r, "Signing entity")

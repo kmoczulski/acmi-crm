@@ -317,6 +317,10 @@ class CompTests(TestCase):
         self.assertEqual({c.record_key for c in near["comps"]}, {"ig", "ag"})
         same = comps.nearby(lat=32.9, lon=-111.7, county=self.pinal, zonings=["IG"])
         self.assertEqual({c.record_key for c in same["comps"]}, {"ig"})
+
+    def test_summary_and_value_range(self):
+        # (The same-zoning test above was written on top of this one's first lines, so this one's body fell into it
+        # and counted its two extra comps; the two are separate tests again.)
         self.assertFalse(comps.parcel_value_range(self.subject)["enough"])
         for ppa in (4000, 5000, 6000, 7000, 8000):
             self.comp(ppa)
