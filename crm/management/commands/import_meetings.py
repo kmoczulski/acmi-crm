@@ -19,6 +19,15 @@ from crm.models import ImportBatch, Notification
 # A Drive file's import is recorded as an ImportBatch whose `sheet` is "granola:<file id>" (the spreadsheet import
 # page leaves these out).
 DRIVE_MARK = "granola:"
+FORMATS = (".json", ".txt")  # the daily task's JSON, or the text export (crm/granola_text.py)
+
+
+def file_key(f):
+    """What records a Drive file as imported. A text export is rewritten under the same file ID, so its modified time is
+    part of the key and an updated file is read again (the importer updates meetings in place)."""
+    if f.name.lower().endswith(".txt") and f.modified:
+        return f"{f.id}@{f.modified:%Y%m%d%H%M%S}"
+    return f.id
 
 
 class Command(BaseCommand):
@@ -67,11 +76,13 @@ def import_from_drive():
         return out
     done = {s[len(DRIVE_MARK):] for s in
             ImportBatch.objects.filter(sheet__startswith=DRIVE_MARK).values_list("sheet", flat=True)}
-    new = [f for f in drive.list_files(folder, refresh=True)
-           if f.name.lower().endswith(".json") and f.mime not in drive.EXPORTS and f.id not in done]
+    # With ACMI_GRANOLA_DRIVE_USER the folder is read with that person's Google sign-in, not the service account.
+    who = {"as_user": settings.GRANOLA_DRIVE_USER} if getattr(settings, "GRANOLA_DRIVE_USER", "") else {}
+    new = [f for f in drive.list_files(folder, refresh=True, **who)
+           if f.name.lower().endswith(FORMATS) and f.mime not in drive.EXPORTS and file_key(f) not in done]
     if not new:
         return out
-    c = drive.client()
+    c = drive.client(**who)
     with tempfile.TemporaryDirectory() as tmp:
         good = []
         for i, f in enumerate(new):
@@ -115,5 +126,5 @@ def _import(files):
         stats = meetings.import_meetings(meetings.load(*[p for _, p in files]))
         counts = {k: v for k, v in stats.items() if k != "unmatched"}
         for f, _ in files:
-            ImportBatch.objects.create(filename=f.name[:255], sheet=f"{DRIVE_MARK}{f.id}"[:120], counts=counts)
+            ImportBatch.objects.create(filename=f.name[:255], sheet=f"{DRIVE_MARK}{file_key(f)}"[:120], counts=counts)
     return stats

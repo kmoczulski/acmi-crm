@@ -376,6 +376,16 @@ with the first deploy instead). Real database backed up to `backups/db-2026-10-2
   logged by name and tried again next run). With neither set, the laptop folders work as before. `cloudbuild.yaml`
   passes them as `_NEWS_FOLDER` / `_GRANOLA_FOLDER` with `ACMI_DRIVE_ADC=true`; its header lists the one-time setup.
   **The daily Granola task (acmiproperties account) has to save its JSON into that Drive folder.**
+- **Granola text export from Drive, as Kellen (built 2026-11-04, branch `worktree-granola-drive-txt`, not deployed):**
+  `crm/granola_text.py` reads the daily export (`=== MEETING ===` blocks: ID, TITLE, DATE with CST/CDT, URL, ATTENDEES, notes)
+  into the rows `import_meetings` takes. ALL-CAPS lines become headings and `- Title (Owner): detail` under NEXT STEPS become
+  action items (194 from the real 53-meeting export). Attendees are names only: team by name or first-initial+last, outside
+  by one matching Person, and a `(Company)` label links the company when exactly one has that name. `import_from_drive` takes
+  `.json` or `.txt`, skips the index file (no meetings), and re-reads a `.txt` whose modified time changed.
+  `ACMI_GRANOLA_DRIVE_USER` reads the folder with that person's Google token (`drive._user_session`) and adds Drive
+  read-only to the sign-in scope; cloudbuild passes `_GRANOLA_USER`. **To switch on:** add the Drive scope to the OAuth
+  consent screen, set `_GRANOLA_FOLDER` (`1qREDx3CbuEVHkWTEyK344jFQ5cHG1HYn`) and `_GRANOLA_USER`, deploy, Kellen signs in
+  again once. Merge Chat (main) with the calendar line first.
 - 901 tests green.
 - **Not done, needs Kellen:** the whole cutover in step 3.
 - **Secret Manager is Mel's** (Kellen, 10-28). Neither ACMI project (`sincere-passage-511621-j3`, which has the OAuth
