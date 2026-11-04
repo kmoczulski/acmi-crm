@@ -862,7 +862,10 @@ def opportunity_set_stage(request, pk):
     opp.save()
     if old_label != opp.get_stage_display():
         notify.deal_stage_changed(opp, old_label, request.user)
-    return JsonResponse({"ok": True, "stage": stage})
+    # Board drag-and-drop expects JSON; a plain form post (from the deal card) reloads the card.
+    if request.headers.get("X-Requested-With") == "fetch" or request.POST.get("json"):
+        return JsonResponse({"ok": True, "stage": stage})
+    return redirect(_safe_next(request, opp.get_absolute_url() + "card/"))
 
 
 # ---------------------------------------------------------------------------

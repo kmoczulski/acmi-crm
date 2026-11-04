@@ -31,9 +31,18 @@
         {% if comments %}<div class="scard-sec"><h3>Latest comments</h3>{% for c in comments %}<div class="pk-cmt"><b>{{ c.author|username|default:"Someone" }}</b> <span class="muted lc-small">{{ c.created_at|date:"M j" }}</span>{{ c.body|mentions }}</div>{% endfor %}</div>{% endif %}
       </div>
       <aside class="pk-side">
-        <div class="scard-sec"><h3>Open deals</h3>
-          {% for o in open_deals %}<a class="scard-row" href="{{ o.get_absolute_url }}">{{ o.name }}<span class="pk-row-sub">{{ o.get_stage_display }}{% if o.value %} · {{ o.value|money }}{% endif %}{% if o.next_step %} · next: {{ o.next_step|truncatechars:50 }}{% endif %}</span></a>
-          {% empty %}<p class="muted">No open deals.</p>{% endfor %}</div>
+        <div class="scard-sec">
+          <h3>Open deals {% if open_deals %}<a class="btn btn-small" href="{% url 'crm:opportunity_board' %}?q={{ company.name|urlencode }}" data-page style="float:right;font-size:11px;padding:2px 8px">View in pipeline</a>{% endif %}</h3>
+          {% for o in open_deals %}
+          <a class="scard-row" href="{{ o.get_absolute_url }}">
+            <div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline">
+              <span>{{ o.name }}</span>
+              <span class="stage stage-{{ o.stage }}" style="font-size:11px;padding:1px 6px">{{ o.get_stage_display }}</span>
+            </div>
+            <span class="pk-row-sub">{% if o.value %}{{ o.value|money }} · {% endif %}{% if o.next_step %}next: {{ o.next_step|truncatechars:40 }}{% endif %}</span>
+          </a>
+          {% empty %}<p class="muted">No open deals.</p>{% endfor %}
+        </div>
         <div class="scard-sec"><h3>People{% if people_count > people|length %} <span class="muted">{{ people|length }} of {{ people_count }}</span>{% endif %}</h3>
           {% for p in people %}<a class="scard-row" href="{{ p.get_absolute_url }}">{{ p }}<span class="pk-row-sub">{% if p.title %}{{ p.title|truncatechars:40 }} · {% endif %}{{ p.last_interaction_at|ago|default:"no touch yet" }}</span></a>
           {% empty %}<p class="muted">No people yet.</p>{% endfor %}</div>
