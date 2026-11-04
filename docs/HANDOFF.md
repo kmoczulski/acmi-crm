@@ -5,8 +5,10 @@ Read this first when picking the project up in a new chat, along with
 
 **Update, 2026-11-04 (evening; Claude on the laptop; Kellen: "I thought I added the ability to upload photos to comments on
 company cards? also within the company cards, people needs to add phone numbers if we have them"): both are built and checked
-on branch `card-photos-phones` (worktree `.claude/worktrees/card-photos-phones`, cut from `origin/main` `6d597b7`). NOT
-committed, NOT pushed, NOT deployed: live is still 00031 / `a3048b0` and has neither.**
+on branch `card-photos-phones` (worktree `.claude/worktrees/card-photos-phones`, cut from `origin/main` `6d597b7`). Committed
+as `5ed007f`, pushed, CI green (run 41921163980); Kellen then said "deploy": the deploy of exactly `5ed007f` was started
+after this merge went to `main` (the next entry is another session's fix that reached `main` in between and is NOT part of it).
+This paragraph is rewritten with the result once the deploy has finished: if it still says "started", check the live image.**
 - **Why the photos were not there.** The upload had been built on 2026-11-03 as commit `7cf25af` on `origin/photo-comments`
   (cut from `960e79c`, 67 commits behind `main`) and never merged, and no note here mentioned it. It could not have shipped as
   it stood: its migration `0077_comment_photo` and main's `0077_deal_lease_roc` both depend on `0076`, so the migrations would
@@ -40,6 +42,39 @@ committed, NOT pushed, NOT deployed: live is still 00031 / `a3048b0` and has nei
   follow-ups, none asked: several photos per comment (a second model), HEIC (needs `pillow-heif` in the image), editing a comment.
   The person card (`cards/person.html`) and `person_details.html` still put the whole saved text, label included, in their
   `tel:` link; the new filter fixes that in two lines if wanted.
+
+**Update, 2026-11-04 (evening; Claude on the laptop; Kellen: "I uploaded a contract then updated the effective date but the
+dates that Claude calculated didn't update. Was this fix deployed?"): the effective-date recalculation is fixed, tested and
+merged into `main` (`b705c40`, fast-forwarded after CI went green), NOT deployed. Live is still `acmi-crm-00031-ptp`, image `a3048b0`.** The fix was commit `b363621`
+(2026-11-03, branch `contract-dates-recompute`, one commit). It was never merged or deployed, and nothing in this file
+mentioned it, so it sat on its branch for a day. **It would not have worked if deployed:** `_post` in
+`crm/contracts/views.py` read `old_effective` after `form.is_valid()`, and `is_valid()` already copies the posted values
+onto the contract, so "the effective date changed" was never true. A test that posts a new effective date through the real
+page failed on the original (feasibility stayed May 1) and passed once the old date was read before the form is built.
+- **What it does now:** saving a contract's details with a new effective date calls
+  `timeline.recompute_dates(contract, old_effective, user)` (in `crm/contracts/timeline.py`; before `dates.sync_site`, so
+  the land site's timeline gets the new dates). It moves every stored critical date that has a rule (anchor + offset),
+  including Claude's suggestions nobody has kept and dates that were blank waiting for the effective date; chains follow
+  (closing = feasibility + 30). Fixed dates stay. A date that is done, or that a person moved (a push or an exercised
+  extension: a history entry not marked `auto`), stays where it is, and the dates that count from it work from where it
+  stands. A suggestion that shares a key with a kept date cannot move the kept date. Each move is in the date's history
+  (the "Moved N×" fold on the contract page) with the reason, marked `auto` so the next change of the effective date still
+  moves it. "Saved." says how many were recalculated and how many stayed. No model change, no migration.
+- **Not changed:** a date a person edited by hand that still carries a rule follows the next effective-date change (clear
+  its rule to pin it); old hand-added dates with no parsed rule (Trello imports) do not move.
+- **Tests:** `crm/tests/test_contract_recalc.py` (9 tests: the move and the chain, a second change, same-date save leaves
+  hand-set dates, blank dates fill in, done / pushed dates, key clash, site timeline, no effective date, idempotence).
+  Against `b363621` alone 6 of the 9 fail (the page test among them); with the fix all 9 pass. Full suite on the laptop:
+  1196 tests OK (1 skipped, 470 s). CI on Postgres green on PR 21 (https://github.com/kmoczulski/acmi-crm/pull/21, runs
+  41920844132 push and 41920890112 pull_request, head `b705c40`). Clicked through on a scratch copy (a contract with a done
+  date, a pushed date, a fixed date and one unkept Claude suggestion; effective date Mar 2 to Apr 1): the Saved message, the
+  new dates and the "Moved 1×" reason all showed. Not tried against real Google or the live data.
+- **To ship:** Kellen's go-ahead right before, then the usual deploy steps (live image and ancestor check, fingerprint
+  before / after, migrate job finds nothing, curl, logs). Rollback target `acmi-crm-00031-ptp`. Local `main` (checked out in
+  `.claude/worktrees/mail-booking`) is behind `origin/main`: do not deploy from it.
+- **Branches:** PR 21 (`contract-dates-fix`, merged by fast-forward) holds the work. `contract-dates-recompute` (the original
+  commit) is an ancestor of `main` through merge `6cc28ce` and can be deleted. The worktree
+  `.claude/worktrees/contract-dates-fix` can go once this is deployed.
 
 **Update, 2026-11-04 (afternoon, after 00030; Claude on the laptop; Kellen: "ok deploy", then "Yes, task groups"): task groups
 (PR 20, the Tasks page grouped by deal / campus, land site, prospecting, general) is merged into `main` and DEPLOYED: live is

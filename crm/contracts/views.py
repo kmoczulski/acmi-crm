@@ -312,18 +312,35 @@ def _lease_context(contract, today):
             "years_left": leases.years_left(terms, today), "sources": sources}
 
 
+def _recalculated(moved, left):
+    """What "Saved." adds when a new effective date moved the critical dates that count from it."""
+    parts = []
+    if moved:
+        n = len(moved)
+        parts.append(f"Recalculated {n} critical date{'s' if n != 1 else ''} from the new effective date.")
+    if left:
+        parts.append(f"{left} {'stays where it is' if left == 1 else 'stay where they are'} (done, or moved by hand).")
+    return " " + " ".join(parts) if parts else ""
+
+
 def _post(request, contract):
     action = request.POST.get("action", "")
     anchor = ""
     user = request.user
     if action == "details":
+        # Read before the form is built: is_valid() copies the posted values onto the contract, so afterwards this
+        # would already be the new date and nothing would look changed.
+        old_effective = contract.effective_date
         form = ContractForm(request.POST, instance=contract)
         if form.is_valid():
             form.save()
             # Owners picked on a site it no longer belongs to stop getting its dates.
             contract.parcel_deals.remove(*contract.parcel_deals.exclude(site_id=contract.site_id))
-            dates.sync_site(contract, user)
-            messages.success(request, "Saved.")
+            note = ""
+            if contract.effective_date and contract.effective_date != old_effective:
+                note = _recalculated(*timeline.recompute_dates(contract, old_effective, user))
+            dates.sync_site(contract, user)  # after the dates have moved, so the site's timeline gets the new ones
+            messages.success(request, "Saved." + note)
         else:
             messages.error(request, "Not saved: " + "; ".join(f"{k}: {' '.join(v)}" for k, v in form.errors.items()))
     elif action == "upload":
