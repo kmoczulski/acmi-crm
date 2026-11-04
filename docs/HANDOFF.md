@@ -3,7 +3,92 @@
 Read this first when picking the project up in a new chat, along with
 `attio_spec.md` in this folder. Start with "Pick up here"; the dated sections after it are the history.
 
-**Pick up here, 2026-11-04 (Claude on the laptop; Kellen: "pick up on handoff", then "push and deploy everything"): the merge
+**Update, 2026-11-04 (night, later): merged into `main` and DEPLOYED: live is revision `acmi-crm-00028-mzv`, image `97be770` (= `main` locally, NOT pushed to origin yet).** Main now holds the mail Times panel work, the Schedule page colours (one colour per person, busy cells split into stripes), and the Granola .txt branch (`393ee4f`, which was live as 00027 but never in `main`). Before: 00027 / 393ee4f. Rollback target: `acmi-crm-00027-8dw`. Full suite 1186 tests OK; manual Cloud SQL backup taken first; env/command fingerprints of the service and 3 jobs identical before and after; no migrations; no WARNING logs after.
+
+**Update, 2026-11-04 (night): mail Times panel, branch `mail-booking-availability` (from `main`, not merged, not deployed, no migration).** The inline reply box never got the availability / people / create URLs (`mail_reader.html`), so nobody else's calendar loaded there; fixed. The panel now draws every person's busy time in their own colour, splits overlapping meetings into lanes (`compose.js`), lists ACMI teammates as toggles (`schedule/people/` also returns `team`), adds everyone on To / Cc automatically (and as they are typed), and has an Optional toggle per guest (sent to Google as `optional`). `slots.availability` returns each person's merged `busy` blocks. Others' blocks say only "Busy" (free/busy has no titles). Checked in the browser pane on a scratch DB with fake Google (compose page and inline reply); not checked against real Google. The Schedule page does not have the colours / lanes yet.
+
+**Update, 2026-11-04 later: live is revision `acmi-crm-00025-2rh`, image `94f65da` (= `main`), not `00022`.** Changes since: the
+News page reads the Drive folder `1Oz5t51WMcGwFBU2FCM1PEwgKA0EsYgGZ` (`ACMI_NEWS_DRIVE_FOLDER`, now also the default of
+`_NEWS_FOLDER` in `cloudbuild.yaml` on the laptop branch only, pass it with `--substitutions` otherwise); the folder must
+be shared as Viewer with the runtime service account `46824423159-compute@developer.gserviceaccount.com` (Mel is adding
+it to the "1 ACMI Properties" shared drive). New: **Upload a scan** on the News page (`/news/upload/`) for when Drive
+isn't reachable. Fixed: a scan whose second line was a "Prepared for ..." sentence broke the import (scan date now comes
+from the title; every imported text value is cut to its field limit). Kellen runs the Google Cloud project himself.
+Open: `/chat/poll/` returns 502 in the logs (not looked at). The `ux-fixes` and other branches below are still not deployed.
+
+**Pick up here, 2026-11-04 after the deploy (Claude on the laptop; Kellen asked for this handoff so work can resume later).
+Live is still revision `acmi-crm-00022-fbx`, image `a799272` (the entry below is that deploy). Since then Kellen reported
+three things from using the live app: two are fixed on a branch and NOT deployed, one is not built.** Resume in this
+order: read CI on the branch, ship the two fixes (Kellen's OK to deploy), build the proposed-task edit / delete from the
+design below, then one more deploy.
+- **1. The company page tabs showed the same popup** (Kellen: "within a tenant company page - clicking overview through
+  deals just displays the same popup"). **Fixed, not deployed:** branch `ux-fixes-2026-11-04` (worktree
+  `.claude/worktrees/ux-fixes`, from `main` `79eb8b1`, pushed), commit `f3b9c7b`. The record-card handler in `nav.js` sent
+  every click on a link to a company, deal or person page to the card popup, including the page's own tabs
+  (`?tab=meetings`), paging and filters, so Overview, Meetings, Action items, Activity, People and Deals all showed the
+  company card. A link to the page you are already on is plain navigation now; links to other records still open their
+  card, and links inside a card still chain. The cause is old: the handler has been that way since the cards arrived
+  (2026-10-27) and is unchanged from what production ran before today, so it was live before the merge too. Checked on a
+  scratch copy: the Meetings and Deals tabs switch, a deal link still opens its card.
+- **2. "The top bar selection is transparent. I dont like that."** **Fixed, not deployed:** same branch, commit `e35f344`.
+  Two things on the bar were see-through: the selected item (a 16% white overlay) and the menus (frosted glass at 82%, so
+  the page showed through the Calendar dropdown). The selected item is now a solid blue pill (`--nav-active`), hover and
+  open items a darker solid (`--nav-hover`), and the nav dropdowns, + New and the profile menu are opaque (`--panel`, no
+  blur); dark mode has its own values. Checked on a scratch copy in light and dark. Kellen did not say which of the two
+  was meant, so both are done. **Still translucent on purpose; ask whether they should be solid too:** the Ctrl K
+  palette, the home page's search results (`.hero-results`), the mail pop-overs (`.mail-adv-pop`, `.addr-suggest`), the
+  map controls and legend.
+- **3. "I want the ability to edit a proposed task or delete one." NOT BUILT; the design is here.** What "proposed task"
+  means is my reading and **not confirmed with Kellen**: a **meeting action item that has no task yet**. The Task model has
+  no proposed state. Ask Kellen one line first: other things in the app are "proposed" too (AI-proposed critical dates on a
+  contract, `ct-proposed` forms with Confirm; an entitlement's proposed conditions; a build team member with status
+  Proposed; the Needs filing cards).
+  - **Where they live:** `Meeting.action_items`, a JSON list of `{title, owner, detail, task_id}` read from the notes'
+    "Next Steps / Action Items" section (`meetings.action_items()`). An item without `task_id` shows a grey dot and a
+    **Make task** form (assignee, date, time). Drawn by `crm/templates/crm/partials/action_item.html`, which the company
+    page's Action items tab (`company_detail.html`, `partials/company_actions.html`), the Overview widget and the meeting
+    cards (`partials/company_meeting_card.html`, compact mode) and the meeting pop-up (`partials/meeting_panel.html`) include.
+  - **The trap:** a Granola refresh rebuilds the whole list from the notes and keeps only `task_id`, matched by title
+    (`meetings._meeting_for`, `kept = {...}` around line 399). A plain edit would be undone and a deleted item would come back.
+  - **Design (no migration; a NOT NULL column would again break old code on a rollback, see item 3 under "To do next"
+    below):** keep the list order, because the index is the item's identity in the forms. Add per-item keys: `key` (the
+    title as the notes wrote it), `edited` (title, owner and detail overrides) and `deleted` (a tombstone: hidden
+    everywhere, skipped by "Make tasks for all"). On a refresh, match parsed items by `key` or title and carry over edits,
+    tombstones and `task_id`.
+  - **Code to change:** `crm/meetings.py` (`_meeting_for`'s merge, `make_task` ~l.496, `make_all_tasks` ~l.525, new
+    `edit_item` / `delete_item`); `crm/company_page.py` (`_cards` ~l.54, `_item` ~l.70, the loop in `meeting_context`
+    ~l.90); `crm/views.py` (`meeting_panel` ~l.1439 and its `untasked` count, two POST views beside `meeting_make_task`
+    ~l.1471); `crm/urls.py` (beside `meetings/<pk>/task/`, e.g. `meetings/<pk>/item/edit/` and `.../delete/`, with `index`
+    in the POST as `make_task` does); `action_item.html` (for items with no task only: **Edit** as an inline `<details>`
+    form with title, owner and detail; **Delete** as a POST button with a confirm; both redirect to `next` through `_safe_next`).
+  - **Tests to write** (existing ones that touch these items: `test_company_page.py`, `test_collab.py`, `test_capture.py`,
+    `test_meeting_dedupe.py`): an edit changes title / owner / detail and keeps the index; a delete hides the item and lowers
+    the "Make tasks for all N items" count; Make tasks for all skips tombstones; a re-import keeps an edit, a tombstone
+    and a `task_id`; an item that already has a task cannot be edited or deleted here (its task has its own edit and delete).
+- **Where everything is.** `main` is `79eb8b1` (docs only on top of what is live; this handoff is one more docs commit).
+  Branch `ux-fixes-2026-11-04` holds the two fixes and nothing else. CI run 41880113308 was queued on it when this was
+  written and **not read**; the full suite was not run on it (one JS file and CSS changed; `test_static_integrity` should
+  still hold). To ship: read CI, fast-forward `main` to the branch, deploy image-only with Kellen's OK (the usual checks: the
+  live image and the ancestor check, fingerprint before and after, the migrate job, curl, logs; no migration, so a backup is
+  optional). Build the proposed-task feature on the same branch or a new one cut from it. The two fixes are small, checked
+  and fix things Kellen sees in daily use, so do not hold them back for the feature.
+- **Housekeeping, done after the deploy by a side session** (report with every deleted branch's old SHA:
+  `C:\Users\Kemoc\AppData\Roaming\Claude\side-session-notes\local_32850d5c-a743-48d8-89df-c0f70f3d7ead\cleanup-report.md`).
+  It removed 20 clean worktrees whose branches were already in `main` (18 under `.claude/worktrees` plus
+  `ACMI_CRM_deploy_154e56a` and `ACMI_CRM_person_phones`) and 43 local branches with the safe `git branch -d`; nothing
+  pushed, no remote branch touched, the main folder untouched. **What is left:** the main folder (`calendar-fixes-v2`: still
+  the old HANDOFF.md and the stray `_/` files; fast-forwarding it to `main` is a decision, since a laptop sync task may
+  still run its code); worktree `merge-chat-calendar` (clean, in `main`: can go); `ux-fixes` (the branch above, in use);
+  `ux-polish-2026-11` (**12 uncommitted files from another session: look, do not delete**); `deploy-lease-roc` and
+  `lease-roc` (their content is in `main`; deleting `deploy-lease-roc` leaves commit `ea95d55`, the source of revision
+  00020, only in the reflog); `gmail-push` (branch `push-defaults`: **not safe to drop yet**, it holds
+  `scripts/gcp_gmail_push.ps1`, the one-time Gmail push setup script, which `main` lacks: copy it into `main` first). The
+  branches `data-room` and `email-client-design` are fully in `main` but the safe delete refused them (their upstreams
+  lack local commits): `git branch -D` is fine. Also left alone: `C:\Users\Kemoc\Desktop\ACMI_CRM_deploy_ea95d55` (not a
+  registered worktree, probably the 00020 deploy export) and seven empty shell folders under `.claude/worktrees`. The two
+  `backup/*` branches are deliberate backups: keep.
+
+**Earlier on 2026-11-04 (Claude on the laptop; Kellen: "pick up on handoff", then "push and deploy everything"): the merge
 of Chat with the calendar line is done, tested, pushed and DEPLOYED: revision `acmi-crm-00022-fbx`, image `a799272`, live
 since 11:24 am Central.** Branch `merge-chat-calendar` (worktree `.claude/worktrees/merge-chat-calendar`, cut from
 `calendar-fixes-v2` `1bf04b3`); `main` was fast-forwarded to it after the deploy. Kellen's main folder is still on
@@ -95,10 +180,7 @@ since 11:24 am Central.** Branch `merge-chat-calendar` (worktree `.claude/worktr
      (a person's first calendar connection); existing rows were fine, and a search of the production error logs for the
      last three days found nothing. Rolling back to 00021 puts the same mismatch back. Old code does not run safely on a
      schema that has gained a NOT NULL column.
-  4. **Housekeeping, nothing deleted yet:** PRs 15 (`schedule`), 18 and 19 are now inside `main` (GitHub marks them merged,
-     or close them); the local branches and worktrees `fix-buybox-score`, `fix-card-nav`, `lease-roc`, `deploy-lease-roc`,
-     `person-phones` (`ACMI_CRM_person_phones`), the `ACMI_CRM_deploy_154e56a` folder and `.claude/worktrees/merge-chat-calendar`
-     itself can go once Kellen is happy; `calendar-fixes-v2` still carries the stray `_/` files and can be fast-forwarded to `main`.
+  4. **Housekeeping: done after the deploy by a side session, see "Pick up here" above.** PRs 15, 18 and 19 show merged.
   5. **Ask Kellen:** whether Tenant & financials should be an Overview widget (above); whether the Chat button in the top bar
      (main's) or the phone-only 💬 (person-phones') is the one wanted; whether `docs/GEMINI_*` and the other Gemini / Grok
      docs stay in the repo.
@@ -307,6 +389,16 @@ with the first deploy instead). Real database backed up to `backups/db-2026-10-2
   logged by name and tried again next run). With neither set, the laptop folders work as before. `cloudbuild.yaml`
   passes them as `_NEWS_FOLDER` / `_GRANOLA_FOLDER` with `ACMI_DRIVE_ADC=true`; its header lists the one-time setup.
   **The daily Granola task (acmiproperties account) has to save its JSON into that Drive folder.**
+- **Granola text export from Drive, as Kellen (built 2026-11-04, branch `worktree-granola-drive-txt`, not deployed):**
+  `crm/granola_text.py` reads the daily export (`=== MEETING ===` blocks: ID, TITLE, DATE with CST/CDT, URL, ATTENDEES, notes)
+  into the rows `import_meetings` takes. ALL-CAPS lines become headings and `- Title (Owner): detail` under NEXT STEPS become
+  action items (194 from the real 53-meeting export). Attendees are names only: team by name or first-initial+last, outside
+  by one matching Person, and a `(Company)` label links the company when exactly one has that name. `import_from_drive` takes
+  `.json` or `.txt`, skips the index file (no meetings), and re-reads a `.txt` whose modified time changed.
+  `ACMI_GRANOLA_DRIVE_USER` reads the folder with that person's Google token (`drive._user_session`) and adds Drive
+  read-only to the sign-in scope; cloudbuild passes `_GRANOLA_USER`. **To switch on:** add the Drive scope to the OAuth
+  consent screen, set `_GRANOLA_FOLDER` (`1qREDx3CbuEVHkWTEyK344jFQ5cHG1HYn`) and `_GRANOLA_USER`, deploy, Kellen signs in
+  again once. Merge Chat (main) with the calendar line first.
 - 901 tests green.
 - **Not done, needs Kellen:** the whole cutover in step 3.
 - **Secret Manager is Mel's** (Kellen, 10-28). Neither ACMI project (`sincere-passage-511621-j3`, which has the OAuth

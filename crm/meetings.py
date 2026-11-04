@@ -33,6 +33,7 @@ from django.utils import timezone
 from django.utils.safestring import mark_safe
 
 from . import interactions, transcripts
+from .merge import core_name
 from .models import Activity, Company, CompanyStatus, Meeting, MeetingTranscript, Person, suppress_history
 
 INTERNAL_DOMAINS = {"acmigroup.com"}
@@ -176,6 +177,11 @@ def load(*paths):
     """Read one or more JSON files; Granola notes come first so calendar events merge into them."""
     rows = []
     for path in paths:
+        if str(path).lower().endswith(".txt"):  # the Granola text export (crm/granola_text.py)
+            from . import granola_text
+
+            rows += granola_text.load(path)
+            continue
         with open(path, encoding="utf-8") as fh:
             rows += json.load(fh)
     by_id = {}
@@ -200,6 +206,10 @@ def import_meetings(meetings):
     for pk, ds in Company.objects.values_list("pk", "domains"):
         for d in ds or []:
             domains.setdefault(d.lower(), pk)
+    by_label = {}  # company labels in text exports ("Fortress"); a name two companies share links to neither
+    for pk, name in Company.objects.values_list("pk", "name"):
+        k = core_name(name)
+        by_label[k] = pk if k not in by_label else None
     emails = {a["email"].lower() for m in meetings for a in m.get("attendees", []) if a.get("email")}
     people = {p.email: p for p in Person.objects.filter(email__in=emails).select_related("company")}
     now = timezone.now()
@@ -223,6 +233,10 @@ def import_meetings(meetings):
                     by_company.setdefault(company_id, person)
                 elif email.rsplit("@", 1)[-1] not in FREE_MAIL:
                     stats["unmatched"].add(email.rsplit("@", 1)[-1])
+            for label in m.get("groups", []):  # "(Fortress)" in a text export: no email to match a company by
+                company_id = by_label.get(core_name(label))
+                if company_id:
+                    by_company.setdefault(company_id, None)
             summary = clean_summary(m.get("summary"))
             has_transcript = bool(transcripts.normalize(m.get("transcript")))
             others = [a for a in attendees if a["email"].lower() not in team or len(internal) > 1]

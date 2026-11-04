@@ -97,7 +97,8 @@ def availability_json(request):
 
 @team_only
 def people(request):
-    return JsonResponse({"results": service.search_people(request.user, request.GET.get("q", ""))})
+    return JsonResponse({"results": service.search_people(request.user, request.GET.get("q", "")),
+                         "team": service.team(request.user)})
 
 
 @team_only

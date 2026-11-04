@@ -3277,3 +3277,22 @@ fieldset { min-width: 0; }
   .appbar .search-trigger { width: auto; }
   .appbar .search-trigger kbd, .appbar .search-text { display: none; }
 }
+
+/* Mail Times panel: a colour per person, overlapping busy time split into lanes, optional guests */
+.times-team-row { display: flex; align-items: center; gap: 6px; padding: 0 12px 6px; }
+.times-team { display: flex; flex-wrap: wrap; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.times-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--c, #9aa3b0); margin-right: 5px; }
+.times-teamer { display: inline-flex; align-items: center; border: 1px solid var(--line); background: none; color: var(--text); border-radius: 99px;
+  padding: 2px 9px; font-size: 12px; cursor: pointer; opacity: .75; }
+.times-teamer.on { opacity: 1; background: color-mix(in srgb, var(--c) 16%, transparent); border-color: var(--c); }
+.times-chip { display: inline-flex; align-items: center; gap: 2px; border: 1px solid color-mix(in srgb, var(--c, #9aa3b0) 55%, transparent); }
+.times-chip.opt { border-style: dashed; }
+.times-opt { border: 0; background: none; color: var(--muted); font-size: 11px; padding: 0 4px; cursor: pointer; border-radius: 99px; }
+.times-opt.on { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.times-busy { right: auto; background: color-mix(in srgb, var(--c, #9aa3b0) 24%, transparent); border-left-color: var(--c, #9aa3b0); box-sizing: border-box; }
+.times-busy.opt { border-left-style: dashed; background: color-mix(in srgb, var(--c, #9aa3b0) 12%, transparent); }
+.times-busy b { font-weight: 600; }
+.times-busy.lane { padding: 1px 2px; text-align: center; font-size: 10px; }
+.sc-split { display: flex; height: 100%; }
+.sc-split i { flex: 1; opacity: .55; }
+.sc-cell.sc-pick .sc-split { display: none; }
