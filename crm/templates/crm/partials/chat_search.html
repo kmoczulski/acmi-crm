@@ -1,0 +1,3 @@
+{# Messages a search found (crm/chat/views.py search): each opens its conversation at that message. #}
+{% for r in results %}<a class="chat-hit" href="{% url 'crm:chat' %}?s={{ r.space }}&amp;at={{ r.iso|urlencode }}" data-space="{{ r.space }}" data-at="{{ r.iso }}" data-title="{{ r.title }}"><span class="chat-hit-top"><span class="chat-ico" aria-hidden="true">{{ r.icon }}</span><b>{{ r.title }}</b><time>{{ r.time|date:"M j, g:i a" }}</time></span><span class="chat-hit-who">{{ r.who }}</span><span class="chat-hit-text">{{ r.html }}</span></a>
+{% empty %}<p class="muted chat-empty lc-small">No messages match. Chat's search covers your direct messages, group chats and spaces, but not muted spaces or messages from Chat apps.</p>{% endfor %}

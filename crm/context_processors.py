@@ -30,6 +30,7 @@ def app_context(request):
 
     queue = news_open = unread = due = 0
     user_prefs, pages, new_items, mail_on = {}, [], [], False
+    chat_available = chat_on = False
     if getattr(request, "user", None) and request.user.is_authenticated:
         from . import needs_filing
 
@@ -48,6 +49,9 @@ def app_context(request):
         from .mail import shared
 
         mail_on = connect.is_on(request.user) or bool(shared.shared_for(request.user))
+        from .chat import connect as chat_connect
+
+        chat_available, chat_on = chat_connect.status(request.user)
     return {
         "unread_notifications": unread,
         "my_due_count": due,
@@ -63,6 +67,8 @@ def app_context(request):
         # Managers-only buttons are hidden for everyone else (the views refuse them too).
         "IS_MANAGER": is_manager(getattr(request, "user", None)),
         "MAIL_ON": mail_on,  # Mail in the hub: the top bar's Mail link
+        "CHAT_AVAILABLE": chat_available,  # the top bar's Chat link (it explains how to turn Chat on when it's off)
+        "CHAT_ON": chat_on,  # Chat in the hub is on for this person: the dock's Chat list and boxes
         "EMBED": is_embedded(request),
     }
 

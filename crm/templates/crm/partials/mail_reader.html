@@ -114,6 +114,10 @@
           <li data-type="{{ g.type }}" data-name="{{ g.latest.name|lower }}">
             <a href="{% url 'crm:inbox_part' g.latest.message g.latest.part %}" class="mail-filename">📎 {{ g.latest.name }}</a>
             <span class="muted lc-small">{{ g.latest.size|filesizeformat }} · {{ g.latest.from_name }} · {{ g.latest.date|date:"M j, g:i a" }}</span>
+            <form method="post" action="{% url 'crm:inbox_save_drive' g.latest.message g.latest.part %}" class="inline-form">{% csrf_token %}
+              <input type="hidden" name="t" value="{{ reader.id }}"><input type="hidden" name="next" value="{{ here }}">
+              <button class="btn-link lc-small" title="Save this file into the company's Drive folder">Save to Drive</button>
+            </form>
             <a href="#m-{{ g.latest.message }}" class="lc-small" data-goto="{{ g.latest.message }}">Go to message</a>
             {% if g.older %}
             <details class="mail-versions"><summary class="lc-small">{{ g.older|length }} earlier version{{ g.older|length|pluralize }}</summary>

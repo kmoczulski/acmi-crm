@@ -126,6 +126,15 @@ class CompanyPageTests(TestCase):
         feed = self.client.get(self.url).content.decode()
         self.assertIn(f'href="?tab=meetings#meeting-{self.held.pk}" data-jump', feed)
 
+    def test_the_side_column_shows_tenant_and_financials(self):
+        from crm.models import Document
+        Document.objects.create(company=self.co, title="2025 financials.pdf", category="Financials")
+        r = self.client.get(self.url)
+        self.assertContains(r, "Tenant & financials")
+        self.assertContains(r, "2025 financials.pdf")
+        self.assertContains(r, "Signing entity")
+        self.assertContains(r, "Open")  # no signed agreement yet
+
     def test_the_other_tabs_keep_the_details_column(self):
         r = self.client.get(self.url, {"tab": "people"})
         self.assertContains(r, "Team connections")

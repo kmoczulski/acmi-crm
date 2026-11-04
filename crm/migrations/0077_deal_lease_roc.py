@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('crm', '0073_mailbox_watch'),
+        ('crm', '0076_chatconnection_can_create'),
     ]
 
     operations = [

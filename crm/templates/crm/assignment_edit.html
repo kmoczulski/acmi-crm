@@ -6,7 +6,7 @@
   .ed h3 { margin: 22px 0 8px; } .ed textarea, .ed input[type=text], .ed select { width: 100%; box-sizing: border-box; }
   .ed table.data td { vertical-align: top; padding: 4px; } .ed table.data textarea { min-height: 54px; }
   .ed .grid2 { display: grid; grid-template-columns: 180px 1fr; gap: 6px 12px; align-items: start; }
-  .ed .savebar { position: sticky; bottom: 0; background: #fff; border-top: 1px solid #e3e7ec; padding: 10px 0; display: flex; gap: 10px; }
+  .ed .savebar { position: sticky; bottom: 0; background: var(--panel); border-top: 1px solid rgba(0, 36, 82, 0.110); padding: 10px 0; display: flex; gap: 10px; }
 </style>
 <div class="record-head"><div>
   <div class="muted lc-small"><a href="{% url 'crm:assignments' %}">Client searches</a> › <a href="{{ a.get_absolute_url }}">{{ a.name }}</a> › <a href="{% url 'crm:assignment_report' a.pk e.pk %}">{{ e.site.name }}</a></div>

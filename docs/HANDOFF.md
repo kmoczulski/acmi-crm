@@ -3,6 +3,77 @@
 Read this first when picking the project up in a new chat, along with
 `attio_spec.md` in this folder. Start with "Pick up here"; the dated sections after it are the history.
 
+Newest (2026-11-04): **Apple-style look, passes 1 and 2: merged to `main` and pushed to GitHub (`e77ee52`), NOT deployed.**
+Kellen: "I want it to feel like apple designed it"; keep navy and the top bar.
+
+**Pick this up here:**
+1. **Deploy when Kellen says so** (ask right before; see the deploy note in memory). No migration and no Python changes, only
+   `app.css` and template colours, so it is an image-only deploy and rollback is traffic back to the previous revision.
+2. **CI on `main` is red, and was red before the redesign**: run `41697036626` on `9f8eb56` ("Restore inbox.html") failed. The 5
+   failing tests (`test_land_sales.CompTests.test_same_zoning_keeps_only_matching_parcels`, three in `test_schedule`,
+   `test_company_page…test_the_side_column_shows_tenant_and_financials`) came in with the "Restore …" commits (views.py, cards.py,
+   inbox.html were truncated or overwritten and restored by hand). Fix those first; they are logic, not styling.
+3. **Not seen on screen yet:** the inbox reading pane (the preview's sign-in didn't carry into its frame) and team boards
+   with cards. Look at both, light and dark, on the hosted copy or a scratch preview.
+4. **Kellen's main folder is still on `calendar-fixes-v2`** with uncommitted edits to `app.css`, `board.js` and
+   `land_search.html`. That branch carries a stray `_/` copy of the whole repo; clean it out, then merge it onto the new
+   `main` (expect small `app.css` conflicts with the redesign).
+5. **Possible pass 3**, only if Kellen wants more: the ~570 inline `style=` spacing attributes, the contract reader, the
+   site-card dialog, data room and capital pages, the phone layout.
+
+How to preview a worktree safely (scratch DB, fake records, FakeGmail for the inbox): the memory note on previewing; this time
+the server was started from Bash in the background because the session couldn't edit the main checkout's `launch.json`.
+
+What changed. Pass 1: branch `worktree-apple-ui` (worktree `.claude/worktrees/apple-ui`, from `main` `9f8eb56`; CSS
+and template colours only, no migration, no Python changes). In `crm/static/crm/app.css`: a new palette at the top (Apple's
+system greys, ACMI navy kept for the bar and main buttons, system font stack incl. Segoe UI Variable on Windows), about 320
+hard-coded neutral colours swapped for variables (`--panel`, `--panel-2`, `--fill`, `--line`, `--text`, `--muted` …), pale tints
+rewritten as see-through rgba (same pixel over white, darkens over a dark panel), dark text colours wrapped in
+`color-mix(… var(--ink-mix), var(--text))`, and an "Apple-style layer" at the end of the file (capsule buttons, focus rings,
+shadow-not-outline panels, grouped-list tables, segmented tabs, frosted top bar / menus / search palette, sheet dialogs, stat
+tiles). **Dark mode is now a real dark palette** (`html[data-theme="dark"]` at the end of app.css); the old whole-page
+`filter: invert()` is gone, so maps, photos and email frames are no longer double-inverted. Inline colours in the 83 page
+templates and two partials got the same treatment; PDF, email and guest templates were left alone on purpose.
+**Pass 2** (same branch): every small all-caps label is sentence case now (43 rules; only the meeting card's month stays
+caps), and an "Apple-style layer, pass 2" at the end of app.css covers underline tabs, the company page (frosted sticky tabs,
+fact strip, meeting cards with a Calendar-icon date), deal board columns titled in their stage colour (no coloured top
+border; at-risk cards get a red dot, not a stripe), team board tiles/lists/cards, the month and week calendars (today in a
+red circle, events as tinted bars), the inbox (Mail-like sidebar, blue unread dots, frosted reader header and pop-overs) and
+land search (frosted Leaflet controls, legend and pop-ups). Between 1181 and 1440 px the top bar tightens and search shows
+as its icon, so the bar fits with Mail and Chat on. The ~570 inline `style=` attributes are almost all spacing (margins,
+widths) and were left; the few colour ones are in print, email and PDF templates. Checked in the browser pane on scratch
+databases (light and dark): home, companies, a company, the deal board, the calendar, land search, the inbox (with the test
+suite's FakeGmail); the inbox reading pane and team boards with cards were not seen.
+Tests: 1,142 run, 5 fail (land comps zoning filter, three scheduling tests, the company page's "Tenant & financials"
+column); none of them looks at styling, and CI on `main` was already failing before the redesign (run
+`41697036626`). Map marker colours inside `<script>` blocks were left as hex on purpose (Leaflet can't read CSS
+variables).
+
+Before it (2026-10-30): branch `chat-parity` (worktree `.claude/worktrees/chat-parity`, on `schedule`, pushed to GitHub, not merged;
+**live since 10:38 am Central on 2026-10-30**: revision `acmi-crm-00011-dlb`, image `c370d25`, built by `cloudbuild.yaml` in 5
+minutes, migration `0076` applied, the service and the three jobs have the same settings as before and only the image changed,
+Cloud SQL backup `1793374290231` taken first, rollback is traffic back to `acmi-crm-00010-pfw`): Kellen asked for everything
+Google Chat's web app does, so Chat now has **emoji reactions, quote in reply, file
+attachments (send, drop, paste; pictures shown, files downloaded through the hub), edit and delete your own messages, @mentions
+and :emoji: suggestions, formatting buttons, starting direct messages / group chats / spaces, searching messages, and it
+catches reactions and edits by others without a reload**; see "Like Google Chat's own web app" in `docs/CHAT.md`. One new
+optional Google permission (`chat.spaces.create`, in `docs/FOR_MEL_GOOGLE_CHAT.md`), migration `0076`. Everything sent now
+says `markupSyntax: MARKUP_SYNTAX_CHAT` (the live Chat code didn't; a project made lately reads text as Markdown by default).
+Nothing has run against real Google. gcloud's Google sign-in had expired by the next morning (Google's organization asks for a
+password check about every 14 hours); it was renewed through the browser pane, see the deploy note in memory.
+
+Before it (2026-10-29): the **mail dock**, email boxes along the bottom of the page (`docs/MAIL_DOCK.md`), is merged to `main`
+(PR #14). On top of it, **live since 9:03 pm Central on 2026-10-29 but not yet merged to `main`** (revision `acmi-crm-00010-pfw`,
+image `f0be55f`, built with `cloudbuild.yaml`; migrations `0074` and `0075` applied; the service and the three jobs have the same
+settings as before, only the image changed): branch `schedule` (worktree `.claude/worktrees/schedule`, code at `f0be55f`, on
+`main` `41044b8`, 1,081 tests pass): the dock's superset (`dock.js` also carries Chat), **Chat in the hub** (`docs/CHAT.md`; coworkers
+only, no tie to companies or the CRM; waits on Mel's Google setup, `docs/FOR_MEL_GOOGLE_CHAT.md`) and **Scheduling**
+(`docs/SCHEDULING.md`; see when teammates are free and put a meeting on the calendar; `docs/FOR_MEL_SCHEDULING.md`). Neither has
+run against real Google yet: the first real "Turn on Chat" and "Allow scheduling" prove them. Before the migrations a Cloud SQL
+backup was taken (`1793324941228`, 8:49 pm Central). Rollback is traffic back to `acmi-crm-00009-db8` (the migrations only add
+a table and a column, so the old code runs on the new schema). What e-signature would take is in `docs/ESIGN_AND_CHAT.md`
+(nothing built).
+
 ## Pick up here (2026-10-25)
 
 **Done 2026-11-04 (Claude on the laptop, after Kellen had Grok and Gemini work on the code): review of that work, phone

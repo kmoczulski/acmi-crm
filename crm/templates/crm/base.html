@@ -2,7 +2,7 @@
 <html lang="en"{% if EMBED %} class="embedded"{% endif %}>
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>{% block title %}ACMI Hub{% endblock %}</title>
   <link rel="stylesheet" href="{% static 'crm/app.css' %}?v={{ ASSET_VERSION }}">
   {# Home-screen app (Add to Home Screen on an iPhone): the gear icon, navy in light mode and black in dark mode. #}
@@ -10,7 +10,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="ACMI Hub">
-  <meta name="theme-color" content="#f6f7f9">
+  <meta name="theme-color" content="#1f3a5f">
   <link rel="icon" type="image/png" sizes="32x32" href="{% static 'crm/icons/icon-light-32.png' %}"
         data-light="{% static 'crm/icons/icon-light-32.png' %}" data-dark="{% static 'crm/icons/icon-dark-32.png' %}">
   <link rel="apple-touch-icon" sizes="180x180" href="{% static 'crm/icons/icon-light-180.png' %}"
@@ -29,7 +29,7 @@
           if (dark) h.setAttribute('data-theme', 'dark'); else h.removeAttribute('data-theme');
         }
         var bar = document.querySelector('meta[name="theme-color"]');
-        if (bar) bar.setAttribute('content', dark ? '#1c1d20' : '#f6f7f9');
+        if (bar) bar.setAttribute('content', dark ? '#172a44' : '#1f3a5f');
         document.querySelectorAll('link[data-dark]').forEach(function (l) {
           var href = l.getAttribute(dark ? 'data-dark' : 'data-light');
           if (l.getAttribute('href') !== href) l.setAttribute('href', href);
@@ -75,16 +75,18 @@
     <nav class="topnav" aria-label="Main">
       <a href="{% url 'crm:home' %}" class="tn-link {% if p == '/' %}active{% endif %}">Home</a>
       <a href="{% url 'crm:task_list' %}" class="tn-link {% if '/tasks/' in p %}active{% endif %}">My tasks{% if my_due_count %} <span class="tn-count">{{ my_due_count }}</span>{% endif %}</a>
-      <details class="tn-menu {% if '/meetings/' in p or '/critical-dates/' in p %}active{% endif %}">
+      <details class="tn-menu {% if '/meetings/' in p or '/critical-dates/' in p or '/schedule/' in p %}active{% endif %}">
         <summary>Calendar</summary>
         <div class="tn-drop">
           <a href="{% url 'crm:meeting_list' %}" class="{% if '/meetings/' in p %}on{% endif %}"><strong>My work calendar</strong><span>Meetings and the week ahead</span></a>
           <a href="{% url 'crm:critical_dates' %}" class="{% if '/critical-dates/' in p %}on{% endif %}"><strong>Critical dates</strong><span>Deadlines on signed agreements</span></a>
+          <a href="{% url 'crm:schedule' %}" class="{% if '/schedule/' in p %}on{% endif %}"><strong>Schedule a meeting</strong><span>See when teammates are free and send the invite</span></a>
         </div>
       </details>
       <a href="{% url 'crm:boards' %}" class="tn-link {% if '/boards/' in p %}active{% endif %}">Boards</a>
 
       {% if MAIL_ON %}<a href="{% url 'crm:inbox' %}" class="tn-link {% if '/inbox/' in p %}active{% endif %}">Mail</a>{% endif %}
+      {% if CHAT_AVAILABLE %}<a href="{% url 'crm:chat' %}" class="tn-link {% if '/chat/' in p %}active{% endif %}">Chat</a>{% endif %}
 
       <details class="tn-menu {% if '/opportunities/' in p or '/reports/pipeline' in p or '/companies/' in p and 'duplicates' not in p or '/people/' in p or '/leases/' in p %}active{% endif %}">
         <summary>Tenants</summary>
@@ -162,6 +164,7 @@
       </div>
     </details>
     {% if user.is_authenticated %}<button type="button" class="appbar-icon split-btn" data-split-toggle title="Open a page beside this one (or Alt+click any link)" aria-label="Open a page beside this one">◫</button>{% endif %}
+    {% if CHAT_ON %}<button type="button" class="appbar-icon chat-btn" data-chat-toggle title="Chat" aria-label="Chat" aria-expanded="false">💬<span class="count" data-chat-count hidden></span></button>{% endif %}
     <a href="{% url 'crm:notification_list' %}" class="appbar-icon bell {% if unread_notifications %}has-unread{% endif %}" title="Notifications" aria-label="Notifications">🔔{% if unread_notifications %}<span class="count">{{ unread_notifications }}</span>{% endif %}</a>
     <details class="menu-wrap user-menu">
       <summary class="avatar" title="{{ user.get_full_name|default:user.username }}">{{ user.first_name|default:user.username|slice:":1"|upper }}{{ user.last_name|slice:":1"|upper }}</summary>
@@ -194,7 +197,7 @@
     <span class="split-title muted"></span>
     <button type="button" class="split-act" data-split="back" title="Back">←</button>
     <button type="button" class="split-act" data-split="reload" title="Reload">↻</button>
-    <button type="button" class="split-act" data-split="orient" title="Side by side or top and bottom">⬓</button>
+    <button type="button" class="split-act" data-split="orient" title="Flip: side by side, or stacked for a portrait monitor">Flip</button>
     <button type="button" class="split-act" data-split="swap" title="Swap the two sides">⇄</button>
     <button type="button" class="split-act" data-split="only" title="Keep only this page (close the other side)">⤢</button>
     <button type="button" class="split-act" data-split="close" title="Close this side">✕</button>
@@ -216,7 +219,7 @@
 <script src="{% static 'crm/views.js' %}?v={{ ASSET_VERSION }}"></script>
 <script src="{% static 'crm/back.js' %}?v={{ ASSET_VERSION }}"></script>
 {% if user.is_authenticated %}<script src="{% static 'crm/split.js' %}?v={{ ASSET_VERSION }}"></script>{% endif %}
-{% if user.is_authenticated and MAIL_ON %}<script src="{% static 'crm/dock.js' %}?v={{ ASSET_VERSION }}" data-compose-url="{% url 'crm:inbox_compose' %}" data-thread-url="{% url 'crm:inbox_window' %}"></script>{% endif %}
+{% if user.is_authenticated and MAIL_ON or user.is_authenticated and CHAT_ON %}<script src="{% static 'crm/dock.js' %}?v={{ ASSET_VERSION }}"{% if MAIL_ON %} data-compose-url="{% url 'crm:inbox_compose' %}" data-thread-url="{% url 'crm:inbox_window' %}"{% endif %}{% if CHAT_ON %} data-chat-url="{% url 'crm:chat_window' %}" data-chat-list-url="{% url 'crm:chat_list' %}" data-chat-poll-url="{% url 'crm:chat_poll' %}" data-chat-page-url="{% url 'crm:chat' %}"{% endif %}></script>{% endif %}
 <script>
   // Long lists (.clist[data-limit]) show the first N items with "Show N more" / "Show less".
   document.querySelectorAll('.clist[data-limit]').forEach(list => {
