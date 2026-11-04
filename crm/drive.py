@@ -161,7 +161,30 @@ def newer_version(approved_name, approved_folder, docs):
 # ---------------------------------------------------------------------------
 
 
-def _session():
+def _user_session(email):
+    """A session that reads Drive as this team member, with the Google token they signed in with (crm/gcal.py keeps it
+    fresh). Needs the Drive read-only permission, which Google asks for at their next sign-in."""
+    import requests
+    from django.contrib.auth import get_user_model
+
+    from . import gcal
+
+    user = get_user_model().objects.filter(email__iexact=email, is_active=True).first()
+    token = gcal.token_for(user) if user else None
+    if token is None:
+        raise NotConnected(f"{email} has not signed in to the hub with Google yet")
+    try:
+        bearer = gcal.access_token(token)
+    except gcal.CalendarError as exc:
+        raise NotConnected(str(exc)) from exc
+    session = requests.Session()
+    session.headers["Authorization"] = f"Bearer {bearer}"
+    return session
+
+
+def _session(as_user=""):
+    if as_user:
+        return _user_session(as_user)
     if not connected():
         raise NotConnected
     from google.auth.transport.requests import AuthorizedSession  # loaded only when Drive is used
@@ -180,8 +203,8 @@ def _session():
 class Client:
     """The few Drive calls the hub makes. Tests swap in a fake through `client()`."""
 
-    def __init__(self):
-        self.http = _session()
+    def __init__(self, as_user=""):
+        self.http = _session(as_user)
 
     def _get(self, path, **params):
         params.update(supportsAllDrives="true")
@@ -219,8 +242,8 @@ class Client:
         return r, ext
 
 
-def client():
-    return Client()
+def client(as_user=""):
+    return Client(as_user)
 
 
 def _parse_time(value):
@@ -238,14 +261,15 @@ def _skip_file(name):
     return low in SKIP_NAMES or low.endswith(SKIP_EXT) or name.startswith("~$")
 
 
-def list_files(folder_id, refresh=False):
-    """Every file under the folder (Archive folders skipped, three levels deep), cached for a few minutes."""
-    key = f"drive:list:{folder_id}"
+def list_files(folder_id, refresh=False, as_user=""):
+    """Every file under the folder (Archive folders skipped, three levels deep), cached for a few minutes. With
+    `as_user` (an email) the folder is read with that person's own Google sign-in instead of the service account."""
+    key = f"drive:list:{folder_id}:{as_user}"
     if not refresh:
         cached = cache.get(key)
         if cached is not None:
             return cached
-    c = client()
+    c = client(as_user)
     files = []
 
     def walk(fid, path, depth):
