@@ -176,6 +176,19 @@ class NewsReviewTests(TestCase):
         self.assertEqual((watch["company"], watch["signal_date"]), ("JVIS", ""))
         self.assertEqual(p["weak"], [{"company": "North Vector", "reason": "Canadian HQ."}])
 
+    def test_reviews_are_listed_and_can_be_deleted(self):
+        from crm.models import NewsScan
+
+        scan = self.open_scan()
+        r = self.client.get("/news/")
+        self.assertContains(r, "3 companies")
+        self.assertContains(r, f"/news/{scan.pk}/delete/")
+        self.assertEqual(self.client.get(f"/news/{scan.pk}/delete/").status_code, 405)  # POST only
+        r = self.client.post(f"/news/{scan.pk}/delete/", follow=True)
+        self.assertContains(r, "Deleted the review")
+        self.assertFalse(NewsScan.objects.exists())
+        self.assertFalse(NewsItem.objects.exists())
+
     def test_upload_rejects_other_file_types_and_no_file(self):
         from django.core.files.uploadedfile import SimpleUploadedFile
 

@@ -30,11 +30,18 @@
     </form>
   </div>
   <div class="panel">
-    <h3>Reviews</h3>
+    <h3>Reviews{% if scans %} <span class="muted" style="font-weight:400;font-size:13px">({{ scans|length }})</span>{% endif %}</h3>
     {% for s in scans %}
-      <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--line)">
-        <a href="{{ s.get_absolute_url }}">{{ s }}</a>
-        <span class="muted" style="font-size:12px">{% if s.status == 'applied' %}applied {{ s.applied_at|date:"M j" }} by {{ s.applied_by|username }}{% else %}in review{% endif %}</span>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--line)">
+        <span style="min-width:0">
+          <a href="{{ s.get_absolute_url }}">{{ s }}</a>
+          <span class="muted" style="font-size:12px;display:block">{{ s.item_count }} compan{{ s.item_count|pluralize:"y,ies" }} ·
+            {% if s.status == 'applied' %}applied {{ s.applied_at|date:"M j" }} by {{ s.applied_by|username }}{% else %}in review{% endif %}</span>
+        </span>
+        <form method="post" action="{% url 'crm:news_delete' s.pk %}" style="margin:0"
+              onsubmit="return confirm('Delete this review{% if s.status == 'applied' %} (already applied; the contacts, tasks and timeline entries it made stay){% endif %}? This cannot be undone.')">{% csrf_token %}
+          <button class="btn-small">Delete</button>
+        </form>
       </div>
     {% empty %}<p class="muted">None yet.</p>{% endfor %}
   </div>

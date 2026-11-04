@@ -1,4 +1,5 @@
 from django.contrib import messages
+from django.db.models import Count
 from django.http import HttpResponseBadRequest, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
@@ -20,7 +21,7 @@ def news_home(request):
     return render(request, "crm/news_home.html", {
         "files": files,
         "folder": review.folder_label(),
-        "scans": NewsScan.objects.all()[:20],
+        "scans": NewsScan.objects.annotate(item_count=Count("items")),
     })
 
 
@@ -61,6 +62,17 @@ def news_upload(request):
     if scan.drafts_checked_at is None:
         review.check_drafts(scan, request.user)
     return redirect(scan)
+
+
+@require_POST
+def news_delete(request, pk):
+    """Delete one review (the scan and its items). What an applied review already did (contacts, timeline events,
+    tasks, notes, Gmail changes) stays; only the review itself goes."""
+    scan = get_object_or_404(NewsScan, pk=pk)
+    label = str(scan)
+    scan.delete()
+    messages.success(request, f"Deleted the review: {label}.")
+    return redirect("crm:news_home")
 
 
 def _ordered_sections(items):

@@ -235,6 +235,7 @@ urlpatterns = [
     path("news/import/", news_views.news_import, name="news_import"),
     path("news/upload/", news_views.news_upload, name="news_upload"),
     path("news/<int:pk>/", news_views.news_review, name="news_review"),
+    path("news/<int:pk>/delete/", news_views.news_delete, name="news_delete"),
     path("news/<int:pk>/plan/", news_views.news_plan, name="news_plan"),
     path("news/<int:pk>/bulk/", news_views.news_bulk, name="news_bulk"),
     path("news/<int:pk>/drafts/", news_views.news_check_drafts, name="news_check_drafts"),
