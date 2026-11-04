@@ -67,11 +67,25 @@ older code can run against it.
   and depend on it.
 
 **Update, 2026-11-04 (evening; Claude on the laptop; Kellen: "I thought I added the ability to upload photos to comments on
-company cards? also within the company cards, people needs to add phone numbers if we have them"): both are built and checked
-on branch `card-photos-phones` (worktree `.claude/worktrees/card-photos-phones`, cut from `origin/main` `6d597b7`). Committed
-as `5ed007f`, pushed, CI green (run 41921163980); Kellen then said "deploy": the deploy of exactly `5ed007f` was started
-after this merge went to `main` (the next entry is another session's fix that reached `main` in between and is NOT part of it).
-This paragraph is rewritten with the result once the deploy has finished: if it still says "started", check the live image.**
+company cards? also within the company cards, people needs to add phone numbers if we have them", then "deploy"): both are
+built, checked and DEPLOYED: live is revision `acmi-crm-00032-hlr`, image `5ed007f`, since 4:21 pm Central.** Branch
+`card-photos-phones` (worktree `.claude/worktrees/card-photos-phones`, cut from `origin/main` `6d597b7`), commit `5ed007f`, CI
+green on it (run 41921163980). **`main` now holds `5ed007f` AND another session's critical-dates fix (`b705c40`, the next
+entry), which reached `main` while I waited for CI. I deployed only `5ed007f` (that fix was not part of what Kellen asked for
+here), so live has the photos and the phone numbers and NOT the effective-date recalculation. The next entry was written when
+live was 00031 / `a3048b0`; its fix is still not deployed.**
+- **The deploy (4:16-4:22 pm Central).** `main` moved under me (that other session's merge), so I merged `main` into the branch
+  (`4eb5f5e`; only this file conflicted, both entries kept), got CI green on the merge (run 41922613914), fast-forwarded `main`
+  to it, then built exactly `5ed007f` from a clean `git archive` with `cloudbuild.yaml` (`_TAG=5ed007f`; before building, the
+  file's settings matched the live env for all four resources). Cloud Build `30ee45b8-afb9-421c-aaba-da45acae9ca8`, 5 min 38 s;
+  a manual Cloud SQL backup first (id `1793829914222`, "before card-photos-phones 5ed007f"). After: the migrate job ran
+  `crm.0078_comment_photo... OK`; the service and the three jobs have **identical env / command / args / resources / Cloud SQL
+  / account** before and after (only the image changed); no WARNING and no 5xx on the new revision; the login page is 200,
+  `/companies/1/` and `/comments/1/photo/` answer 302 to sign-in, and the served `app.css` carries the new rules. **Rollback:**
+  `gcloud run services update-traffic acmi-crm --to-revisions=acmi-crm-00031-ptp=100 --region us-central1 --project
+  sincere-passage-511621-j3` (safe on the schema: the new column is nullable and old code ignores it). **Not checked on the live
+  copy:** anything behind sign-in (Claude cannot sign in as Kellen): attaching a real photo (its first upload goes through the
+  Cloud Storage bucket, the path documents use) and the people's numbers on the company card. Ask Kellen to try both.
 - **Why the photos were not there.** The upload had been built on 2026-11-03 as commit `7cf25af` on `origin/photo-comments`
   (cut from `960e79c`, 67 commits behind `main`) and never merged, and no note here mentioned it. It could not have shipped as
   it stood: its migration `0077_comment_photo` and main's `0077_deal_lease_roc` both depend on `0076`, so the migrations would
@@ -100,11 +114,10 @@ This paragraph is rewritten with the result once the deploy has finished: if it 
   data): a real upload through the form (3200 x 2400 stored as 2400 x 1800 and shown), a refused text file, the card popup,
   the People tab, the deal page, dark mode and a phone width (no sideways scroll; the photo control drops under the button).
   **Not checked:** the real Cloud Storage bucket (the same `open` / `FileResponse` path documents use), a real phone camera.
-- **To ship:** commit, push, read CI (Postgres), then deploy with Kellen's go-ahead: the migrate job applies `0078` (one
-  nullable column), so a Cloud SQL backup first is cheap. Rollback is safe either way (old code ignores the column). Possible
-  follow-ups, none asked: several photos per comment (a second model), HEIC (needs `pillow-heif` in the image), editing a comment.
-  The person card (`cards/person.html`) and `person_details.html` still put the whole saved text, label included, in their
-  `tel:` link; the new filter fixes that in two lines if wanted.
+- **Possible follow-ups, none asked:** several photos per comment (a second model), HEIC (needs `pillow-heif` in the image),
+  editing a comment, the numbers on the deal card's People list. The person card (`cards/person.html`) and
+  `person_details.html` still put the whole saved text, label included, in their `tel:` link; the new filter fixes that in
+  two lines if wanted.
 
 **Update, 2026-11-04 (evening; Claude on the laptop; Kellen: "I uploaded a contract then updated the effective date but the
 dates that Claude calculated didn't update. Was this fix deployed?"): the effective-date recalculation is fixed, tested and
