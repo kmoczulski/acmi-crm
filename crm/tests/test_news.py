@@ -134,6 +134,70 @@ class NewsReviewTests(TestCase):
         self.assertContains(page, "Firehawk opens Texas propellant plant")
         self.assertContains(page, "No contact identified")  # Valinor's draft is addressed only to us
 
+    def test_upload_a_scan_opens_it_for_review(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        with open(self.path, "rb") as fh:
+            data = fh.read()
+        with patch("crm.news.drafts.Drafts", FakeDrafts):
+            r = self.client.post("/news/upload/", {"scan": SimpleUploadedFile(self.path.name, data)})
+        scan = NewsScan.objects.get()
+        self.assertRedirects(r, scan.get_absolute_url())
+        self.assertTrue(scan.path.startswith("upload:"))
+        self.assertEqual(scan.items.count(), 3)
+        self.assertEqual(self.item(scan, "Firehawk Aerospace").company, self.firehawk)
+
+    def test_import_trims_values_longer_than_their_fields(self):
+        long = "x" * 400
+        meta = {"title": "Scan", "scan_date": long, "stats_line": long}
+        entries = [{"index": 1, "company": "Firehawk Aerospace", "date": long, "section": long, "headline": "h"}]
+        prospects = {"strong_fit": [{"index": 1, "company": "NewCo", "tier": long, "hq": long, "source_name": long}]}
+        with patch("crm.news.review.parse_scan", return_value=(meta, entries, prospects)):
+            scan = review.import_scan(str(self.path), user=self.user)
+        self.assertEqual(len(scan.scan_date), 60)
+        self.assertEqual(len(scan.items.get(company_name="Firehawk Aerospace").article_date), 60)
+        self.assertEqual(scan.items.count(), 2)
+
+    def test_unnumbered_prospect_layout_of_2026_11_04(self):
+        from crm.news.scan_parser import parse_new_prospects
+
+        text = "\n".join([
+            "Summary", 'see "New Prospects to Target" below.', "New Prospects to Target", "Intro.", "Strong Fit",
+            "Re:Build Manufacturing", "What they do: Contract manufacturer.", "HQ: Boston, MA",
+            "Signal: Raised $2.1B.", "Date: 2026-10-28", "Fit note: Big raise. (Source: The Merge (Nov 3, 2026))",
+            "Worth Watching", "JVIS", "What they do: Auto interiors.", "HQ: Michigan", "Signal: New contract.",
+            "Date: Not specified", "Fit note: Small.", "Weak / No US Fit", "North Vector — Canadian HQ.", "",
+        ])
+        p = parse_new_prospects(text)
+        strong, watch = p["strong_fit"][0], p["worth_watching"][0]
+        self.assertEqual((strong["company"], strong["signal_date"], strong["hq"]),
+                         ("Re:Build Manufacturing", "2026-10-28", "Boston, MA"))
+        self.assertEqual(strong["source_name"], "The Merge (Nov 3, 2026)")
+        self.assertEqual((watch["company"], watch["signal_date"]), ("JVIS", ""))
+        self.assertEqual(p["weak"], [{"company": "North Vector", "reason": "Canadian HQ."}])
+
+    def test_reviews_are_listed_and_can_be_deleted(self):
+        from crm.models import NewsScan
+
+        scan = self.open_scan()
+        r = self.client.get("/news/")
+        self.assertContains(r, "3 companies")
+        self.assertContains(r, f"/news/{scan.pk}/delete/")
+        self.assertEqual(self.client.get(f"/news/{scan.pk}/delete/").status_code, 405)  # POST only
+        r = self.client.post(f"/news/{scan.pk}/delete/", follow=True)
+        self.assertContains(r, "Deleted the review")
+        self.assertFalse(NewsScan.objects.exists())
+        self.assertFalse(NewsItem.objects.exists())
+
+    def test_upload_rejects_other_file_types_and_no_file(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        r = self.client.post("/news/upload/", {"scan": SimpleUploadedFile("scan.txt", b"hello")}, follow=True)
+        self.assertContains(r, "Upload a .pdf or .docx scan file.")
+        r = self.client.post("/news/upload/", {}, follow=True)
+        self.assertContains(r, "Choose a scan file")
+        self.assertEqual(NewsScan.objects.count(), 0)
+
     def test_review_and_apply(self):
         scan = self.open_scan()
         fh, val, old = (self.item(scan, n) for n in ("Firehawk Aerospace", "Valinor", "Old Co"))

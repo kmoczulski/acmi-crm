@@ -3,6 +3,19 @@
 Read this first when picking the project up in a new chat, along with
 `attio_spec.md` in this folder. Start with "Pick up here"; the dated sections after it are the history.
 
+**Update, 2026-11-04 (night, later): merged into `main` and DEPLOYED: live is revision `acmi-crm-00028-mzv`, image `97be770` (= `main` locally, NOT pushed to origin yet).** Main now holds the mail Times panel work, the Schedule page colours (one colour per person, busy cells split into stripes), and the Granola .txt branch (`393ee4f`, which was live as 00027 but never in `main`). Before: 00027 / 393ee4f. Rollback target: `acmi-crm-00027-8dw`. Full suite 1186 tests OK; manual Cloud SQL backup taken first; env/command fingerprints of the service and 3 jobs identical before and after; no migrations; no WARNING logs after.
+
+**Update, 2026-11-04 (night): mail Times panel, branch `mail-booking-availability` (from `main`, not merged, not deployed, no migration).** The inline reply box never got the availability / people / create URLs (`mail_reader.html`), so nobody else's calendar loaded there; fixed. The panel now draws every person's busy time in their own colour, splits overlapping meetings into lanes (`compose.js`), lists ACMI teammates as toggles (`schedule/people/` also returns `team`), adds everyone on To / Cc automatically (and as they are typed), and has an Optional toggle per guest (sent to Google as `optional`). `slots.availability` returns each person's merged `busy` blocks. Others' blocks say only "Busy" (free/busy has no titles). Checked in the browser pane on a scratch DB with fake Google (compose page and inline reply); not checked against real Google. The Schedule page does not have the colours / lanes yet.
+
+**Update, 2026-11-04 later: live is revision `acmi-crm-00025-2rh`, image `94f65da` (= `main`), not `00022`.** Changes since: the
+News page reads the Drive folder `1Oz5t51WMcGwFBU2FCM1PEwgKA0EsYgGZ` (`ACMI_NEWS_DRIVE_FOLDER`, now also the default of
+`_NEWS_FOLDER` in `cloudbuild.yaml` on the laptop branch only, pass it with `--substitutions` otherwise); the folder must
+be shared as Viewer with the runtime service account `46824423159-compute@developer.gserviceaccount.com` (Mel is adding
+it to the "1 ACMI Properties" shared drive). New: **Upload a scan** on the News page (`/news/upload/`) for when Drive
+isn't reachable. Fixed: a scan whose second line was a "Prepared for ..." sentence broke the import (scan date now comes
+from the title; every imported text value is cut to its field limit). Kellen runs the Google Cloud project himself.
+Open: `/chat/poll/` returns 502 in the logs (not looked at). The `ux-fixes` and other branches below are still not deployed.
+
 **Pick up here, 2026-11-04 after the deploy (Claude on the laptop; Kellen asked for this handoff so work can resume later).
 Live is still revision `acmi-crm-00022-fbx`, image `a799272` (the entry below is that deploy). Since then Kellen reported
 three things from using the live app: two are fixed on a branch and NOT deployed, one is not built.** Resume in this
@@ -376,6 +389,16 @@ with the first deploy instead). Real database backed up to `backups/db-2026-10-2
   logged by name and tried again next run). With neither set, the laptop folders work as before. `cloudbuild.yaml`
   passes them as `_NEWS_FOLDER` / `_GRANOLA_FOLDER` with `ACMI_DRIVE_ADC=true`; its header lists the one-time setup.
   **The daily Granola task (acmiproperties account) has to save its JSON into that Drive folder.**
+- **Granola text export from Drive, as Kellen (built 2026-11-04, branch `worktree-granola-drive-txt`, not deployed):**
+  `crm/granola_text.py` reads the daily export (`=== MEETING ===` blocks: ID, TITLE, DATE with CST/CDT, URL, ATTENDEES, notes)
+  into the rows `import_meetings` takes. ALL-CAPS lines become headings and `- Title (Owner): detail` under NEXT STEPS become
+  action items (194 from the real 53-meeting export). Attendees are names only: team by name or first-initial+last, outside
+  by one matching Person, and a `(Company)` label links the company when exactly one has that name. `import_from_drive` takes
+  `.json` or `.txt`, skips the index file (no meetings), and re-reads a `.txt` whose modified time changed.
+  `ACMI_GRANOLA_DRIVE_USER` reads the folder with that person's Google token (`drive._user_session`) and adds Drive
+  read-only to the sign-in scope; cloudbuild passes `_GRANOLA_USER`. **To switch on:** add the Drive scope to the OAuth
+  consent screen, set `_GRANOLA_FOLDER` (`1qREDx3CbuEVHkWTEyK344jFQ5cHG1HYn`) and `_GRANOLA_USER`, deploy, Kellen signs in
+  again once. Merge Chat (main) with the calendar line first.
 - 901 tests green.
 - **Not done, needs Kellen:** the whole cutover in step 3.
 - **Secret Manager is Mel's** (Kellen, 10-28). Neither ACMI project (`sincere-passage-511621-j3`, which has the OAuth

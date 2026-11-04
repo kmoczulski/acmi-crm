@@ -58,6 +58,12 @@ def blocks(*spans, problem=""):
 
 
 class SlotTests(SimpleTestCase):
+    def test_each_person_gets_their_own_busy_blocks_joined_where_they_touch(self):
+        a = week({SIMON: blocks((at(MON, 9), at(MON, 10)), (at(MON, 10), at(MON, 11)), (at(MON, 13), at(MON, 14)))})
+        simon = a["people"][1]
+        self.assertEqual(len(simon["busy"]), 2)  # 9-11 joined, 1-2 apart
+        self.assertEqual(a["people"][0]["busy"], [])
+
     def test_a_busy_hour_blocks_its_two_half_hours_for_that_person_only(self):
         a = week({SIMON: blocks((at(MON, 9), at(MON, 10)))})
         monday = a["cells"][0]
@@ -601,10 +607,23 @@ class PageTests(ScheduleTestCase):
         r = self.client.get(reverse("crm:schedule_availability"), {"emails": SIMON})
         self.assertEqual((r.status_code, "Couldn't reach Google Calendar" in r.json()["error"]), (502, True))
 
+    def test_optional_guests_are_marked_optional_on_the_invite(self):
+        self.allow()
+        form = self.form()
+        form["optional"] = SIMON
+        self.assertEqual(self.client.post(reverse("crm:schedule_create"), form).status_code, 200)
+        guests = {a["email"]: a for a in self.fake.inserts[0]["body"]["attendees"]}
+        self.assertTrue(guests[SIMON].get("optional"))
+        self.assertFalse(guests[WILL].get("optional"))
+
     def test_people_search(self):
         r = self.client.get(reverse("crm:schedule_people"), {"q": "sim"})
         self.assertEqual(r.json()["results"][0]["email"], SIMON)
-        self.assertEqual(self.client.get(reverse("crm:schedule_people")).json(), {"results": []})
+        body = self.client.get(reverse("crm:schedule_people")).json()
+        self.assertEqual(body["results"], [])
+        self.assertEqual(body["team"][0]["email"], ME)  # the teammates to tick, the person first
+        self.assertTrue(body["team"][0]["me"])
+        self.assertIn(SIMON, [t["email"] for t in body["team"]])
 
     def test_scheduling_makes_the_meeting_and_answers_with_where_to_see_it(self):
         self.allow()

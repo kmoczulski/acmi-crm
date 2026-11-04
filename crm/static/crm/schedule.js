@@ -37,12 +37,17 @@
     data: null, pick: null, token: 0,
   };
 
+  // One colour per person, the same as in the mail Times panel; a busy cell is split into one stripe per busy person.
+  const PALETTE = ['#1f5fbf', '#d35400', '#1e7a46', '#7b3fb5', '#c0392b', '#0e8a8a', '#b0306a', '#6b7a1a', '#8a5a00', '#3b4a9c'];
+  const colours = new Map([[cfg.me, PALETTE[0]]]);
+  const colourOf = email => { if (!colours.has(email)) colours.set(email, PALETTE[colours.size % PALETTE.length]); return colours.get(email); };
+
   // ---- Who ---------------------------------------------------------------------------------------------------
   const whoList = $('[data-who]'), found = $('[data-found]'), addBox = $('[data-add]'), contacts = $('[data-contacts]');
 
   function drawWho() {
     const problems = new Map(((state.data && state.data.people) || []).map(p => [p.email, p.problem]));
-    whoList.replaceChildren(h('li', {class: 'sched-person is-me'}, h('span', {class: 'sched-avatar', text: initialsOf(known.get(cfg.me) || cfg.me)}),
+    whoList.replaceChildren(h('li', {class: 'sched-person is-me'}, h('span', {class: 'sched-avatar', style: 'background:' + colourOf(cfg.me), text: initialsOf(known.get(cfg.me) || cfg.me)}),
       h('span', {text: (known.get(cfg.me) || 'You') + ' (you)'})));
     const rows = [...team.map(t => t.email), ...state.invited.filter(e => !team.some(t => t.email === e))];
     rows.forEach(email => {
@@ -50,7 +55,7 @@
       const box = h('input', {type: 'checkbox', checked: on, 'aria-label': 'Include ' + name});
       box.addEventListener('change', () => toggle(email, box.checked));
       whoList.append(h('li', {class: 'sched-person' + (on ? ' on' : '')},
-        h('label', null, box, h('span', {class: 'sched-avatar', text: initialsOf(name)}),
+        h('label', null, box, h('span', {class: 'sched-avatar', style: 'background:' + colourOf(email), text: initialsOf(name)}),
           h('span', {class: 'sched-who-text'}, h('span', {class: 'sched-name', text: name}),
             !team.some(t => t.email === email) && name !== email ? h('span', {class: 'sched-email muted lc-small', text: email}) : null)),
         on && problem ? h('span', {class: 'sched-warn', title: problem, text: '⚠ can’t see their calendar'}) : null));
@@ -200,7 +205,7 @@
         const names = c.busy.map(i => d.people[i].name);
         const label = day.label + ', ' + slot.label + (c.ok ? (names.length ? ', busy: ' + names.join(', ') : ', everyone is free') : ', not available');
         grid.append(h('button', {type: 'button', class: 'sc-cell ' + cls + (slot.hour ? ' is-hour' : ''), 'data-d': di, 'data-s': s,
-          title: label, 'aria-label': label, disabled: !c.ok}, c.ok && c.busy.length ? String(c.busy.length) : null));
+          title: label, 'aria-label': label, disabled: !c.ok}, c.ok && c.busy.length ? h('span', {class: 'sc-split'}, ...c.busy.map(i => h('i', {style: 'background:' + colourOf(d.people[i].email)}))) : null));
       });
     });
     gridBox.replaceChildren(grid);

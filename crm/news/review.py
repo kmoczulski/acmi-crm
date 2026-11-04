@@ -8,6 +8,7 @@ People, decisions become timeline events, research and new leads become Tasks.
 Gmail draft edits are saved and declined drafts moved to Trash, as before.
 """
 import tempfile
+import uuid
 from datetime import timedelta
 from pathlib import Path, PurePath
 
@@ -23,6 +24,8 @@ from . import drafts as gmail_drafts
 from .scan_parser import parse_scan
 
 SCAN_SUFFIXES = (".pdf", ".docx")
+UPLOAD_PREFIX = "upload:"  # NewsScan.path for a scan uploaded on the News page: "upload:<random id>/<file name>"
+MAX_UPLOAD = 20 * 1024 * 1024
 DRIVE_PREFIX = "drive:"  # NewsScan.path for a scan read from Drive: "drive:<file id>"
 
 
@@ -118,13 +121,43 @@ def import_scan(path, user=None, drive_file=None):
         return _import(path, local, drive_file.name, user)
 
 
+def import_upload(uploaded, user=None):
+    """Import a scan file uploaded on the News page (a .pdf or .docx), for when the Drive folder isn't reachable.
+
+    The file is parsed from a temporary folder and not kept; every upload becomes its own scan."""
+    name = PurePath(uploaded.name).name
+    suffix = PurePath(name).suffix.lower()
+    if suffix not in SCAN_SUFFIXES or name.startswith("~$"):
+        raise ValueError("Upload a .pdf or .docx scan file.")
+    if uploaded.size > MAX_UPLOAD:
+        raise ValueError("That file is over 20 MB.")
+    with tempfile.TemporaryDirectory() as folder:
+        local = Path(folder) / name
+        with open(local, "wb") as fh:
+            for chunk in uploaded.chunks():
+                fh.write(chunk)
+        return _import(f"{UPLOAD_PREFIX}{uuid.uuid4().hex}/{name}", local, name, user)
+
+
+def _fit(model, **values):
+    """Build `model` with each text value cut to its field's max_length, so one long line in a scan (a date cell
+    holding a sentence, a long section name) can't stop the whole import."""
+    for field in model._meta.concrete_fields:
+        limit = getattr(field, "max_length", None)
+        value = values.get(field.name)
+        if limit and isinstance(value, str) and len(value) > limit:
+            values[field.name] = value[:limit]
+    return model(**values)
+
+
 @transaction.atomic
 def _import(path, local, file_name, user):
     meta, entries, prospects = parse_scan(local)
-    scan = NewsScan.objects.create(
+    scan = _fit(NewsScan,
         path=path, file_name=file_name, title=meta.get("title", ""), scan_date=meta.get("scan_date", ""),
         stats_line=meta.get("stats_line", ""), imported_by=user,
     )
+    scan.save()
     companies = _company_index()
     default_owner = user
 
@@ -133,7 +166,7 @@ def _import(path, local, file_name, user):
 
     items = []
     for e in entries:
-        items.append(NewsItem(
+        items.append(_fit(NewsItem,
             scan=scan, kind=NewsItem.Kind.BOARD, position=int(e["index"]), section=e.get("section", ""),
             company_name=e["company"], company_id=match(e["company"]), headline=e.get("headline", ""),
             article_date=e.get("date", ""), source_url=(e.get("source_url") or "")[:1000],
@@ -143,14 +176,14 @@ def _import(path, local, file_name, user):
         ))
     for tier_key in ("strong_fit", "worth_watching"):
         for p in prospects.get(tier_key, []):
-            items.append(NewsItem(
+            items.append(_fit(NewsItem,
                 scan=scan, kind=NewsItem.Kind.PROSPECT, position=1000 + int(p["index"]), tier=p.get("tier", ""),
                 company_name=p["company"], company_id=match(p["company"]), headline=p.get("signal", ""),
                 article_date=p.get("signal_date", ""), hq=p.get("hq", ""), what_they_do=p.get("what_they_do", ""),
                 why_fits=p.get("why_fits", ""), source_name=p.get("source_name", ""), owner=default_owner,
             ))
     for i, w in enumerate(prospects.get("weak", [])):
-        items.append(NewsItem(scan=scan, kind=NewsItem.Kind.WEAK, position=2000 + i, company_name=w["company"],
+        items.append(_fit(NewsItem,scan=scan, kind=NewsItem.Kind.WEAK, position=2000 + i, company_name=w["company"],
                               company_id=match(w["company"]), headline=w.get("reason", "")))
     NewsItem.objects.bulk_create(items)
     return scan
