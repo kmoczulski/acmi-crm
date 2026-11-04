@@ -7,8 +7,9 @@ Read this first when picking the project up in a new chat, along with
 align on proposed closing timelines and deposits etc.", with the Lewis Place "LOI Tracker" workbook, then "Merge"): the LOI / PSA
 terms tracker is built, tested and merged into `main` (commit `c9edb51`, fast-forwarded after CI on Postgres went green), NOT
 deployed.** Branch `loi-tracker` (worktree `.claude/worktrees/loi-tracker`), cut from `6d597b7` and rebased onto `origin/main`
-`4eb5f5e`. Live was `acmi-crm-00031-ptp` (`a3048b0`) when this was written; the photos / phones deploy in the entry below may have
-gone out since, so check the live image before any deploy. One new table, **migration `0079_termsround`** (it was `0078` until
+`4eb5f5e`, then `main` (`fc7b0ec`) merged in. Per the entry below, live is `acmi-crm-00032-hlr` (`5ed007f`, photos / phones); `main` is
+ahead of it by the effective-date recalculation (`b705c40`, no migration) and this tracker, **neither deployed**: check the live
+image before any deploy. One new table, **migration `0079_termsround`** (it was `0078` until
 `0078_comment_photo` reached `main` first; it now depends on that one): a plain CREATE TABLE, no change to existing tables, so
 older code can run against it.
 - **What Kellen gets.** A **Terms** page on every contract (`/contracts/<id>/terms/`): a button and a panel on the contract page,
@@ -61,8 +62,8 @@ older code can run against it.
   out of an LOI draft. A view across all deals. An Excel export (print to PDF is there). Whether he wants extension deposits
   dated the workbook's way.
 - **To ship.** Kellen's go-ahead right before, then the usual deploy steps (read the deploy note in memory first). The migrate
-  job applies `0078_comment_photo` (one nullable column) if the photos / phones deploy has not gone out yet, and
-  `0079_termsround` (one new table); both only add, so rolling the image back is safe. **Merge note:** the uncommitted land work
+  job will apply `0079_termsround` (one new table; 00032 already applied `0078_comment_photo`). It only adds, so rolling the
+  image back is safe. Shipping `main` ships the effective-date recalculation too. **Merge note:** the uncommitted land work
   in the main folder (branch `task-groups`) edits `crm/models.py`; if it adds a migration it has to be numbered after `0079`
   and depend on it.
 
