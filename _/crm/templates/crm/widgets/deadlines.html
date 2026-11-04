@@ -1,3 +1,0 @@
-{% load crm_tags humanize %}{# Dashboard widget: contract deadlines (deadlines) #}
-<a class="widget-link" href="{% url 'crm:contract_list' %}">Contracts</a>
-{% if deadlines.overdue or deadlines.soon %}{% include "crm/partials/contract_deadlines.html" with d=deadlines %}{% else %}<p class="muted" style="margin:0">Nothing due in the next {{ deadlines.days }} days.</p>{% endif %}

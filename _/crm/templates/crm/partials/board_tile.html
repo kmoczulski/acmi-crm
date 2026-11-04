@@ -1,7 +1,0 @@
-{% load crm_tags %}
-<a class="bl-tile bc-{{ b.colour }}" href="{{ b.get_absolute_url }}">
-  <span class="bl-tile-name">{{ b.name }}</span>
-  <span class="bl-tile-sub">{{ b.get_kind_display }}{% if b.home_label %} · {{ b.home_label }}{% endif %}</span>
-  <span class="bl-tile-meta">{{ b.n_cards }} card{{ b.n_cards|pluralize }}{% if b.n_due %} · <span class="bl-tile-due">{{ b.n_due }} due this week</span>{% endif %}</span>
-  <span class="bl-tile-members">{% for u in b.members.all|slice:":5" %}<span class="avatar avatar-sm" title="{{ u|username }}">{{ u.first_name|default:u.username|slice:":1"|upper }}{{ u.last_name|slice:":1"|upper }}</span>{% endfor %}</span>
-</a>

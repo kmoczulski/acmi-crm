@@ -1,9 +1,0 @@
-{% load humanize %}<h2>Recorded land sales nearby <span class="muted">· within {{ sc.miles }} mi, last {{ sc.years }} years</span></h2>
-{% if sc.comps %}<table class="parcel-table">
-  <tr><th>Sold</th><th>Where</th><th class="num">Acres</th><th class="num">Price</th><th class="num">$ / acre</th><th class="num">Miles</th><th>Source</th></tr>
-  {% for c in sc.comps %}<tr><td class="nowrap">{{ c.sale_date|date:"M Y" }}</td><td>{{ c.place|default:"–"|truncatechars:48 }}{% if c.county %} <span class="muted">· {{ c.county.name }} Co., {{ c.county.state }}</span>{% endif %}{% if c.improved %} <span class="muted">(with buildings)</span>{% endif %}</td><td class="num">{{ c.acres|floatformat:1|intcomma }}</td><td class="num">${{ c.price|intcomma }}</td><td class="num">${{ c.price_per_acre|floatformat:0|intcomma }}</td><td class="num">{% if c.miles is not None %}{{ c.miles|floatformat:1 }}{% else %}–{% endif %}</td><td>{% if c.source == "county" %}County record{% else %}ACMI research{% endif %}</td></tr>{% endfor %}
-</table>
-{% if sc.summary.n > 1 %}<div class="small">{{ sc.total }} sale{{ sc.total|pluralize }} in range: median ${{ sc.summary.median|intcomma }}/ac, middle half ${{ sc.summary.q1|intcomma }} to ${{ sc.summary.q3|intcomma }}/ac ({{ sc.summary.since|date:"Y" }} to {{ sc.summary.until|date:"Y" }}).</div>{% endif %}
-{% else %}<div class="small">No recorded land sales on file within {{ sc.miles }} miles.{% if sc.texas %} {{ sc.texas_note }}{% endif %}</div>{% endif %}
-{% if sc.comps and sc.texas %}<div class="small">{{ sc.texas_note }}</div>{% endif %}
-<div class="small muted">Recorded sale prices only (county records, or sales ACMI confirmed from a deed or broker). Not asking prices or assessed values, and not an appraisal.</div>

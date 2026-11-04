@@ -1,1 +1,0 @@
-<ul class="r-files">{% for f in files %}<li><a href="{% url 'crm:room_file' f.pk %}{{ q }}"{% if f.link %} target="_blank" rel="noopener"{% endif %}>{{ f.title }}</a> <span class="muted" style="font-size:12px">· shared {{ f.approved_at|date:"M j, Y" }}</span></li>{% endfor %}</ul>
