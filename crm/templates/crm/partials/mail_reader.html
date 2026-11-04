@@ -184,7 +184,9 @@
     {% if can_change %}
       <form class="mail-inline panel compose" method="post" enctype="multipart/form-data" action="{% url 'crm:inbox_compose' %}"
             data-inline hidden data-fields-url="{% url 'crm:inbox_reply_fields' %}" data-draft-url="{% url 'crm:inbox_draft' %}"
-            data-calendar-url="{% url 'crm:inbox_calendar' %}">
+            data-calendar-url="{% url 'crm:inbox_calendar' %}"
+            data-avail-url="{% url 'crm:schedule_availability' %}" data-people-url="{% url 'crm:schedule_people' %}"
+            data-create-url="{% url 'crm:schedule_create' %}">
         {% csrf_token %}
         <input type="hidden" name="inline" value="1">
         <input type="hidden" name="mode"><input type="hidden" name="reply_to_id"><input type="hidden" name="thread_id">

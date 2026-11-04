@@ -193,7 +193,7 @@ def freebusy(user, emails, start, end, session=None):
 
 
 def create_event(user, *, event_id, title, start, end, attendees, description="", location="", meet=True,
-                 video="", session=None):
+                 video="", optional=(), session=None):
     """Put a meeting on the person's own calendar and invite the attendees (Google emails the invitations). `event_id`
     is chosen by the caller (letters a-v and digits), so asking twice for the same meeting finds the first instead of
     inviting everyone again. Returns (event, created): created is False when Google already had that id.
@@ -209,7 +209,7 @@ def create_event(user, *, event_id, title, start, end, attendees, description=""
         "id": event_id, "summary": title, "description": description, "location": location,
         "start": {"dateTime": start.isoformat(), "timeZone": settings.TIME_ZONE},
         "end": {"dateTime": end.isoformat(), "timeZone": settings.TIME_ZONE},
-        "attendees": [{"email": a} for a in attendees],
+        "attendees": [{"email": a, **({"optional": True} if a in optional else {})} for a in attendees],
     }
     if kind == "meet":
         body["conferenceData"] = {"createRequest": {"requestId": event_id,
