@@ -73,6 +73,74 @@
     board.querySelectorAll('.drop-on').forEach(x => x.classList.remove('drop-on'));
   });
 
+  // --- Touch drag ---------------------------------------------------------
+  // Press and hold a card for a moment to lift it, then drag it over a list. Moving before the hold ends is an ordinary
+  // scroll. The lifted card floats under the finger (fixed position) while a placeholder holds its place; near the left
+  // or right edge the board scrolls sideways. A tap still opens the card.
+  let tCard = null, tTimer = null, tLifted = false, tX = 0, tY = 0, tBox = null, tScroll = null, tSwallow = false;
+  const HOLD_MS = 250;
+  function stopEdgeScroll() { if (tScroll) { clearInterval(tScroll); tScroll = null; } }
+  function edgeScroll(x) {
+    const r = board.getBoundingClientRect(), edge = 56;
+    stopEdgeScroll();
+    if (x < r.left + edge) tScroll = setInterval(() => { board.scrollLeft -= 12; }, 16);
+    else if (x > r.right - edge) tScroll = setInterval(() => { board.scrollLeft += 12; }, 16);
+  }
+  function dropTouch(commit) {
+    clearTimeout(tTimer); stopEdgeScroll(); board.style.scrollSnapType = '';
+    const card = tCard; tCard = null;
+    if (!card || !tLifted) return;
+    tLifted = false;
+    card.classList.remove('dragging', 'touch-lifted');
+    card.style.cssText = '';
+    tSwallow = true; setTimeout(() => { tSwallow = false; }, 400);   // the tap that ends a drag must not open the card
+    const ol = placeholder.parentElement;
+    if (!commit || !ol) { from.insertBefore(card, fromNext); placeholder.remove(); return; }
+    ol.insertBefore(card, placeholder); placeholder.remove();
+    board.querySelectorAll('.drop-on').forEach(x => x.classList.remove('drop-on'));
+    const f = from, fn = fromNext;
+    saveMove(card, ol, () => f.insertBefore(card, fn)).then(ok => { if (ok) say(`Moved ${card.querySelector('.bl-title').textContent} to ${listName(ol)}, position ${indexIn(ol, card) + 1}.`); });
+  }
+  board.addEventListener('touchstart', e => {
+    if (e.touches.length !== 1 || tCard) return;
+    const card = e.target.closest('.bl-card');
+    if (!card || card.classList.contains('bl-feed-item') || card.hasAttribute('data-fixed') || card.closest('[data-feed]') || grabbed) return;
+    if (e.target.closest('a, button, input, textarea, select, form')) return;
+    tX = e.touches[0].clientX; tY = e.touches[0].clientY; tCard = card;
+    tTimer = setTimeout(() => {
+      tLifted = true;
+      from = card.parentElement; fromNext = card.nextElementSibling;
+      tBox = card.getBoundingClientRect();
+      placeholder.style.height = tBox.height + 'px';
+      from.insertBefore(placeholder, fromNext);
+      card.classList.add('dragging', 'touch-lifted');
+      board.style.scrollSnapType = 'none';   // snapping would undo the edge scrolling
+      card.style.cssText = `left:${tBox.left}px;top:${tBox.top}px;width:${tBox.width}px;`;
+      if (navigator.vibrate) navigator.vibrate(30);
+      say(`Picked up ${card.querySelector('.bl-title').textContent}. Drag it to a list, then let go.`);
+    }, HOLD_MS);
+  }, {passive: true});
+  board.addEventListener('touchmove', e => {
+    const t = e.touches[0];
+    if (!tLifted) {   // still deciding: a move this early is a scroll, not a drag
+      if (tCard && (Math.abs(t.clientX - tX) > 8 || Math.abs(t.clientY - tY) > 8)) { clearTimeout(tTimer); tCard = null; }
+      return;
+    }
+    e.preventDefault();   // the page stays put while a card is in hand
+    tCard.style.left = (tBox.left + t.clientX - tX) + 'px';
+    tCard.style.top = (tBox.top + t.clientY - tY) + 'px';
+    edgeScroll(t.clientX);
+    const under = document.elementFromPoint(t.clientX, t.clientY);   // the lifted card ignores pointers, so this sees the list below
+    const ol = under && under.closest('.bl-cards'); if (!ol || ol.hasAttribute('data-feed')) return;
+    const after = cardsOf(ol).filter(c => c !== tCard).find(c => { const r = c.getBoundingClientRect(); return t.clientY < r.top + r.height / 2; });
+    if (after) ol.insertBefore(placeholder, after); else ol.appendChild(placeholder);
+    board.querySelectorAll('.drop-on').forEach(x => x.classList.remove('drop-on')); ol.classList.add('drop-on');
+  }, {passive: false});
+  board.addEventListener('touchend', () => { if (tLifted) dropTouch(true); else { clearTimeout(tTimer); tCard = null; } });
+  board.addEventListener('touchcancel', () => { if (tLifted) dropTouch(false); else { clearTimeout(tTimer); tCard = null; } });
+  board.addEventListener('click', e => { if (tSwallow) { e.stopImmediatePropagation(); e.preventDefault(); } }, true);
+  board.addEventListener('contextmenu', e => { if (tLifted || tCard) e.preventDefault(); });   // long-press menu on phones
+
   // --- Keyboard moves -----------------------------------------------------
   let grabbed = null, gFrom = null, gNext = null;
   function grab(card) {

@@ -507,6 +507,27 @@ main:has(.land) { padding: 0; max-width: none; }
   .land-stage { grid-template-columns: 1fr; grid-template-rows: minmax(0, 1fr) auto; }
   .land-card-wrap { width: auto; max-width: none; max-height: 50vh; border-left: 0; border-top: 1px solid var(--line); }
 }
+/* Phone: the map fills the screen under the top bar; the filters & results are a sheet that slides up over it (opened by
+   the Filters button or the pill on the map), and an open parcel is a card under the map. */
+.land-fab, .land-side-bar { display: none; }
+@media (max-width: 900px) {
+  html:not(.embedded) .land, html:not(.embedded) .land.side-closed {
+    grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr);
+    height: calc(var(--main-vh, 100dvh) - var(--topbar-h)); }
+  html:not(.embedded) .land-toolbar { overflow-x: auto; flex-wrap: nowrap; white-space: nowrap; -webkit-overflow-scrolling: touch; }
+  html:not(.embedded) .land-work { grid-row: 2; }
+  html:not(.embedded) .land-side, html:not(.embedded) .land.side-closed .land-side {
+    position: fixed; left: 0; right: 0; bottom: 0; top: var(--topbar-h); max-height: none; z-index: 2000; visibility: visible;
+    border: 0; box-shadow: 0 -8px 24px rgba(0,0,0,.18); transform: translateY(105%); transition: transform .22s ease; }
+  html:not(.embedded) .land.side-open .land-side { transform: none; }
+  html:not(.embedded) .land-side-bar { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px;
+    border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--panel); z-index: 2; }
+  html:not(.embedded) .land-fab { display: inline-flex; gap: 6px; align-items: center; position: absolute; left: 50%; bottom: 52px;
+    transform: translateX(-50%); z-index: 850; border: 0; border-radius: 999px; padding: 10px 18px; font-size: 13px; font-weight: 600;
+    background: var(--accent); color: #fff; box-shadow: 0 4px 14px rgba(0,0,0,.35); cursor: pointer; }
+  html:not(.embedded) .land-card-wrap { max-height: 55%; border-radius: 14px 14px 0 0; box-shadow: 0 -6px 18px rgba(0,0,0,.14); }
+}
+@media (prefers-reduced-motion: reduce) { .land-side { transition: none !important; } }
 .site-row { padding: 2px 0; }
 .pill.site-acquired, .pill.site-contract { background: #e3ecff; color: #1e4fbf; }
 .pill.site-loi { background: #def6fb; color: #00788f; }
@@ -1774,6 +1795,10 @@ main { padding: 20px 28px 40px; }
 .bl-card:hover { border-color: #b9c2cf; }
 .bl-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .bl-card.dragging { opacity: .4; }
+.bl-card { -webkit-touch-callout: none; }
+.bl-card.touch-lifted { position: fixed; z-index: 1200; margin: 0; opacity: .95; pointer-events: none; transform: rotate(1.5deg);
+  box-shadow: 0 14px 30px rgba(15, 23, 42, .3); }
+@media (max-width: 900px) { .bl-list { scroll-snap-align: start; } .bl-board { scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch; } }
 .bl-card.grabbed { outline: 2px solid var(--accent); box-shadow: 0 8px 20px rgba(31, 58, 95, .25); transform: rotate(-1deg); }
 .bl-card.bl-failed { outline: 2px solid var(--bad); }
 .bl-card.is-done .bl-title { color: var(--muted); }

@@ -97,7 +97,8 @@
       </details>
     </div>
 
-  <aside class="land-side">
+  <aside class="land-side" id="land-side">
+    <div class="land-side-bar"><b>Filters &amp; results</b><button type="button" class="btn btn-small" id="land-side-done">Done</button></div>
     <div class="land-side-head muted lc-small">{{ totals.parcels|intcomma }} parcels of 20+ ac · {{ totals.pursue }} pursue · {{ totals.watch }} watch</div>
     <form id="filters" class="land-filters" autocomplete="off">
       <div class="lf-row"><input name="q" placeholder="Owner, address or property ID" value="{{ request.GET.q }}"></div>
@@ -182,6 +183,7 @@
     <div class="land-stage">
       <div class="land-map-wrap" id="map-wrap">
         <div id="map"></div>
+        <button type="button" class="land-fab" id="land-fab" aria-controls="land-side"><span aria-hidden="true">☰</span> <span id="land-fab-n">Filters</span></button>
         <div id="tools" class="tools-panel" hidden>
           <div class="tools-tabs">
             <button type="button" data-tool="distance" class="on">Distance</button>
@@ -460,6 +462,8 @@
     scored.clearLayers();
     scored.addData(data);
     countEl.textContent = `${data.total.toLocaleString()} parcels in view` + (assembling ? ' (assembling: all sizes)' : '') + (data.truncated ? ` (top ${data.features.length.toLocaleString()} drawn; zoom in for the rest)` : '');
+    const fabN = document.getElementById('land-fab-n');
+    if (fabN) fabN.textContent = data.total.toLocaleString() + ' parcels';
     results.innerHTML = data.list.map(p => `
       <li data-id="${p.id}"${p.id === openId ? ' class="on"' : ''}>
         <span class="lr-score" style="background:${colorFor(p)}">${p.score}</span>
@@ -469,7 +473,7 @@
   }
   results.addEventListener('click', e => {
     const li = e.target.closest('li[data-id]');
-    if (li) openCard(+li.dataset.id, true);
+    if (li) { openCard(+li.dataset.id, true); closePhoneSide(); }
   });
   form.addEventListener('input', e => { if (e.target.name === 'q') scheduleLoad(); });
   form.addEventListener('change', scheduleLoad);
@@ -1123,7 +1127,19 @@
     sideBtn.classList.toggle('on', open);
     remember();
   }
-  sideBtn.addEventListener('click', () => setSide(landEl.classList.contains('side-closed')));
+  // On a phone the panel is a sheet over the map (the Filters button, the pill on the map and Done all drive it); the
+  // desktop show/hide choice is left alone. A split-view pane (html.embedded) keeps the side-by-side layout.
+  const phone = window.matchMedia('(max-width: 900px)');
+  const phoneSheet = () => phone.matches && !document.documentElement.classList.contains('embedded');
+  function setPhoneSide(open) { landEl.classList.toggle('side-open', open); sideBtn.classList.toggle('on', open); }
+  function closePhoneSide() { if (phoneSheet()) setPhoneSide(false); }
+  sideBtn.addEventListener('click', () => {
+    if (phoneSheet()) setPhoneSide(!landEl.classList.contains('side-open'));
+    else setSide(landEl.classList.contains('side-closed'));
+  });
+  document.getElementById('land-fab').addEventListener('click', () => setPhoneSide(true));
+  document.getElementById('land-side-done').addEventListener('click', () => { setPhoneSide(false); map.invalidateSize(); });
+  phone.addEventListener?.('change', () => { landEl.classList.remove('side-open'); map.invalidateSize(); });
 
   // Menus in the toolbar: only one open at a time; a click elsewhere closes them.
   const menus = [...document.querySelectorAll('.tb-menu')];
