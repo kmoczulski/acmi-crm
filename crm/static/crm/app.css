@@ -3273,3 +3273,8 @@ fieldset { min-width: 0; }
   .appbar .search-trigger { width: auto; }
   .appbar .search-trigger kbd, .appbar .search-text { display: none; }
 }
+
+/* Tasks page: a heading row before each group (deals by campus, land sites, prospecting, general) */
+.tasklist li.task-group { display: block; padding: 14px 0 4px; font-size: 12px; font-weight: 600; letter-spacing: .04em;
+  text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--line); }
+.tasklist li.task-group:first-child { padding-top: 0; }

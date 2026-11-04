@@ -6,7 +6,8 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib import messages
 from django.core.paginator import Paginator
-from django.db.models import Count, F, Max, Q
+from django.db.models import Case, CharField, Count, F, IntegerField, Max, Q, Value, When
+from django.db.models.functions import Coalesce
 from django.http import FileResponse, Http404, HttpResponse, HttpResponseBadRequest, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -886,6 +887,17 @@ def task_list(request):
     if scope == "mine":
         qs = qs.filter(assignee=request.user)
     qs = qs.filter(done=(state == "done"))
+    # Group by what the task is about: deals / projects (by campus or site), land sites, prospecting (a company or
+    # person with no deal), then general tasks. Due date order holds inside each group.
+    qs = qs.annotate(
+        grp=Case(When(opportunity__isnull=False, then=Value(1)), When(site__isnull=False, then=Value(2)),
+                 When(Q(company__isnull=False) | Q(person__isnull=False), then=Value(3)),
+                 default=Value(4), output_field=IntegerField()),
+        sub=Case(When(opportunity__isnull=False,
+                      then=Coalesce(F("opportunity__campus__code"), F("opportunity__site"), Value("TBD"))),
+                 When(site__isnull=False, then=F("site__name")),
+                 default=Value(""), output_field=CharField()),
+    ).order_by("grp", "sub", *TASK_ORDER)
     page = Paginator(qs, 100).get_page(request.GET.get("page"))
     return render(request, "crm/task_list.html", {
         "page": page, "scope": scope, "state": state, "task_form": TaskForm(initial={"assignee": request.user}),
