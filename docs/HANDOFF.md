@@ -3,6 +3,69 @@
 Read this first when picking the project up in a new chat, along with
 `attio_spec.md` in this folder. Start with "Pick up here"; the dated sections after it are the history.
 
+**Update, 2026-11-04 (evening; Claude on the laptop; Kellen: "Can we add this LOI/PSA trackline capability? It should be used to
+align on proposed closing timelines and deposits etc.", with the Lewis Place "LOI Tracker" workbook, then "Merge"): the LOI / PSA
+terms tracker is built, tested and merged into `main` (commit `c9edb51`, fast-forwarded after CI on Postgres went green), NOT
+deployed.** Branch `loi-tracker` (worktree `.claude/worktrees/loi-tracker`), cut from `6d597b7` and rebased onto `origin/main`
+`4eb5f5e`. Live was `acmi-crm-00031-ptp` (`a3048b0`) when this was written; the photos / phones deploy in the entry below may have
+gone out since, so check the live image before any deploy. One new table, **migration `0079_termsround`** (it was `0078` until
+`0078_comment_photo` reached `main` first; it now depends on that one): a plain CREATE TABLE, no change to existing tables, so
+older code can run against it.
+- **What Kellen gets.** A **Terms** page on every contract (`/contracts/<id>/terms/`): a button and a panel on the contract page,
+  and "Terms (n)" beside the contract on the land site page. A *round* is one proposal (ACMI initial offer, Seller redline, ACMI
+  counter, ...). It holds the terms the workbook held: per phase the acres and price per acre, the feasibility period and its
+  extensions (days, options available, options used, deposit per extension), the initial deposit and its non-refundable part,
+  the deposit after feasibility and its non-refundable part, 30 / 60 / 90-day deposits, days to close counted from final zoning
+  approval or from the end of feasibility, closing extensions (days, options, used, deposit, non-refundable part); and for the
+  deal the days to PSA signing (or a fixed date), months to final zoning approval, outside date (months) and subdivision.
+  The page shows, side by side (up to four rounds, chips pick which): a card per round (price, deposits, what is lost if ACMI
+  walks away when feasibility ends, PSA / feasibility / closing dates, cash to close); **where ACMI and the seller stand** (the
+  latest round from each side, the gap = seller less ACMI, "Aligned" where equal); the timeline lanes (the contract timeline's
+  partial, ticks thinned on long spans); **the schedule** (each event's date, the deposit and its non-refundable part, the
+  cumulative "walk away here: lose $X, get back $Y", cash to close, extension rows say where the date moves to); the inputs
+  grid with differing rows tinted; print / save as PDF (logo prints; the on-screen logo is hidden). Adding or editing a round is
+  one vertical form with a **live preview** (the server does the arithmetic: `terms.js` posts the form to `.../terms/preview/`
+  as you type). A new round starts from the previous round's terms and is named for the other side. **Mark agreed** (one per
+  contract); once the contract is signed with an effective date the agreed round counts from the real date, labelled "PSA
+  signed". **Import** a team LOI Tracker workbook (.xlsx): one round per column under "LOI INFO", rows read by their wording.
+- **Where the code is.** Engine `crm/contracts/terms.py` (pure functions; `ROUND_FIELDS` / `PHASE_FIELDS` drive the form, the
+  stored JSON, both grids and the importer, so adding a term is one line there), `terms_views.py`, `terms_import.py`,
+  `forms.py` (`TermsRoundForm`, `TermsImportForm`), model `TermsRound` in `crm/models.py`, templates `contract_terms.html`,
+  `contract_terms_edit.html`, `partials/terms_preview.html`, `partials/terms_field.html`, the `lt-*` CSS at the end of
+  `app.css`, `static/crm/terms.js`; hooks in `contracts/views.py` (`terms_panel`), `land/views.py` (`_site_contracts`),
+  `contract_detail.html`, `land_site_detail.html`, `urls.py`. Tests: `test_terms.py` (engine), `test_terms_views.py` (pages,
+  form, permissions, import).
+- **How it was checked.** The engine reproduces the Lewis Place workbook to the dollar and the day for all three rounds (PSA,
+  feasibility end, zoning approval, closing, outside date, deposits, the refundable / non-refundable aggregates, cash to close);
+  the expected values in the tests are the workbook's own cached values. The importer read the real workbook
+  (`G:\Shared drives\1 ACMI Properties\1 Projects\MD\MEIH\01. Land Acquisition\Lewis Place\LOI Tracker - MD - Lewis Place.xlsx`)
+  with nothing skipped, and the imported rounds gave the same numbers. In the browser pane on a scratch database (never the
+  real one): the tracker with those three rounds, the edit form and its live preview recalculating, saving a round, validation
+  errors, the empty state, the contract page, light and dark, and a 375 px phone with no sideways scroll. **Tests:** the whole
+  suite on SQLite before the rebase (1,272 tests, 8 minutes) was green, 1 skipped; the tracker, contract, land, diligence,
+  static-integrity and phone-layout modules (239 tests) again after four small cleanups; `makemigrations --check` clean, also
+  after the rebase and the renumbering. The combination with `4eb5f5e` (comment photos, effective-date recalculation) was
+  checked by CI on Postgres before `main` moved. **Not checked:** a real phone, printing to a real PDF (the print CSS is small
+  and was read, not rendered), anyone but one test user on a scratch copy.
+- **Where it differs from the workbook, on purpose.** (1) A deposit for an extension is dated the day the extension has to be
+  exercised (the end of the period it extends), not the extended date; amounts, the aggregates, closing date and cash to close
+  are identical, only the dates of the two closing-extension deposits move (Apr 30 and Jun 29, 2028, not Jun 29 and Aug 28).
+  (2) Feasibility extension deposits are one row per extension (the workbook adds them up on the first date). (3) The
+  workbook's "Deposits Check" is true by construction here, so the page warns instead: deposits over the price, an extended
+  closing past the outside date (closing is held at the outside date), more extensions used than available. (4) The labels'
+  spelling slips are fixed. (5) Phase II and later start `start_days` after the previous phase closes and close after their own
+  feasibility, like the workbook's blocks; the workbook's Phase II / III aggregate formulas pointed at the wrong rows (they were
+  zero, so nobody saw it).
+- **Not built, ask Kellen.** Pushing the agreed round's dates into Critical dates (reminders, calendar, site timeline): left out
+  on purpose, since a signed PSA's dates are read from the document and two sources would duplicate. Claude reading the terms
+  out of an LOI draft. A view across all deals. An Excel export (print to PDF is there). Whether he wants extension deposits
+  dated the workbook's way.
+- **To ship.** Kellen's go-ahead right before, then the usual deploy steps (read the deploy note in memory first). The migrate
+  job applies `0078_comment_photo` (one nullable column) if the photos / phones deploy has not gone out yet, and
+  `0079_termsround` (one new table); both only add, so rolling the image back is safe. **Merge note:** the uncommitted land work
+  in the main folder (branch `task-groups`) edits `crm/models.py`; if it adds a migration it has to be numbered after `0079`
+  and depend on it.
+
 **Update, 2026-11-04 (evening; Claude on the laptop; Kellen: "I thought I added the ability to upload photos to comments on
 company cards? also within the company cards, people needs to add phone numbers if we have them"): both are built and checked
 on branch `card-photos-phones` (worktree `.claude/worktrees/card-photos-phones`, cut from `origin/main` `6d597b7`). Committed
