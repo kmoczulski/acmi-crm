@@ -13,8 +13,17 @@ rewritten as see-through rgba (same pixel over white, darkens over a dark panel)
 shadow-not-outline panels, grouped-list tables, segmented tabs, frosted top bar / menus / search palette, sheet dialogs, stat
 tiles). **Dark mode is now a real dark palette** (`html[data-theme="dark"]` at the end of app.css); the old whole-page
 `filter: invert()` is gone, so maps, photos and email frames are no longer double-inverted. Inline colours in the 83 page
-templates and two partials got the same treatment; PDF, email and guest templates were left alone on purpose. Next pass: the
-company header strip, board columns, calendar, mail and land search details, and the ~570 inline `style=` attributes.
+templates and two partials got the same treatment; PDF, email and guest templates were left alone on purpose.
+**Pass 2** (same branch): every small all-caps label is sentence case now (43 rules; only the meeting card's month stays
+caps), and an "Apple-style layer, pass 2" at the end of app.css covers underline tabs, the company page (frosted sticky tabs,
+fact strip, meeting cards with a Calendar-icon date), deal board columns titled in their stage colour (no coloured top
+border; at-risk cards get a red dot, not a stripe), team board tiles/lists/cards, the month and week calendars (today in a
+red circle, events as tinted bars), the inbox (Mail-like sidebar, blue unread dots, frosted reader header and pop-overs) and
+land search (frosted Leaflet controls, legend and pop-ups). Between 1181 and 1440 px the top bar tightens and search shows
+as its icon, so the bar fits with Mail and Chat on. The ~570 inline `style=` attributes are almost all spacing (margins,
+widths) and were left; the few colour ones are in print, email and PDF templates. Checked in the browser pane on scratch
+databases (light and dark): home, companies, a company, the deal board, the calendar, land search, the inbox (with the test
+suite's FakeGmail); the inbox reading pane and team boards with cards were not seen.
 Tests: 1,142 run, 5 fail (land comps zoning filter, three scheduling tests, the company page's "Tenant & financials"
 column); none of them looks at styling, so they look like they come from `main`'s recent "Restore …" commits (not re-run on
 plain `main` to confirm). Map marker colours inside `<script>` blocks were left as hex on purpose (Leaflet can't read CSS
