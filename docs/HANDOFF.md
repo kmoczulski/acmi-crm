@@ -2,6 +2,23 @@
 
 Read this first when picking the project up in a new chat, along with
 `attio_spec.md` in this folder. Start with "Pick up here"; the dated sections after it are the history.
+
+Newest (2026-11-04): **Apple-style look, pass 1** (Kellen: "I want it to feel like apple designed it"; keep navy and the top
+bar). Branch `worktree-apple-ui` (worktree `.claude/worktrees/apple-ui`, on `main` `9f8eb56`, not merged, not deployed; CSS
+and template colours only, no migration, no Python changes). In `crm/static/crm/app.css`: a new palette at the top (Apple's
+system greys, ACMI navy kept for the bar and main buttons, system font stack incl. Segoe UI Variable on Windows), about 320
+hard-coded neutral colours swapped for variables (`--panel`, `--panel-2`, `--fill`, `--line`, `--text`, `--muted` …), pale tints
+rewritten as see-through rgba (same pixel over white, darkens over a dark panel), dark text colours wrapped in
+`color-mix(… var(--ink-mix), var(--text))`, and an "Apple-style layer" at the end of the file (capsule buttons, focus rings,
+shadow-not-outline panels, grouped-list tables, segmented tabs, frosted top bar / menus / search palette, sheet dialogs, stat
+tiles). **Dark mode is now a real dark palette** (`html[data-theme="dark"]` at the end of app.css); the old whole-page
+`filter: invert()` is gone, so maps, photos and email frames are no longer double-inverted. Inline colours in the 83 page
+templates and two partials got the same treatment; PDF, email and guest templates were left alone on purpose. Next pass: the
+company header strip, board columns, calendar, mail and land search details, and the ~570 inline `style=` attributes.
+Tests: 1,142 run, 5 fail (land comps zoning filter, three scheduling tests, the company page's "Tenant & financials"
+column); none of them looks at styling, so they look like they come from `main`'s recent "Restore …" commits (not re-run on
+plain `main` to confirm). Map marker colours inside `<script>` blocks were left as hex on purpose (Leaflet can't read CSS
+variables). The `calendar-fixes-v2` branch was not merged in (it carries a stray `_/` copy of the repo); merge it on its own.
 Newest (2026-10-30): branch `chat-parity` (worktree `.claude/worktrees/chat-parity`, on `schedule`, pushed to GitHub, not merged;
 **live since 10:38 am Central on 2026-10-30**: revision `acmi-crm-00011-dlb`, image `c370d25`, built by `cloudbuild.yaml` in 5
 minutes, migration `0076` applied, the service and the three jobs have the same settings as before and only the image changed,

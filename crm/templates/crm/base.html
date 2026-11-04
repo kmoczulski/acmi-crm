@@ -10,7 +10,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="ACMI Hub">
-  <meta name="theme-color" content="#f6f7f9">
+  <meta name="theme-color" content="#1f3a5f">
   <link rel="icon" type="image/png" sizes="32x32" href="{% static 'crm/icons/icon-light-32.png' %}"
         data-light="{% static 'crm/icons/icon-light-32.png' %}" data-dark="{% static 'crm/icons/icon-dark-32.png' %}">
   <link rel="apple-touch-icon" sizes="180x180" href="{% static 'crm/icons/icon-light-180.png' %}"
@@ -29,7 +29,7 @@
           if (dark) h.setAttribute('data-theme', 'dark'); else h.removeAttribute('data-theme');
         }
         var bar = document.querySelector('meta[name="theme-color"]');
-        if (bar) bar.setAttribute('content', dark ? '#1c1d20' : '#f6f7f9');
+        if (bar) bar.setAttribute('content', dark ? '#172a44' : '#1f3a5f');
         document.querySelectorAll('link[data-dark]').forEach(function (l) {
           var href = l.getAttribute(dark ? 'data-dark' : 'data-light');
           if (l.getAttribute('href') !== href) l.setAttribute('href', href);
