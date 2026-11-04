@@ -1095,7 +1095,9 @@ def _site_contracts(site):
     """The site's contracts with their next open date, for the Contracts panel."""
     from ..contracts import dates as contract_dates
 
-    contracts = list(site.contracts.select_related("owner"))
+    from django.db.models import Count
+
+    contracts = list(site.contracts.select_related("owner").annotate(n_rounds=Count("term_rounds")))
     nxt = contract_dates.next_dates(contracts)
     for c in contracts:
         c.next = nxt.get(c.pk)

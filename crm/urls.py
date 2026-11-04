@@ -5,6 +5,7 @@ from . import campus_views, cards, company_pdf, prefs, push_views, search, views
 from .boards import views as board_views
 from .build import views as build_views
 from .capital import views as capital_views
+from .contracts import terms_views
 from .contracts import views as contract_views
 from .dataroom import drive_views
 from .dataroom import views as room_views
@@ -112,6 +113,13 @@ urlpatterns = [
     path("contracts/<int:pk>/delete/", contract_views.contract_delete, name="contract_delete"),
     path("contracts/<int:pk>/compare/", contract_views.contract_compare, name="contract_compare"),
     path("contracts/<int:pk>/timeline/", contract_views.contract_timeline, name="contract_timeline"),
+    path("contracts/<int:pk>/terms/", terms_views.contract_terms, name="contract_terms"),
+    path("contracts/<int:pk>/terms/new/", terms_views.contract_terms_edit, name="contract_terms_new"),
+    path("contracts/<int:pk>/terms/import/", terms_views.contract_terms_import, name="contract_terms_import"),
+    path("contracts/<int:pk>/terms/preview/", terms_views.contract_terms_preview, name="contract_terms_preview"),
+    path("contracts/<int:pk>/terms/<int:rid>/", terms_views.contract_terms_edit, name="contract_terms_edit"),
+    path("contracts/<int:pk>/terms/<int:rid>/delete/", terms_views.contract_terms_delete, name="contract_terms_delete"),
+    path("contracts/<int:pk>/terms/<int:rid>/agree/", terms_views.contract_terms_agree, name="contract_terms_agree"),
     path("contracts/<int:pk>/drop/", contract_views.contract_drop, name="contract_drop"),
     path("contracts/<int:pk>/comments/", contract_views.contract_comment, name="contract_comment"),
     path("contracts/<int:pk>/answers/<int:answer_pk>/", contract_views.contract_answer, name="contract_answer"),

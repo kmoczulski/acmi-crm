@@ -24,6 +24,7 @@ from . import ai, closing, compare, dates, intake, methods, timeline
 from . import text as textmod
 from ..tenants import leases
 from .forms import ContractForm, DateForm, DocumentForm, LeaseTermsForm, TemplateForm
+from .terms_views import terms_panel
 
 INLINE_TYPES = (".pdf", ".png", ".jpg", ".jpeg", ".gif", ".webp")
 COMPARE_QUESTION = ("What changed between these two documents? List each change in order with the section, what it "
@@ -289,7 +290,7 @@ def contract_detail(request, pk):
         "owners": _owners(contract), "kinds": ContractDocument.Kind.choices, "senders": ContractDocument.Sender.choices,
         "date_kinds": ContractDate.Kind.choices, "can_manage": is_manager(request.user),
         "compare_pair": drafts[-2:] if len(drafts) >= 2 else [d for d in docs if d.text][-2:],
-        "timeline": timeline_strip(contract, today), "units": ContractDate.Unit.choices,
+        "timeline": timeline_strip(contract, today), "units": ContractDate.Unit.choices, "terms": terms_panel(contract),
         "executed": executed_doc(contract, docs),
         "comment_counts": dict(contract.comments.filter(parent__isnull=True, resolved=False).order_by()
                                .values_list("document").annotate(n=Count("id")).values_list("document", "n")),
