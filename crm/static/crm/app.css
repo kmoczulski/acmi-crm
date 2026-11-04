@@ -3288,3 +3288,4 @@ fieldset { min-width: 0; }
 .times-busy { right: auto; background: color-mix(in srgb, var(--c, #9aa3b0) 24%, transparent); border-left-color: var(--c, #9aa3b0); box-sizing: border-box; }
 .times-busy.opt { border-left-style: dashed; background: color-mix(in srgb, var(--c, #9aa3b0) 12%, transparent); }
 .times-busy b { font-weight: 600; }
+.times-busy.lane { padding: 1px 2px; text-align: center; font-size: 10px; }

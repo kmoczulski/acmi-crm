@@ -338,7 +338,9 @@
             if (b <= a) return;
             const lane = lanes.indexOf(it.who), w = 100 / lanes.length;
             const who = it.who === 'me' ? 'You' : it.name;
-            html += `<div class="times-busy${b - a < 22 ? ' short' : ''}${b - a < 40 ? ' brief' : ''}${it.opt ? ' opt' : ''}" style="--c:${color(it.who)};top:${a}px;height:${Math.max(b - a, 12)}px;left:calc(${lane * w}% + 2px);width:calc(${w}% - 3px)" title="${esc(who)} · ${esc(it.title)} · ${esc(span(it))}"><span class="times-busy-time">${esc(span(it))}</span> ${lanes.length > 1 ? '<b>' + esc(who.split(' ')[0]) + '</b> ' : ''}${esc(it.title)}</div>`;
+            html += `<div class="times-busy${b - a < 22 ? ' short' : ''}${b - a < 40 ? ' brief' : ''}${it.opt ? ' opt' : ''}${lanes.length > 1 ? ' lane' : ''}" style="--c:${color(it.who)};top:${a}px;height:${Math.max(b - a, 12)}px;left:calc(${lane * w}% + 2px);width:calc(${w}% - 3px)" title="${esc(who)} · ${esc(it.title)} · ${esc(span(it))}">${lanes.length > 1
+              ? '<b>' + esc(it.who === 'me' ? 'Y' : String(who).split(/\s+/).filter(Boolean).map(x => x[0]).slice(0, 2).join('').toUpperCase() || '?') + '</b>'
+              : `<span class="times-busy-time">${esc(span(it))}</span> ${esc(it.title)}`}</div>`;
           });
         });
         picked.forEach((s, i) => {
