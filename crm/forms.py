@@ -188,7 +188,7 @@ class OpportunityForm(StyledForm):
         model = Opportunity
         fields = [
             "name", "company", "stage", "probability", "priority", "owner", "team", "campus", "site", "deal_type",
-            "asset_type", "value", "sq_ft_need", "acreage_need", "power_need_mw", "next_step", "next_step_due",
+            "asset_type", "value", "annual_rent", "lease_doc_kind", "lease_doc_url", "sq_ft_need", "acreage_need", "power_need_mw", "next_step", "next_step_due",
             "target_close", "est_delivery", "timeline", "lead_source", "investor_report", "partner_note", "trello_url",
             "notes",
         ]

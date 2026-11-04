@@ -5,6 +5,18 @@ Read this first when picking the project up in a new chat, along with
 
 ## Pick up here (2026-10-25)
 
+**Built 2026-11-04: lease / LOI and ROC on deals** (Kellen: "update the company card so we can have the lease or LOI
+on there which is then pulled to the IR report - I want it to share the ROC metric"). Branch `calendar-fixes-v2`;
+not on main or hosted yet (main and production already use 0074–0076 for Chat, so renumber). Migration `0074_deal_lease_roc`: `Opportunity.lease_doc_kind` (LOI / Lease), `lease_doc_name`,
+`lease_doc_url`, `annual_rent` (year-1 rent / NOI). `Opportunity.roc` = annual rent ÷ project cost (`value`).
+- Company page › Drive files: each current file has **Use as lease / LOI** (pick the deal; kind guessed from the name).
+  Or paste the link on the deal's Edit form, where the year-1 rent is typed too.
+- Company page › Opportunities tab: Lease / LOI link and ROC columns.
+- Investor report: new columns **ROC** and **Lease / LOI** (on by default; "Rent / NOI" off by default). ROC is in the
+  "cost" group, so hiding costs before sending hides it too. Excel: ROC is a live `rent / cost` formula when the
+  Rent column is shown, section total = weighted ROC; the Lease / LOI cell links to Drive.
+- Not in the partner data room (its allow-list is unchanged). Real database not migrated yet.
+
 **Done on the laptop 2026-10-28 (branch `claude/beautiful-albattani-6xp3qi`, merged fast-forward to `main` `b691c6d`, CI green, 904 tests; real database migrated through 0072, backup `backups/db-2026-10-28-before-review-fixes-to-main.sqlite3`; the laptop's `.venv` still has the old `pypdf` / `pillow`, CI and the image use the new pins):** steps 1, 2 and 4
 below, and W1–W13 in code (Kellen's instruction was to do W1–W13 on the hosted copy; they're code fixes, so they ship
 with the first deploy instead). Real database backed up to `backups/db-2026-10-28-before-review-merge.sqlite3`.

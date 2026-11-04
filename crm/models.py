@@ -429,6 +429,13 @@ class Opportunity(TrackedModel):
     investor_report = models.BooleanField(
         "on investor report", default=False, help_text="Show on the pipeline report sent to capital partners",
     )
+    lease_doc_kind = models.CharField("lease / LOI", max_length=8, blank=True,
+                                      choices=[("loi", "LOI"), ("lease", "Lease")])
+    lease_doc_name = models.CharField("lease / LOI file", max_length=300, blank=True)
+    lease_doc_url = models.URLField("lease / LOI link", max_length=1000, blank=True,
+                                    help_text="Its Google Drive link (or pick it from the company's Drive files)")
+    annual_rent = models.DecimalField("annual rent / NOI ($)", max_digits=14, decimal_places=2, null=True, blank=True,
+                                      help_text="Year-1 rent from the lease or LOI. ROC = this ÷ project cost")
     partner_note = models.TextField(
         "note for capital partners", blank=True,
         help_text="Shown to capital partners in the data room. Write it for outsiders: never internal notes.",
@@ -482,6 +489,15 @@ class Opportunity(TrackedModel):
     @property
     def cost_psf(self):
         return self.value / self.sq_ft_need if self.value and self.sq_ft_need else None
+
+    @property
+    def roc(self):
+        """Return on cost: year-1 rent / NOI from the lease or LOI over the project cost (0.085 = 8.5%)."""
+        return self.annual_rent / self.value if self.annual_rent and self.value else None
+
+    @property
+    def lease_doc_label(self):
+        return self.get_lease_doc_kind_display() or ("Lease / LOI" if self.lease_doc_url else "")
 
 
 class OpportunityContact(models.Model):

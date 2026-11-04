@@ -127,6 +127,45 @@ class DrivePanelTests(TestCase):
         self.assertContains(r, "Internal")
         self.assertContains(r, "Share in Fortress room")
 
+    def test_file_becomes_the_deals_loi_and_feeds_roc_on_card_and_report(self):
+        from decimal import Decimal
+
+        from crm.reports import cell_value, pipeline_workbook
+
+        self.ara.drive_folder = "ARAFOLDER01"
+        self.ara.save()
+        self.assertContains(self.panel(), "Use as lease / LOI")
+        r = self.client.post(reverse("crm:drive_set_lease", args=[self.ara.pk]),
+                             {"file": "LOI_PDF", "opportunity": self.deal.pk})
+        self.assertRedirects(r, self.ara.get_absolute_url() + "?tab=opportunities", fetch_redirect_response=False)
+        self.deal.refresh_from_db()
+        self.assertEqual((self.deal.lease_doc_kind, self.deal.lease_doc_name), ("loi", "ARA LOI - MEIH - 2026.03.23.pdf"))
+        self.assertEqual(self.deal.lease_doc_url, "https://drive.google.com/file/d/LOI_PDF/view")
+        # An old version isn't offered.
+        self.client.post(reverse("crm:drive_set_lease", args=[self.ara.pk]), {"file": "LOI_OLD", "opportunity": self.deal.pk})
+        self.deal.refresh_from_db()
+        self.assertEqual(self.deal.lease_doc_name, "ARA LOI - MEIH - 2026.03.23.pdf")
+
+        self.deal.value, self.deal.annual_rent = Decimal("20000000"), Decimal("1700000")
+        self.deal.save()
+        self.assertEqual(cell_value(self.deal, "roc"), 0.085)
+        card = self.client.get(self.ara.get_absolute_url() + "?tab=opportunities")
+        self.assertContains(card, "8.5%")
+        self.assertContains(card, "https://drive.google.com/file/d/LOI_PDF/view")
+        report = self.client.get(reverse("crm:pipeline_report"))
+        self.assertContains(report, "8.5%")
+        self.assertContains(report, ">LOI</a>")
+        from crm.reports import chosen_columns
+        from openpyxl import load_workbook
+        from io import BytesIO
+        cols = chosen_columns(["tenant", "cost", "rent", "roc", "lease_doc"])
+        wb = load_workbook(BytesIO(pipeline_workbook({"as_of": date(2026, 11, 4), "sites": [], "sections": [
+            {"title": "LOI signed", "rows": [self.deal]}]}, cols)))
+        ws = wb.active
+        values = [c.value for row in ws.iter_rows() for c in row if c.value]
+        self.assertIn("=IFERROR(C7/B7,\"\")", values)
+        self.assertTrue(any(c.hyperlink for row in ws.iter_rows() for c in row))
+
     def test_sharing_only_from_the_folder_internal_needs_confirming(self):
         self.ara.drive_folder = "ARAFOLDER01"
         self.ara.save()

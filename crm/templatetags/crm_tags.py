@@ -315,13 +315,19 @@ def due_class(day, done=False):
     return "due-late" if day < today else "due-today" if day == today else ""
 
 
-REPORT_NUMERIC = {"acres", "size", "cost", "psf", "win", "weighted"}
+REPORT_NUMERIC = {"acres", "size", "cost", "psf", "rent", "roc", "win", "weighted"}
 
 
 @register.filter
 def report_align(key):
     """Table cell class for a tenant pipeline report column (crm/reports.py)."""
     return "num" if key in REPORT_NUMERIC else "wrap" if key == "notes" else ""
+
+
+@register.filter
+def roc_pct(value):
+    """A return on cost (0.085) as "8.5%"."""
+    return f"{value:.1%}" if value else ""
 
 
 @register.simple_tag
@@ -338,10 +344,17 @@ def report_cell(o, key):
             return format_html('{}<div class="muted lc-small"><a href="{}">{}</a></div>',
                                name, o.get_absolute_url(), o.name)
         return name
+    if key == "lease_doc":
+        if o.lease_doc_url:
+            return format_html('<a href="{}" target="_blank" rel="noopener" title="{}">{}</a>', o.lease_doc_url,
+                               o.lease_doc_name or o.lease_doc_label, o.lease_doc_label)
+        return o.lease_doc_label
     value = cell_value(o, key)
     if value in (None, ""):
         return "TBD" if key == "cost" else ""
-    if key in ("cost", "psf", "weighted"):
+    if key == "roc":
+        return f"{value:.1%}"
+    if key in ("cost", "psf", "rent", "weighted"):
         return f"${value:,.0f}"
     if key == "win":
         return f"{value:.0%}"

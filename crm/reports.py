@@ -44,6 +44,9 @@ COLUMNS = [
     ReportColumn("size", "Size (sf)", "Estimated Size (SF)", 15),
     ReportColumn("cost", "Project cost", "Estimated Project Cost ($)", 19, group="cost"),
     ReportColumn("psf", "$ PSF", "Estimated Cost PSF", 15, group="cost"),
+    ReportColumn("rent", "Rent / NOI", "Year-1 Rent / NOI ($)", 17, default=False, group="cost"),
+    ReportColumn("roc", "ROC", "Return on Cost", 10, group="cost"),
+    ReportColumn("lease_doc", "Lease / LOI", "Lease / LOI", 12),
     ReportColumn("win", "Win %", "Win %", 8, group="probability"),
     ReportColumn("weighted", "Weighted", "Weighted Cost ($)", 17, group="probability"),
     ReportColumn("lead", "Lead / source", "Lead / Source", 16),
@@ -81,6 +84,9 @@ def cell_value(o, key):
         "size": o.sq_ft_need,
         "cost": float(o.value) if o.value else None,
         "psf": float(o.cost_psf) if o.cost_psf else None,
+        "rent": float(o.annual_rent) if o.annual_rent else None,
+        "roc": float(o.roc) if o.roc else None,
+        "lease_doc": o.lease_doc_label,
         "win": o.win_probability / 100,
         "weighted": float(o.weighted_value) if o.value else None,
         "lead": o.lead_source,
@@ -91,7 +97,7 @@ def cell_value(o, key):
     }[key]
 
 
-FORMATS = {"acres": ACRES, "size": SF, "cost": MONEY, "psf": PSF, "win": "0%", "weighted": MONEY,
+FORMATS = {"acres": ACRES, "size": SF, "cost": MONEY, "psf": PSF, "rent": MONEY, "roc": "0.0%", "win": "0%", "weighted": MONEY,
            "target_close": MONTH, "est_delivery": MONTH}
 
 
@@ -177,6 +183,14 @@ def pipeline_workbook(data, columns=None):
             if "psf" in col_of and size and cost:
                 cell = ws.cell(row=row, column=col_of["psf"], value=f'=IFERROR({cost}{row}/{size}{row},"")')
                 cell.font = _font()
+            rent = get_column_letter(col_of["rent"]) if "rent" in col_of else None
+            if "roc" in col_of and rent and cost:
+                cell = ws.cell(row=row, column=col_of["roc"], value=f'=IFERROR({rent}{row}/{cost}{row},"")')
+                cell.font = _font()
+            if "lease_doc" in col_of and o.lease_doc_url:
+                cell = ws.cell(row=row, column=col_of["lease_doc"])
+                cell.hyperlink = o.lease_doc_url
+                cell.font = _font(color=INPUT_BLUE, underline="single")
             if "weighted" in col_of and cost and win:
                 cell = ws.cell(row=row, column=col_of["weighted"], value=f'=IF(ISNUMBER({cost}{row}),{cost}{row}*{win}{row},"")')
                 cell.font = _font()
@@ -187,12 +201,17 @@ def pipeline_workbook(data, columns=None):
         for c in range(1, width + 1):
             ws.cell(row=row, column=c).border = Border(top=Side(style="thin"), bottom=Side(style="double"))
         if section["rows"]:
-            for key in ("acres", "size", "cost", "weighted"):
+            for key in ("acres", "size", "cost", "rent", "weighted"):
                 if key in col_of:
                     letter = get_column_letter(col_of[key])
                     cell = ws.cell(row=row, column=col_of[key], value=f"=SUM({letter}{first}:{letter}{last})")
                     cell.number_format = FORMATS[key]
                     cell.font = _font(bold=True)
+            if "roc" in col_of and "rent" in col_of and "cost" in col_of:
+                r_, c_ = get_column_letter(col_of["rent"]), get_column_letter(col_of["cost"])
+                cell = ws.cell(row=row, column=col_of["roc"], value=f'=IFERROR(SUMIFS({r_}{first}:{r_}{last},{c_}{first}:{c_}{last},">0")/SUMIFS({c_}{first}:{c_}{last},{r_}{first}:{r_}{last},">0"),"")')
+                cell.number_format = FORMATS["roc"]
+                cell.font = _font(bold=True)
             if "psf" in col_of and "size" in col_of and "cost" in col_of:
                 s, c_ = get_column_letter(col_of["size"]), get_column_letter(col_of["cost"])
                 cell = ws.cell(row=row, column=col_of["psf"], value=f'=IFERROR(SUMIFS({c_}{first}:{c_}{last},{s}{first}:{s}{last},">0")/SUMIFS({s}{first}:{s}{last},{c_}{first}:{c_}{last},">0"),"")')

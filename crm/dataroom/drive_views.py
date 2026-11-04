@@ -11,7 +11,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from .. import drive
-from ..models import Company, DataRoom, DataRoomFile, Project
+from ..models import Company, DataRoom, DataRoomFile, Opportunity, Project
 from ..permissions import is_manager, manager_required
 from . import logic
 
@@ -96,7 +96,35 @@ def drive_panel(request, kind, pk):
         "stale": stale, "suggestion": suggestion, "room_deals": room_deals, "can_share": is_manager(request.user),
         "folder_url": f"https://drive.google.com/drive/folders/{record.drive_folder}" if record.drive_folder else "",
         "n_files": len(in_folder),
+        "company_deals": list(record.opportunities.order_by("-investor_report", "name")) if kind == "company" else [],
     })
+
+
+def _guess_kind(name):
+    return "loi" if "loi" in name.lower() or "letter of intent" in name.lower() else "lease"
+
+
+@require_POST
+def drive_set_lease(request, pk):
+    """Make a file in the company's Drive folder a deal's lease or LOI (shown on the company card and the investor
+    report, beside its ROC)."""
+    company = get_object_or_404(Company, pk=pk)
+    deal = get_object_or_404(Opportunity, pk=request.POST.get("opportunity"), company=company)
+    docs, _ = _listing(company)
+    f = {d.current.id: d.current for d in docs}.get(request.POST.get("file", ""))
+    if f is None:
+        messages.error(request, "That file isn't the current version in this folder any more. Refresh the Drive panel.")
+        return redirect(company)
+    kind = request.POST.get("doc_kind") or _guess_kind(f.name)
+    deal.lease_doc_kind = kind if kind in ("loi", "lease") else "lease"
+    deal.lease_doc_name = f.name
+    deal.lease_doc_url = f.web_link
+    deal.save(update_fields=["lease_doc_kind", "lease_doc_name", "lease_doc_url", "updated_at"])
+    msg = f"“{f.name}” is {deal.name}'s {deal.get_lease_doc_kind_display()}."
+    if not deal.annual_rent:
+        msg += " Add its year-1 rent on the deal to show ROC."
+    messages.success(request, msg)
+    return redirect(company.get_absolute_url() + "?tab=opportunities")
 
 
 @require_POST

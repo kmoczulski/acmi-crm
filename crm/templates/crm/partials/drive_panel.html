@@ -30,6 +30,15 @@
       {% if d.current.internal %}<span class="tag tag-warn">Internal</span>{% endif %}
       {% for s in d.shared %}<span class="tag" title="Shared {{ s.approved_at|date:'M j' }} by {{ s.approved_by|username }}">In {{ s.room.name }} room{% if s.opportunity %} · {{ s.opportunity.company.name }}{% endif %}</span>{% endfor %}
       <span class="muted dp-date">{{ d.current.version_date|date:"M j, Y" }}</span>
+      {% if company_deals %}<details class="dp-share"><summary class="btn-link">Use as lease / LOI</summary>
+        <form method="post" action="{% url 'crm:drive_set_lease' record.pk %}">{% csrf_token %}
+          <input type="hidden" name="file" value="{{ d.current.id }}">
+          {% if company_deals|length > 1 %}<label>For deal <select name="opportunity">{% for o in company_deals %}<option value="{{ o.pk }}">{{ o.name }}{% if o.investor_report %} (on report){% endif %}</option>{% endfor %}</select></label>{% else %}<input type="hidden" name="opportunity" value="{{ company_deals.0.pk }}">{% endif %}
+          <label>It's the <select name="doc_kind"><option value="">guess from the name</option><option value="loi">LOI</option><option value="lease">Lease</option></select></label>
+          <button class="btn-small btn-primary">Save</button>
+          <span class="muted dp-hint">Shows on the company card and the investor report, beside the deal's ROC.</span>
+        </form>
+      </details>{% endif %}
       {% if d.older %}<details class="dp-older"><summary class="muted">{{ d.older|length }} older</summary>{% for v in d.older %}<div><a href="{{ v.web_link }}" target="_blank" rel="noopener">{{ v.name }}</a></div>{% endfor %}</details>{% endif %}
       {% if can_share and not d.shared %}{% for room, deals in room_deals %}
         {% if kind == 'company' and not deals %}<span class="muted dp-hint">Put a deal on the investor report to share in {{ room.name }}.</span>

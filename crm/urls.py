@@ -251,6 +251,7 @@ urlpatterns = [
     path("drive/<str:kind>/<int:pk>/folder/", drive_views.drive_folder_set, name="drive_folder_set"),
     path("drive/<str:kind>/<int:pk>/share/", drive_views.drive_share, name="drive_share"),
     path("drive/shared/<int:pk>/swap/", drive_views.drive_swap, name="drive_swap"),
+    path("drive/company/<int:pk>/lease/", drive_views.drive_set_lease, name="drive_set_lease"),
     path("g/<str:token>/<int:entry_pk>/", asg_views.guest_report, name="guest_report"),
     path("land/sites/", land_views.sites_page, name="land_sites_page"),
     path("land/sites/<int:pk>/manage/", land_views.site_detail, name="land_site_detail"),

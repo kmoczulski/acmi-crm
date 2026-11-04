@@ -79,13 +79,13 @@
     {% elif tab == 'opportunities' %}
       <div class="page-head"><span class="spacer"></span><a class="btn" href="{% url 'crm:opportunity_create' %}?company={{ company.pk }}">New tenant deal</a></div>
       <div class="table-wrap"><table class="data">
-        <thead><tr><th>Name</th><th>Site</th><th>Stage</th><th>Deal / asset type</th><th>Owner</th><th class="num">Sq ft</th><th class="num">Acres</th><th class="num">Project cost</th><th>Target close</th><th>Next step</th><th>Investor report</th></tr></thead>
+        <thead><tr><th>Name</th><th>Site</th><th>Stage</th><th>Deal / asset type</th><th>Owner</th><th class="num">Sq ft</th><th class="num">Acres</th><th class="num">Project cost</th><th>Lease / LOI</th><th class="num" title="Year-1 rent / NOI ÷ project cost">ROC</th><th>Target close</th><th>Next step</th><th>Investor report</th></tr></thead>
         <tbody>{% for o in opportunities %}
           <tr><td><a href="{{ o.get_absolute_url }}">{{ o.name }}</a></td><td>{{ o.site_label }}</td><td><span class="stage stage-{{ o.stage }}">{{ o.get_stage_display }}</span></td>
           <td>{{ o.get_deal_type_display }}{% if o.deal_type and o.asset_type %} · {% endif %}{{ o.get_asset_type_display }}</td>
-          <td>{{ o.owner|username }}</td><td class="num">{{ o.sq_ft_need|default_if_none:""|intcomma }}</td><td class="num">{{ o.acreage_need|default_if_none:""|floatformat:"-2" }}</td><td class="num">{{ o.value|money }}</td><td>{{ o.target_close|date:"n/j/Y" }}</td><td>{{ o.next_step|truncatechars:50 }}</td>
+          <td>{{ o.owner|username }}</td><td class="num">{{ o.sq_ft_need|default_if_none:""|intcomma }}</td><td class="num">{{ o.acreage_need|default_if_none:""|floatformat:"-2" }}</td><td class="num">{{ o.value|money }}</td><td>{% if o.lease_doc_url %}<a href="{{ o.lease_doc_url }}" target="_blank" rel="noopener" title="{{ o.lease_doc_name }}">{{ o.lease_doc_label }}</a>{% else %}<span class="muted">Pick from Drive files</span>{% endif %}</td><td class="num" title="{% if o.annual_rent %}{{ o.annual_rent|money }} / yr{% else %}Add the year-1 rent on the deal{% endif %}">{% if o.roc %}{{ o.roc|roc_pct }}{% endif %}</td><td>{{ o.target_close|date:"n/j/Y" }}</td><td>{{ o.next_step|truncatechars:50 }}</td>
           <td><form method="post" action="{% url 'crm:opportunity_toggle_report' o.pk %}" style="margin:0">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button class="btn btn-small">{% if o.investor_report %}✓ On report · Remove{% else %}Add to report{% endif %}</button></form></td></tr>
-        {% empty %}<tr><td colspan="11" class="muted">No opportunities yet.</td></tr>{% endfor %}</tbody>
+        {% empty %}<tr><td colspan="13" class="muted">No opportunities yet.</td></tr>{% endfor %}</tbody>
       </table></div>
     {% elif tab == 'sites' %}
       <div class="page-head">
