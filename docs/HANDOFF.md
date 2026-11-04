@@ -3,6 +3,20 @@
 Read this first when picking the project up in a new chat, along with
 `attio_spec.md` in this folder. Start with "Pick up here"; the dated sections after it are the history.
 
+**Update, 2026-11-04 (afternoon, after 00030; Claude on the laptop; Kellen: "ok deploy", then "Yes, task groups"): task groups
+(PR 20, the Tasks page grouped by deal / campus, land site, prospecting, general) is merged into `main` and DEPLOYED: live is
+revision `acmi-crm-00031-ptp`, image `a3048b0` (= `main` `a3048b0`).** PR 20 was another session's work: 4 files (`views.py`
+`task_list`, `task_list.html`, a few lines of `app.css`, `test_task_groups.py`), no model or migration change, CI green on its
+own head `434a3b2`. **Its branch did not contain the tabs and top bar fixes (live 00030 was not an ancestor of it), so a deploy
+of the PR head as it stood would have dropped them**: I merged `main` and the PR on a fresh branch (`deploy-task-groups`, merge
+`a3048b0`), CI green on Postgres (run 41909238297), fast-forwarded `main`, and deployed from a clean export. After: the
+migrate job found nothing to apply; the service and the three jobs fingerprint **identical** to before (the News folder
+default in `cloudbuild.yaml` did its job), only the image changed; no WARNING or 5xx logs; the served CSS has the task-group
+rule and the solid top bar. Rollback: traffic to `acmi-crm-00030-hb8` (`902944a`). **Not checked on the live copy:** the Tasks
+page itself (behind sign-in). **Leave alone:** the detached worktree `.claude/worktrees/task-groups-deploy` (at `434a3b2`, a
+checkout prepared for deploying the PR head without the fixes: do not deploy from it) and the uncommitted land-layers edits in
+the main folder (on branch `task-groups`, not part of any PR; not touched).
+
 **Update, 2026-11-04 (afternoon, after 00028; Claude on the laptop; Kellen: "merge and deploy"): the company-tabs fix and the
 solid top bar are merged into `main` and DEPLOYED: live is revision `acmi-crm-00030-hb8`, image `902944a` (= `main`
 `902944a`, with a config-only commit on `main` after it).** Branch `ux-fixes-2026-11-04` (`f3b9c7b` tabs, `e35f344` top bar)
