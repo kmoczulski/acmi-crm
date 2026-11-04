@@ -34,28 +34,36 @@ line is done and tested on branch `merge-chat-calendar`. It is NOT pushed and NO
      laptops; the Apple pass's tightened bar fits there (measured on a scratch copy with Mail, Chat and Settings showing:
      fits at 1280 and 1366, overflows ~23 px at 1200). `app.css`, `split.js` `NARROW` and the check in `base.html` agree.
   6. `31f3705` fixes found by the full suite (below).
+  7. `ca635b2` restores `recipients.js` and the `.times-panel` rule head, and adds `test_static_integrity` (below).
 - **Bugs found and fixed on the way** (all came in with main's lines, none with the merge itself):
   - main's scheduling ignored the old `meet` flag when the form sent no `video`: the three `test_schedule` Meet-link failures.
   - **PR 17 was squash-merged on GitHub as `e76e155`, and its `crm/views.py` arrived truncated** (Grok's three "Enrich
     person_create from email" commits on the PR branch emptied or cut it to 352 lines). The hand restore (`3a9ac22`) came from
     a version that predates PR 17's changes to `views.py`, so `company_detail` had lost `tenant_facts` (and the import of
     `tenant_rows`) and the Tenant & financials panel never rendered; put back.
-    Grok's person_create enrichment never landed (`person-phones` does that job: the card, with phones). Anything else in PR
-    17's 25 commits that touched a file the push emptied could be missing too; the suite found nothing more.
+    Grok's person_create enrichment never landed (`person-phones` does that job: the card, with phones).
+  - **The same push left two more files damaged that no test looks at**, found by diffing the squash against its base:
+    `crm/static/crm/recipients.js` (address suggestions in compose and reply) was a one-word `PLACEHOLDER` on `main`, so
+    suggestions would have stopped working; and the first line of the `.times-panel` rule in `app.css` (the Times side panel
+    in compose) was gone, leaving loose declarations and a stray `}` that also cost the next rule. Both restored from the
+    version production runs, and `crm/tests/test_static_integrity.py` now fails on an empty or placeholder script / stylesheet
+    or unbalanced braces in `app.css`. Everything else the squash removed was checked line by line (replacements, not
+    drops); every Python file compiles, every JS file parses and all 221 templates compile.
   - Two PR 17 tests were wrong, not the code: `test_same_zoning_keeps_only_matching_parcels` had been made by renaming
     `test_summary_and_value_range` and putting new setup in front of its body (split back into two); the Tenant & financials
     test asked the Overview, which is a widget grid with no side column (it asks the People tab now). **The Overview does
     not show Tenant & financials at all, only the other tabs' side column; a widget for it would be the fix if Kellen wants
     it on the first screen (`COMPANY_WIDGETS` in `crm/prefs.py`, `crm/widgets/company/`).**
 - **Checked:** `manage.py check`, `check --deploy --fail-level ERROR` as CI runs it, `makemigrations --check`, and the full
-  suite run serially (1,168 tests, 7½ minutes on the laptop). The first full run, before `31f3705`, had 2 failures (the two
-  PR 17 tests above, both listed in this file as failing before the merge); both pass now in a targeted re-run. A second full
-  run on the final tree was still going when this was written: see the next commit, or run `manage.py test crm` again.
-  In the browser pane on a scratch database at 1280, 1366 and 375 px (light and dark): home, Meetings header, the Chat panel
-  opening under the 💬 button (it shows Google's refusal there, as expected without Google), the inbox with times, the
-  add-to-directory card with Office / Cell phone boxes, a team board with cards, the phone land search (map, "N parcels" pill,
-  the Filters & results sheet), and no sideways scroll on a phone. **Not checked:** real Google Chat or Gmail, a real phone,
-  Postgres (CI runs it; two earlier fixes were for Postgres ordering).
+  suite run serially, twice: the first run (1,168 tests, 7½ minutes) had 2 failures, the two PR 17 tests above, both listed
+  in this file as failing before the merge; after `31f3705` the second run (1,169 tests, about 10 minutes) is all green, 1
+  skipped. `ca635b2` came after that run and only restores static files and adds two tests, which pass alone together with the
+  other tests that read `app.css`. In the browser pane on a scratch database at 1280, 1366 and 375 px (light and dark):
+  home, Meetings header, the Chat panel opening under the 💬 button (it shows Google's refusal there, as expected without
+  Google), the inbox with times, the add-to-directory card with Office / Cell phone boxes, a team board with cards, the phone
+  land search (map, "N parcels" pill, the Filters & results sheet), the compose page with the Times side panel docked at the
+  right, and no sideways scroll on a phone. **Not checked:** real Google Chat or Gmail, a real phone, Postgres (CI runs it;
+  two earlier fixes were for Postgres ordering).
 - **To do next:**
   1. With Kellen's OK, push `merge-chat-calendar` and let CI run (Postgres is the run that counts). `main` and
      `calendar-fixes-v2` are both ancestors of it, so either can then be fast-forwarded to it; PRs 15 (`schedule`), 18 and 19
