@@ -1,23 +1,93 @@
-# ACMI CRM: Handoff (as of 2026-10-25)
+# ACMI CRM: Handoff (as of 2026-11-04)
 
 Read this first when picking the project up in a new chat, along with
 `attio_spec.md` in this folder. Start with "Pick up here"; the dated sections after it are the history.
 
-Newest (2026-11-04): **Apple-style look, passes 1 and 2: merged to `main` and pushed to GitHub (`e77ee52`), NOT deployed.**
+**Pick up here, end of 2026-11-04 (Claude on the laptop; Kellen: "pick up on handoff"): the merge of Chat with the calendar
+line is done and tested on branch `merge-chat-calendar`. It is NOT pushed and NOT deployed.** Worktree
+`.claude/worktrees/merge-chat-calendar`, cut from `calendar-fixes-v2` `1bf04b3`. Kellen's main folder is still on
+`calendar-fixes-v2`, clean.
+- **What is live right now: revision `acmi-crm-00021-86x`, image `5742155`** (10:21 am Central, just after the entries below
+  were written; they still say 00020 / `ea95d55`). That is `calendar-fixes-v2` at `5742155`: calendar
+  views, lease / ROC, phone land-search filters, data room pipeline. **It has no Chat, no "add a person from an email" and no
+  inbox times.** Rollback: traffic back to `acmi-crm-00020-jgs` (no migration between 00020 and 00021).
+- **Features that had been live and were silently dropped.** Images `154e56a`, `417defa` and `f431408` (branch `person-phones`)
+  ran as revisions 00012–00014 from 2026-10-30 until the 2026-11-03 redeploys (Grok's `main`, then the calendar line). They
+  are: a name in an email adds that person to the directory (with Office and Cell phone boxes), the time beside the date in
+  the inbox list, the notification settings table and ten wide pages fitting a phone, and folded dock boxes no longer
+  covering the end of the page. The earlier notes called `154e56a` "not on either line, decide whether it goes in"; the
+  Artifact Registry tags show it shipped, so it goes in.
+- **`merge-chat-calendar` is `calendar-fixes-v2` plus**, in order:
+  1. `60c475c` removes the 598-file `_/` copy and the stray root files (`Hosting Costs.*`, `inbox_response.*`,
+     `ACMI_CRM_cmd_commands.txt`). They stay in history at `a06f139`.
+  2. `ccc4f85` merges `main` (Chat, scheduling, Apple-style look). One conflict, the Meetings header: the Day / Week / Month
+     buttons and main's Schedule a meeting button both stay. `0077_deal_lease_roc` now depends on
+     `0076_chatconnection_can_create`, so the migrations have one leaf (`makemigrations --check` clean; the database
+     records migrations by name, so nothing re-runs). 0074–0076 are already applied in production.
+  3. `8fcfe65` merges `person-phones`. Ten conflicts; where its older Chat code met main's newer, main wins: the
+     scheduling form with Google Meet / Microsoft Teams, the Calendar menu with Critical dates, and the Chat list as a 💬
+     button in the top bar (so the phone-only button and its pinned-box CSS are dropped and `test_phone_layout` follows).
+     app.css keeps the Apple layers last and appends person-phones' who-card and phone rules after them.
+  4. `15cd68f`, `6f3e919` merge PR 18 (buy-box score removed from the brief PDFs) and PR 19 (company / deal card links,
+     deal card stage selector). No conflicts.
+  5. `9a454f9` the top menus fold into ☰ at 1230 px. person-phones folded at 1400 px, which hid them on 1280 and 1366 px
+     laptops; the Apple pass's tightened bar fits there (measured on a scratch copy with Mail, Chat and Settings showing:
+     fits at 1280 and 1366, overflows ~23 px at 1200). `app.css`, `split.js` `NARROW` and the check in `base.html` agree.
+  6. `31f3705` fixes found by the full suite (below).
+- **Bugs found and fixed on the way** (all came in with main's lines, none with the merge itself):
+  - main's scheduling ignored the old `meet` flag when the form sent no `video`: the three `test_schedule` Meet-link failures.
+  - **PR 17 was squash-merged on GitHub as `e76e155`, and its `crm/views.py` arrived truncated** (Grok's three "Enrich
+    person_create from email" commits on the PR branch emptied or cut it to 352 lines). The hand restore (`3a9ac22`) came from
+    a version that predates PR 17's changes to `views.py`, so `company_detail` had lost `tenant_facts` (and the import of
+    `tenant_rows`) and the Tenant & financials panel never rendered; put back.
+    Grok's person_create enrichment never landed (`person-phones` does that job: the card, with phones). Anything else in PR
+    17's 25 commits that touched a file the push emptied could be missing too; the suite found nothing more.
+  - Two PR 17 tests were wrong, not the code: `test_same_zoning_keeps_only_matching_parcels` had been made by renaming
+    `test_summary_and_value_range` and putting new setup in front of its body (split back into two); the Tenant & financials
+    test asked the Overview, which is a widget grid with no side column (it asks the People tab now). **The Overview does
+    not show Tenant & financials at all, only the other tabs' side column; a widget for it would be the fix if Kellen wants
+    it on the first screen (`COMPANY_WIDGETS` in `crm/prefs.py`, `crm/widgets/company/`).**
+- **Checked:** `manage.py check`, `check --deploy --fail-level ERROR` as CI runs it, `makemigrations --check`, and the full
+  suite run serially (1,168 tests, 7½ minutes on the laptop). The first full run, before `31f3705`, had 2 failures (the two
+  PR 17 tests above, both listed in this file as failing before the merge); both pass now in a targeted re-run. A second full
+  run on the final tree was still going when this was written: see the next commit, or run `manage.py test crm` again.
+  In the browser pane on a scratch database at 1280, 1366 and 375 px (light and dark): home, Meetings header, the Chat panel
+  opening under the 💬 button (it shows Google's refusal there, as expected without Google), the inbox with times, the
+  add-to-directory card with Office / Cell phone boxes, a team board with cards, the phone land search (map, "N parcels" pill,
+  the Filters & results sheet), and no sideways scroll on a phone. **Not checked:** real Google Chat or Gmail, a real phone,
+  Postgres (CI runs it; two earlier fixes were for Postgres ordering).
+- **To do next:**
+  1. With Kellen's OK, push `merge-chat-calendar` and let CI run (Postgres is the run that counts). `main` and
+     `calendar-fixes-v2` are both ancestors of it, so either can then be fast-forwarded to it; PRs 15 (`schedule`), 18 and 19
+     are then redundant (close them; their branches `fix-buybox-score`, `fix-card-nav` and worktrees can go).
+  2. Deploy when Kellen says so, image only: no new migration, the migrate job will find nothing to do. Check the live image
+     first (it was `5742155` / 00021 when this was written; `git merge-base --is-ancestor 5742155 <sha>` holds), take a
+     Cloud SQL backup anyway, and watch Chat: it has been off since the afternoon of 2026-11-03, and the 2026-10-30 notes
+     say it had not yet run against real Google. Rollback: traffic back to `acmi-crm-00021-86x`.
+  3. Ask Kellen: whether Tenant & financials should be an Overview widget (above); whether the Chat button in the top bar
+     (main's) or the phone-only 💬 (person-phones') is the one wanted; whether `docs/GEMINI_*` and the other Gemini / Grok
+     docs stay in the repo.
+
+Newest before that (2026-11-04): **Apple-style look, passes 1 and 2: merged to `main` and pushed to GitHub (`e77ee52`), NOT deployed.**
 Kellen: "I want it to feel like apple designed it"; keep navy and the top bar.
 
-**Pick this up here:**
+**Its pick-up list (status at the end of the day in brackets):**
 1. **Deploy when Kellen says so** (ask right before; see the deploy note in memory). No migration and no Python changes, only
    `app.css` and template colours, so it is an image-only deploy and rollback is traffic back to the previous revision.
+   [Now part of the merged deploy above.]
 2. **CI on `main` is red, and was red before the redesign**: run `41697036626` on `9f8eb56` ("Restore inbox.html") failed. The 5
    failing tests (`test_land_sales.CompTests.test_same_zoning_keeps_only_matching_parcels`, three in `test_schedule`,
    `test_company_page…test_the_side_column_shows_tenant_and_financials`) came in with the "Restore …" commits (views.py, cards.py,
    inbox.html were truncated or overwritten and restored by hand). Fix those first; they are logic, not styling.
+   [Fixed on `merge-chat-calendar`, see above.]
 3. **Not seen on screen yet:** the inbox reading pane (the preview's sign-in didn't carry into its frame) and team boards
-   with cards. Look at both, light and dark, on the hosted copy or a scratch preview.
+   with cards. Look at both, light and dark, on the hosted copy or a scratch preview. [Both seen on a scratch copy at the end
+   of the day, in light mode: the thread opens and the sender buttons work; a board shows grey list trays with white cards.
+   Dark mode was only looked at on the add-to-directory card.]
 4. **Kellen's main folder is still on `calendar-fixes-v2`** with uncommitted edits to `app.css`, `board.js` and
    `land_search.html`. That branch carries a stray `_/` copy of the whole repo; clean it out, then merge it onto the new
-   `main` (expect small `app.css` conflicts with the redesign).
+   `main` (expect small `app.css` conflicts with the redesign). [Done on `merge-chat-calendar`; the edits had been committed
+   as `b5495fe`; the merge needed no `app.css` conflict resolution against the redesign, only against person-phones.]
 5. **Possible pass 3**, only if Kellen wants more: the ~570 inline `style=` spacing attributes, the contract reader, the
    site-card dialog, data room and capital pages, the phone layout.
 
@@ -49,6 +119,8 @@ column); none of them looks at styling, and CI on `main` was already failing bef
 `41697036626`). Map marker colours inside `<script>` blocks were left as hex on purpose (Leaflet can't read CSS
 variables).
 
+[It did ship, as revisions 00012–00014 the same afternoon, and was dropped by the 2026-11-03 redeploys; it is in
+`merge-chat-calendar`. The Chat list is main's top-bar button there, not the phone-only 💬 button described in point 3.]
 **Newest, not deployed (2026-10-30, afternoon): branch `claude/beautiful-albattani-6xp3qi`, on top of `chat-parity`
 `1bc8005` (the live code), pushed, not merged.** Kellen, from his phone, asked for three things. All 1,157 tests pass,
 there is no migration, and nothing is new in settings. To ship it, deploy this branch as `chat-parity` was deployed:
@@ -120,6 +192,7 @@ layout, two PRs. Nothing from this entry is deployed.**
   posts to `/crm/pipeline/move-stage/`, which does not exist) plus `Hosting Costs.docx/.pdf`, `inbox_response.*`
   (a failed curl log) and `ACMI_CRM_cmd_commands.txt`. The real `crm/` tree was not touched by it except one test.
   **To do: `git rm -r _` and those stray files from `calendar-fixes-v2`** (keep the folder on disk if wanted).
+  [Done on `merge-chat-calendar` (`60c475c`); `calendar-fixes-v2` itself still has them until it is fast-forwarded.]
 - **Phone layout, done in the real files (`b5495fe`, `calendar-fixes-v2`, not deployed):** land search on a phone is a
   full-height map with a "N parcels" pill that opens the filters and results as a slide-up sheet (`.land-fab`,
   `.land-side-bar`, `side-open`; the ☰ Filters button does the same; split-view `html.embedded` keeps side by side);
@@ -157,7 +230,9 @@ partner=True)`), with only the room's allow-listed columns; the Sites sheet leav
 Downloads are logged (page `excel`, "downloaded the pipeline as Excel" on the Manager's log). Built in
 `logic.sections()` / `logic.sites()`, which only total columns the room shows. Tests in `test_data_room.py`.
 
-**To do next, before any other deploy (2026-11-04): merge Chat (`main`) with the calendar line.** Production
+**[DONE on `merge-chat-calendar`, see "Pick up here" at the top; the text below is what was asked for, and production has
+moved on to 00021 / `5742155`.] To do next, before any other deploy (2026-11-04): merge Chat (`main`) with the calendar
+line.** Production
 (revision `acmi-crm-00020-jgs`, image `ea95d55`, local branch `deploy-lease-roc`) is `a06f139` (calendar Day / Week /
 Month, mobile UX; branch `calendar-fixes-v2`) plus lease / ROC, and has **no Chat code**, though the database already
 has Chat's migrations 0074–0076 (from `main` `9f8eb56`, live ~2 h on 2026-11-03 before `a06f139` was redeployed).
@@ -173,7 +248,7 @@ Deploying `main` as it is would drop the calendar views; deploying the calendar 
 
 **Built 2026-11-04: lease / LOI and ROC on deals** (Kellen: "update the company card so we can have the lease or LOI
 on there which is then pulled to the IR report - I want it to share the ROC metric"). Branch `calendar-fixes-v2`;
-main and production already use 0074–0076 for Chat, so it is numbered `0077_deal_lease_roc` but depends on 0073 here; when the Chat line is merged in, point its dependency at 0076. Migration `0077_deal_lease_roc`: `Opportunity.lease_doc_kind` (LOI / Lease), `lease_doc_name`,
+main and production already use 0074–0076 for Chat, so it is numbered `0077_deal_lease_roc` but depends on 0073 here; when the Chat line is merged in, point its dependency at 0076 (done on `merge-chat-calendar`). Migration `0077_deal_lease_roc`: `Opportunity.lease_doc_kind` (LOI / Lease), `lease_doc_name`,
 `lease_doc_url`, `annual_rent` (year-1 rent / NOI). `Opportunity.roc` = annual rent ÷ project cost (`value`).
 - Company page › Drive files: each current file has **Use as lease / LOI** (pick the deal; kind guessed from the name).
   Or paste the link on the deal's Edit form, where the year-1 rent is typed too.
