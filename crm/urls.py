@@ -239,6 +239,7 @@ urlpatterns = [
     path("g/<str:token>/", asg_views.guest_home, name="guest_home"),
     # The capital partners' data room: partners' own pages (crm/dataroom/) and the Manager's page that runs it.
     path("room/", room_views.room_home, name="room_home"),
+    path("room/pipeline.xlsx", room_views.room_xlsx, name="room_xlsx"),
     path("room/login/", room_views.room_login, name="room_login"),
     path("room/logout/", room_views.room_logout, name="room_logout"),
     path("room/invite/<str:token>/", room_views.room_invite, name="room_invite"),

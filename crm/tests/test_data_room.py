@@ -178,6 +178,52 @@ class PartnerViewTests(DataRoomTestCase):
         for secret in ("INTERNAL", "Kellen", "Lead / source", "Next step"):
             self.assertNotContains(r, secret)
 
+    def test_pipeline_is_the_report_layout_with_sections_and_no_board(self):
+        self.spinner.stage = "prospect"
+        self.spinner.save()
+        r = self.client.get(reverse("crm:room_home"))
+        for text in ("ACMI Properties pipeline", "Signed agreements", "Active discussions", "Prospects",
+                     "Development sites", "Download Excel", "Print / PDF", "ROC"):
+            self.assertContains(r, text)
+        # The report's column order: Site, Deal type, Stage, Tenant, ...
+        html = r.content.decode()
+        self.assertLess(html.index(">Site</th>"), html.index(">Stage</th>"))
+        self.assertLess(html.index(">Stage</th>"), html.index(">Tenant</th>"))
+        self.assertContains(r, "1 tenant · 50,000 sf · $25,000,000")
+        self.assertNotContains(r, "view=board")
+        self.assertNotContains(self.client.get(reverse("crm:room_home") + "?view=board"), "r-board")
+
+    def test_excel_download_has_only_the_rooms_columns_and_is_logged(self):
+        from io import BytesIO
+
+        from openpyxl import load_workbook
+
+        r = self.client.get(reverse("crm:room_xlsx"))
+        self.assertEqual(r.status_code, 200)
+        self.assertIn("attachment;", r["Content-Disposition"])
+        wb = load_workbook(BytesIO(r.content))
+        text = " ".join(str(c.value) for ws in wb for row in ws.iter_rows() for c in row if c.value is not None)
+        self.assertIn("ARA", text)
+        self.assertIn("Spinner", text)
+        self.assertIn("Estimated Project Cost", text)
+        for secret in ("Hidden Co", "Cold Co", "INTERNAL", "Kellen", "Win %", "Lead / Source", "Next Step",
+                       "Status / Notes", "Location"):
+            self.assertNotIn(secret, text)
+        self.assertTrue(DataRoomView.objects.filter(member=self.member, page="excel").exists())
+
+    def test_excel_download_leaves_out_costs_when_the_room_hides_them(self):
+        from io import BytesIO
+
+        from openpyxl import load_workbook
+
+        self.room.show_costs = False
+        self.room.save()
+        wb = load_workbook(BytesIO(self.client.get(reverse("crm:room_xlsx")).content))
+        text = " ".join(str(c.value) for ws in wb for row in ws.iter_rows() for c in row if c.value is not None)
+        self.assertNotIn("Cost", text)
+        self.assertNotIn("Return on", text)
+        self.assertNotIn("25000000", text)
+
     def test_switching_a_deal_off_hides_it_and_its_page(self):
         logic.set_shown(self.room, self.spinner, False, self.kellen)
         self.assertNotContains(self.client.get(reverse("crm:room_home")), "Spinner")

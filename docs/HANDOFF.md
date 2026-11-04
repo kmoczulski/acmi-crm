@@ -5,9 +5,23 @@ Read this first when picking the project up in a new chat, along with
 
 ## Pick up here (2026-10-25)
 
+**Built 2026-11-04: data room pipeline in the report layout** (Kellen: "I want the fortress data room to have the
+same excel style view - no need for the other views - they should still have the option to export to excel"). Branch
+`calendar-fixes-v2`, not committed, no migration. The room's home (`crm/room/home.html`) drops the Table / Board tabs
+(`?view=board` is ignored) and is laid out exactly like the investor report (Kellen: "should be exactly the same as
+the report view"): the report's column order (Site, Deal type, Stage, Tenant, ...), stage pills in the report's
+colours, logo and "ACMI Properties pipeline as of", Print / PDF; ROC added to the room allow-list (cost group, so
+`show_costs` off hides it). Still never shown: lead / source, owner, next step / notes, rent, the Lease / LOI link,
+the deal-name line under the tenant. Layout: Signed agreements / Active discussions / Prospects
+(`REPORT_SECTIONS` in `crm/views.py`), navy header rows, section totals, then Development sites. **Download Excel**
+(`/room/pipeline.xlsx`, `room_xlsx`) is the same tracker workbook as the internal report (`pipeline_workbook(...,
+partner=True)`), with only the room's allow-listed columns; the Sites sheet leaves out campus location and status notes.
+Downloads are logged (page `excel`, "downloaded the pipeline as Excel" on the Manager's log). Built in
+`logic.sections()` / `logic.sites()`, which only total columns the room shows. Tests in `test_data_room.py`.
+
 **Built 2026-11-04: lease / LOI and ROC on deals** (Kellen: "update the company card so we can have the lease or LOI
 on there which is then pulled to the IR report - I want it to share the ROC metric"). Branch `calendar-fixes-v2`;
-not on main or hosted yet (main and production already use 0074–0076 for Chat, so renumber). Migration `0074_deal_lease_roc`: `Opportunity.lease_doc_kind` (LOI / Lease), `lease_doc_name`,
+main and production already use 0074–0076 for Chat, so it is numbered `0077_deal_lease_roc` but depends on 0073 here; when the Chat line is merged in, point its dependency at 0076. Migration `0077_deal_lease_roc`: `Opportunity.lease_doc_kind` (LOI / Lease), `lease_doc_name`,
 `lease_doc_url`, `annual_rent` (year-1 rent / NOI). `Opportunity.roc` = annual rent ÷ project cost (`value`).
 - Company page › Drive files: each current file has **Use as lease / LOI** (pick the deal; kind guessed from the name).
   Or paste the link on the deal's Edit form, where the year-1 rent is typed too.

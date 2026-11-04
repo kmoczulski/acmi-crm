@@ -24,11 +24,12 @@ INVITE_DAYS = 14
 MAX_FAILURES = 5
 FAILURE_WINDOW = 15 * 60
 
-# Report columns a room can show, in report order. Never: lead / source, owner, next step / notes.
-ROOM_COLUMNS = ["tenant", "site", "deal_type", "stage", "asset_type", "acres", "size", "cost", "psf", "win", "weighted",
-                "target_close", "est_delivery"]
-NUMERIC = {"acres", "size", "cost", "psf", "win", "weighted"}
-COST_COLUMNS = {"cost", "psf"}
+# Report columns a room can show, in the report's order (the room's pipeline looks exactly like the investor report).
+# Never: lead / source, owner, next step / notes, rent, the Lease / LOI link.
+ROOM_COLUMNS = ["site", "deal_type", "stage", "tenant", "asset_type", "acres", "size", "cost", "psf", "roc", "win",
+                "weighted", "target_close", "est_delivery"]
+NUMERIC = {"acres", "size", "cost", "psf", "roc", "win", "weighted"}
+COST_COLUMNS = {"cost", "psf", "roc"}
 WIN_COLUMNS = {"win", "weighted"}
 # Stages a partner sees as columns on the board. On hold and cold / lost deals never reach a room.
 ROOM_STAGES = [s for s in OpportunityStage.values if s not in (OpportunityStage.ON_HOLD, OpportunityStage.LOST)]
@@ -76,6 +77,8 @@ def room_cell(o, key):
     value = cell_value(o, key)
     if value in (None, ""):
         return "TBD" if key == "cost" else ""
+    if key == "roc":
+        return f"{value:.1%}"
     if key in ("cost", "psf", "weighted"):
         return f"${value:,.0f}"
     if key == "win":
@@ -87,6 +90,48 @@ def room_cell(o, key):
     if key in ("target_close", "est_delivery"):
         return f"{value:%b} {value.year}"
     return str(value)
+
+
+def sections(room, deals):
+    """The pipeline in the investor report's sections (Signed agreements, Active discussions, Prospects), each with
+    its deals' room rows and totals. Totals only add up columns the room shows."""
+    from ..models import STAGE_ORDER
+    from ..views import REPORT_SECTIONS
+
+    keys = {c.key for c in columns(room)}
+    deals = sorted(deals, key=lambda o: (-STAGE_ORDER[o.stage], o.site_label, -(o.value or 0), o.company.name))
+    out = []
+    for title, stages in REPORT_SECTIONS:
+        opps = [o for o in deals if o.stage in stages]
+        out.append({
+            "title": title, "rows": opps, "room_rows": rows(room, opps),
+            "sf": sum(o.sq_ft_need or 0 for o in opps) if "size" in keys else None,
+            "cost": sum(o.value or 0 for o in opps) if "cost" in keys else None,
+            "weighted": sum(o.weighted_value for o in opps) if "weighted" in keys and "cost" in keys else None,
+        })
+    return out
+
+
+def sites(room, deals):
+    """One row per development site, the totals of the room's deals there, as on the investor report. The Excel
+    copy leaves out the campus's location and status notes (pipeline_workbook(partner=True))."""
+    out = {}
+    for o in deals:
+        row = out.setdefault(o.site_label, {"site": o.site_label, "campus": o.campus, "tenants": 0, "sf": 0, "cost": 0,
+                                            "weighted": 0, "acres": 0, "priced_sf": 0, "priced_cost": 0})
+        row["tenants"] += 1
+        row["sf"] += o.sq_ft_need or 0
+        row["acres"] += o.acreage_need or 0
+        if room.show_costs:
+            row["cost"] += o.value or 0
+            if room.show_win:
+                row["weighted"] += o.weighted_value
+            if o.value and o.sq_ft_need:  # $/sf only from deals that have both
+                row["priced_sf"] += o.sq_ft_need
+                row["priced_cost"] += o.value
+    for row in out.values():
+        row["psf"] = row["priced_cost"] / row["priced_sf"] if row["priced_sf"] else None
+    return sorted(out.values(), key=lambda r: (r["campus"] is None, r["site"]))
 
 
 def rows(room, deals):
@@ -110,7 +155,7 @@ def card(room, o):
         ("Size (sf)", room_cell(o, "size")),
     ]
     if room.show_costs:
-        facts += [("Project cost", room_cell(o, "cost")), ("$ PSF", room_cell(o, "psf"))]
+        facts += [("Project cost", room_cell(o, "cost")), ("$ PSF", room_cell(o, "psf")), ("ROC", room_cell(o, "roc"))]
     if room.show_win:
         facts += [("Win %", room_cell(o, "win"))]
     facts += [("Target close", room_cell(o, "target_close")), ("Est. delivery", room_cell(o, "est_delivery"))]

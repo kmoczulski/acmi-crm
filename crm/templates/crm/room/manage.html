@@ -82,7 +82,7 @@
 
   <div class="panel">
     <h3>What they looked at</h3>
-    {% for v in views %}<div class="role-row" style="font-size:13px"><span>{{ v.member.name }} · {% if v.page == 'deal' %}opened {{ v.opportunity.company.name }}{% elif v.page == 'file' %}downloaded {{ v.file.title|default:"a file since taken out" }}{% elif v.page == 'sign-in' %}signed in{% else %}opened the pipeline{% endif %}</span><span class="muted">{{ v.when|date:"M j, g:i A" }}</span></div>
+    {% for v in views %}<div class="role-row" style="font-size:13px"><span>{{ v.member.name }} · {% if v.page == 'deal' %}opened {{ v.opportunity.company.name }}{% elif v.page == 'file' %}downloaded {{ v.file.title|default:"a file since taken out" }}{% elif v.page == 'sign-in' %}signed in{% elif v.page == 'excel' %}downloaded the pipeline as Excel{% else %}opened the pipeline{% endif %}</span><span class="muted">{{ v.when|date:"M j, g:i A" }}</span></div>
     {% empty %}<p class="muted">No visits yet.</p>{% endfor %}
   </div>
 </div>

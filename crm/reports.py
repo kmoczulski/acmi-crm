@@ -151,7 +151,9 @@ def _print_setup(ws, header_row):
     ws.oddFooter.center.text = "ACMI Properties · Confidential · Page &P of &N"
 
 
-def pipeline_workbook(data, columns=None):
+def pipeline_workbook(data, columns=None, partner=False):
+    """The tracker-layout workbook. `partner` is the data room's copy: the Sites sheet leaves out the campus's
+    location and status notes, which aren't on the room's allow-list."""
     columns = columns or chosen_columns(None)
     keys = [c.key for c in columns]
     col_of = {k: i for i, k in enumerate(keys, start=1)}
@@ -226,13 +228,16 @@ def pipeline_workbook(data, columns=None):
     _title(sites, "ACMI PROPERTIES: DEVELOPMENT SITES", data["as_of"])
     site_cols = [("site", "Site Name", 20), ("location", "Location (City, ST)", 18), ("acres", "Total Acres", 12),
                  ("tenants", "# Tenants", 10), ("sf", "Total SF", 14)]
+    if partner:
+        site_cols = [c for c in site_cols if c[0] != "location"]
     if "cost" in keys:
         site_cols.append(("cost", "Total Project Cost ($)", 18))
     if "weighted" in keys and "cost" in keys:
         site_cols.append(("weighted", "Weighted Cost ($)", 17))
     if "psf" in keys:
         site_cols.append(("psf", "Avg $ PSF", 13))
-    site_cols.append(("notes", "Status / Notes", 40))
+    if not partner:
+        site_cols.append(("notes", "Status / Notes", 40))
     fmt = {"acres": ACRES, "tenants": NUMBER, "sf": SF, "cost": MONEY, "weighted": MONEY, "psf": PSF}
     _header_row(sites, 5, [(label, w) for _, label, w in site_cols])
     r = 6

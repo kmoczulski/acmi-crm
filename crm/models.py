@@ -3986,7 +3986,7 @@ class DataRoomView(models.Model):
     room = models.ForeignKey(DataRoom, on_delete=models.CASCADE, related_name="views")
     member = models.ForeignKey(DataRoomMember, null=True, blank=True, on_delete=models.SET_NULL, related_name="views")
     when = models.DateTimeField(default=timezone.now, db_index=True)
-    page = models.CharField(max_length=20)  # home, deal, file, sign-in
+    page = models.CharField(max_length=20)  # home, deal, file, sign-in, excel
     opportunity = models.ForeignKey(Opportunity, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
     file = models.ForeignKey(DataRoomFile, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
 
