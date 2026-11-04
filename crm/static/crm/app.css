@@ -3278,6 +3278,11 @@ fieldset { min-width: 0; }
   .appbar .search-trigger kbd, .appbar .search-text { display: none; }
 }
 
+/* Tasks page: a heading row before each group (deals by campus, land sites, prospecting, general) */
+.tasklist li.task-group { display: block; padding: 14px 0 4px; font-size: 12px; font-weight: 600; letter-spacing: .04em;
+  text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--line); }
+.tasklist li.task-group:first-child { padding-top: 0; }
+
 /* Mail Times panel: a colour per person, overlapping busy time split into lanes, optional guests */
 .times-team-row { display: flex; align-items: center; gap: 6px; padding: 0 12px 6px; }
 .times-team { display: flex; flex-wrap: wrap; gap: 4px; margin: 0; padding: 0; list-style: none; }

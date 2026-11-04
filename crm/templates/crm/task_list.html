@@ -21,7 +21,7 @@
 </div>
 <div class="panel">
   <ul class="tasklist">
-    {% for t in page %}{% include "crm/partials/task_row.html" %}{% empty %}<li class="muted">No tasks.</li>{% endfor %}
+    {% for t in page %}{% ifchanged t.grp t.sub %}<li class="task-group">{% if t.grp == 1 %}Deals · {{ t.sub }}{% elif t.grp == 2 %}Land sites · {{ t.sub }}{% elif t.grp == 3 %}Prospecting{% else %}General{% endif %}</li>{% endifchanged %}{% include "crm/partials/task_row.html" %}{% empty %}<li class="muted">No tasks.</li>{% endfor %}
   </ul>
   {% if page.has_other_pages %}<div class="pager">
     {% if page.has_previous %}<a href="{% qs_set page=page.previous_page_number %}">‹ Prev</a>{% endif %}
