@@ -406,11 +406,11 @@ def _parse_legacy(text):
 
 # --------------------------------------------------------- new prospects list
 
-NEW_PROSPECTS_HEADING = re.compile(r"New Prospects to Target", re.I)
+NEW_PROSPECTS_HEADING = re.compile(r"^[ 	]*New Prospects to Target[ 	]*$", re.I | re.M)  # its own line, not the summary's mention
 CHECKED_HEADING = re.compile(r"Companies Checked", re.I)
-STRONG_FIT_HEADING = re.compile(r"\nStrong Fit \(\d+\)\n")
-WORTH_WATCHING_HEADING = re.compile(r"\nWorth Watching \(\d+\)\n")
-WEAK_HEADING = re.compile(r"Also surfaced,[^\n]*\n|\nWeak or No U\.S\.-Site Fit \(\d+\)\n", re.I)
+STRONG_FIT_HEADING = re.compile(r"\nStrong Fit(?: \(\d+\))?\n")
+WORTH_WATCHING_HEADING = re.compile(r"\nWorth Watching(?: \(\d+\))?\n")
+WEAK_HEADING = re.compile(r"Also surfaced,[^\n]*\n|\nWeak or No U\.S\.-Site Fit \(\d+\)\n|\nWeak / No U\.?S\.? Fit\n", re.I)
 
 PROSPECT_ENTRY_NUM = re.compile(r"\n(\d+)\.\s+")
 HQ_LABEL = re.compile(r"\nHQ:\s*")
@@ -477,6 +477,41 @@ def _parse_prospect_block(block, tier):
     return out
 
 
+PLAIN_ENTRY = re.compile(
+    r"^(?!(?:What they do|HQ|Signal|Date|Fit note|Why it fits|Source):)(?P<company>[^\n]{2,80})\n(?=What they do:)", re.M)
+PLAIN_FIELD = re.compile(r"^(What they do|HQ|Signal|Date|Fit note|Why it fits|Source):[ \t]*", re.M | re.I)
+SOURCE_IN_NOTE = re.compile(r"\(Source:\s*(.+?)\)\s*$", re.S)
+
+
+def _parse_plain_prospect_block(block, tier):
+    """The layout from 2026-11-04: no numbers; a company-name line, then What they do / HQ / Signal / Date / Fit note
+    (the source is in brackets at the end of the fit note) each on its own line."""
+    padded = block.strip("\n") + "\n"
+    starts = list(PLAIN_ENTRY.finditer(padded))
+    out = []
+    for i, m in enumerate(starts):
+        seg = padded[m.end():starts[i + 1].start() if i + 1 < len(starts) else len(padded)]
+        marks = list(PLAIN_FIELD.finditer(seg))
+        field = {}
+        for k, f in enumerate(marks):
+            field[f.group(1).lower()] = seg[f.end():marks[k + 1].start() if k + 1 < len(marks) else len(seg)]
+        if "what they do" not in field:
+            continue
+        why = _clean(field.get("fit note") or field.get("why it fits") or "")
+        source = _clean(field.get("source") or "")
+        found = SOURCE_IN_NOTE.search(why)
+        if found and not source:
+            source = found.group(1).strip()
+        date = _clean(field.get("date") or "")
+        out.append({
+            "tier": tier, "company": _clean(m.group("company")), "hq": _clean(field.get("hq") or ""),
+            "what_they_do": _clean(field["what they do"]), "signal": _clean(field.get("signal") or ""),
+            "signal_date": date if re.fullmatch(r"\d{4}-\d{2}-\d{2}", date) else "", "why_fits": why,
+            "source_name": source,
+        })
+    return out
+
+
 def _parse_weak_prospects(block):
     """The one-line 'Name: reason' dismissals - reference only, no review needed."""
     entries = []
@@ -494,6 +529,11 @@ def _parse_weak_prospects(block):
             if current:
                 entries.append(current)
             current = {"company": match.group(1).strip(), "reason": match.group(2).strip()}
+        elif EM_DASH in line and len(line.partition(EM_DASH)[0]) <= 60:  # "Name — reason" (2026-11-04 layout)
+            if current:
+                entries.append(current)
+            name, _, reason = line.partition(EM_DASH)
+            current = {"company": name.strip(), "reason": reason.strip()}
         elif current:
             current["reason"] += " " + line.strip()
     if current:
@@ -532,6 +572,10 @@ def parse_new_prospects(text):
     combined = _parse_prospect_block(strong_block, "strong") + _parse_prospect_block(
         watch_block, "watching"
     )
+    if not combined:
+        combined = _parse_plain_prospect_block(strong_block, "strong") + _parse_plain_prospect_block(
+            watch_block, "watching"
+        )
     for i, item in enumerate(combined):
         item["index"] = i
 

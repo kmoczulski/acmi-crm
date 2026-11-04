@@ -158,6 +158,24 @@ class NewsReviewTests(TestCase):
         self.assertEqual(len(scan.items.get(company_name="Firehawk Aerospace").article_date), 60)
         self.assertEqual(scan.items.count(), 2)
 
+    def test_unnumbered_prospect_layout_of_2026_11_04(self):
+        from crm.news.scan_parser import parse_new_prospects
+
+        text = "\n".join([
+            "Summary", 'see "New Prospects to Target" below.', "New Prospects to Target", "Intro.", "Strong Fit",
+            "Re:Build Manufacturing", "What they do: Contract manufacturer.", "HQ: Boston, MA",
+            "Signal: Raised $2.1B.", "Date: 2026-10-28", "Fit note: Big raise. (Source: The Merge (Nov 3, 2026))",
+            "Worth Watching", "JVIS", "What they do: Auto interiors.", "HQ: Michigan", "Signal: New contract.",
+            "Date: Not specified", "Fit note: Small.", "Weak / No US Fit", "North Vector — Canadian HQ.", "",
+        ])
+        p = parse_new_prospects(text)
+        strong, watch = p["strong_fit"][0], p["worth_watching"][0]
+        self.assertEqual((strong["company"], strong["signal_date"], strong["hq"]),
+                         ("Re:Build Manufacturing", "2026-10-28", "Boston, MA"))
+        self.assertEqual(strong["source_name"], "The Merge (Nov 3, 2026)")
+        self.assertEqual((watch["company"], watch["signal_date"]), ("JVIS", ""))
+        self.assertEqual(p["weak"], [{"company": "North Vector", "reason": "Canadian HQ."}])
+
     def test_upload_rejects_other_file_types_and_no_file(self):
         from django.core.files.uploadedfile import SimpleUploadedFile
 
