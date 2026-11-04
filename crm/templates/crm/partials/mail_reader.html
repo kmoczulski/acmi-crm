@@ -157,11 +157,11 @@
       {% if reader.order == "oldest" and m.id == reader.first_unread and reader.messages|length > 1 %}<div class="mail-new-line" id="new-since">New since you last read</div>{% endif %}
       <details class="mail-msg" id="m-{{ m.id }}"{% if m.open %} open{% endif %}>
         <summary>
-          <span class="mail-msg-from"><strong>{% if m.from_addr == mailbox.email %}me{% else %}{{ m.from_name }}{% endif %}</strong>{% if m.draft %} <span class="tag">Draft</span>{% endif %}{% if m.unread %} <span class="tag">New</span>{% endif %}{% if m.files %} <span class="muted" title="{{ m.files|length }} attachment{{ m.files|length|pluralize }}">📎</span>{% endif %} <span class="muted lc-small">{{ m.from_addr }}</span></span>
+          <span class="mail-msg-from"><strong>{% if m.from_addr == mailbox.email|lower %}me{% else %}<button type="button" class="mail-who" data-who="{{ m.from_addr }}" data-name="{{ m.from_name }}" title="Who is {{ m.from_name }}?">{{ m.from_name }}</button>{% endif %}</strong>{% if m.draft %} <span class="tag">Draft</span>{% endif %}{% if m.unread %} <span class="tag">New</span>{% endif %}{% if m.files %} <span class="muted" title="{{ m.files|length }} attachment{{ m.files|length|pluralize }}">📎</span>{% endif %} <span class="muted lc-small">{{ m.from_addr }}</span></span>
           <span class="mail-msg-date muted lc-small">{{ m.date|date:"M j, Y g:i a" }}</span>
           <span class="mail-msg-snippet muted">{{ m.snippet }}</span>
         </summary>
-        <p class="mail-msg-to muted lc-small">To {{ m.to|join:", " }}{% if m.cc %} · Cc {{ m.cc|join:", " }}{% endif %}</p>
+        {% include "crm/partials/mail_to_line.html" %}
         <iframe class="mail-frame" title="Message from {{ m.from_name }}" sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox" loading="lazy"
                 src="{% url 'crm:inbox_body' m.id %}" data-mail-frame data-message="{{ m.id }}"></iframe>
         <p class="mail-images" hidden><button type="button" class="btn btn-small" data-show-images>Show images</button> <span class="muted lc-small">Images from the sender are blocked so they can't tell you opened this.</span></p>

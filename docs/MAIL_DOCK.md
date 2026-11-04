@@ -21,7 +21,8 @@ inbox, so you lost the page you were on.
   "Attach again: …".
 - 📅 Times opens its calendar panel on the page beside the box, and the boxes move left of it (and left of a split-view
   pane). The reading pane's own inline reply in the inbox is unchanged (its Reply buttons still open it in place). A phone
-  gets one full-screen box and folded bars along the bottom.
+  gets one full-screen box and folded bars along the bottom; the page gets room below its end for those bars (`--dock-h`,
+  set by `dock.js`), and the pinned Chat box gives way to a 💬 button in the top bar (2026-10-30).
 - The split view's side frame hands its New message / alert links up to the page, so the box opens on the main side.
 - A shared mailbox's compose page now says "Sending from the shared mailbox …" (the session's mailbox is sticky, so a
   box opened from an alert in a shared mailbox sends from it until you switch back).

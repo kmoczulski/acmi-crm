@@ -246,3 +246,97 @@ def move_company(company, kind, user=None):
         company.people.all().delete()
         company.delete()
     return firm, stats
+
+
+# ---------------------------------------------------------------------------
+# A name in an email: who it is in the hub, and putting them in the directory (crm/static/crm/who.js)
+# ---------------------------------------------------------------------------
+
+
+class ContactError(ValueError):
+    """Why a person can't be added to the directory, in words for the page."""
+
+
+def _norm_email(email):
+    return (email or "").strip().lower()
+
+
+def who(email, name=""):
+    """What the hub knows about an email address: an ACMI address, a person in the CRM, a contact at a directory
+    firm, and whose its domain is (a firm's or a company's). The reading pane shows it when a name is clicked."""
+    from django.conf import settings
+
+    from ..mail.sync import FREE_MAIL, guess_company_name
+    from ..models import Person
+    from ..permissions import team_users
+
+    email = _norm_email(email)
+    domain = email.rpartition("@")[2] if "@" in email else ""
+    out = {"email": email, "name": " ".join((name or "").split()) or email.partition("@")[0], "domain": domain,
+           "free": domain in FREE_MAIL, "team": False, "person": None, "contact_of": None, "domain_firm": None,
+           "domain_company": None, "guess": ""}
+    if not domain:
+        return out
+    out["team"] = (domain in settings.INTERNAL_EMAIL_DOMAINS
+                   or team_users().filter(email__iexact=email).exists())
+    if out["team"]:
+        return out
+    out["person"] = Person.objects.select_related("company").filter(email=email).first()
+    for firm in Firm.objects.only("pk", "name", "kind", "domains", "contacts"):
+        if any(_norm_email(c.get("email")) == email for c in firm.contacts or []):
+            out["contact_of"] = firm
+        if domain in {d.lower() for d in firm.domains or []} and out["domain_firm"] is None:
+            out["domain_firm"] = firm
+    if not out["free"]:
+        if out["domain_firm"] is None:
+            out["domain_company"] = company_with_domain([domain])
+        out["guess"] = out["domain_firm"].name if out["domain_firm"] else guess_company_name(domain)
+    return out
+
+
+def add_contact(email, name, kind="", firm_name="", title="", phone="", user=None):
+    """The reading pane's "Add to the directory": the person goes on a firm as a contact (the firm named, else the one
+    that has their email domain, else a new one named after the domain), and the domain goes on the firm so its email
+    files there from now on, unless it's free mail or already a company's or another firm's. Someone already on the
+    firm only has their blank title and phone filled in. Returns (firm, firm was new, domain added, emails moved)."""
+    from django.core.exceptions import ValidationError
+    from django.core.validators import validate_email
+
+    email = _norm_email(email)
+    try:
+        validate_email(email)
+    except ValidationError:
+        raise ContactError("That isn't an email address.")
+    info = who(email, name)
+    if info["team"]:
+        raise ContactError("That's an ACMI address.")
+    name = " ".join((name or "").split())[:200] or info["name"]
+    firm_name = " ".join((firm_name or "").split())[:200]
+    if not firm_name and info["free"]:
+        raise ContactError(f"{info['domain']} is personal email: type the name of the firm they work for.")
+    kind = kind if kind in Firm.Kind.values else ""
+    domain = info["domain"]
+    with transaction.atomic():
+        firm = (Firm.objects.select_for_update().filter(name__iexact=firm_name).first() if firm_name
+                else info["domain_firm"] and Firm.objects.select_for_update().get(pk=info["domain_firm"].pk))
+        created = firm is None
+        if created:
+            firm = Firm.objects.create(name=firm_name or info["guess"], kind=kind or Firm.Kind.OTHER, created_by=user)
+        elif kind and firm.kind == Firm.Kind.OTHER:
+            firm.kind = kind
+        contacts = list(firm.contacts or [])
+        mine = next((c for c in contacts if _norm_email(c.get("email")) == email), None)
+        fields = {"name": name, "title": (title or "").strip()[:200], "email": email, "phone": (phone or "").strip()[:200]}
+        if mine is None:
+            contacts.append(fields)
+        else:
+            for k, v in fields.items():
+                if v and not (mine.get(k) or "").strip():
+                    mine[k] = v
+        firm.contacts = contacts
+        add_domain = (not info["free"] and domain not in {d.lower() for d in firm.domains or []}
+                      and info["domain_firm"] is None and info["domain_company"] is None)
+        if add_domain:
+            firm.domains = [*(firm.domains or []), domain]
+        firm.save()
+        return firm, created, add_domain, file_queued(firm) if add_domain else 0

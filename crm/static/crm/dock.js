@@ -143,6 +143,9 @@
   function layout() {
     dock.hidden = !wins.length;
     document.body.classList.toggle('has-dock', wins.length > 0);
+    // How much of the foot of the page the folded boxes cover: on a phone they span the screen, so the page gets that
+    // much room below its end (app.css, --dock-h) and nothing stays hidden under them.
+    document.documentElement.style.setProperty('--dock-h', (dock.hidden ? 0 : dock.offsetHeight) + 'px');
     persist();
   }
 

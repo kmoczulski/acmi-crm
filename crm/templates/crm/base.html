@@ -58,7 +58,7 @@
           if (s.dir === 'v') { h.classList.add('split-v'); h.style.setProperty('--split-h', (s.h || Math.round(innerHeight * 0.5)) + 'px'); }
           else {
             h.style.setProperty('--split-w', (s.w || 560) + 'px');
-            if (innerWidth - (s.w || 560) <= 1180) h.classList.add('split-narrow');
+            if (innerWidth - (s.w || 560) <= 1400) h.classList.add('split-narrow');
           }
         }
       } catch (e) {}

@@ -26,8 +26,8 @@
     <thead><tr><th>Turned on in</th><th>Since</th><th>Last notification</th><th></th></tr></thead>
     <tbody>{% for d in devices %}<tr data-endpoint="{{ d.endpoint }}">
       <td>{{ d.device|default:"A browser" }}<span class="tag push-this" hidden>this browser</span></td>
-      <td>{{ d.created_at|date:"M j, Y" }}</td>
-      <td>{{ d.last_sent_at|date:"M j, g:i A"|default:"—" }}</td>
+      <td data-label="Since">{{ d.created_at|date:"M j, Y" }}</td>
+      <td data-label="Last notification">{{ d.last_sent_at|date:"M j, g:i A"|default:"—" }}</td>
       <td><form method="post" action="{% url 'crm:push_device_remove' d.pk %}">{% csrf_token %}<button class="btn btn-small">Remove</button></form></td>
     </tr>{% endfor %}</tbody>
   </table>

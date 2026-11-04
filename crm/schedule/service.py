@@ -213,8 +213,11 @@ def meeting_fields(user, data, now=None):
         raise ScheduleError("Add at least one person to meet with.")
     description = (data.get("description") or "").strip()
     location = " ".join((data.get("location") or "").split())
-    video = (data.get("video") or "").strip().lower()
+    video = data.get("video")
+    video = video.strip().lower() if isinstance(video, str) else None
     if video not in ("meet", "teams", ""):
+        # No video choice came with the form (the older form and the API): the plain meet flag decides. An empty
+        # `video` is the form's "No video".
         video = "meet" if str(data.get("meet", "")).lower() in ("1", "true", "on", "yes") else ""
     if len(description) > 4000 or len(location) > 300:
         raise ScheduleError("The notes or the place are too long.")

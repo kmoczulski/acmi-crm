@@ -1,8 +1,28 @@
+import re
+
 from django import forms
 
 from .models import (
     Campus, CampusPlan, Company, Document, FitScore, List, Note, Opportunity, OpportunityContact, Person, Project, Task,
 )
+
+# A saved number's label, as crm/mail/signature_phones.py writes it: "301-555-0142 (mobile)".
+PHONE_LABEL = re.compile(r"\s*\((office|mobile)\)$")
+
+
+def split_phones(phones):
+    """The office and cell numbers (label removed) and the rest, which keep their text."""
+    office = cell = ""
+    rest = []
+    for ph in phones or []:
+        m = PHONE_LABEL.search(ph)
+        if m and m.group(1) == "office" and not office:
+            office = ph[:m.start()]
+        elif m and m.group(1) == "mobile" and not cell:
+            cell = ph[:m.start()]
+        else:
+            rest.append(ph)
+    return office, cell, rest
 
 
 class CommaListField(forms.CharField):
@@ -157,7 +177,9 @@ class CompanyForm(StyledForm):
 
 class PersonForm(StyledForm):
     other_emails = CommaListField(required=False)
-    phones = CommaListField(required=False)
+    phones = CommaListField(required=False, label="Other phones")
+    office_phone = forms.CharField(required=False, label="Office phone")
+    cell_phone = forms.CharField(required=False, label="Cell phone")
     flags = CommaListField(required=False)
     owner = UserChoiceField(queryset=active_users(), required=False)
 
@@ -171,6 +193,18 @@ class PersonForm(StyledForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["company"].queryset = Company.objects.only("id", "name").order_by("name")
+        office, cell, rest = split_phones(self.instance.phones)
+        self.initial.update(office_phone=office, cell_phone=cell, phones=rest)
+
+    def clean(self):
+        data = super().clean()
+        phones = list(data.get("phones") or [])
+        for key, label in (("office_phone", "office"), ("cell_phone", "mobile")):
+            number = (data.get(key) or "").strip()
+            if number:
+                phones.append(f"{number} ({label})")
+        data["phones"] = phones
+        return data
 
     def save(self, commit=True):
         # full_name is derived from first/last when they change.

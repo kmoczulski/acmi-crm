@@ -26,11 +26,12 @@ to a message, attachments." That is the section **Like Google Chat's own web app
   person, Chat's formatting (*bold*, _italic_, ~strike~, `code`, links, @mentions), thread replies indented. Enter sends,
   Shift+Enter is a new line; ↩ on a message answers in its thread; "Earlier messages" loads more; new messages arrive within
   about 6 seconds while it's open; 🔔 / 🔕 mutes its alerts; "Google Chat ↗" opens it in Chat. Opening a conversation marks it read.
-- **At the bottom of every page (the dock, `MAIL_DOCK.md`)**: a pinned **Chat (3)** box at the right: click it to see the list,
-  click a conversation to open it in a box beside it (up to 4 boxes with the mail ones; they fold to a title bar, a folded one
-  with something new shows a ● in its title, and they come back on the next page like the mail boxes). On the Chat page itself
-  the pinned box hides (the page is the list) and the unread count sits beside Chat in the top bar. A phone gets one
-  full-screen box.
+- **In the top bar and at the bottom of every page (the dock, `MAIL_DOCK.md`)**: a 💬 button in the top bar, with the number of
+  unread conversations, opens the Chat list in a panel under it (a click anywhere else closes it). Click a conversation to open
+  it in a box at the bottom of the page (up to 4 boxes with the mail ones; they fold to a title bar, a folded one with
+  something new shows a ● in its title, and they come back on the next page like the mail boxes). The unread count also sits
+  beside Chat in the top bar. A phone gets one full-screen box. (The list was a pinned box at the bottom until 2026-11-03,
+  and for a few days a 💬 button that opened it full screen on a phone; Kellen, 2026-10-30: "Chat is blocking the view".)
 - **Alerts**: a new message from someone else (not yours, not in a muted conversation, not from before Chat was turned on)
   becomes a notification of kind "New chat message": the bell, a toast that opens that conversation's box, and a browser
   notification (Notification settings has its own switches). While the hub is open the dock's poll makes them within about 20
