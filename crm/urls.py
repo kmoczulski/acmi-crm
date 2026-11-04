@@ -129,6 +129,7 @@ urlpatterns = [
     path("tasks/<int:pk>/text/", views.task_text, name="task_text"),
     path("comments/add/", views.comment_add, name="comment_add"),
     path("comments/<int:pk>/delete/", views.comment_delete, name="comment_delete"),
+    path("comments/<int:pk>/photo/", views.comment_photo, name="comment_photo"),
     path("settings/", settings_views.settings_home, name="settings_home"),
     path("settings/dropdowns/<str:key>/", settings_views.dropdown_edit, name="dropdown_edit"),
     path("notifications/", views.notification_list, name="notification_list"),

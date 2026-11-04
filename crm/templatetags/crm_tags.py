@@ -233,6 +233,29 @@ def mentions(text):
     return mark_safe(linebreaks(html, autoescape=False))
 
 
+EXTENSION = re.compile(r"\s*(?:x|ext\.?|extension)\s*\d+\s*$", re.I)
+
+
+@register.filter
+def phone_numbers(phones):
+    """A person's saved numbers as rows for a card or table: {text, label, href}. "301-555-0100 x204 (office)" shows as
+    "301-555-0100 x204" with "office" beside it, and taps through to tel:3015550100 (a dialler can't take the label or
+    the extension). A saved value with no digits in it has no link."""
+    from crm.forms import PHONE_LABEL
+
+    rows = []
+    for saved in phones or []:
+        saved = str(saved).strip()
+        m = PHONE_LABEL.search(saved)
+        text, label = (saved[:m.start()].strip(), m.group(1)) if m else (saved, "")
+        if not text:
+            continue
+        number = EXTENSION.sub("", text)
+        dial = ("+" if number.lstrip().startswith("+") else "") + re.sub(r"\D", "", number)
+        rows.append({"text": text, "label": label, "href": f"tel:{dial}" if dial.strip("+") else ""})
+    return rows
+
+
 @register.filter
 def prose(text):
     """Plain text with light markdown (blank-line paragraphs, # headings, - bullets, **bold**) as safe HTML: the

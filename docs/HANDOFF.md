@@ -3,6 +3,44 @@
 Read this first when picking the project up in a new chat, along with
 `attio_spec.md` in this folder. Start with "Pick up here"; the dated sections after it are the history.
 
+**Update, 2026-11-04 (evening; Claude on the laptop; Kellen: "I thought I added the ability to upload photos to comments on
+company cards? also within the company cards, people needs to add phone numbers if we have them"): both are built and checked
+on branch `card-photos-phones` (worktree `.claude/worktrees/card-photos-phones`, cut from `origin/main` `6d597b7`). NOT
+committed, NOT pushed, NOT deployed: live is still 00031 / `a3048b0` and has neither.**
+- **Why the photos were not there.** The upload had been built on 2026-11-03 as commit `7cf25af` on `origin/photo-comments`
+  (cut from `960e79c`, 67 commits behind `main`) and never merged, and no note here mentioned it. It could not have shipped as
+  it stood: its migration `0077_comment_photo` and main's `0077_deal_lease_roc` both depend on `0076`, so the migrations would
+  have two leaf nodes (`makemigrations --check` in CI fails and `migrate` refuses); it linked the file with `photo.url`, but
+  production runs DEBUG off (Django serves no media) with a private Cloud Storage bucket, which is why documents go through
+  an app view; and it never checked what was uploaded. That branch is left alone (not merged, not deleted); this one redoes
+  the work.
+- **Photos.** `Comment.photo` (a nullable `ImageField`, so code from before it can still insert comments after a rollback;
+  migration `0078_comment_photo`, one nullable column, no backfill). `crm/comment_photos.py` checks the upload is a real
+  JPG / PNG / GIF / WebP (the type the browser claims means nothing), at most 15 MB and 64 megapixels, stores it under a name
+  of its own, and scales anything over 2400 px down once (camera rotation baked in; animated GIFs untouched).
+  `views.comment_add` takes the optional `photo`; a bad file posts nothing and says why (the typed text is not kept).
+  `views.comment_photo` (`comments/<pk>/photo/`) streams the file to signed-in users, as `document_file` does, with a private
+  one-day cache; `comment_delete` removes the file too. "Add a photo" is on both comment forms (the company page's Activity
+  box and the comments panel on deals, tasks and sites); the picture shows in the feed, the panels and "Latest comments" on
+  the **company and deal cards** (`partials/comment_photo.html`, `comment_attach.html`). One photo per comment; the text is
+  still required. Not supported: iPhone HEIC files sent from a computer (a phone's own picker converts them to JPG).
+- **Phone numbers.** `phone_numbers` filter (`crm_tags.py`) and `partials/person_phones.html`: each saved number shows as a
+  tap-to-call `tel:` link with its office / mobile label beside it (`tel:` carries no label or extension; a saved value with no
+  digits, like "call the main line", shows as plain text). On the **company card** the People rows keep opening the person
+  (the name link is stretched over the row) while the numbers stay their own links; also a **Phone column on the company page's
+  People tab** and the numbers under each name in the Overview's "Who we know" widget. Nobody without a number gets an empty line.
+- **Checked.** `test_comment_photos.py` (16 tests: upload, serving, sign-in, delete, bad / huge / cut-off / SVG files,
+  rotation, GIF, the filter, the card, tab and widget); the whole suite 1203 OK (1 skipped) before a CSS-only tweak, and the 62
+  related tests again after it; `makemigrations --check` clean. In the browser pane on a scratch copy (own database, fake
+  data): a real upload through the form (3200 x 2400 stored as 2400 x 1800 and shown), a refused text file, the card popup,
+  the People tab, the deal page, dark mode and a phone width (no sideways scroll; the photo control drops under the button).
+  **Not checked:** the real Cloud Storage bucket (the same `open` / `FileResponse` path documents use), a real phone camera.
+- **To ship:** commit, push, read CI (Postgres), then deploy with Kellen's go-ahead: the migrate job applies `0078` (one
+  nullable column), so a Cloud SQL backup first is cheap. Rollback is safe either way (old code ignores the column). Possible
+  follow-ups, none asked: several photos per comment (a second model), HEIC (needs `pillow-heif` in the image), editing a comment.
+  The person card (`cards/person.html`) and `person_details.html` still put the whole saved text, label included, in their
+  `tel:` link; the new filter fixes that in two lines if wanted.
+
 **Update, 2026-11-04 (afternoon, after 00030; Claude on the laptop; Kellen: "ok deploy", then "Yes, task groups"): task groups
 (PR 20, the Tasks page grouped by deal / campus, land site, prospecting, general) is merged into `main` and DEPLOYED: live is
 revision `acmi-crm-00031-ptp`, image `a3048b0` (= `main` `a3048b0`).** PR 20 was another session's work: 4 files (`views.py`

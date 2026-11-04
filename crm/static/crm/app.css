@@ -287,6 +287,14 @@ details.checks label { display: flex !important; flex-direction: row !important;
 .comment-head { font-size: 12.5px; }
 .comment-body { font-size: 13.5px; }
 .comment-body p { margin: 3px 0; }
+/* The picture on a comment (partials/comment_photo.html) and the "Add a photo" control on the forms (comment_attach.html) */
+.comment-photo { display: block; width: fit-content; max-width: 100%; margin-top: 6px; }
+.comment-photo img { display: block; max-width: 100%; max-height: 260px; border-radius: 8px; border: 1px solid var(--line); }
+.pk .comment-photo img { max-height: 130px; }
+.comment-attach { display: block; margin: 4px 0 8px; }
+.comment-attach input { margin-left: 6px; max-width: 100%; }
+.feed-compose-actions { flex-wrap: wrap; }  /* on a phone the photo control drops under the Comment button */
+.feed-compose-actions .comment-attach { margin: 0; min-width: 0; max-width: 100%; }
 .mention { background: rgba(0, 76, 217, 0.106); color: color-mix(in srgb, #1d4ed8 var(--ink-mix), var(--text)); border-radius: 3px; padding: 0 3px; font-weight: 600; }
 .notif { display: grid; grid-template-columns: 130px 1fr auto; gap: 10px; padding: 8px 6px; border-bottom: 1px solid var(--line); color: var(--text); font-size: 13.5px; }
 .notif:hover { background: var(--fill); text-decoration: none; }
@@ -2323,6 +2331,19 @@ details.mail-notes:not([open]) { background: transparent; padding: 2px 0; }
 .pk-cmt:first-of-type { border-top: 0; }
 .pk-cmt p { margin: 2px 0; }
 .pk-row-sub { display: block; font-size: 12px; color: var(--muted); }
+/* A person's row on the company card: the whole row opens their card (the name link is stretched over it), but their phone
+   numbers on the last line are links of their own that stay tappable above it. */
+.pk-person { position: relative; }
+.pk-person-link { color: var(--text); text-decoration: none; }
+.pk-person-link::after { content: ""; position: absolute; inset: 0; border-radius: 8px; }
+.pk-phones { display: flex; flex-wrap: wrap; gap: 0 14px; }
+.pk-phones a { position: relative; z-index: 1; }
+/* Phone numbers (partials/person_phones.html): one per line in a table cell, side by side under a name in the widget */
+.phone { white-space: nowrap; }
+.phone-label { color: var(--muted); font-size: 11.5px; }
+td.phones .phone { display: block; }
+.row-line .phones { display: block; font-size: 12px; }
+.row-line .phones .phone { margin-right: 12px; }
 .pk .scard-sec .muted:only-child { margin: 0; font-size: 13px; }
 @media (max-width: 760px) { .pk-cols { grid-template-columns: 1fr; } }
 /* Needs filing (crm/needs_filing.py) and the calendar's firm chips and "no record" marker */

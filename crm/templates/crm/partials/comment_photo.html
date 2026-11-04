@@ -1,0 +1,3 @@
+{% comment %}The picture on a comment, if it has one, shown small and opening full size in a new tab. Needs c = the comment.
+Drawn by the comment lists (partials/comments.html, widgets/company/feed.html) and the "Latest comments" on the
+company and deal cards.{% endcomment %}{% if c.photo %}<a class="comment-photo" href="{{ c.photo_url }}" target="_blank" rel="noopener" title="Open the full-size picture"><img src="{{ c.photo_url }}" alt="Picture on the comment" loading="lazy"></a>{% endif %}

@@ -963,6 +963,9 @@ class Comment(models.Model):
     resolved = models.BooleanField(default=False)
     by_claude = models.BooleanField(default=False, help_text="Claude's note on a change in a redline")
     mentions = models.ManyToManyField(User, blank=True, related_name="mentioned_in")
+    # One picture per comment (comment_add checks it is a real image). NULL, not "", so code from before this column
+    # existed can still insert comments after a rollback (a NOT NULL column would make its INSERTs fail).
+    photo = models.ImageField(upload_to="comments/%Y/%m/", null=True, blank=True, help_text="A picture on the comment")
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -970,6 +973,11 @@ class Comment(models.Model):
 
     def __str__(self):
         return self.body[:60]
+
+    def photo_url(self):
+        """Where the picture is served: through the app (crm.views.comment_photo), as documents are, so it works with
+        DEBUG off and with the private Cloud Storage bucket (a direct file link would not)."""
+        return reverse("crm:comment_photo", args=[self.pk]) if self.photo else ""
 
     def record(self):
         return self.card or self.task or self.opportunity or self.site or self.contract or self.company

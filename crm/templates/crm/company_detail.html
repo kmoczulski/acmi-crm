@@ -70,11 +70,12 @@
     {% elif tab == 'people' %}
       <div class="page-head"><span class="spacer"></span><a class="btn" href="{% url 'crm:person_create' %}?company={{ company.pk }}">Add person</a></div>
       <div class="table-wrap"><table class="data">
-        <thead><tr><th>Name</th><th>Title</th><th>Email</th><th>Priority</th><th>Touches</th><th>Last touch</th><th>Last response</th></tr></thead>
+        <thead><tr><th>Name</th><th>Title</th><th>Email</th><th>Phone</th><th>Priority</th><th>Touches</th><th>Last touch</th><th>Last response</th></tr></thead>
         <tbody>{% for p in people %}
           <tr><td><a href="{{ p.get_absolute_url }}">{{ p }}</a>{% if p.is_excluded %} <span class="pill pill-bad">Excluded</span>{% endif %}</td><td>{{ p.title }}</td><td>{% if MAIL_ON and p.email %}<a href="{% url 'crm:inbox_compose' %}?to={{ p.email|urlencode }}" title="Write to {{ p }}">{{ p.email }}</a>{% else %}{{ p.email|default:"" }}{% endif %}</td>
+          <td class="phones">{% include "crm/partials/person_phones.html" with person=p %}</td>
           <td>{{ p.priority|pill }}</td><td>{{ p.touch_count }}</td><td>{{ p.last_interaction_at|ago }}</td><td>{{ p.last_response|pill:"response" }}</td></tr>
-        {% empty %}<tr><td colspan="7" class="muted">No people yet.</td></tr>{% endfor %}</tbody>
+        {% empty %}<tr><td colspan="8" class="muted">No people yet.</td></tr>{% endfor %}</tbody>
       </table></div>
 
     {% elif tab == 'opportunities' %}
