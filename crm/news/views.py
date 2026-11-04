@@ -44,6 +44,25 @@ def news_import(request):
     return redirect(scan)
 
 
+@require_POST
+def news_upload(request):
+    uploaded = request.FILES.get("scan")
+    if uploaded is None:
+        messages.error(request, "Choose a scan file (.pdf or .docx) to upload.")
+        return redirect("crm:news_home")
+    try:
+        scan = review.import_upload(uploaded, user=request.user)
+    except ValueError as exc:
+        messages.error(request, str(exc))
+        return redirect("crm:news_home")
+    except Exception as exc:  # unreadable file or a scan format the parser doesn't know
+        messages.error(request, f"Could not read that scan: {exc}")
+        return redirect("crm:news_home")
+    if scan.drafts_checked_at is None:
+        review.check_drafts(scan, request.user)
+    return redirect(scan)
+
+
 def _ordered_sections(items):
     order = {name.lower(): i for i, name in enumerate(CORE_SECTIONS)}
     sections = {}

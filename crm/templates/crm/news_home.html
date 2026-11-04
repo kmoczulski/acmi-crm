@@ -21,6 +21,13 @@
         {% endif %}
       </div>
     {% empty %}<p class="muted">No scan files found in that folder.</p>{% endfor %}
+    <h3 style="margin-top:18px">Upload a scan</h3>
+    <p class="muted" style="margin-top:0">No folder needed: choose the scan file (.pdf or .docx) and it opens for review.</p>
+    <form method="post" action="{% url 'crm:news_upload' %}" enctype="multipart/form-data" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"
+          onsubmit="this.querySelector('button').textContent='Reading scan and Gmail drafts…';this.querySelector('button').disabled=true">{% csrf_token %}
+      <input type="file" name="scan" accept=".pdf,.docx" required>
+      <button class="btn-small btn-primary">Upload and review</button>
+    </form>
   </div>
   <div class="panel">
     <h3>Reviews</h3>

@@ -3,6 +3,15 @@
 Read this first when picking the project up in a new chat, along with
 `attio_spec.md` in this folder. Start with "Pick up here"; the dated sections after it are the history.
 
+**Update, 2026-11-04 later: live is revision `acmi-crm-00025-2rh`, image `94f65da` (= `main`), not `00022`.** Changes since: the
+News page reads the Drive folder `1Oz5t51WMcGwFBU2FCM1PEwgKA0EsYgGZ` (`ACMI_NEWS_DRIVE_FOLDER`, now also the default of
+`_NEWS_FOLDER` in `cloudbuild.yaml` on the laptop branch only, pass it with `--substitutions` otherwise); the folder must
+be shared as Viewer with the runtime service account `46824423159-compute@developer.gserviceaccount.com` (Mel is adding
+it to the "1 ACMI Properties" shared drive). New: **Upload a scan** on the News page (`/news/upload/`) for when Drive
+isn't reachable. Fixed: a scan whose second line was a "Prepared for ..." sentence broke the import (scan date now comes
+from the title; every imported text value is cut to its field limit). Kellen runs the Google Cloud project himself.
+Open: `/chat/poll/` returns 502 in the logs (not looked at). The `ux-fixes` and other branches below are still not deployed.
+
 **Pick up here, 2026-11-04 after the deploy (Claude on the laptop; Kellen asked for this handoff so work can resume later).
 Live is still revision `acmi-crm-00022-fbx`, image `a799272` (the entry below is that deploy). Since then Kellen reported
 three things from using the live app: two are fixed on a branch and NOT deployed, one is not built.** Resume in this
