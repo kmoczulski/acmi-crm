@@ -53,7 +53,7 @@ substitutions:
   _DB_NAME: acmi
   _DB_USER: acmi
   _BUCKET: acmi-uploads-sincere-passage-511621-j3
-  _NEWS_FOLDER: ""
+  _NEWS_FOLDER: "1Oz5t51WMcGwFBU2FCM1PEwgKA0EsYgGZ"
   _GRANOLA_FOLDER: ""
   _GRANOLA_USER: ""
   _PUSH_TOPIC: projects/sincere-passage-511621-j3/topics/acmi-gmail-push
