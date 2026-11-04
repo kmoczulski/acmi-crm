@@ -139,13 +139,25 @@ def import_upload(uploaded, user=None):
         return _import(f"{UPLOAD_PREFIX}{uuid.uuid4().hex}/{name}", local, name, user)
 
 
+def _fit(model, **values):
+    """Build `model` with each text value cut to its field's max_length, so one long line in a scan (a date cell
+    holding a sentence, a long section name) can't stop the whole import."""
+    for field in model._meta.concrete_fields:
+        limit = getattr(field, "max_length", None)
+        value = values.get(field.name)
+        if limit and isinstance(value, str) and len(value) > limit:
+            values[field.name] = value[:limit]
+    return model(**values)
+
+
 @transaction.atomic
 def _import(path, local, file_name, user):
     meta, entries, prospects = parse_scan(local)
-    scan = NewsScan.objects.create(
+    scan = _fit(NewsScan,
         path=path, file_name=file_name, title=meta.get("title", ""), scan_date=meta.get("scan_date", ""),
         stats_line=meta.get("stats_line", ""), imported_by=user,
     )
+    scan.save()
     companies = _company_index()
     default_owner = user
 
@@ -154,7 +166,7 @@ def _import(path, local, file_name, user):
 
     items = []
     for e in entries:
-        items.append(NewsItem(
+        items.append(_fit(NewsItem,
             scan=scan, kind=NewsItem.Kind.BOARD, position=int(e["index"]), section=e.get("section", ""),
             company_name=e["company"], company_id=match(e["company"]), headline=e.get("headline", ""),
             article_date=e.get("date", ""), source_url=(e.get("source_url") or "")[:1000],
@@ -164,14 +176,14 @@ def _import(path, local, file_name, user):
         ))
     for tier_key in ("strong_fit", "worth_watching"):
         for p in prospects.get(tier_key, []):
-            items.append(NewsItem(
+            items.append(_fit(NewsItem,
                 scan=scan, kind=NewsItem.Kind.PROSPECT, position=1000 + int(p["index"]), tier=p.get("tier", ""),
                 company_name=p["company"], company_id=match(p["company"]), headline=p.get("signal", ""),
                 article_date=p.get("signal_date", ""), hq=p.get("hq", ""), what_they_do=p.get("what_they_do", ""),
                 why_fits=p.get("why_fits", ""), source_name=p.get("source_name", ""), owner=default_owner,
             ))
     for i, w in enumerate(prospects.get("weak", [])):
-        items.append(NewsItem(scan=scan, kind=NewsItem.Kind.WEAK, position=2000 + i, company_name=w["company"],
+        items.append(_fit(NewsItem,scan=scan, kind=NewsItem.Kind.WEAK, position=2000 + i, company_name=w["company"],
                               company_id=match(w["company"]), headline=w.get("reason", "")))
     NewsItem.objects.bulk_create(items)
     return scan

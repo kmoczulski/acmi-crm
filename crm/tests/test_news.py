@@ -147,6 +147,17 @@ class NewsReviewTests(TestCase):
         self.assertEqual(scan.items.count(), 3)
         self.assertEqual(self.item(scan, "Firehawk Aerospace").company, self.firehawk)
 
+    def test_import_trims_values_longer_than_their_fields(self):
+        long = "x" * 400
+        meta = {"title": "Scan", "scan_date": long, "stats_line": long}
+        entries = [{"index": 1, "company": "Firehawk Aerospace", "date": long, "section": long, "headline": "h"}]
+        prospects = {"strong_fit": [{"index": 1, "company": "NewCo", "tier": long, "hq": long, "source_name": long}]}
+        with patch("crm.news.review.parse_scan", return_value=(meta, entries, prospects)):
+            scan = review.import_scan(str(self.path), user=self.user)
+        self.assertEqual(len(scan.scan_date), 60)
+        self.assertEqual(len(scan.items.get(company_name="Firehawk Aerospace").article_date), 60)
+        self.assertEqual(scan.items.count(), 2)
+
     def test_upload_rejects_other_file_types_and_no_file(self):
         from django.core.files.uploadedfile import SimpleUploadedFile
 
