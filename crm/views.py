@@ -863,8 +863,7 @@ def opportunity_set_stage(request, pk):
     # Board drag-and-drop expects JSON; a plain form post (from the deal card) reloads the card.
     if request.headers.get("X-Requested-With") == "fetch" or request.POST.get("json"):
         return JsonResponse({"ok": True, "stage": stage})
-    nxt = request.POST.get("next") or opp.get_absolute_url() + "card/"
-    return redirect(nxt)
+    return redirect(_safe_next(request, opp.get_absolute_url() + "card/"))
 
 
 # ---------------------------------------------------------------------------

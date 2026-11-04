@@ -200,5 +200,20 @@
     if (e.target === peek || e.target.closest('[data-card-close]')) { peek.close(); return; }
     if (e.target.closest('[data-card-back]')) { e.preventDefault(); body.innerHTML = stack.pop() || ''; backButton(); }
   });
+  // The deal card's stage selector: saved in the background, then the card reloads in place (scripts inside fetched HTML
+  // never run, so this lives here). Without scripting the form still posts and redirects back to the card.
+  peek.addEventListener('submit', async e => {
+    const form = e.target.closest('[data-stage-form]'); if (!form) return;
+    e.preventDefault();
+    const msg = form.querySelector('[data-stage-msg]');
+    try {
+      const r = await fetch(form.action, {method: 'POST', body: new FormData(form), credentials: 'same-origin', headers: {'X-Requested-With': 'fetch'}});
+      if (!r.ok) throw new Error(r.status);
+      const c = await fetch(form.dataset.card, {credentials: 'same-origin', headers: {'X-Requested-With': 'fetch'}});
+      if (!c.ok) throw new Error(c.status);
+      body.innerHTML = await c.text(); backButton();
+      const m = body.querySelector('[data-stage-msg]'); if (m) m.textContent = 'Stage updated';
+    } catch (err) { if (msg) msg.textContent = 'Could not change the stage. Try again.'; }
+  });
   peek.addEventListener('close', () => { body.innerHTML = ''; stack.length = 0; });
 })();

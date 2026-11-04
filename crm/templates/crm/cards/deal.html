@@ -22,7 +22,7 @@
       <div><b>{{ days_in_stage }}d</b><span>in stage</span></div>
     </div>
     <div class="scard-sec" style="margin:0 0 12px;padding:8px 12px;background:#f8f9fa;border-radius:6px">
-      <form method="post" action="{% url 'crm:opportunity_set_stage' opp.pk %}" class="inline-form stage-form" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap" data-card="{{ opp.get_absolute_url }}card/">
+      <form method="post" action="{% url 'crm:opportunity_set_stage' opp.pk %}" class="inline-form" data-stage-form style="display:flex;gap:8px;align-items:center;flex-wrap:wrap" data-card="{{ opp.get_absolute_url }}card/">
         {% csrf_token %}
         <input type="hidden" name="next" value="{{ opp.get_absolute_url }}card/">
         <label style="font-size:13px;margin:0">Stage
@@ -33,26 +33,8 @@
           </select>
         </label>
         <button class="btn btn-small" type="submit">Update stage</button>
-        <span class="muted lc-small">Stays on this card</span>
+        <span class="muted lc-small" data-stage-msg role="status" aria-live="polite">Stays on this card</span>
       </form>
-      <script>
-        (function(){
-          const form = document.currentScript.previousElementSibling;
-          if (!form || !form.classList.contains('stage-form')) return;
-          form.addEventListener('submit', async e => {
-            e.preventDefault();
-            const data = new FormData(form);
-            const r = await fetch(form.action, {method:'POST', body:data, credentials:'same-origin', headers:{'X-Requested-With':'fetch'}});
-            if (r.ok) {
-              const body = document.getElementById('peek-body');
-              if (body) {
-                const cr = await fetch(form.dataset.card, {credentials:'same-origin', headers:{'X-Requested-With':'fetch'}});
-                if (cr.ok) body.innerHTML = await cr.text();
-              }
-            }
-          });
-        })();
-      </script>
     </div>
     <div class="pk-cols">
       <div class="pk-main">
