@@ -3289,3 +3289,6 @@ fieldset { min-width: 0; }
 .times-busy.opt { border-left-style: dashed; background: color-mix(in srgb, var(--c, #9aa3b0) 12%, transparent); }
 .times-busy b { font-weight: 600; }
 .times-busy.lane { padding: 1px 2px; text-align: center; font-size: 10px; }
+.sc-split { display: flex; height: 100%; }
+.sc-split i { flex: 1; opacity: .55; }
+.sc-cell.sc-pick .sc-split { display: none; }
