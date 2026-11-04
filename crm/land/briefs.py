@@ -557,8 +557,6 @@ def definitions(briefs):
     out.append(GENERAL_NOTES["net"])
     if any(b.get("wetlands") is not None for b in briefs):
         out.append(GENERAL_NOTES["wetlands"])
-    if any("score" not in (b.get("hide") or set()) for b in briefs):
-        out.append(GENERAL_NOTES["score"])
     out += [GENERAL_NOTES["zoning"], GENERAL_NOTES["distances"], GENERAL_NOTES["providers"]]
     if any(b.get("market_value") or b.get("land_value") for b in briefs):
         out.append(GENERAL_NOTES["value"])

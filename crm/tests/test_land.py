@@ -1127,7 +1127,7 @@ class SiteBriefTests(TestCase):
         with mock.patch.dict(os.environ, {"ACMI_CHROME": __file__}):
             self.assertEqual(briefs.chrome_path(), __file__)
 
-    def test_buy_box_methodology_matches_the_scorer_and_is_on_the_notes_page(self):
+    def test_buy_box_methodology_matches_the_scorer_and_is_not_in_the_briefs(self):
         method = score.methodology()
         parts = {p["part"]: p for p in method["parts"]}
         self.assertEqual(parts["Size"]["max"], 25)
@@ -1145,8 +1145,10 @@ class SiteBriefTests(TestCase):
         self.assertTrue(any(pts == 6 and "substation" in text for text, pts in reasons.items()))
         with mock.patch.object(briefs_module(), "run_checks_many"):
             page = self.client.get(f"/land/sites/{self.site.pk}/brief/")
-        self.assertContains(page, "How the buy-box score is calculated")
-        self.assertContains(page, "Deal-killers")
+        # The PDF briefs no longer carry the score or its method; the scorer itself still works on the site.
+        self.assertNotContains(page, "How the buy-box score is calculated")
+        self.assertNotContains(page, "Buy-box score")
+        self.assertNotContains(page, "brief-score")
 
     def test_deal_killers_are_summarised_per_kind_for_a_multi_parcel_site(self):
         from crm.land import briefs
