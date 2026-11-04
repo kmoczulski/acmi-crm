@@ -5,6 +5,40 @@ Read this first when picking the project up in a new chat, along with
 
 ## Pick up here (2026-10-25)
 
+**Done 2026-11-04 (Claude on the laptop, after Kellen had Grok and Gemini work on the code): review of that work, phone
+layout, two PRs. Nothing from this entry is deployed.**
+- **Grok's pushes to `main` are sound.** `9f8eb56` has Chat, scheduling and the restores of `views.py` / `inbox.html`
+  (truncated and overwritten by a large-file push); both files now equal their pre-push versions, `manage.py check` is
+  clean, and `main` matches branch `chat-parity` except newer scheduling (video: Meet / Teams).
+- **Gemini's output was never usable and is on the calendar line by mistake.** `a06f139` ("Improve mobile UX...")
+  added a 598-file copy of an old project under `_/` (its own `base.html`, `nav.js`, `board.js`, `board.html`,
+  `land_search.html`, `app.css`: different apps, missing dark mode, the mail dock, Chat, the search palette; its board
+  posts to `/crm/pipeline/move-stage/`, which does not exist) plus `Hosting Costs.docx/.pdf`, `inbox_response.*`
+  (a failed curl log) and `ACMI_CRM_cmd_commands.txt`. The real `crm/` tree was not touched by it except one test.
+  **To do: `git rm -r _` and those stray files from `calendar-fixes-v2`** (keep the folder on disk if wanted).
+- **Phone layout, done in the real files (`b5495fe`, `calendar-fixes-v2`, not deployed):** land search on a phone is a
+  full-height map with a "N parcels" pill that opens the filters and results as a slide-up sheet (`.land-fab`,
+  `.land-side-bar`, `side-open`; the ☰ Filters button does the same; split-view `html.embedded` keeps side by side);
+  board cards lift on a 250 ms press-and-hold, drag between lists with edge auto-scroll and save through the existing
+  move endpoint (`board.js` touch section, `.bl-card.touch-lifted`). Checked on a scratch database at 375 px with
+  simulated touch events, not on a real phone. Gemini's bottom nav bar was left out on purpose: the app already has a
+  phone menu button, and a bottom bar would collide with the mail dock.
+- **PR 18** (`remove-buybox-score`): the buy-box score is gone from the brief PDFs (score box, comparison row and its
+  toggle, "How the buy-box score is calculated", the definition, the footer mention); scoring still works on the land
+  search and site cards. Replaces Grok's "optional score" version, whose Notes template used `selectattr` (not a Django
+  filter) and failed to render. `test_land` 89 green.
+- **PR 19** (`card-nav-redesign`): pipeline cards link the company to its card and the deal to its card; company card
+  shows open deals with stage / value / next step and a "View in pipeline" button (`?q=`); deal card has a stage
+  selector. Fixes on top of Grok's pass: the handler is in `nav.js` (scripts in fetched card HTML never run), the stage
+  endpoint returns JSON only for `X-Requested-With: fetch` or `json=1` (the board's drag sends `json=1`), plain posts
+  redirect through `_safe_next` (it was an open redirect). Collab, pipeline, boards, cards, land suites green (116).
+- **Both PRs are based on `main` (the Chat line), so merging and deploying `main` alone would drop the calendar views
+  and lease / ROC that production has.** Fold them in with the merge described under "To do next" below, then deploy
+  once. A deploy was asked for and not run: the PRs were unmerged, their CI was pending, and gcloud's sign-in had
+  expired. (I first assumed production was revision 00011 from an old note; the entry below is the current one.)
+- Local branches `fix-buybox-score` and `fix-card-nav` (worktrees `.claude/worktrees/fix-buybox`, `fix-cardnav`) were
+  pushed to the two PR branches and can be removed after the merge.
+
 **Built 2026-11-04: data room pipeline in the report layout** (Kellen: "I want the fortress data room to have the
 same excel style view - no need for the other views - they should still have the option to export to excel"). Branch
 `calendar-fixes-v2`, not committed, no migration. The room's home (`crm/room/home.html`) drops the Table / Board tabs
