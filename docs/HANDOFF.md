@@ -19,6 +19,20 @@ partner=True)`), with only the room's allow-listed columns; the Sites sheet leav
 Downloads are logged (page `excel`, "downloaded the pipeline as Excel" on the Manager's log). Built in
 `logic.sections()` / `logic.sites()`, which only total columns the room shows. Tests in `test_data_room.py`.
 
+**To do next, before any other deploy (2026-11-04): merge Chat (`main`) with the calendar line.** Production
+(revision `acmi-crm-00020-jgs`, image `ea95d55`, local branch `deploy-lease-roc`) is `a06f139` (calendar Day / Week /
+Month, mobile UX; branch `calendar-fixes-v2`) plus lease / ROC, and has **no Chat code**, though the database already
+has Chat's migrations 0074–0076 (from `main` `9f8eb56`, live ~2 h on 2026-11-03 before `a06f139` was redeployed).
+Deploying `main` as it is would drop the calendar views; deploying the calendar line leaves Chat off.
+- Merge `main` with `deploy-lease-roc` into one branch. Take `0077_deal_lease_roc` from branch `lease-roc` (it depends
+  on `0076_chatconnection_can_create`); the DB records migrations by name, so its dependency can change safely.
+- Decide whether `b5495fe` (phone land-search filters, on `calendar-fixes-v2`, never deployed) and `154e56a` (add a
+  person from an email, inbox times, phone layout; folder `ACMI_CRM_deploy_154e56a`, not on either line) go in.
+- `makemigrations --check`, full suite run serially (parallel hides errors). Failures already there before the merge:
+  `test_person_phones` (2) on the calendar line; `test_company_page` side column, `test_land_sales` same-zoning and 3
+  `test_schedule` Meet-link tests on `main`.
+- Then deploy the merged commit (check the live image first; Kellen's OK right before).
+
 **Built 2026-11-04: lease / LOI and ROC on deals** (Kellen: "update the company card so we can have the lease or LOI
 on there which is then pulled to the IR report - I want it to share the ROC metric"). Branch `calendar-fixes-v2`;
 main and production already use 0074–0076 for Chat, so it is numbered `0077_deal_lease_roc` but depends on 0073 here; when the Chat line is merged in, point its dependency at 0076. Migration `0077_deal_lease_roc`: `Opportunity.lease_doc_kind` (LOI / Lease), `lease_doc_name`,
@@ -29,7 +43,7 @@ main and production already use 0074–0076 for Chat, so it is numbered `0077_de
 - Investor report: new columns **ROC** and **Lease / LOI** (on by default; "Rent / NOI" off by default). ROC is in the
   "cost" group, so hiding costs before sending hides it too. Excel: ROC is a live `rent / cost` formula when the
   Rent column is shown, section total = weighted ROC; the Lease / LOI cell links to Drive.
-- Not in the partner data room (its allow-list is unchanged). Real database not migrated yet.
+- Not in the partner data room (its allow-list is unchanged).
 
 **Done on the laptop 2026-10-28 (branch `claude/beautiful-albattani-6xp3qi`, merged fast-forward to `main` `b691c6d`, CI green, 904 tests; real database migrated through 0072, backup `backups/db-2026-10-28-before-review-fixes-to-main.sqlite3`; the laptop's `.venv` still has the old `pypdf` / `pillow`, CI and the image use the new pins):** steps 1, 2 and 4
 below, and W1–W13 in code (Kellen's instruction was to do W1–W13 on the hosted copy; they're code fixes, so they ship
