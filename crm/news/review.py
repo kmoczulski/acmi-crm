@@ -8,6 +8,7 @@ People, decisions become timeline events, research and new leads become Tasks.
 Gmail draft edits are saved and declined drafts moved to Trash, as before.
 """
 import tempfile
+import uuid
 from datetime import timedelta
 from pathlib import Path, PurePath
 
@@ -23,6 +24,8 @@ from . import drafts as gmail_drafts
 from .scan_parser import parse_scan
 
 SCAN_SUFFIXES = (".pdf", ".docx")
+UPLOAD_PREFIX = "upload:"  # NewsScan.path for a scan uploaded on the News page: "upload:<random id>/<file name>"
+MAX_UPLOAD = 20 * 1024 * 1024
 DRIVE_PREFIX = "drive:"  # NewsScan.path for a scan read from Drive: "drive:<file id>"
 
 
@@ -116,6 +119,24 @@ def import_scan(path, user=None, drive_file=None):
     with tempfile.TemporaryDirectory() as folder:
         local = _download(drive_file.id, drive_file.name, drive_file.mime, folder)
         return _import(path, local, drive_file.name, user)
+
+
+def import_upload(uploaded, user=None):
+    """Import a scan file uploaded on the News page (a .pdf or .docx), for when the Drive folder isn't reachable.
+
+    The file is parsed from a temporary folder and not kept; every upload becomes its own scan."""
+    name = PurePath(uploaded.name).name
+    suffix = PurePath(name).suffix.lower()
+    if suffix not in SCAN_SUFFIXES or name.startswith("~$"):
+        raise ValueError("Upload a .pdf or .docx scan file.")
+    if uploaded.size > MAX_UPLOAD:
+        raise ValueError("That file is over 20 MB.")
+    with tempfile.TemporaryDirectory() as folder:
+        local = Path(folder) / name
+        with open(local, "wb") as fh:
+            for chunk in uploaded.chunks():
+                fh.write(chunk)
+        return _import(f"{UPLOAD_PREFIX}{uuid.uuid4().hex}/{name}", local, name, user)
 
 
 @transaction.atomic

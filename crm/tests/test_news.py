@@ -134,6 +134,28 @@ class NewsReviewTests(TestCase):
         self.assertContains(page, "Firehawk opens Texas propellant plant")
         self.assertContains(page, "No contact identified")  # Valinor's draft is addressed only to us
 
+    def test_upload_a_scan_opens_it_for_review(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        with open(self.path, "rb") as fh:
+            data = fh.read()
+        with patch("crm.news.drafts.Drafts", FakeDrafts):
+            r = self.client.post("/news/upload/", {"scan": SimpleUploadedFile(self.path.name, data)})
+        scan = NewsScan.objects.get()
+        self.assertRedirects(r, scan.get_absolute_url())
+        self.assertTrue(scan.path.startswith("upload:"))
+        self.assertEqual(scan.items.count(), 3)
+        self.assertEqual(self.item(scan, "Firehawk Aerospace").company, self.firehawk)
+
+    def test_upload_rejects_other_file_types_and_no_file(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        r = self.client.post("/news/upload/", {"scan": SimpleUploadedFile("scan.txt", b"hello")}, follow=True)
+        self.assertContains(r, "Upload a .pdf or .docx scan file.")
+        r = self.client.post("/news/upload/", {}, follow=True)
+        self.assertContains(r, "Choose a scan file")
+        self.assertEqual(NewsScan.objects.count(), 0)
+
     def test_review_and_apply(self):
         scan = self.open_scan()
         fh, val, old = (self.item(scan, n) for n in ("Firehawk Aerospace", "Valinor", "Old Co"))
