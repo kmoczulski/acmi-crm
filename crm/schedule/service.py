@@ -171,7 +171,8 @@ def availability(user, emails, start=None, ndays=5, hours=slots.DEFAULT_HOURS, m
     wanted = [me] + [e for e in clean_emails(emails, MAX_PEOPLE) if e != me]
     first = week_start(start, now)
     names = names_for(wanted)
-    people = [{"email": e, "name": names.get(e) or e} for e in wanted]
+    teammates = {t["email"] for t in team(user)}
+    people = [{"email": e, "name": names.get(e) or e, "team": e in teammates} for e in wanted]
     result = slots.availability(people, _busy(user, wanted, first, session), first, 7 if ndays == 7 else 5, hours,
                                 minutes, now, zone())
     last = first + timedelta(days=len(result["days"]) - 1)
@@ -211,6 +212,7 @@ def meeting_fields(user, data, now=None):
     attendees = [e for e in clean_emails(data.get("attendees"), MAX_INVITED) if e != me]
     if not attendees:
         raise ScheduleError("Add at least one person to meet with.")
+    optional = [e for e in clean_emails(data.get("optional"), MAX_INVITED) if e in attendees]
     description = (data.get("description") or "").strip()
     location = " ".join((data.get("location") or "").split())
     video = data.get("video")
@@ -222,8 +224,8 @@ def meeting_fields(user, data, now=None):
     if len(description) > 4000 or len(location) > 300:
         raise ScheduleError("The notes or the place are too long.")
     return {"title": title, "start": begin, "end": begin + timedelta(minutes=minutes), "minutes": minutes,
-            "attendees": attendees, "description": description, "location": location,
-            "meet": video == "meet", "video": video}
+            "attendees": attendees, "optional": optional, "description": description,
+            "location": location, "meet": video == "meet", "video": video}
 
 
 def google_link(fields):
@@ -272,7 +274,7 @@ def create_meeting(user, data, session=None, now=None):
         raise ScheduleError("Reload the page and try again.")
     event, created = gcal.create_event(
         user, event_id="hub" + request_id, title=fields["title"], start=fields["start"], end=fields["end"],
-        attendees=fields["attendees"], description=fields["description"], location=fields["location"],
+        attendees=fields["attendees"], optional=fields["optional"], description=fields["description"], location=fields["location"],
         meet=fields["meet"], video=fields.get("video", ""), session=session)
     meeting = import_created(user, event)
     forget_busy(user)

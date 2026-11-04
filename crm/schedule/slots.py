@@ -50,6 +50,17 @@ def _overlaps(busy, start, end):
     return any(s < end and e > start for s, e in busy)
 
 
+def merged(busy, lo, hi):
+    """Busy intervals clipped to [lo, hi) and joined where they touch or overlap, in order."""
+    out = []
+    for s, e in sorted((max(s, lo), min(e, hi)) for s, e in busy if s < hi and e > lo):
+        if out and s <= out[-1][1]:
+            out[-1] = (out[-1][0], max(out[-1][1], e))
+        else:
+            out.append((s, e))
+    return out
+
+
 def availability(people, busy, first_day, ndays, hours, minutes, now, tz):
     """One week for the page.
 
@@ -66,8 +77,15 @@ def availability(people, busy, first_day, ndays, hours, minutes, now, tz):
     starts = [(h, m) for h in range(first_hour, last_hour) for m in (0, CELL)]
     need = cells_for(minutes)
     today = now.astimezone(tz).date()
+    lo = datetime.combine(days[0], time(), tzinfo=tz).astimezone(dt_timezone.utc)
+    hi = datetime.combine(days[-1] + timedelta(days=1), time(), tzinfo=tz).astimezone(dt_timezone.utc)
     out_people = [{"email": p["email"], "name": p["name"], "initials": initials(p["name"], p["email"]),
-                   "problem": (busy.get(p["email"]) or {}).get("problem", "")} for p in people]
+                   "team": bool(p.get("team")),
+                   "problem": (busy.get(p["email"]) or {}).get("problem", ""),
+                   # each person's own busy times, so the page can draw them side by side in the person's colour
+                   "busy": [{"start": s.isoformat(), "end": e.isoformat()}
+                            for s, e in merged((busy.get(p["email"]) or {}).get("busy", []), lo, hi)]}
+                  for p in people]
     cells, suggestions = [], []
     for day in days:
         # busy[i][s]: person i has something on during half hour s of this day
