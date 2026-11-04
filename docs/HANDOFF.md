@@ -3,6 +3,24 @@
 Read this first when picking the project up in a new chat, along with
 `attio_spec.md` in this folder. Start with "Pick up here"; the dated sections after it are the history.
 
+**Update, 2026-11-04 (afternoon, after 00028; Claude on the laptop; Kellen: "merge and deploy"): the company-tabs fix and the
+solid top bar are merged into `main` and DEPLOYED: live is revision `acmi-crm-00030-hb8`, image `902944a` (= `main`
+`902944a`, with a config-only commit on `main` after it).** Branch `ux-fixes-2026-11-04` (`f3b9c7b` tabs, `e35f344` top bar)
+plus `main` at `c8e3208`; CI green on Postgres (run 41904995749, 6 min); `main` fast-forwarded to `902944a`; no migrations;
+no backup (nothing to migrate); the migrate job found nothing to apply; the new CSS and `nav.js` are served; no WARNING logs.
+Rollback: traffic to `acmi-crm-00028-mzv` (`97be770`, has everything but these two fixes).
+- **A slip, put right in about six minutes (revision 00029 → 00030).** I built from `main`'s `cloudbuild.yaml`, whose
+  `_NEWS_FOLDER` default was blank, so revision 00029 had `ACMI_NEWS_DRIVE_FOLDER` empty and the News page lost its Drive
+  folder. The before / after fingerprint caught it (the service's hash changed, the three jobs' did not); I read the value
+  from revision 00028 and set it back with `gcloud run services update --update-env-vars` (00030), and the fingerprint is
+  identical to before my deploy again. The entry below says the default lived "on the laptop branch only"; I had not read it.
+  **Kept on `main`: `_NEWS_FOLDER` now defaults to the folder id** (`cloudbuild.yaml`, one line), so a plain pipeline run keeps it.
+- **Rule for the next deploy:** the pipeline file's defaults are not always what is live. Before building, compare the live
+  service's env with what the file would set, and read the top of this file for deploy notes from other sessions; after
+  building, the fingerprint (env, command, args, resources, Cloud SQL, account) must be identical except the image. If it is not,
+  find the variable by comparing the two revisions' env (names and value hashes, not values) before anything else.
+- Still open from this session: the proposed-task edit / delete (design below, not built), and the questions to Kellen below.
+
 **Update, 2026-11-04 (night, later): merged into `main` and DEPLOYED: live is revision `acmi-crm-00028-mzv`, image `97be770` (= `main` locally, NOT pushed to origin yet).** Main now holds the mail Times panel work, the Schedule page colours (one colour per person, busy cells split into stripes), and the Granola .txt branch (`393ee4f`, which was live as 00027 but never in `main`). Before: 00027 / 393ee4f. Rollback target: `acmi-crm-00027-8dw`. Full suite 1186 tests OK; manual Cloud SQL backup taken first; env/command fingerprints of the service and 3 jobs identical before and after; no migrations; no WARNING logs after.
 
 **Update, 2026-11-04 (night): mail Times panel, branch `mail-booking-availability` (from `main`, not merged, not deployed, no migration).** The inline reply box never got the availability / people / create URLs (`mail_reader.html`), so nobody else's calendar loaded there; fixed. The panel now draws every person's busy time in their own colour, splits overlapping meetings into lanes (`compose.js`), lists ACMI teammates as toggles (`schedule/people/` also returns `team`), adds everyone on To / Cc automatically (and as they are typed), and has an Optional toggle per guest (sent to Google as `optional`). `slots.availability` returns each person's merged `busy` blocks. Others' blocks say only "Busy" (free/busy has no titles). Checked in the browser pane on a scratch DB with fake Google (compose page and inline reply); not checked against real Google. The Schedule page does not have the colours / lanes yet.
@@ -16,8 +34,9 @@ isn't reachable. Fixed: a scan whose second line was a "Prepared for ..." senten
 from the title; every imported text value is cut to its field limit). Kellen runs the Google Cloud project himself.
 Open: `/chat/poll/` returns 502 in the logs (not looked at). The `ux-fixes` and other branches below are still not deployed.
 
-**Pick up here, 2026-11-04 after the deploy (Claude on the laptop; Kellen asked for this handoff so work can resume later).
-Live is still revision `acmi-crm-00022-fbx`, image `a799272` (the entry below is that deploy). Since then Kellen reported
+**[Update: the two fixes below shipped in revision 00030, see the first entry above; the proposed-task edit / delete is
+still NOT built.]** **Pick up here, 2026-11-04 after the deploy (Claude on the laptop; Kellen asked for this handoff so work can resume later).
+Live was then revision `acmi-crm-00022-fbx`, image `a799272` (the entry below is that deploy). Since then Kellen reported
 three things from using the live app: two are fixed on a branch and NOT deployed, one is not built.** Resume in this
 order: read CI on the branch, ship the two fixes (Kellen's OK to deploy), build the proposed-task edit / delete from the
 design below, then one more deploy.
@@ -108,9 +127,10 @@ since 11:24 am Central.** Branch `merge-chat-calendar` (worktree `.claude/worktr
   💬 button in the top bar for anyone who has turned it on) and Scheduling (Calendar menu and the Meetings header) are back;
   add-a-person-from-an-email, inbox times and the phone fixes are back; the buy-box score is gone from the brief PDFs;
   pipeline cards link to company and deal cards; the Meet / Teams choice in scheduling. **Chat and scheduling still need
-  Mel's Google steps** (`docs/FOR_MEL_GOOGLE_CHAT.md`, `docs/FOR_MEL_SCHEDULING.md`: the `calendar.events` scope on the
-  consent screen, then each person presses Allow scheduling once; until then "Open in Google Calendar" works). Whether Mel
-  did them is not known here; neither has been run against real Google as far as these notes say.
+  the Google steps in the Cloud console** (Kellen runs it: `docs/FOR_MEL_GOOGLE_CHAT.md`, `docs/FOR_MEL_SCHEDULING.md`, the
+  file names are old: the `calendar.events` scope on the consent screen, then each person presses Allow scheduling once;
+  until then "Open in Google Calendar" works). Whether they were done is not known here; neither has been run against
+  real Google as far as these notes say.
 - **Before it, live from 10:21 am Central: revision `acmi-crm-00021-86x`, image `5742155`** (just after the entries below
   were written; they still say 00020 / `ea95d55`). That is `calendar-fixes-v2` at `5742155`: calendar
   views, lease / ROC, phone land-search filters, data room pipeline. **It had no Chat, no Scheduling, no "add a person from
@@ -172,7 +192,7 @@ since 11:24 am Central.** Branch `merge-chat-calendar` (worktree `.claude/worktr
   1. **Have Kellen click through the hosted copy** (Chat, Scheduling, the Apple look in light and dark, the add-to-directory
      card, the compose Times panel) and watch the logs for a day: Chat and scheduling were off from the afternoon of
      2026-11-03, and the Apple look has never run on the hosted copy.
-  2. **Mel's Google steps** for scheduling and Chat (above), if not done. A person pressing Allow scheduling before the
+  2. **The Google steps** for scheduling and Chat (above; Kellen's, in the Cloud console), if not done. A person pressing Allow scheduling before the
      `calendar.events` scope is on the consent screen gets Google's "app blocked" screen.
   3. **A latent problem this deploy ends (inferred from how Django adds columns, not seen failing):** while 00019–00021 ran,
      the code did not know `CalendarSync.can_schedule`, which migration 0075 had already added to the database. Django adds
