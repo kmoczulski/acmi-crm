@@ -1,20 +1,82 @@
-"""Settings → Dropdown lists: rename, reorder, hide and (on open lists) add the options of any dropdown."""
+"""Settings: the landing page, Google connections, Appearance and Dropdown lists (rename, reorder, hide and, on open
+lists, add the options of any dropdown). The other sections live with the feature they set up (notifications in
+push_views, Mail in mail/views, Outreach in outreach/views, contract templates, data rooms) and draw themselves inside
+the same shell, settings_base.html. crm/settings_nav.py lists them all."""
 import re
 from collections import Counter
 
+from django.conf import settings
 from django.contrib import messages
 from django.db.models import Count
 from django.http import Http404
 from django.shortcuts import redirect, render
 
-from . import choices
-from .models import ChoiceOption
-from .permissions import manager_required
+from . import choices, gcal, settings_nav
+from .chat import connect as chat_connect
+from .mail import connect as mail_connect
+from .mail.views import team_only
+from .models import CalendarSync, ChoiceOption, Mailbox, PushSubscription
+from .permissions import is_manager, manager_required
+from .schedule import connect as schedule_connect
+
+
+def _status(user):
+    """A line on where each of the person's own sections stand. Cheap on purpose: nothing here calls Google."""
+    devices = PushSubscription.objects.filter(user=user).count()
+    mail_on = mail_connect.is_on(user)
+    return {
+        "notifications": f"Browser alerts on in {devices} browser{'s' if devices != 1 else ''}" if devices
+        else "Browser alerts are off",
+        "google": " · ".join([f"Mail {'on' if mail_on else 'off'}",
+                              f"Calendar {'connected' if gcal.connected(user) else 'not connected'}",
+                              f"Chat {'on' if chat_connect.is_on(user) else 'off'}"]),
+        "mail": "" if mail_on else "Mail is off",
+    }
+
+
+@team_only
+def settings_home(request):
+    """The front door: every section this person may open, with a line on where their own stand."""
+    status = _status(request.user)
+    sections = [(heading, [{**s, "status": status.get(s["key"], "")} for s in rows])
+                for heading, rows in settings_nav.groups(request.user)]
+    return render(request, "crm/settings_home.html", {"sections": sections})
+
+
+@team_only
+def google_connections(request):
+    """Everything the hub may use in this person's Google account, in one list: Gmail, Calendar, scheduling and Chat.
+    Each button posts to the view that already switches it (they send the person to Google and back); the hidden
+    `next` brings them back here (crm/settings_nav.py)."""
+    user = request.user
+    token = gcal.token_for(user)
+    mail_conn = mail_connect.connection(user)
+    chat_conn = chat_connect.connection(user)
+    sync = CalendarSync.objects.filter(user=user).first()
+    shared = Mailbox.objects.filter(shared=True)
+    return render(request, "crm/settings_google.html", {
+        "google_ready": settings.GOOGLE_SIGNIN_ENABLED,
+        "google_email": (token.account.extra_data or {}).get("email", "") if token else "",
+        "mail": {"on": mail_connect.is_on(user), "reason": mail_connect.unavailable_reason(user), "conn": mail_conn,
+                 "error": mail_conn.last_error if mail_conn else ""},
+        "calendar": {"connected": token is not None, "synced": sync.last_synced_at if sync else None,
+                     "error": sync.last_error if sync else ""},
+        "scheduling": {"allowed": schedule_connect.can_schedule(user)},
+        "chat": {"on": chat_connect.is_on(user), "reason": chat_connect.unavailable_reason(user), "conn": chat_conn,
+                 "error": chat_conn.last_error if chat_conn else ""},
+        "is_manager": is_manager(user),
+        "shared_count": shared.count(),
+        "shared_connected": shared.filter(shared_token__isnull=False).count(),
+    })
+
+
+def appearance(request):
+    return render(request, "crm/settings_appearance.html")
 
 
 @manager_required
-def settings_home(request):
-    return render(request, "crm/settings_home.html", {"lists": choices.lists()})
+def dropdown_lists(request):
+    return render(request, "crm/settings_dropdowns.html", {"lists": choices.lists()})
 
 
 def _usage(key):

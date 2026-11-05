@@ -1,12 +1,8 @@
-{% extends "crm/base.html" %}
+{% extends "crm/settings_base.html" %}
 {% load static %}
-{% block title %}Notification settings · ACMI Hub{% endblock %}
-{% block content %}
-<div class="page-head">
-  <h1>Notification settings</h1>
-  <span class="spacer"></span>
-  <a class="btn" href="{% url 'crm:notification_list' %}">‹ Notifications</a>
-</div>
+{% block title %}Notifications · Settings · ACMI Hub{% endblock %}
+{% block settings_body %}
+<p class="muted settings-intro">Pick what reaches you. Your latest alerts are under the 🔔 bell, or <a href="{% url 'crm:notification_list' %}">open the list</a>.</p>
 
 <section class="panel push-panel" id="push-panel" data-key="{{ vapid_key }}" data-ready="{{ push_ready|yesno:'1,0' }}"
          data-sw="{% url 'crm:service_worker' %}" data-subscribe="{% url 'crm:push_subscribe' %}"

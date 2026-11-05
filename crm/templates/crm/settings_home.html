@@ -1,22 +1,20 @@
+{# The Settings landing page: the sections, in groups, with a line on where your own stand. #}
 {% extends "crm/base.html" %}
-{% block title %}Dropdown lists · Settings · ACMI Hub{% endblock %}
+{% block title %}Settings · ACMI Hub{% endblock %}
 {% block content %}
 <div class="page-head">
-  <h1>Dropdown lists</h1>
+  <h1>Settings</h1>
   <span class="spacer"></span>
   {% if user.is_staff %}<a class="btn" href="/admin/">Admin</a>{% endif %}
 </div>
-<p class="muted" style="margin-top:0">Every dropdown in the CRM. Open a list to rename, reorder or hide its options. Every list takes new options. On lists that drive logic in the app (stages, statuses), a new option says which built-in option it works like.</p>
-<div class="dd-areas">
-{% for area, items in lists %}
-  <section class="panel dd-area">
-    <h3>{{ area }}</h3>
-    {% for l in items %}<a class="dd-row" href="{% url 'crm:dropdown_edit' l.key %}">
-      <span><b>{{ l.title }}</b>{% if not l.open %} <span class="tag" title="New options pick a built-in option they work like">Logic</span>{% endif %}{% if l.edited %} <span class="tag">Edited</span>{% endif %}
-        <span class="muted lc-small dd-used">{{ l.used_in|join:" · " }}</span></span>
-      <span class="muted lc-small">{{ l.count }} option{{ l.count|pluralize }} ›</span>
-    </a>{% endfor %}
-  </section>
-{% endfor %}
+<p class="muted settings-intro">Everything you can set up in the hub, in one place.</p>
+{% for heading, items in sections %}
+<h2 class="settings-group-title">{{ heading }}</h2>
+<div class="settings-list">
+  {% for s in items %}<a class="settings-row" href="{{ s.url }}">
+    <span class="sr-main"><span class="sr-label">{{ s.label }}</span><span class="sr-sub">{{ s.blurb }}</span></span>
+    {% if s.status %}<span class="sr-status">{{ s.status }}</span>{% endif %}
+  </a>{% endfor %}
 </div>
+{% endfor %}
 {% endblock %}

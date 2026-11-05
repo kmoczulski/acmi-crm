@@ -1,18 +1,12 @@
-{% extends "crm/base.html" %}
-{% load socialaccount crm_tags %}
-{% block title %}Mail in the hub · ACMI Hub{% endblock %}
-{% block content %}
-<div class="page-head">
-  <h1>Mail in the hub</h1>
-</div>
+{% extends "crm/settings_base.html" %}
+{% load crm_tags %}
+{% block title %}Mail · Settings · ACMI Hub{% endblock %}
+{% block settings_body %}
 <section class="panel mail-switch" style="max-width:720px">
   {% if on %}
     <h3>Mail is on <span class="tag">On</span></h3>
     <p>Your Gmail ({{ conn.google_email|default:user.email }}) is connected{% if conn.turned_on_at %} since {{ conn.turned_on_at|date:"M j, Y" }}{% endif %}. The hub can read, label, draft and send from it. It can't delete anything permanently, and nobody else in the hub can see your mailbox.</p>
-    <form method="post" action="{% url 'crm:mail_turn_off' %}">{% csrf_token %}
-      <button class="btn">Turn off Mail</button>
-    </form>
-    <p class="muted lc-small">Turning it off removes the hub's Gmail permission at Google. Google keeps one permission for the hub, so your calendar is disconnected too and you reconnect it in one click.</p>
+    <p class="muted lc-small">To turn Mail off, or to reconnect it, go to <a href="{% url 'crm:settings_google' %}">Google connections</a>.</p>
   {% else %}
     <h3>Mail is off <span class="tag">Off</span></h3>
     <p>Optional. Turn it on to read, search, reply and file your Gmail in the hub, next to the companies and deals it's about. Gmail itself doesn't change, and you can turn it off at any time.</p>
@@ -90,13 +84,6 @@
     <button class="btn btn-small btn-primary">Connect a shared mailbox</button>
   </form>
   <p class="muted lc-small">Google asks you to sign in <b>as that address</b> and allow Gmail. Have its password ready.</p>
-</section>
-{% endif %}
-{% if not calendar_connected and not unavailable %}
-<section class="panel" style="max-width:720px">
-  <h3>Google Calendar</h3>
-  <p>Your calendar isn't connected, so your meetings don't reach the Meetings calendar.</p>
-  <a class="btn btn-small" href="{% provider_login_url 'google' process='connect' auth_params='prompt=consent' next=request.path %}">Connect Google Calendar</a>
 </section>
 {% endif %}
 {% endblock %}

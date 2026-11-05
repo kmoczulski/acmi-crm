@@ -29,6 +29,17 @@ def qs_set(context, **kwargs):
 
 
 @register.simple_tag(takes_context=True)
+def settings_sections(context):
+    """The Settings sections this person may open, as [(heading, [section, ...])], with the page being drawn marked
+    active (crm/settings_nav.py); settings_base.html draws the tab strip from it."""
+    from crm import settings_nav
+
+    request = context["request"]
+    match = getattr(request, "resolver_match", None)
+    return settings_nav.groups(request.user, match.url_name if match else "")
+
+
+@register.simple_tag(takes_context=True)
 def sort_link(context, column):
     current = context["table"].sort
     if column.sort == current:
