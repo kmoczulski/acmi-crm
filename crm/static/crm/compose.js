@@ -658,6 +658,7 @@
             savedRev = at;
             say('Draft saved ' + new Date().toLocaleTimeString([], {hour: 'numeric', minute: '2-digit'}));
             snapshot();
+            persist();
             return true;
           }
           if (d.error) say(d.error);
@@ -669,12 +670,47 @@
       });
       return inflight;
     };
+    // The reading pane's reply box remembers what was typed, per conversation, in this browser. Opening Reply on that
+    // conversation again puts it back (with the Gmail draft's id, so the same draft goes on being updated instead of a
+    // second one starting). The Gmail draft is the copy that follows you to other devices.
+    const KEEP_DAYS = 30;
+    const keepKey = () => (inline && !windowed && field('thread_id') && field('thread_id').value)
+      ? 'hubReply:' + field('thread_id').value + ':' + (field('mode') ? field('mode').value : 'reply') : '';
+    const persist = () => {
+      const key = keepKey();
+      if (!key) return;
+      try {
+        if (!ed.area.innerText.trim()) { localStorage.removeItem(key); return; }
+        localStorage.setItem(key, JSON.stringify({
+          html: ed.area.innerHTML, to: field('to').value, cc: field('cc').value, bcc: field('bcc').value,
+          subject: field('subject').value, draft: draftId.value, at: Date.now(),
+        }));
+      } catch (e) { /* storage full or blocked: the draft in Gmail is still there */ }
+    };
+    const forget = () => { const key = keepKey(); if (key) { try { localStorage.removeItem(key); } catch (e) { /* none */ } } };
+    const restore = () => {
+      const key = keepKey();
+      if (!key) return false;
+      let s = null;
+      try { s = JSON.parse(localStorage.getItem(key) || 'null'); } catch (e) { /* none kept */ }
+      if (!s || !s.html || Date.now() - (s.at || 0) > KEEP_DAYS * 864e5) return false;
+      for (const n of ['to', 'cc', 'bcc', 'subject']) if (field(n) && typeof s[n] === 'string') field(n).value = s[n];
+      ed.area.innerHTML = s.html;
+      ed.sync();
+      draftId.value = s.draft || '';
+      const more = form.querySelector('.compose-more');
+      if (more && (s.cc || s.bcc)) more.open = true;
+      say(s.draft ? 'Picked up your unsent reply (saved in Gmail drafts)' : 'Picked up your unsent reply');
+      return true;
+    };
+    let persistTimer = null;
     form.addEventListener('input', e => {
       if (e.target.type === 'file') return;
       rev++;
       clearTimeout(saveTimer);
       saveTimer = setTimeout(save, 3000);
       if (windowed) { clearTimeout(snapTimer); snapTimer = setTimeout(snapshot, 250); }
+      else if (inline) { clearTimeout(persistTimer); persistTimer = setTimeout(persist, 300); }
     });
 
     // Templates (full page): the outreach templates' text, {first_name} filled in when the hub knows the person.
@@ -707,6 +743,7 @@
         const r = await fetch(form.action, {method: 'POST', body: new FormData(form), headers: {'X-CSRFToken': csrf(form)}});
         const d = await r.json();
         if (!r.ok || !d.ok) throw new Error(d.error || 'Not sent. Try again.');
+        forget();  // it went: nothing to pick up again
         if (windowed && dock()) { dock().sent(winId, d); return; }  // the box closes and the page says "Message sent"
         location.href = d.url;
       } catch (err) {
@@ -795,19 +832,20 @@
       };
       setTimeout(() => { const to = field('to'); (to.value ? ed.area : to).focus(); }, 60);
     }
-    return {save, ed};
+    return {save, ed, restore, forget, persist};
   }
 
   document.querySelectorAll('[data-compose]').forEach(form => setup(form, form.dataset.window ? 'window' : false));
 
   // The reading pane's inline reply box: Reply / Reply all / Forward fill it in place, under the message. The inbox
   // calls initInlineReply again when it swaps in another conversation (and with it a new box).
-  let box = null, inlineEd = null;
+  let box = null, inlineEd = null, inlineApi = null;
   function initInline() {
     box = document.querySelector('[data-inline]');
     if (!box || box.dataset.ready) return;
     box.dataset.ready = '1';
-    inlineEd = setup(box, true).ed;
+    inlineApi = setup(box, true);
+    inlineEd = inlineApi.ed;
     box.querySelector('[data-inline-close]').addEventListener('click', () => { box.hidden = true; });
     // Esc closes the box (an empty one, or after confirming); Ctrl/Cmd+Enter sends.
     box.addEventListener('keydown', e => {
@@ -834,6 +872,8 @@
     box.querySelector('[data-draft-id]').value = '';
     inlineEd.clear();
     box.querySelector('[name=bcc]').value = '';
+    const stateLine = box.querySelector('[data-draft-state]');
+    if (stateLine) stateLine.textContent = '';
     box.querySelector('[data-inline-title]').textContent = titles[mode] || 'Reply';
     box.querySelector('[data-inline-more]').href = `${box.action}?reply=${encodeURIComponent(messageId)}&mode=${mode}&back=${encodeURIComponent(location.pathname + location.search)}`;
     box.querySelector('.compose-more').open = !!f.cc;
@@ -844,6 +884,7 @@
       `<label class="lc-small"><input type="checkbox" name="forward_part" value="${esc(a.part)}" checked> 📎 ${esc(a.name)}</label>`).join('');
     files.hidden = !(f.forward_files || []).length;
     box.querySelector('[data-send]').disabled = !f.sending_on;
+    if (mode !== 'forward' && inlineApi) inlineApi.restore();  // what was typed here before, and its Gmail draft
     const msg = document.getElementById('m-' + messageId);
     const end = from && from.closest('[data-reply-end]');  // from the bar under the thread: open right there
     (end || msg || document.querySelector('[data-reader] .mail-reader-head')).after(box);
