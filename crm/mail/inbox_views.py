@@ -25,7 +25,7 @@ from crm.ai import enabled as ai_enabled
 from crm.models import Company, MailFiling, MailLabel, MailSnooze, MailThread, Mailbox, Project, UnmatchedEmail
 
 from . import actions as mail_actions, comments as mail_comments, connect, filing as mail_filing, index, shared
-from . import render as mail_render, search as mail_search, summary as mail_summary, threads as mail_threads
+from . import render as mail_render, schedule_link, search as mail_search, summary as mail_summary, threads as mail_threads
 from .gmail_api import NotFound, client_for as gmail_client_for, parallel_map, parse_api_message
 from .imap import MailboxError
 from .views import team_only
@@ -239,7 +239,13 @@ def reader_for(request, mailbox, client, gmail_id, threads=()):
     snooze = MailSnooze.objects.filter(mailbox=mailbox, gmail_id=gmail_id).first()
     own = mailbox.email.lower()
     sender_domains = {m["from_addr"].rsplit("@", 1)[-1] for m in msgs if m["from_addr"] and m["from_addr"] != own}
+    try:  # "📅 Schedule": someone settled on a time (crm/mail/schedule_link.py); never lets a problem here hide the thread
+        schedule = schedule_link.suggest(mailbox, client, gmail_id, msgs, request.user)
+    except Exception:  # noqa: BLE001
+        log.warning("Schedule suggestion failed for %s", gmail_id, exc_info=True)
+        schedule = None
     return {
+        "schedule": schedule,
         "filings": mail_filing.filings_for(mailbox, gmail_id),
         "queued_domains": sorted(set(UnmatchedEmail.objects.filter(domain__in=sender_domains)
                                      .values_list("domain", flat=True))),

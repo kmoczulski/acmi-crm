@@ -160,6 +160,7 @@
       state.start = data.start;
       data.people.forEach(p => { if (!known.has(p.email)) known.set(p.email, p.name); });
       drawAll();
+      if (cfg.pick && !state.pickApplied) { state.pickApplied = true; applyEmailPick(); }  // opened from an email
       if (!form.hidden) syncPickFromForm(true);  // a typed day on another week: show that week's cell
     } catch (e) {
       if (token !== state.token) return;
@@ -269,6 +270,29 @@
     showConflict();
     form.scrollIntoView({block: 'nearest', behavior: 'smooth'});
     (titleBox.value ? timeBox : titleBox).focus({preventScroll: true});
+  }
+
+  // Opened from an email where someone settled on a time (?when=): open the meeting form at that time so it only has to be
+  // confirmed. If the time is not a cell on the grid (outside the day's hours, a weekend, already past) the form still opens
+  // with the day and time filled in, and the person can fix it.
+  function applyEmailPick() {
+    const d = state.data, p = cfg.pick;
+    if (!d || !p) return;
+    const di = d.days.findIndex(x => x.date === p.date), si = d.slots.findIndex(x => x.time === p.time);
+    if (di >= 0 && si >= 0 && d.cells[di][si].ok) { choose(di, si); return; }
+    dayBox.value = p.date;
+    timeBox.value = p.time;
+    formMinutes.value = String(state.minutes);
+    doneBox.hidden = true;
+    form.hidden = false;
+    form.scrollIntoView({block: 'nearest', behavior: 'smooth'});
+  }
+
+  if (cfg.fromEmail) {  // say where the people and the time came from
+    const note = h('p', {class: 'sched-from-email', role: 'note',
+      text: cfg.pick ? '📧 From your email: the people on the thread are added and the time they settled on is filled in. Check it, then press Send invitations.'
+        : '📧 From your email: the people on the thread are added. Pick a time that works.'});
+    ($('[data-error]') || root.firstElementChild).before(note);
   }
 
   function showConflict() {

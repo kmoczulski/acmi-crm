@@ -2732,6 +2732,16 @@ body[data-chat-list] .dock-main > p, body[data-chat-list] .dock-main > a { margi
   background: var(--accent-soft); border: 1px solid var(--line); border-radius: var(--radius); font-size: 13px; }
 .chat-nudge[hidden] { display: none; }
 .chat-nudge > span { flex: 1 1 260px; min-width: 0; }
+/* "Schedule…" on an email where someone settled on a meeting time (crm/mail/schedule_link.py). */
+.mail-schedule { display: flex; align-items: center; justify-content: space-between; gap: 8px 12px; flex-wrap: wrap; margin: 8px 0;
+  padding: 8px 12px; background: var(--accent-soft); border: 1px solid var(--line); border-left: 3px solid var(--accent);
+  border-radius: var(--radius); font-size: 13px; }
+.mail-schedule-text { flex: 1 1 260px; min-width: 0; overflow-wrap: anywhere; }
+/* Scheduler opened from an email: a note above the grid saying where the time came from. */
+.sched-from-email { margin: 0 0 8px; padding: 8px 12px; background: var(--accent-soft); border-radius: var(--radius); font-size: 13px; }
+/* Contracts list: a project's name heads its rows inside each type section. */
+.ct-project-row th { text-align: left; font-size: 12px; font-weight: 600; letter-spacing: .02em; padding: 6px 10px;
+  background: var(--accent-soft); color: var(--accent); border-top: 1px solid var(--line); }
 /* Undo send: a teal notification in the bottom left, unlike the navy dock and the other alerts (static/crm/outbox.js). */
 .outbox-toasts { position: fixed; left: 16px; bottom: 16px; z-index: 2100; display: flex; flex-direction: column; gap: 8px;
   max-width: min(420px, calc(100vw - 32px)); pointer-events: none; }

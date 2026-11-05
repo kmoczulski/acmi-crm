@@ -43,23 +43,63 @@ _SECTIONS = (
 )
 
 
-def _contract_sections(contracts):
-    """Land (PSA / LOI / option), leases, PDAs, then everything else. Empty groups are dropped."""
+NO_PROJECT = "No project"
+
+
+def project_label(c):
+    """The project a contract belongs to, the way the rest of the hub names one (Kellen, 2026-11-05: "it should also be
+    sorted by project"): the land site's project (ARA Facility), else the site itself, else the campus (MEIH), else the
+    campus or site of its deal, else "No project"."""
+    site = c.site
+    if site is not None:
+        if getattr(site, "project", None) is not None:
+            return site.project.name
+        return site.name
+    if c.campus is not None:
+        return c.campus.code
+    deal = c.opportunity
+    if deal is not None:
+        if deal.campus is not None:
+            return deal.campus.code
+        if deal.site:
+            return deal.site
+    return NO_PROJECT
+
+
+def _by_project(contracts):
+    """[{"project", "contracts"}] with projects A to Z and "No project" last; each keeps the order it came in."""
+    groups = {}
+    for c in contracts:
+        groups.setdefault(project_label(c), []).append(c)
+    names = sorted((n for n in groups if n != NO_PROJECT), key=str.lower) + ([NO_PROJECT] if NO_PROJECT in groups else [])
+    return [{"project": n, "contracts": groups[n]} for n in names]
+
+
+def _contract_sections(contracts, group="type"):
+    """group="type": Land (PSA / LOI / option), leases, PDAs, then everything else, and inside each the contracts by
+    project. group="project": a section per project, and inside each the contracts by type. Empty groups are dropped."""
     kind_to = {k: title for title, kinds in _SECTIONS for k in kinds}
-    buckets = {title: [] for title, _ in _SECTIONS}
-    buckets["Other"] = []
+    order = [title for title, _ in _SECTIONS] + ["Other"]
+    if group == "project":
+        rank = {title: i for i, title in enumerate(order)}
+        return [{"title": g["project"], "contracts": g["contracts"],
+                 "groups": [{"project": "", "contracts": sorted(
+                     g["contracts"], key=lambda c: rank[kind_to.get(c.kind, "Other")])}]}
+                for g in _by_project(contracts)]
+    buckets = {title: [] for title in order}
     for c in contracts:
         buckets[kind_to.get(c.kind, "Other")].append(c)
-    order = [title for title, _ in _SECTIONS] + ["Other"]
-    return [{"title": title, "contracts": buckets[title]} for title in order if buckets[title]]
+    return [{"title": title, "contracts": buckets[title], "groups": _by_project(buckets[title])}
+            for title in order if buckets[title]]
 
 
 def contract_list(request):
     show = request.GET.get("show", "open")
     kind = request.GET.get("kind", "")
     campus = request.GET.get("campus", "")
-    qs = Contract.objects.select_related("site", "campus", "owner", "opportunity__company").annotate(
-        docs=Count("documents", distinct=True))
+    group = "project" if request.GET.get("group") == "project" else "type"
+    qs = Contract.objects.select_related("site__project", "campus", "owner", "opportunity__company",
+                                         "opportunity__campus").annotate(docs=Count("documents", distinct=True))
     if show == "open":
         qs = qs.filter(status__in=Contract.OPEN_STATUSES)
     if kind in Contract.Kind.values:
@@ -74,7 +114,7 @@ def contract_list(request):
         c.waiting_days = (today - c.waiting_since).days if c.waiting_on and c.waiting_since else None
     contracts.sort(key=lambda c: (c.next is None, c.next.date if c.next else today, c.title.lower()))
     return render(request, "crm/contract_list.html", {
-        "contracts": contracts, "sections": _contract_sections(contracts),
+        "contracts": contracts, "sections": _contract_sections(contracts, group), "group": group,
         "deadlines": dates.upcoming(60, today), "show": show, "kind": kind,
         "kinds": Contract.Kind.choices, "campuses": Campus.objects.all(), "campus": campus,
     })
