@@ -2,6 +2,7 @@
 
 Everything here reads the database; nothing writes except `create_from_suggestion`.
 """
+import re
 from collections import OrderedDict
 from datetime import timedelta
 from decimal import Decimal
@@ -246,6 +247,21 @@ def thread_hex(thread_id):
         return ""
 
 
+INVITE_SUBJECT = re.compile(
+    r"^(?:(?:fwd?|fw|re)\s*:\s*)*(?:updated\s+)?(?:invitation|canceled event|cancelled event|accepted|declined|"
+    r"tentatively accepted|proposed new time)\s*:", re.I)  # the colon: "Invitation to tour the site" is a real email
+
+
+def is_calendar_invite(act):
+    """A meeting invite (or its accept / decline / cancel) we sent: it asks for a calendar answer, not an email one, so it
+    never counts as something we are "waiting on them" for (Kellen, 2026-11-05). The subject is the part of the summary
+    after "Email to <who>:"; a calendar file (.ics) on the email counts too. Attachments should be prefetched."""
+    subject = (act.summary or "").split(": ", 1)[-1]
+    if INVITE_SUBJECT.match(subject):
+        return True
+    return any((a.filename or "").lower().endswith(".ics") for a in act.attachments.all())
+
+
 def waiting_on_them(user, days=60):
     """Emails the team sent that nobody has answered, quiet for THEM_QUIET days or more. One per thread, newest send.
     Outreach campaign sends are left out (they have their own report); a dismissed one stays off until we send again."""
@@ -257,9 +273,11 @@ def waiting_on_them(user, days=60):
     sent = (Activity.objects.filter(kind=Activity.Kind.EMAIL_SENT, occurred_at__gte=now - timedelta(days=days),
                                     company__isnull=False, campaign="").exclude(thread_id="")
             .filter(Q(team_members=user) | Q(company__in=mine))
-            .select_related("company", "person").distinct().order_by("-occurred_at"))
+            .select_related("company", "person").prefetch_related("attachments").distinct().order_by("-occurred_at"))
     latest = {}
     for a in sent:
+        if is_calendar_invite(a):
+            continue  # an earlier real email on the thread is still the one we may be waiting on
         latest.setdefault(a.thread_id, a)
     heard = (Activity.objects.filter(thread_id__in=list(latest), occurred_at__gte=now - timedelta(days=days),
                                      kind__in=[*Activity.RESPONSE_KINDS, Activity.Kind.EMAIL_RECEIVED])
@@ -353,7 +371,8 @@ def close_answered_tasks(activity):
 
 def my_day(user):
     today = timezone.localdate()
-    tasks = Task.objects.filter(assignee=user, done=False, due_date__lte=today).select_related("company", "person", "opportunity")
+    tasks = (Task.objects.filter(assignee=user, done=False, due_date__lte=today)
+             .select_related("company", "person", "opportunity", "source_activity"))
     deals = (open_deals().filter(Q(owner=user) | Q(team=user)).distinct()
              .select_related("company", "campus"))
     needs_step = [{"opp": o, "reasons": risk_reasons(o, today)} for o in deals]

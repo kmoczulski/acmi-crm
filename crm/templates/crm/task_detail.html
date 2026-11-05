@@ -16,6 +16,7 @@
       <button class="btn-small btn-primary">Save</button> <button type="button" class="btn-small" data-cancel>Cancel</button>
     </form>
   </div>
+  {% if task.email_url %}<a class="btn btn-small btn-primary" href="{{ task.email_url }}" title="Open the email this follow-up is about">✉ Open the email</a>{% endif %}
   {% if task.repeat %}<span class="tag" title="Repeats">↻ {{ task.get_repeat_display }}</span>{% endif %}
   {% if task.due_date %}<span class="{% if task.is_overdue %}overdue{% endif %}">Due {{ task.due_date|date:"D M j, Y" }}{% if task.due_time %} at {{ task.due_time|time:"g:i A" }}{% endif %}</span>{% endif %}
   <div class="record-nav"><a href="{% url 'crm:task_list' %}">All tasks</a></div>

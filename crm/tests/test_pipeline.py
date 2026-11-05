@@ -10,6 +10,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.html import escape
 
 from crm import meetings, pipeline, pipeline_import, prefs
 from crm.models import (
@@ -226,6 +227,61 @@ class PipelineLogicTests(TestCase):
         pipeline.sync_follow_up_tasks(self.user)
         task.refresh_from_db()
         self.assertTrue(task.done)
+
+    def test_a_follow_up_task_links_straight_to_its_email(self):
+        """Kellen, 2026-11-05: "within a task, if it's a follow-up there should be a direct link to the email"."""
+        from crm.models import Task
+        self.company.owner = self.user
+        self.company.save()
+        reply = self._mail(Activity.Kind.REPLY, 24 * 4, "1234567890", "n1", outcome="Responded", message_id="<n@x.com>")
+        no_thread = self._mail(Activity.Kind.REPLY, 24 * 4, "", "n2", outcome="Responded", message_id="<m@x.com>")
+        pipeline.sync_follow_up_tasks(self.user)
+        threaded = Task.objects.get(source_activity=reply)
+        self.assertEqual(threaded.email_url, "/inbox/?label=ALL&t=%x" % 1234567890)
+        by_id = Task.objects.get(source_activity=no_thread)
+        self.assertEqual(by_id.email_url, "/inbox/open/?m=%3Cm%40x.com%3E")
+        plain = Task.objects.create(title="Call Sam", assignee=self.user)
+        self.assertEqual(plain.email_url, "")
+        self.client.force_login(self.user)
+        page = self.client.get(threaded.get_absolute_url())
+        self.assertContains(page, 'href="%s"' % escape(threaded.email_url))
+        self.assertContains(page, "Open the email")
+        self.assertContains(self.client.get(reverse("crm:task_list")), 'href="%s"' % escape(threaded.email_url))
+        self.assertNotContains(self.client.get(plain.get_absolute_url()), "Open the email")
+
+    def test_a_calendar_invite_we_sent_is_not_a_waiting_on_them(self):
+        """Kellen, 2026-11-05: an email that is a calendar invite should not count towards a waiting-on-them follow-up."""
+        from crm.models import Attachment, Task
+        self.company.owner = self.user
+        self.company.save()
+        invite = self._mail(Activity.Kind.EMAIL_SENT, 24 * 5, "i1", "i1")
+        invite.summary = "Email to Will Edwards: Invitation: PDA review @ Tue Nov 10, 2026 10am (CST) (kmoczulski@acmigroup.com)"
+        invite.save()
+        ics = self._mail(Activity.Kind.EMAIL_SENT, 24 * 5, "i2", "i2")
+        Attachment.objects.create(activity=ics, filename="invite.ics", content_type="text/calendar")
+        updated = self._mail(Activity.Kind.EMAIL_SENT, 24 * 5, "i3", "i3")
+        updated.summary = "Email to Will: Updated invitation: PDA review"
+        updated.save()
+        real = self._mail(Activity.Kind.EMAIL_SENT, 24 * 5, "i4", "i4")
+        real.summary = "Email to Will: Invitation to tour the site"  # the word, not an invite: still a real email
+        real.save()
+        found = pipeline.follow_ups(self.user)
+        ids = {e["act"].pk for e in found["them"]}
+        self.assertEqual(ids, {real.pk})
+        pipeline.sync_follow_up_tasks(self.user)
+        self.assertEqual(list(Task.objects.values_list("source_activity", flat=True)), [real.pk])
+
+    def test_an_invite_after_a_real_email_does_not_hide_the_real_one(self):
+        real = self._mail(Activity.Kind.EMAIL_SENT, 24 * 6, "j1", "j1")
+        real.summary = "Email to Will: Draft PDA"
+        real.save()
+        invite = self._mail(Activity.Kind.EMAIL_SENT, 24 * 4, "j1", "j1i")
+        invite.summary = "Email to Will: Invitation: Call @ Tue Nov 10, 2026 10am"
+        invite.save()
+        self.company.owner = self.user
+        self.company.save()
+        them = pipeline.follow_ups(self.user)["them"]
+        self.assertEqual([e["act"].pk for e in them], [real.pk])  # still waiting on the PDA email
 
     def test_answering_the_email_ticks_its_task_at_once(self):
         """Kellen, 2026-11-05: "if I respond the email it should autocomplete" (no need to open Follow-ups first)."""

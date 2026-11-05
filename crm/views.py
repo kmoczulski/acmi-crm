@@ -400,8 +400,8 @@ TASK_ORDER = ("done", F("due_date").asc(nulls_last=True), "-created_at")
 
 def task_rows(qs):
     """Tasks for a record page's list, with what each row shows (assignee, record, comment count) in one query."""
-    return (qs.select_related("assignee", "company", "person", "opportunity").annotate(n_comments=Count("comments"))
-            .order_by(*TASK_ORDER))
+    return (qs.select_related("assignee", "company", "person", "opportunity", "source_activity")
+            .annotate(n_comments=Count("comments")).order_by(*TASK_ORDER))
 
 
 def week_calendar(request):
@@ -981,7 +981,7 @@ def task_add(request):
 
 def task_detail(request, pk):
     """A task as a Trello-style card: details, repeat, comments."""
-    task = get_object_or_404(Task.objects.select_related("assignee", "company", "person", "opportunity")
+    task = get_object_or_404(Task.objects.select_related("assignee", "company", "person", "opportunity", "source_activity")
                              .prefetch_related("meetings"), pk=pk)
     old_assignee = task.assignee_id
     data = None

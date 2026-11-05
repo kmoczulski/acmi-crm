@@ -773,6 +773,22 @@ class Task(models.Model):
         return self.opportunity or self.person or self.company or self.site
 
     @property
+    def email_url(self):
+        """Where the email this task was made from opens in Mail, for a Follow-ups task ("" for any other task): its
+        conversation when the thread is known, else the email itself by its Message-ID (Kellen, 2026-11-05: "if it's a
+        follow up there should be a direct link to the email")."""
+        act = self.source_activity
+        if act is None:
+            return ""
+        from urllib.parse import quote
+
+        if act.thread_id and str(act.thread_id).isdigit():
+            return f"{reverse('crm:inbox')}?label=ALL&t={int(act.thread_id):x}"
+        if act.message_id:
+            return f"{reverse('crm:inbox_open')}?m={quote(act.message_id, safe='')}"
+        return ""
+
+    @property
     def meeting(self):
         """The first meeting the task came from (most have one)."""
         return min(self.meetings.all(), key=lambda m: m.start, default=None)
