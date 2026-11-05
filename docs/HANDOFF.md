@@ -5,7 +5,7 @@ Read this first when picking the project up in a new chat, along with
 
 **Update, 2026-11-04 (late; side session started from the county-adding session; Kellen: "I want to be able to put in a warehouse,
 magazine, and other hazard buildings that can all be autofited based on the site constraints and zoning etc."): one Auto-fit planner
-for flex-industrial AND hazard buildings is built and tested on the branch `claude/nice-thompson-1a5b68`, NOT committed, NOT deployed.**
+for flex-industrial AND hazard buildings is built, tested and **LIVE as revision `acmi-crm-00035-5hh` (image `0c079ee`, deployed 2026-11-04 ~11 pm Central; rollback `acmi-crm-00034-2mh` / `4e5f5ac`)**. `main` is `0c079ee`: it holds Auto-fit, the LOI / PSA tracker (migration 0079, already applied by the 00033 deploy), the recalculation and the Granola cloudbuild fix. Fingerprints of the service and 3 jobs identical before / after except the image; migrate "No migrations to apply"; no WARNING logs.**
 Before, `qd.py` (QD) and `siteplan.py` (zoning layout) were separate tools that did not know each other.
 - **Engine: `crm/land/autofit.py`, `plan()`.** One program list: flex types (`warehouse`, `manufacturing`, `flex`, `office`, `lab`) and
   hazard types (`magazine` = IMD spacing, `operating` = ILD) with HD, NEWQD, PES, barricade, MCE, K, footprint sf. Order: (1) hazard
