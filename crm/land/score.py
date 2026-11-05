@@ -138,12 +138,45 @@ ZONING_CODES["04013"] = {
     "R1-7": "residential", "R1-8": "residential", "R1-10": "residential", "R1-18": "residential",
     "R1-35": "residential", "RU-43": "agricultural", "RU-70": "agricultural", "RU-190": "agricultural",
 }
+# Miami-Dade County (unincorporated), City of Homestead and City of Florida City districts (one table: the three codes
+# sets agree wherever they share a label; AU, GP, PUD, EU-M, GU mean the same thing in each).
+_MDC = {}
+for _cls, _codes in {
+    "industrial": "IU-1 IU-2 IU-3 IU-C I I-1 I-2",
+    "business_park": "OPD ECPAD",
+    "commercial": "B2 BU-1 BU-1A BU-2 BU-3 C-1 C-2 C-3 C-4 M-1 B-1 B-1A B-2 B-3 P S",
+    "mixed_use": ("MCD CD BRCUAD BRDI CCUAD CRMUC DKUC GCUC LCCUC MCUCD NCUAD NCUC OUAD PCUC PECUC PLMUC "
+                  "NMU TMU TOD RM-20 R-TND"),
+    "planned": "PAD REDPAD PUD PUN TND",
+    "agricultural": "AU GU G",
+    "residential": ("EU-1 EU-1C EU-2 EU-M EU-S R-1 R-2 R-3 R-4 R-5 R-CH R-TH RMD RMH RU-1 RU-1MA RU-1MB RU-1Z RU-2 RU-3 "
+                    "RU-3B RU-3M RU-4 RU-4A RU-4L RU-4M RU-5 RU-5A RU-TH A-1 A-2 RD-1 RD-2 RM-15 RS-1 RS-2 RS-3 "
+                    "RS-4 RS-5 RT"),
+    "public": "GP CF",
+}.items():
+    _MDC.update({c: _cls for c in _codes.split()})
+ZONING_CODES["12086"] = _MDC
+# City and County of Honolulu Land Use Ordinance districts (the island of Oahu).
+_HNL = {}
+for _cls, _codes in {
+    "industrial": "I-1 I-2 I-3 WI",
+    "business_park": "IMX-1",
+    "commercial": "B-1 B-2 Resort",
+    "mixed_use": "BMX-3 BMX-4 AMX-1 AMX-2 AMX-3 MU ResMix ApartMix",
+    "agricultural": "AG-1 AG-2 C",
+    "residential": "R-3.5 R-5 R-7.5 R-10 R-20 A-1 A-2 A-3 Apart",
+    "conservation": "P-1 P-2",
+    "public": "F-1 PU Pub Aloha Kak",
+}.items():
+    _HNL.update({c.upper(): _cls for c in _codes.split()})  # zoning_class compares upper-case
+ZONING_CODES["15003"] = _HNL
 # States whose rural counties have no zoning ordinance (subdivision rules only).
 NO_COUNTY_ZONING = ("TX", "AL")
 _ZONE_WORDS = [("industr", "industrial"), ("employment", "business_park"), ("business park", "business_park"),
                ("mixed", "mixed_use"), ("planned unit", "planned"), ("commerc", "commercial"),
                ("business", "commercial"), ("agri", "agricultural"), ("rural", "agricultural"),
-               ("conserv", "conservation"), ("resid", "residential"), ("town of", "town")]
+               ("conserv", "conservation"), ("open space", "conservation"), ("public", "public"),
+               ("resid", "residential"), ("town of", "town")]
 
 
 def zoning_class(p):

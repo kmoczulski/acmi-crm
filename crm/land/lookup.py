@@ -240,6 +240,70 @@ def _az_providers(url, geom, parcel_a):
     return {"providers": [r["name"] for r in rows], "details": rows}
 
 
+# Florida (Miami-Dade WASD's official water / sewer service areas; the codes are the utility's own abbreviations) and
+# Utah (Division of Water Resources culinary water service areas; Utah has no statewide sewer layer).
+_WASD = "https://gisweb.miamidade.gov/arcgis/rest/services/Wasd/WaterAndSewerServiceAreas_3_v1/MapServer"
+_MDC_UTILITIES = {
+    "MDWS": "Miami-Dade Water and Sewer Department (WASD)", "HOMSTD": "City of Homestead", "FLCITY": "City of Florida City",
+    "NM": "City of North Miami", "NMB": "City of North Miami Beach", "CH": "City of Hialeah", "HG": "City of Hialeah Gardens",
+    "OPLOC": "City of Opa-locka", "MB": "City of Miami Beach", "MED": "Town of Medley", "SURFS": "Town of Surfside",
+    "BHI": "Bay Harbor Islands", "BLH": "Bal Harbour", "IC": "Indian Creek Village", "NBV": "North Bay Village",
+    "VG": "Virginia Gardens", "WM": "West Miami",
+}
+OTHER_PROVIDERS = {
+    ("FL", "Miami-Dade"): {
+        "water": {"url": f"{_WASD}/0", "field": "UTILITYNAME", "names": _MDC_UTILITIES,
+                  "note": "Miami-Dade WASD service-area layer: the utility that serves the area (city utilities included)"},
+        "sewer": {"url": f"{_WASD}/1", "field": "UTILITYNAME", "names": _MDC_UTILITIES,
+                  "note": "Miami-Dade WASD service-area layer; septic is common outside the sewer service area"},
+    },
+    ("HI", "Honolulu"): {
+        # No public water service-area layer: the Board of Water Supply is the island-wide municipal water utility
+        # (military bases run their own systems), so the check names it and says to confirm. Sewer: City and County
+        # sewer mains, measured to the nearest main within 2 miles.
+        "water": {"static": ["Honolulu Board of Water Supply (island-wide; confirm availability and capacity)"],
+                  "note": "No public service-area layer for Oahu water; the Board of Water Supply serves most of the island, military installations have their own systems"},
+        "sewer": {"line": (f"https://services.arcgis.com/tNJpAOha4mODLkXz/arcgis/rest/services/Utilities/FeatureServer/1",
+                           "City and County of Honolulu sewer main"),
+                  "note": "City and County sewer mains (distance to the nearest); parcels beyond the mains use cesspools / septic"},
+    },
+    ("UT", "Emery"): {
+        "water": {"url": "https://services.arcgis.com/ZzrwjTRez6FJiOq4/arcgis/rest/services/CulinaryWaterServiceAreas/FeatureServer/0",
+                  "field": "WRENAME", "where": "STATUS = 'A'", "names": {},
+                  "note": "Utah Division of Water Resources culinary water service areas (active systems); outside them, wells"},
+        "sewer": None,
+    },
+}
+
+
+def other_utility_check(kind, key):
+    spec = OTHER_PROVIDERS[key][kind]
+
+    def run(geom, parcel_a):
+        if not spec:
+            return {"providers": [], "details": [], "nearest_line": None,
+                    "note": "No public sewer service-area layer exists for this county; ask the town or special service district (septic is common)"}, None
+        if spec.get("static"):
+            return {"providers": list(spec["static"]), "details": [{"name": n, "pct": None} for n in spec["static"]],
+                    "nearest_line": None, "note": spec["note"]}, None
+        if spec.get("line"):
+            line = _nearest_main(spec["line"][0], spec["line"][1], geom, parcel_a, miles=2)
+            return {"providers": ["City and County of Honolulu"] if line and line["miles"] == 0 else [],
+                    "details": [], "nearest_line": line, "note": spec["note"]}, None
+        feats = _shapes(arcgis_query(spec["url"], where=spec.get("where", "1=1"), fields=[spec["field"]],
+                                     geometry=esri_polygon(geom), geometry_type="esriGeometryPolygon"))
+        rows = {}
+        for g, p in feats:
+            raw = _name(p.get(spec["field"]))
+            name = spec["names"].get(raw, raw) or "Unnamed utility"
+            pct = round(100 * _safe_intersection(to_albers(g), parcel_a).area / parcel_a.area, 1) if parcel_a.area else 0
+            row = rows.setdefault(name, {"name": name, "pct": 0})
+            row["pct"] = min(100, round(row["pct"] + pct, 1))
+        rows = sorted((r for r in rows.values() if r["pct"] > 0), key=lambda r: -r["pct"])
+        return {"providers": [r["name"] for r in rows], "details": rows, "nearest_line": None, "note": spec["note"]}, None
+    return run
+
+
 def _nearest_main(url, label, geom, parcel_a, miles=2):
     best = None
     for g, _ in _shapes(arcgis_query(url, fields=["OBJECTID"], geometry=esri_polygon(geom),
@@ -296,6 +360,11 @@ def checks_for(state, county_name=""):
         out["electric"] = az_electric_check(county_name)
         out["water"] = az_utility_check("water", county_name)
         out["sewer"] = az_utility_check("sewer", county_name)
+    elif (state, county_name) in OTHER_PROVIDERS:
+        out = {k: v for k, v in CHECKS.items() if k not in TEXAS_ONLY}
+        out["electric"] = check_electric_national
+        out["water"] = other_utility_check("water", (state, county_name))
+        out["sewer"] = other_utility_check("sewer", (state, county_name))
     else:
         out = {k: v for k, v in CHECKS.items() if k not in TEXAS_ONLY}
         out["electric"] = check_electric_national

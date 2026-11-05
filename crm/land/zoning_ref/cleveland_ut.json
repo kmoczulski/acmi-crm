@@ -1,0 +1,147 @@
+{
+  "jurisdiction": "Town of Cleveland, UT",
+  "code_name": "Cleveland Town Zoning Ordinance (Chapter 2: Zoning Ordinance; Section 2-5 Zoning Districts: 2-5-1 A-1, 2-5-2 R-1, 2-5-3 C-1, 2-5-4 I-1; Section 2-2 Definitions; Section 2-7 Conditional Uses)",
+  "edition": "PDF copy hosted on media.rainpos.com (third-party host of the town website; treated as a mirror, undated, no adoption date shown in the text; the Title says 'effective on ____'). Text extracted from the PDF 2026-11-04.",
+  "code_url": "http://media.rainpos.com/01329201203190422562586.pdf",
+  "retrieved": "2026-11-04",
+  "caveats": [
+    "Source is an undated PDF on a third-party host (media.rainpos.com), not a codified online code; confirm it is the current adopted version with Cleveland Town before relying on it. Emery County also posts a Cleveland zoning MAP (https://emery.utah.gov/wp-content/uploads/2023/03/cleveland-zone.pdf) whose legend lists Agricultural, Commercial, Government, Industrial, Residential.",
+    "The ordinance defines only four districts: A-1, R-1, C-1, I-1 (Section 2-5). No 'Government' zone is defined anywhere in the text, although the county-hosted town zoning map legend names one; its entry here is a stub with no rules.",
+    "Use tables were read by text position: each row has Permitted / Conditional / Business License columns. Column assignment was verified from PDF text coordinates for A-1, R-1, C-1 and I-1. Business-license marks are not repeated for every row.",
+    "Every use table says 'If a use is not specifically designated then it is prohibited.' So data centers, explosives/energetics manufacturing, truck terminals and solar are allowed only where listed; where silent they are shown here as 'not addressed' (prohibited by default under that rule unless the town interprets otherwise).",
+    "I-1 development standards contain an internal inconsistency: 2-5-4.3 says all structures 'no less than twenty (25) feet from any property line or any street whichever is greater', while sub-items say no side or rear setback is required (8 ft next to a residential zone) and the table shows front 25', side 0', rear 0'. Confirm with the town.",
+    "Definitions of 'Manufacturing, Heavy' and 'Manufacturing, Light' (Section 2-2) do not mention explosives or hazardous materials. The only mention of storage of chemicals/explosives found is in flood-hazard-area standards (structural storage facilities above base flood elevation), not in use regulation.",
+    "Section 2-7 (conditional use standards) was read only for the solar criteria (2-7.2(L)); Section 2-5 (D) Authorized Uses and (E) Parking Standards not read. Conditional-use permits are decided case by case by the land use authority.",
+    "Lot-size, frontage and setback figures in the A-1/R-1 tables are for dwellings and accessory buildings; conditional uses other than churches/schools have no separate lot-size line."
+  ],
+  "districts": [
+    {
+      "code": "A-1",
+      "name": "Agricultural Zone",
+      "category": "rural",
+      "purpose": "Land suited for single-family homes together with a limited amount of agriculture, including keeping livestock; spacious lots, uncrowded buildings and quiet residential conditions. Owners must accept livestock next to dwellings as part of the zone.",
+      "permitted_uses": [
+        "Agriculture; barns, sheds and agricultural accessory buildings",
+        "Livestock (permitted; no animal-count limit stated in the table)",
+        "Single-family dwellings; residential accessory structures; household pets",
+        "Public schools, public buildings and grounds; public agency parks and playgrounds",
+        "Group homes (with business license); subdivision of property; fences, walls and hedges; temporary signs"
+      ],
+      "conditional_uses": [
+        "Solar Energy System (conditional, 2-5-1.2 table; criteria in 2-7.2(L): keep out of public view, no impact on adjacent solar easements, no noise/dust/fumes/glare, no public safety threat)",
+        "Small wind energy device; minor utility transmission projects; private roads; residential subdivision",
+        "Churches/religious institutions, private and quasi-public (charter) schools, preschools, child care facilities, home child care, home occupations, bed and breakfast, kennels, small neighborhood commercial (most with business license)"
+      ],
+      "standards": {
+        "min_lot_size": "Single dwelling 20,000 sq ft; churches and schools 1 acre; barns/agricultural accessory buildings no stated minimum",
+        "max_height": "Dwelling: max 30 ft or two stories, whichever is greater; accessory building and barns: 20 ft or two stories, whichever is greater",
+        "setbacks": "Dwelling, interior lot: front 30', side min 8' (total two sides 20'), rear 30'. Corner lot: street sides 30' (may reduce to 12' for garage/carport with sight triangle). Accessory building: 10' from main building, 5' side and rear. Barns/ag accessory: 50' from any dwelling, 10' side and rear.",
+        "lot_coverage": null,
+        "other": "Frontage 120' (60' for flag, cul-de-sac or curve lots). Min dwelling 750 sq ft ground floor, 24 ft minimum width. At least 50% of front/side yard facing a street landscaped. Fences 4' max in front setback, 8' beyond. Public water required for occupied buildings."
+      },
+      "section": "2-5-1.1 to 2-5-1.8",
+      "notes": "Not listed, so not addressed and prohibited by default: commercial or industrial manufacturing, warehouses, outdoor storage yards, truck terminals, data centers, explosives/hazardous manufacturing. The only utility-type item is minor utility transmission projects (conditional). Agriculture and livestock are by right; no minimum parcel size for agriculture itself is stated.",
+      "source": "http://media.rainpos.com/01329201203190422562586.pdf (document pages 91-96, Section 2-5-1)"
+    },
+    {
+      "code": "R-1",
+      "name": "Residential Zone",
+      "category": "residential",
+      "purpose": "Primarily residential: one-, two- and multi-family dwellings plus parks, playgrounds, schools, churches and community facilities; spacious lots, uncrowded buildings, quiet conditions. Primacy is given to residential development.",
+      "permitted_uses": [
+        "Single-family dwellings; residential accessory structures; agricultural accessory structures",
+        "Agriculture; household pets",
+        "Residential subdivision; subdivision of property",
+        "Public buildings and structures; public schools, buildings and grounds; public agency parks and playgrounds",
+        "Group homes (with business license); fences, walls and hedges; temporary signs"
+      ],
+      "conditional_uses": [
+        "Solar Energy System (conditional, 2-5-2.2; same criteria as 2-7.2(L))",
+        "Multi-family and two-family dwellings; planned unit developments; livestock and livestock accessory structures; electrical substations; small wind energy device",
+        "Churches/religious institutions; private and quasi-public schools; rest homes and nursing homes; bed and breakfast; home occupations; home child care; small neighborhood commercial; private roads; temporary building or yard / temporary occupancy of a dwelling"
+      ],
+      "standards": {
+        "min_lot_size": "Single-family dwelling or religious institution 7,500 sq ft (75' width measured 30' back)",
+        "max_height": "Max 30 ft or two stories, whichever is greater",
+        "setbacks": "Interior lots: front 30', side min 8' (total two sides 20'), rear 25'. Corner lots: front and side abutting a street 30', interior side 8'. Accessory buildings 5' from side/rear lot lines.",
+        "lot_coverage": null,
+        "other": "Frontage 75' (25' for flag, cul-de-sac or landlocked lots). Min dwelling 750 sq ft, 24 ft minimum width."
+      },
+      "section": "2-5-2.1 to 2-5-2.8",
+      "notes": "No commercial, industrial, warehousing or outdoor storage uses. Solar is conditional (criteria in 2-7.2(L) are written for small systems and energy devices; utility-scale solar not addressed). Data centers, explosives manufacturing, truck terminals: not addressed.",
+      "source": "http://media.rainpos.com/01329201203190422562586.pdf (document pages 97-103, Section 2-5-2)"
+    },
+    {
+      "code": "C-1",
+      "name": "Commercial Zone",
+      "category": "commercial",
+      "purpose": "Retail commercial function: wholesaling and retailing activities and services, plus fabrication and processing of goods where no fumes, glare, dust, smoke or vibration leave the premises; motels and RV courts also characteristic.",
+      "permitted_uses": [
+        "Banks (with business license); professional offices (with business license)",
+        "Retail commercial, general and limited (with business license)",
+        "Public parks and buildings; accessory buildings and accessory signs; fences, walls and hedges"
+      ],
+      "conditional_uses": [
+        "Light manufacturing (conditional, with business license)",
+        "Auction houses; automotive sales and service establishments; check cashing/title loan; commercial condominium projects; engraving and printing; family fun/recreation centers; farm equipment sales; funeral establishments; motels and hotels; pawn shops; personal service; restaurants (fast food/drive-in and cafe); RV courts; rehabilitation center (drug and substance abuse)",
+        "Dwellings (single, two and multi-family); planned unit developments; livestock"
+      ],
+      "standards": {
+        "min_lot_size": "Retail 2,500 sq ft; single dwelling 5,000; double dwelling 7,500; multi-dwelling 5,000 plus 2,500 per extra unit; all other uses 5,000 sq ft",
+        "max_height": "30 ft or two stories, whichever is less",
+        "setbacks": "Front 25' per table (text of 2-5-3.3 says no less than 30' from any street; Town Council may waive in the traditional central business area); side min 8' (total two sides 20'); rear 25'; corner lots front and street side 30'",
+        "lot_coverage": null,
+        "other": "Storage of merchandise, materials and equipment (other than running vehicles) must be inside a building or behind a sight-impervious fence/wall (2-5-3.4). Site plan approval required before a building permit. No noise, fumes, smoke, dust, vibration or light deleterious to neighbors. Gas pumps 20' from property lines."
+      },
+      "section": "2-5-3.1 to 2-5-3.8",
+      "notes": "Heavy manufacturing, warehouses, truck terminals, data centers, explosives/hazardous manufacturing and solar are not listed (not addressed; prohibited by default). Only light manufacturing is allowed, conditionally. Setback inconsistency inside 2-5-3.3 (30' text vs 25' table).",
+      "source": "http://media.rainpos.com/01329201203190422562586.pdf (document pages 104-109, Section 2-5-3)"
+    },
+    {
+      "code": "I-1",
+      "name": "Industrial Zone",
+      "category": "industrial",
+      "purpose": "Primarily suited for industrial and manufacturing uses: manufacturing, processing, warehousing and fabrication of goods carried on with minimum conflict or deleterious effects on neighbors; a mix of industrial, manufacturing and processing establishments with intermittent open land served by streets, power, water and other utilities.",
+      "permitted_uses": [
+        "Agriculture; livestock raising",
+        "Heavy farm machinery service and sales",
+        "Public buildings and public utility buildings; utility transmission lines and sub-stations",
+        "Accessory buildings; fences, walls and hedges"
+      ],
+      "conditional_uses": [
+        "Manufacturing: Heavy and Manufacturing: Light (both conditional, with business license; Section 2-2 definition: manufacturing, compounding, processing, assembling, packaging or testing in an enclosed structure or screenable open yard within industrial performance standards; no explosives language)",
+        "Warehouses; storage sheds; earth moving equipment and equipment storage; railroads and railroad maintenance yards",
+        "Power plants; pumping plants; water treatment plants; oil refineries; gas and oil storage facilities; gas and oil wells; asphalt and concrete mixing plants; coal yards; mining (gravel, sand, clay pits, rock quarries, crushers); tire recapping; vegetable and fruit packing and processing plants",
+        "Automobile wrecking, salvage, junk yards and impound lots; adult oriented business; billboards and accessory signs"
+      ],
+      "standards": {
+        "min_lot_size": "No minimum area except enough to accommodate the use; no frontage requirement but each use must have access to a public road",
+        "max_height": "30 ft or two stories; additional height may be granted, each extra 1 ft of height requires 1 ft more setback",
+        "setbacks": "Front 25'; side 0' (8' when adjacent to a residential zone); side corner 25'; rear 0' (8' adjacent to residential). 2-5-4.3 also says 25' from any property line or street, whichever is greater; all setbacks must meet building and fire code.",
+        "lot_coverage": null,
+        "other": "Performance standards 2-5-4.4: no noise, vibration, smoke, odor, dust or fumes discernible beyond the lot boundary (except customary vehicle noise); site plan approval before a building permit; adequate off-street parking and loading (up to 75% of required front and side yards may be parking); manufacturing and processing must not be visible from a public street; all OPEN STORAGE areas enclosed by a sight-obscuring fence at least 6 ft high; buildings to meet building, plumbing, electrical, mechanical and fire codes."
+      },
+      "section": "2-5-4.1 to 2-5-4.8; definitions in Section 2-2",
+      "notes": "ACMI-relevant: (1) Hazardous/explosive/energetics manufacturing: not addressed as a use. 'Manufacturing: Heavy' is conditional and is not defined to include or exclude explosives; any such project would need a conditional use permit and must meet the no-emissions-beyond-the-lot standard. Oil refineries, gas and oil storage and power plants are separately listed as conditional. (2) Outdoor storage: open storage only inside a 6 ft sight-obscuring fence (2-5-4.4 item 7); earth moving equipment and equipment storage is conditional. (3) Solar: not listed in the I-1 table (prohibited by default); solar is listed only in A-1 and R-1 as conditional; general criteria in 2-7.2(L). (4) Data centers: not addressed. (5) Truck terminals: not listed; nearest listed uses are warehouses and railroads/maintenance yards (conditional). By right in I-1: only agriculture, livestock, heavy farm machinery service and sales, public and utility buildings, transmission lines and sub-stations.",
+      "source": "http://media.rainpos.com/01329201203190422562586.pdf (document pages 110-115, Section 2-5-4; use table columns verified by text position)"
+    },
+    {
+      "code": "Government",
+      "name": "Government (zone named on the town zoning map legend)",
+      "category": "public",
+      "purpose": null,
+      "permitted_uses": [],
+      "conditional_uses": [],
+      "standards": {
+        "min_lot_size": null,
+        "max_height": null,
+        "setbacks": null,
+        "lot_coverage": null,
+        "other": null
+      },
+      "section": null,
+      "notes": "Not defined in the ordinance text found (Section 2-5 lists only A-1, R-1, C-1, I-1). The county-hosted Cleveland zoning map names a Government zone, so its rules are unknown. Do not infer; ask the town.",
+      "source": "https://emery.utah.gov/wp-content/uploads/2023/03/cleveland-zone.pdf (map legend only)"
+    }
+  ]
+}

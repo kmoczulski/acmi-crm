@@ -1,0 +1,779 @@
+{
+ "jurisdiction": "Miami-Dade County, FL (unincorporated)",
+ "code_name": "Miami-Dade County Code of Ordinances, Chapter 33 Zoning",
+ "edition": "Zoneomics mirror of the Code (zoneomics.com/code/miami-dade-county-unincorporated-FL), undated; read through an automated summarizer, so details may be lossy",
+ "code_url": "https://library.municode.com/fl/miami_-_dade_county/codes/code_of_ordinances (official; returned 403). Mirror: https://www.zoneomics.com/code/miami-dade-county-unincorporated-FL",
+ "retrieved": "2026-11-04",
+ "caveats": [
+  "Municode blocked automated access (403); all text is from the Zoneomics mirror, read through a summarizing fetch tool, so exact wording and some item numbers need verification on Municode.",
+  "Purpose statements are missing from the mirror for most districts; fields left null or marked not stated rather than guessed.",
+  "IU-1/IU-2/IU-3 do not state general lot size or coverage; setbacks come from Art. II 33-51 and height from Art. III 33-57/33-58 as summarized.",
+  "AU chapter: last ~24k characters (33-284 to 33-284.1) and opening of 33-280 were not read.",
+  "Residential (RU-1, RU-1MA, EU-M) setbacks, coverage and height not found. Minor-district entries are short by design.",
+  "Urban center districts share Art. XXXIII(K); regulating plans and the Table of Permitted Uses were not read. LCCUC appears as LCUC in the mirror.",
+  "Data centers are not named in any district article read; treat as not addressed everywhere. Chapter 13 (not Chapter 33) was reported to govern explosives use and storage; not read.",
+  "Overlays not read: Bird Road overlay (ch. 48), Rockmining overlay, airport zoning, Homestead Air Reserve Base zoning, which can restrict uses."
+ ],
+ "districts": [
+  {
+   "code": "GU",
+   "name": "Interim District",
+   "category": "rural",
+   "purpose": "Catch-all interim district covering all unincorporated land not placed in another district; regulations are set by the trend of development in the neighborhood rather than a fixed use list.",
+   "permitted_uses": [
+    "No fixed use list. Inside the Urban Development Boundary (UDB): the Director applies the regulations of the predominant use class in the neighborhood; if no trend is established, EU-2 minimum standards apply (5 acres gross; EU-1/EU-2 uses: one-family residence, limited agriculture/animals).",
+    "Outside the UDB: land designated Agriculture on the CDMP follows the AU district; Open Land and Environmental Protection land follows the trend-of-development process.",
+    "Land designated Terminal in an Urban Expansion Area may have truck parking and related ancillary uses under IU-1 development standards with administrative site plan review.",
+    "Municipal parks and recreation facilities allowed inside the UDB; group homes up to 6 residents (1,000 ft spacing).",
+    "Data centers, explosives/energetics manufacturing, solar, outdoor storage: not addressed in the GU article itself (outcome depends on the district whose standards are applied)."
+   ],
+   "conditional_uses": [],
+   "standards": {
+    "min_lot_size": "5 acres gross where no trend is established (EU-2 standards), unless the CDMP requires more; pre-April 12 1974 platted/deeded lots meeting EU-1 minimums may use EU-1 uses",
+    "max_height": null,
+    "setbacks": "Follow the district whose standards are applied (EU-2: buildings other than the residence 85 ft from highway right-of-way)",
+    "lot_coverage": null,
+    "other": "EU-2 lot width 200 ft, depth 330 ft"
+   },
+   "section": "Secs. 33-194 to 33-198 (Art. XIII); 33-196 standards",
+   "notes": "GU is effectively a placeholder: the real answer needs a Director's trend-of-development determination per parcel. The GU article does not itself state height or coverage. A footnote refers to GU variances in 33-36(b).",
+   "source": "https://www.zoneomics.com/code/miami-dade-county-unincorporated-FL/chapter_17 (Zoneomics mirror; Official host: https://library.municode.com/fl/miami_-_dade_county/codes/code_of_ordinances (Chapter 33, blocked 403))"
+  },
+  {
+   "code": "AU",
+   "name": "Agricultural District",
+   "category": "rural",
+   "purpose": "Agricultural district allowing farming, agritourism and agriculture-related uses on large lots, plus estate-type residential.",
+   "permitted_uses": [
+    "Uses of RU-1, EU-M or EU-1 (except golf courses); bed and breakfast up to 6 rentable bedrooms",
+    "Barns/sheds, packing houses (small up to 3,500 sq ft; large on 10+ acres), grazing, poultry, dairy, aquaculture, farms, groves, greenhouses/nurseries, hydroponics, seed drying (10+ acres)",
+    "Commercial vehicle storage only in specified areas (Open Land Subarea 1 and an area east of the UDB), 10+ gross acres, annual operating permit, 8 ft wall/fence and paved surface (33-283.1)",
+    "Outdoor storage of farm equipment permitted if 50 ft from right-of-way; distribution vehicles capped at 0.4 per gross acre, max 200 per lot (33-279.3)",
+    "Rural event venues, farm stands, farm-related wineries/breweries/distilleries, agritourism, farmers markets, farm equipment sales, low-THC/medical cannabis dispensing",
+    "Solar facilities as a primary use are permitted (33-279 item 30); solar panel area does not count toward lot coverage; floating solar under 33-20(q)",
+    "Community composting with administrative approval; schools (250 ft setback); farm labor housing",
+    "Data centers: not addressed. Explosives manufacturing: not addressed (only fireworks mentioned, prohibited as noise violation). Truck terminals: not addressed except commercial/distribution vehicle storage above."
+   ],
+   "conditional_uses": [
+    "Public hearing: barns within 250 ft of a residence/RU/EU; hog farms over 2 hogs per site; dairy barns near residences; dude ranches and riding academies; farm labor barracks; extra distribution vehicles by special exception"
+   ],
+   "standards": {
+    "min_lot_size": "5 acres including right-of-way for new lots, with 200 ft frontage; exceptions for pre-1974 platted lots, 1 acre/150 ft frontage lots, and 10,000 sq ft pre-1951 lots per Art. II",
+    "max_height": "35 ft, two stories (agritourism structures 25 ft)",
+    "setbacks": "1+ acre lots: front 50 ft, rear 25 ft, interior side 15 ft, side street 25 ft; accessory buildings: front 75 ft, rear 7.5 ft, side 20 ft, side street 30 ft; livestock 250 ft from residential district, hogs 500 ft from residence",
+    "lot_coverage": "15% of lot for 1+ acre lots (25% for smaller excepted lots); poultry housing and certain nursery buildings exempt; solar panels excluded",
+    "other": "Min dwelling cubic content 7,500 cu ft; commercial vehicle storage setbacks 25 ft front/side/rear, 100 ft from water body"
+   },
+   "section": "Secs. 33-279 to 33-284.1; standards 33-280 to 33-283",
+   "notes": "Purpose statement not found in the mirrored text. Opening text of 33-280 was truncated by the fetch tool; lot area figures taken from visible text plus Art. II (33-49/33-50). Last ~24k characters of the chapter (33-284 to 33-284.1) were not read.",
+   "source": "https://www.zoneomics.com/code/miami-dade-county-unincorporated-FL/chapter_49 (Zoneomics mirror; Official host: https://library.municode.com/fl/miami_-_dade_county/codes/code_of_ordinances (Chapter 33, blocked 403))"
+  },
+  {
+   "code": "GP",
+   "name": "Governmental Property",
+   "category": "public",
+   "purpose": "Overlay-type designation for government-owned land in fee simple that is used for the listed governmental purposes; reverts to the underlying district if the use ends.",
+   "permitted_uses": [
+    "Public parks, playgrounds; fire and police stations; vehicle inspection stations",
+    "Public water and sewer treatment and distribution facilities; solid waste collection and disposal facilities",
+    "Libraries, civic buildings, community centers; public hospitals, nursing homes, health facilities; auditoriums, arenas, museums",
+    "Detention facilities; public maintenance and equipment yards; public bus/rapid transit facilities; public airports (subject to airport zoning); other similar governmental uses",
+    "Data centers, solar, explosives manufacturing, private outdoor storage: not addressed (district is for government-owned land)"
+   ],
+   "conditional_uses": [],
+   "standards": {
+    "min_lot_size": null,
+    "max_height": null,
+    "setbacks": null,
+    "lot_coverage": null,
+    "other": "Development standards not stated in the mirrored text; the underlying zoning district applies"
+   },
+   "section": "Secs. 33-284.22, 33-284.23",
+   "notes": "Described as an overlay zoning district applied in addition to underlying zoning. No conditional uses, purpose statement or dimensional standards found in the mirrored text.",
+   "source": "https://www.zoneomics.com/code/miami-dade-county-unincorporated-FL/chapter_52 (Zoneomics mirror; Official host: https://library.municode.com/fl/miami_-_dade_county/codes/code_of_ordinances (Chapter 33, blocked 403))"
+  },
+  {
+   "code": "IU-1",
+   "name": "Industrial, Light Manufacturing District",
+   "category": "industrial",
+   "purpose": "Light industrial district for manufacturing, wholesale and distribution, warehousing and related services. Purpose statement not found in the mirrored text.",
+   "permitted_uses": [
+    "Light manufacturing and fabrication: machine shops, welding shops, steel fabrication, furniture manufacturing, cabinet/millwork shops, upholstery, printing, bottling, food processing (5+ employees), ice manufacturing, mattress manufacturing, textile mills, leather goods (no tanning)",
+    "Warehousing and storage: wholesale storage showrooms, cold storage, marine warehouses, membership and home-improvement warehouses, warehouses for BU products, storage garages for trucks, buses and heavy equipment, wood and coal yards, contractor offices and yards",
+    "Passenger and freight stations and terminals for boats, trucks, buses and railroads (item 59); commercial and noncommercial parking lots",
+    "Aircraft hangars, repair, assembly and manufacturing; new/used auto and truck sales, auto repair, auto/truck rental; shipyards and dry docks",
+    "Armories and arsenals (item 5); oxygen storage and cylinder filling; pharmaceutical storage; fertilizer and insecticide mixing/storage (asterisked, hearing if within 500 ft of RU/EU); laboratories and material testing",
+    "Offices, banks, restaurants, hotels/motels, indoor movie/TV studios, schools, police/fire stations, utility work centers, electric substations, telecommunications hubs",
+    "Explosives, hazardous manufacturing: not listed in IU-1 (appear only in the IU-3 list, 33-264(3)). Data centers: not addressed. Solar: not addressed. General outdoor storage: not a standalone use; 33-260 requires operations/storage inside a building or within masonry walls at least 6 ft high."
+   ],
+   "conditional_uses": [
+    "Asterisked uses (auto body, canning, cabinet shops, boat repair, fertilizer/insecticide storage, vulcanizing, welding, etc.): by right if 500+ ft from RU/EU (250 ft if fully enclosed, no openings facing); otherwise public hearing",
+    "Auto/truck sales on 10+ acres, outdoor backlots, religious facilities outside UDB: public hearing",
+    "Adult uses: special exception only, with 1,000/1,200/750 ft spacing"
+   ],
+   "standards": {
+    "min_lot_size": "No general minimum stated in district article (auto/truck sales 2 acres; mixed-use hotel 5 acres)",
+    "max_height": "No fixed district height in article; Art. III: portions 35-40 ft set back 25 ft, then 1 ft per additional 5 ft; height not greater than width of widest abutting street without hearing (33-57, 33-58)",
+    "setbacks": "Art. II (33-51): front 20 ft; side street 15 ft (25 ft within 25 ft of RU/EU/GU); interior side 0 ft next to BU/IU, 5 ft with openings, 15 ft next to RU/EU/GU; rear 20 ft from residential boundary, 0/5 ft from business/industrial",
+    "lot_coverage": "No general coverage limit stated",
+    "other": "Landscaped open space 10% of net lot (15% if abutting residential; 20% for auto/truck sales); greenbelt 8 ft (sites to 3 acres) or 10 ft; operations enclosed in building or 6 ft masonry wall; administrative site plan review (33-310.4)"
+   },
+   "section": "Secs. 33-259 to 33-261.3; Art. II 33-51; Art. III 33-57, 33-58",
+   "notes": "Item list is paraphrased from a mirror summary; some items not individually verified. Armories and arsenals are listed but this is not an energetics manufacturing use. A search summary reported that Chapter 13 (not Chapter 33) governs use and storage of explosives; not read.",
+   "source": "https://www.zoneomics.com/code/miami-dade-county-unincorporated-FL/chapter_44 (Zoneomics mirror; Official host: https://library.municode.com/fl/miami_-_dade_county/codes/code_of_ordinances (Chapter 33, blocked 403))"
+  },
+  {
+   "code": "IU-2",
+   "name": "Industrial, Heavy Manufacturing District",
+   "category": "industrial",
+   "purpose": "Heavy manufacturing district adding more intensive industrial uses to the IU-1 list. Purpose statement not found in the mirrored text.",
+   "permitted_uses": [
+    "All IU-1 uses except adult entertainment, private schools and nonpublic educational facilities",
+    "Movie/TV studios with indoor stages and outdoor backlots; asphalt drum mixing plants under 150 tons/hr; rock and sand yards; cement and clay products; soap manufacturing (vegetable byproducts only); railroad shops; sawmills",
+    "Petroleum storage tanks up to 30,000 gal aggregate; larger only after public hearing or underground/in a rockpit",
+    "Dynamite storage (33-262 item 11) is permitted in IU-2; construction debris recovery transfer facilities in 15,000+ sq ft enclosed building",
+    "Explosives manufacturing, fireworks, ammunition: not listed in IU-2 (explosives, fireworks, guncotton etc. are listed only in IU-3 under 33-264(3)). Data centers, solar: not addressed. Outdoor storage: 33-263 requires storage inside building or within masonry walls at least 6 ft high. Truck terminals/storage garages: via IU-1 items 36 and 59."
+   ],
+   "conditional_uses": [
+    "Industrial uses within 500 ft of RU, EU or BU-1 district require public hearing (250 ft if fully enclosed with no openings facing); petroleum tanks over 30,000 gal need hearing unless underground"
+   ],
+   "standards": {
+    "min_lot_size": "Not specified in district article",
+    "max_height": "Same as IU-1 (Art. III 33-57, 33-58)",
+    "setbacks": "Art. II 33-51 as IU-1; petroleum tanks 300 ft from residential buildings",
+    "lot_coverage": "Not specified",
+    "other": "Landscaped open space 10% (15% if abutting residential); greenbelt 8 ft/10 ft; no residential except caretaker quarters; administrative site plan review"
+   },
+   "section": "Secs. 33-262 to 33-263.4",
+   "notes": "Purpose and general lot size not found. Read via mirror summary. The 33-263(a) hearing trigger lists BU-1 as well as RU/EU.",
+   "source": "https://www.zoneomics.com/code/miami-dade-county-unincorporated-FL/chapter_45 (Zoneomics mirror; Official host: https://library.municode.com/fl/miami_-_dade_county/codes/code_of_ordinances (Chapter 33, blocked 403))"
+  },
+  {
+   "code": "IU-3",
+   "name": "Industrial, Unlimited Manufacturing District",
+   "category": "industrial",
+   "purpose": "Most permissive industrial district; allows IU-1 and IU-2 uses plus heavy and hazardous industries, with hazardous uses controlled case by case through Sec. 33-265.",
+   "permitted_uses": [
+    "All IU-1 and IU-2 uses except adult entertainment, adult day care and private/nonpublic schools; caretaker/watchman quarters only with an existing industrial use",
+    "About 100 heavy and hazardous industries listed in 33-264(3), including: Explosives; dynamite storage; fireworks; guncotton; match manufacture and storage; nitrates of an explosive nature (manufacture and storage); pyroxylin; testing of jet engines and rockets; acids, ammonia, chlorine, caustic soda, phenol, calcium carbide; acetylene and hydrogen/oxygen manufacture; oil refining; radioactive waste handling; atomic reactor; refuse disposal; scrap metal reduction; plastic and synthetic resins; wood preserving; wet-cell batteries; insecticides/fungicides (depending on materials and quantities)",
+    "Ammunition and gunpowder: not named in the list as read. Data centers, solar: not addressed. Outdoor storage: 33-266.1 requires materials and operations inside a building or within 6-8 ft masonry walls. Truck terminals: via IU-1 item 59."
+   ],
+   "conditional_uses": [
+    "All 33-264(3) hazardous uses are subject to 33-265: written application to Director, who assesses objectionable influences; high-hazard uses (fire, explosion, toxic gas, noise, vibration, dust, odor) require public hearing before the Community Zoning Appeals Board and County Commission; lower-hazard uses may be assigned to IU-3 or a less restrictive district",
+    "Any listed use within 500 ft of RU or EU requires public hearing (250 ft if fully enclosed with no openings facing)",
+    "Petroleum storage tanks need fire wall or dike (33-266)"
+   ],
+   "standards": {
+    "min_lot_size": "Not specified in district article",
+    "max_height": "Same as IU-1 (Art. III 33-57, 33-58)",
+    "setbacks": "Art. II 33-51 as IU-1",
+    "lot_coverage": "Not specified",
+    "other": "Landscaped open space 10% (15% abutting residential); greenbelt 8 ft/10 ft; structures above 4 stories need extra open space; enclosure rule; administrative site plan review; site plan valid 12 months"
+   },
+   "section": "Secs. 33-264 to 33-266.5; hazardous uses 33-264(3), control 33-265",
+   "notes": "Key finding: explosives manufacture is listed as an IU-3 use but only after Director review under 33-265, and requires public hearing where explosion/fire hazard is high. Item numbering and the full list were read through a summary; verify exact wording on Municode before relying on it.",
+   "source": "https://www.zoneomics.com/code/miami-dade-county-unincorporated-FL/chapter_46 (Zoneomics mirror; Official host: https://library.municode.com/fl/miami_-_dade_county/codes/code_of_ordinances (Chapter 33, blocked 403))"
+  },
+  {
+   "code": "IU-C",
+   "name": "Industrial District, Conditional",
+   "category": "industrial",
+   "purpose": "District for large industrial projects and industrial parks on suitable tracts; must not be used for offensive or obnoxious uses (odor, gas, dust, noise, vibration, pollution).",
+   "permitted_uses": [
+    "All IU-1 uses except adult entertainment and private schools",
+    "All IU-3 uses (excluding those specifically prohibited in IU-2) plus similar industrial uses",
+    "Utility plants and substations (sewage, water, power, communications, gas); commuter colleges/universities",
+    "Residential prohibited except caretaker quarters",
+    "Explosives: not named, but IU-3 uses are included, so 33-264(3) hazardous uses are potentially available subject to the 33-269 permit review. Data centers, solar: not addressed. Outdoor storage: 33-270 requires operations and storage inside buildings or masonry walls."
+   ],
+   "conditional_uses": [
+    "Use permit review (33-269): Director issues permits on a favorable agency report; no hearing mentioned in the text read; appeal under 33-311(C). Use is denied if detrimental to health/safety or offensive/obnoxious"
+   ],
+   "standards": {
+    "min_lot_size": "Minimum tract 10 acres; 330 ft frontage and 330 ft depth; industrial park lots 125 ft by 150 ft",
+    "max_height": "Art. III 33-58: not greater than width of widest abutting street without hearing",
+    "setbacks": "Front 25 ft (15% of lesser dimension, max 50 ft, on 2+ net acre parcels); side street 25 ft; interior side 10 ft; rear on residential 20 ft; rear on business/industrial 0/5 ft",
+    "lot_coverage": "Not stated",
+    "other": "Landscaped open space 20% of net lot; greenbelts 8/10 ft; plat required before use; water/sewer and fire protection approvals before permit; administrative site plan review"
+   },
+   "section": "Secs. 33-267 to 33-278.4",
+   "notes": "The reference to IU-3 uses in 33-268 is the main route to hazardous uses; confirm with the Director. Coverage not stated.",
+   "source": "https://www.zoneomics.com/code/miami-dade-county-unincorporated-FL/chapter_47 (Zoneomics mirror; Official host: https://library.municode.com/fl/miami_-_dade_county/codes/code_of_ordinances (Chapter 33, blocked 403))"
+  },
+  {
+   "code": "BU-2",
+   "name": "Special Business District",
+   "category": "commercial",
+   "purpose": "Large-scale commercial and/or office facilities serving large urban areas.",
+   "permitted_uses": [
+    "All BU-1 and BU-1A uses; parking lots and garages as primary use; hospitals (10+ net acres); hotels/motels; department stores; regional shopping centers; office parks; membership warehouses; pubs and bars; movie/TV studios with indoor stages; commuter colleges; liquor package stores; micro-brewery (10,000 kegs/yr)",
+    "Dealer storage of new vehicles only on 40+ net acres within a parking garage",
+    "Data centers, solar, explosives, truck terminals: not addressed. Outdoor storage: 33-253.6 requires storage inside or behind walls, items not above wall height; street sales from trucks prohibited"
+   ],
+   "conditional_uses": [
+    "Public hearing: studios with outdoor backlots; night clubs at least 500 ft from RU/EU"
+   ],
+   "standards": {
+    "min_lot_size": "Art. II; no general minimum in article",
+    "max_height": "No fixed maximum; controlled by FAR, coverage and open space (33-253.2)",
+    "setbacks": "Art. II 33-51 (front 20 ft etc.); decorative masonry wall at least 5 ft where abutting AU/GU/RU/EU",
+    "lot_coverage": "40% of lot; FAR 0.40 at one story, +0.11 per story to 8, then +0.06",
+    "other": "Landscaped open space 18/16/14/12% by lot size, +1.5% per story"
+   },
+   "section": "Secs. 33-252 to 33-253.9",
+   "notes": "",
+   "source": "https://www.zoneomics.com/code/miami-dade-county-unincorporated-FL/chapter_41 (Zoneomics mirror; Official host: https://library.municode.com/fl/miami_-_dade_county/codes/code_of_ordinances (Chapter 33, blocked 403))"
+  },
+  {
+   "code": "BU-3",
+   "name": "Liberal Business District",
+   "category": "commercial",
+   "purpose": "Large-scale commercial activities.",
+   "permitted_uses": [
+    "All BU-1, BU-1A and BU-2 uses; airports, hangars, airplane repair",
+    "Open-lot car and truck sales (1+ net acre, 15 ft greenbelt), auto body/painting/mechanical",
+    "Contractor plants and storage yards; truck storage only inside an enclosed building or CBS-walled area; lumber yards",
+    "Cold storage, wholesale salesrooms, self-service mini-warehouses (units under 400 sq ft; optional truck rental up to 10 trucks on 2.5+ acres)",
+    "Light manufacturing: bottling, cabinet/carpentry, upholstery, bakeries, leather goods",
+    "Data centers, solar, explosives: not addressed. Truck terminals: not named (truck storage as above)"
+   ],
+   "conditional_uses": [
+    "Public hearing: wood-burning barbecue stands; pawnbrokers; certain uses within 500 ft of RU/EU (250 ft if enclosed)"
+   ],
+   "standards": {
+    "min_lot_size": "Art. II; none in article",
+    "max_height": "No fixed maximum; controlled by FAR, coverage and open space",
+    "setbacks": "Art. II 33-51; 5 ft decorative masonry wall where abutting residential",
+    "lot_coverage": "40%; FAR 0.40 +0.11 per story to 8",
+    "other": "Landscaped open space 18/16/14/12% by lot size, +1.5% per story; uses generally enclosed; materials stored inside or behind walls"
+   },
+   "section": "Secs. 33-254 to 33-256.8",
+   "notes": "",
+   "source": "https://www.zoneomics.com/code/miami-dade-county-unincorporated-FL/chapter_42 (Zoneomics mirror; Official host: https://library.municode.com/fl/miami_-_dade_county/codes/code_of_ordinances (Chapter 33, blocked 403))"
+  },
+  {
+   "code": "OPD",
+   "name": "Office Park District",
+   "category": "commercial",
+   "purpose": "Office complexes in an open space environment, giving designers flexibility and encouraging efficient land use.",
+   "permitted_uses": [
+    "Business, professional and secretarial offices; laboratories for scientific and industrial R&D; commuter colleges/universities",
+    "Accessory uses up to 15% of gross floor area (eating places, personal services, pharmacy, print shop, private club, enclosed recreation)",
+    "Retail and industrial activities are not principal uses. Data centers, solar, explosives manufacturing, outdoor storage, truck terminals: not addressed; all uses must be in enclosed buildings"
+   ],
+   "conditional_uses": [
+    "Director approval for precision-instrument assembly tied to R&D and other similar accessory uses; no separate conditional-use section"
+   ],
+   "standards": {
+    "min_lot_size": "3 net acres and 100 ft frontage; unity of ownership required",
+    "max_height": "8 stories or 100 ft, whichever is less",
+    "setbacks": "30 ft from single-family/duplex/townhouse districts; 50 ft from front street; paved parking 25 ft from front street; 15 ft other",
+    "lot_coverage": "FAR 0.30 at one story, +0.08 per added story",
+    "other": "Landscaped open space 25% (to 10 ac) to 40% (over 30 ac), +3% per story above two"
+   },
+   "section": "Secs. 33-284.29 to 33-284.39",
+   "notes": "",
+   "source": "https://www.zoneomics.com/code/miami-dade-county-unincorporated-FL/chapter_57 (Zoneomics mirror; Official host: https://library.municode.com/fl/miami_-_dade_county/codes/code_of_ordinances (Chapter 33, blocked 403))"
+  },
+  {
+   "code": "EU-M",
+   "name": "Estate Modified District",
+   "category": "residential",
+   "purpose": "Purpose not stated in mirrored text; modified estate single-family district.",
+   "permitted_uses": [
+    "One-family residence with guest house, garage and servants' apartment; workforce housing; noncommercial boat slips; group home up to 6"
+   ],
+   "conditional_uses": [],
+   "standards": {
+    "min_lot_size": "15,000 sq ft; 120 ft width; 115 ft depth",
+    "max_height": null,
+    "setbacks": null,
+    "lot_coverage": null,
+    "other": null
+   },
+   "section": "Secs. 33-224, 33-225",
+   "notes": "Setbacks, coverage, height not found in mirrored text.",
+   "source": "https://www.zoneomics.com/code/miami-dade-county-unincorporated-FL/chapter_34 (Zoneomics mirror; Official host: https://library.municode.com/fl/miami_-_dade_county/codes/code_of_ordinances (Chapter 33, blocked 403))"
+  },
+  {
+   "code": "EU-1",
+   "name": "Single-Family One Acre Estate District",
+   "category": "residential",
+   "purpose": "Single-family estate zone on one-acre lots.",
+   "permitted_uses": [
+    "One-family residence, guest house/servants' quarters, limited poultry (25 birds), limited horses/cows, boat docks, limited truck gardening, beekeeping (5 hives), group home up to 6"
+   ],
+   "conditional_uses": [],
+   "standards": {
+    "min_lot_size": "1 acre; 125 ft width; 200 ft depth",
+    "max_height": "2 stories or 35 ft",
+    "setbacks": null,
+    "lot_coverage": "15% (20% if one story)",
+    "other": null
+   },
+   "section": "Secs. 33-226 to 33-229",
+   "notes": "Setbacks not found in mirrored text.",
+   "source": "https://www.zoneomics.com/code/miami-dade-county-unincorporated-FL/chapter_36 (Zoneomics mirror; Official host: https://library.municode.com/fl/miami_-_dade_county/codes/code_of_ordinances (Chapter 33, blocked 403))"
+  },
+  {
+   "code": "RU-1",
+   "name": "Single-Family Residential District",
+   "category": "residential",
+   "purpose": "Purpose not stated in mirrored text; standard single-family residential district.",
+   "permitted_uses": [
+    "One-family residence, parks and recreation, golf courses, group homes, family day care up to 5 children; livestock, poultry and bee hives prohibited (33-200)"
+   ],
+   "conditional_uses": [],
+   "standards": {
+    "min_lot_size": null,
+    "max_height": null,
+    "setbacks": null,
+    "lot_coverage": null,
+    "other": "Lot area, coverage, setbacks, height not found in mirrored text (Art. II)"
+   },
+   "section": "Secs. 33-199, 33-200",
+   "notes": "Standards not confirmed.",
+   "source": "https://www.zoneomics.com/code/miami-dade-county-unincorporated-FL/chapter_18 (Zoneomics mirror; Official host: https://library.municode.com/fl/miami_-_dade_county/codes/code_of_ordinances (Chapter 33, blocked 403))"
+  },
+  {
+   "code": "RU-1MA",
+   "name": "Modified Single-Family Residential District",
+   "category": "residential",
+   "purpose": "Purpose not stated; modified single-family district.",
+   "permitted_uses": [
+    "Uses limited to those permitted in RU-1"
+   ],
+   "conditional_uses": [],
+   "standards": {
+    "min_lot_size": null,
+    "max_height": null,
+    "setbacks": null,
+    "lot_coverage": null,
+    "other": null
+   },
+   "section": "Sec. 33-200.3",
+   "notes": "Dimensional standards not found in mirrored text. The code in the article is written RU-1Ma.",
+   "source": "https://www.zoneomics.com/code/miami-dade-county-unincorporated-FL/chapter_20 (Zoneomics mirror; Official host: https://library.municode.com/fl/miami_-_dade_county/codes/code_of_ordinances (Chapter 33, blocked 403))"
+  },
+  {
+   "code": "RU-2",
+   "name": "Two-Family Residential District",
+   "category": "residential",
+   "purpose": "Two-family residential district.",
+   "permitted_uses": [
+    "All RU-1 uses; duplex; secondary single-family residence or garage apartment at rear of lot"
+   ],
+   "conditional_uses": [],
+   "standards": {
+    "min_lot_size": "Subdivided duplex lots 3,750 sq ft and 37.5 ft frontage",
+    "max_height": "35 ft, 2 stories (subdivided lots)",
+    "setbacks": "Duplex: front 25, rear 25, interior side 7.5, side street 15 ft",
+    "lot_coverage": "30% of each subdivided lot",
+    "other": null
+   },
+   "section": "Secs. 33-201 to 33-202",
+   "notes": "General minimums not on the page.",
+   "source": "https://www.zoneomics.com/code/miami-dade-county-unincorporated-FL/chapter_22 (Zoneomics mirror; Official host: https://library.municode.com/fl/miami_-_dade_county/codes/code_of_ordinances (Chapter 33, blocked 403))"
+  },
+  {
+   "code": "RU-TH",
+   "name": "Townhouse District",
+   "category": "residential",
+   "purpose": "Allows separate ownership of one-family townhouse units with maintained common areas.",
+   "permitted_uses": [
+    "Townhouses (groups of 3+ units sharing party walls); RU-1 and RU-2 uses"
+   ],
+   "conditional_uses": [],
+   "standards": {
+    "min_lot_size": "1,250 sq ft per townhouse site; 1 net acre minimum site",
+    "max_height": "40 ft",
+    "setbacks": "Front 15 ft from pavement edge; rear 10 ft; side 15 ft to street, 20 ft between groups",
+    "lot_coverage": null,
+    "other": "Common open space 30% of site; density 8.5 units/net acre"
+   },
+   "section": "Secs. 33-202.1 to 33-202.3",
+   "notes": "",
+   "source": "https://www.zoneomics.com/code/miami-dade-county-unincorporated-FL/chapter_23 (Zoneomics mirror; Official host: https://library.municode.com/fl/miami_-_dade_county/codes/code_of_ordinances (Chapter 33, blocked 403))"
+  },
+  {
+   "code": "RU-3",
+   "name": "Four Unit Apartment House District",
+   "category": "residential",
+   "purpose": "Purpose not stated; four-unit apartment district.",
+   "permitted_uses": [
+    "RU-1, RU-2 uses; buildings up to four families; multifamily developments (site plan review); rooming houses; churches and schools"
+   ],
+   "conditional_uses": [],
+   "standards": {
+    "min_lot_size": "2 net acres for multifamily developments",
+    "max_height": "3 stories and 40 ft (multifamily)",
+    "setbacks": "Multifamily: front 25, interior side 20, side street 25, rear 25 ft",
+    "lot_coverage": "30%; density 23 units/net acre; FAR 0.30/0.50/0.75",
+    "other": null
+   },
+   "section": "Secs. 33-203 to 33-203.2",
+   "notes": "Standards for ordinary four-unit buildings not confirmed.",
+   "source": "https://www.zoneomics.com/code/miami-dade-county-unincorporated-FL/chapter_25 (Zoneomics mirror; Official host: https://library.municode.com/fl/miami_-_dade_county/codes/code_of_ordinances (Chapter 33, blocked 403))"
+  },
+  {
+   "code": "RU-3M",
+   "name": "Minimum Apartment House District",
+   "category": "residential",
+   "purpose": "Minimum apartment house district.",
+   "permitted_uses": [
+    "RU-1, RU-2, RU-3, RU-TH, RU-RH uses; multifamily buildings of more than four units; community residential homes up to 14"
+   ],
+   "conditional_uses": [],
+   "standards": {
+    "min_lot_size": "16,884 sq ft; 100 ft width",
+    "max_height": "2 stories and 35 ft",
+    "setbacks": "Front 25, interior side 20, side street 25, rear 25 ft",
+    "lot_coverage": "30%; density 12.9 units/net acre",
+    "other": null
+   },
+   "section": "Secs. 33-203.6 to 33-203.8",
+   "notes": "",
+   "source": "https://www.zoneomics.com/code/miami-dade-county-unincorporated-FL/chapter_26 (Zoneomics mirror; Official host: https://library.municode.com/fl/miami_-_dade_county/codes/code_of_ordinances (Chapter 33, blocked 403))"
+  },
+  {
+   "code": "RU-4L",
+   "name": "Limited Apartment House District",
+   "category": "residential",
+   "purpose": "Limited apartment district.",
+   "permitted_uses": [
+    "RU-1 to RU-3, RU-TH, RU-RH uses; multifamily apartments; community residential facilities up to 14; rooming houses"
+   ],
+   "conditional_uses": [],
+   "standards": {
+    "min_lot_size": "10,000 sq ft; 100 ft width",
+    "max_height": "6 stories and 75 ft",
+    "setbacks": "Front 25, interior side 15 ft (20 ft over 2 stories), side street 25, rear 25 ft",
+    "lot_coverage": "30%; density 23 units/net acre",
+    "other": null
+   },
+   "section": "Secs. 33-207.2 to 33-207.2.3",
+   "notes": "",
+   "source": "https://www.zoneomics.com/code/miami-dade-county-unincorporated-FL/chapter_28 (Zoneomics mirror; Official host: https://library.municode.com/fl/miami_-_dade_county/codes/code_of_ordinances (Chapter 33, blocked 403))"
+  },
+  {
+   "code": "RU-4",
+   "name": "High Density Apartment House District",
+   "category": "residential",
+   "purpose": "High density apartment district.",
+   "permitted_uses": [
+    "Multifamily buildings (site plan review for 11+ units); RU-1 to RU-3, RU-TH, RU-RH uses; rooming houses; county housing projects"
+   ],
+   "conditional_uses": [],
+   "standards": {
+    "min_lot_size": "10,000 sq ft; 100 ft width",
+    "max_height": "Not exceeding width of widest abutting street without hearing; shadow rule over 100 ft",
+    "setbacks": "Front/rear 25 ft to 35 ft height (+40% of added height above); side by 63-degree line, 25 ft minimum",
+    "lot_coverage": "40%; density 50 units/net acre; FAR 0.40 to 2.00",
+    "other": null
+   },
+   "section": "Secs. 33-208 to 33-216.3",
+   "notes": "",
+   "source": "https://www.zoneomics.com/code/miami-dade-county-unincorporated-FL/chapter_30 (Zoneomics mirror; Official host: https://library.municode.com/fl/miami_-_dade_county/codes/code_of_ordinances (Chapter 33, blocked 403))"
+  },
+  {
+   "code": "RU-4A",
+   "name": "Hotel Apartment House District",
+   "category": "residential",
+   "purpose": "Hotel-apartment district.",
+   "permitted_uses": [
+    "Apartments, hotels, motels; hospitals and private clubs (hearing); RU-1 to RU-3 uses; bungalow villas"
+   ],
+   "conditional_uses": [],
+   "standards": {
+    "min_lot_size": "10,000 sq ft; 100 ft width",
+    "max_height": "As RU-4",
+    "setbacks": "As RU-4",
+    "lot_coverage": "40%; density 50 units/acre (75 for transient hotels)",
+    "other": null
+   },
+   "section": "Secs. 33-217 to 33-223",
+   "notes": "",
+   "source": "https://www.zoneomics.com/code/miami-dade-county-unincorporated-FL/chapter_31 (Zoneomics mirror; Official host: https://library.municode.com/fl/miami_-_dade_county/codes/code_of_ordinances (Chapter 33, blocked 403))"
+  },
+  {
+   "code": "BU-1",
+   "name": "Neighborhood Business District",
+   "category": "commercial",
+   "purpose": "Retail and service convenience facilities for the adjacent residential neighborhood.",
+   "permitted_uses": [
+    "Banks, beauty/barber shops, drugstores, groceries up to 4,000 sq ft, restaurants, offices, florists, hardware; schools and religious facilities conditionally"
+   ],
+   "conditional_uses": [],
+   "standards": {
+    "min_lot_size": null,
+    "max_height": "2 stories and 35 ft (4 stories mixed-use)",
+    "setbacks": "Art. II",
+    "lot_coverage": "40%; FAR 0.40 +0.11 per story",
+    "other": "Landscaped open space 18/16/14/12%"
+   },
+   "section": "Secs. 33-237 to 33-245.2",
+   "notes": "",
+   "source": "https://www.zoneomics.com/code/miami-dade-county-unincorporated-FL/chapter_39 (Zoneomics mirror; Official host: https://library.municode.com/fl/miami_-_dade_county/codes/code_of_ordinances (Chapter 33, blocked 403))"
+  },
+  {
+   "code": "BU-1A",
+   "name": "Limited Business District",
+   "category": "commercial",
+   "purpose": "Retail and service convenience facilities for nearby neighborhoods plus more specialized commercial uses.",
+   "permitted_uses": [
+    "All BU-1 uses; banks, supermarkets, printing, health clubs, theaters, gas stations/mini marts"
+   ],
+   "conditional_uses": [],
+   "standards": {
+    "min_lot_size": null,
+    "max_height": "4 stories and 45 ft",
+    "setbacks": "Art. II; 5 ft masonry wall abutting AU/GU/RU/EU",
+    "lot_coverage": "40%; FAR 0.40 +0.11 per story",
+    "other": "Landscaped open space 18/16/14/12%"
+   },
+   "section": "Secs. 33-246 to 33-251.5",
+   "notes": "",
+   "source": "https://www.zoneomics.com/code/miami-dade-county-unincorporated-FL/chapter_40 (Zoneomics mirror; Official host: https://library.municode.com/fl/miami_-_dade_county/codes/code_of_ordinances (Chapter 33, blocked 403))"
+  },
+  {
+   "code": "PAD",
+   "name": "Planned Area Development District",
+   "category": "planned",
+   "purpose": "Planned residential environments with design flexibility and a mix of housing types.",
+   "permitted_uses": [
+    "All residential types, with CZAB approval; convenience retail and other district uses as separate tracts"
+   ],
+   "conditional_uses": [],
+   "standards": {
+    "min_lot_size": "Site 5 acres",
+    "max_height": "Not stated; compatible with adjoining zoning",
+    "setbacks": "Set on site plan",
+    "lot_coverage": null,
+    "other": "Common open space 30% to 40% by density"
+   },
+   "section": "Secs. 33-284.24 to 33-284.28",
+   "notes": "",
+   "source": "https://www.zoneomics.com/code/miami-dade-county-unincorporated-FL/chapter_53 (Zoneomics mirror; Official host: https://library.municode.com/fl/miami_-_dade_county/codes/code_of_ordinances (Chapter 33, blocked 403))"
+  },
+  {
+   "code": "ECPAD",
+   "name": "Employment Center Planned Area Development District",
+   "category": "planned",
+   "purpose": "Implements the CDMP Business and Office designation; mixes business, office, light industrial and limited residential uses.",
+   "permitted_uses": [
+    "Light industrial (warehousing, wholesaling, light manufacturing, packaging, distribution) in the Commerce-Oriented area subject to conditions (not within 250 ft of RU/EU, max 40% of non-residential floor area, enclosed); IU-2, IU-3 prohibited"
+   ],
+   "conditional_uses": [],
+   "standards": {
+    "min_lot_size": "Site 10 gross acres in UDB with Major Roadway access",
+    "max_height": "Set in the development plan",
+    "setbacks": "Not stated",
+    "lot_coverage": "FAR 1.25 (2.0 in UIA)",
+    "other": "10% open space; 16 trees/net acre"
+   },
+   "section": "Secs. 33-284.28.1 to 33-284.28.7",
+   "notes": "Data centers, solar, explosives manufacturing: not addressed; IU-3 uses excluded.",
+   "source": "https://www.zoneomics.com/code/miami-dade-county-unincorporated-FL/chapter_54 (Zoneomics mirror; Official host: https://library.municode.com/fl/miami_-_dade_county/codes/code_of_ordinances (Chapter 33, blocked 403))"
+  },
+  {
+   "code": "REDPAD",
+   "name": "Retail Entertainment District Planned Area Development District",
+   "category": "planned",
+   "purpose": "Major entertainment, recreational and mixed-use venues.",
+   "permitted_uses": [
+    "Amusement and theme parks, museums, performing arts centers, stadiums/arenas, all BU-2 uses, vertically integrated multifamily"
+   ],
+   "conditional_uses": [],
+   "standards": {
+    "min_lot_size": "Site 50 gross acres in UDB with Major Roadway access",
+    "max_height": null,
+    "setbacks": null,
+    "lot_coverage": "FAR 1.25 (2.0 in UIA)",
+    "other": "10% open space"
+   },
+   "section": "Secs. 33-284.28.8 to 33-284.28.12",
+   "notes": "",
+   "source": "https://www.zoneomics.com/code/miami-dade-county-unincorporated-FL/chapter_55 (Zoneomics mirror; Official host: https://library.municode.com/fl/miami_-_dade_county/codes/code_of_ordinances (Chapter 33, blocked 403))"
+  },
+  {
+   "code": "S",
+   "name": "Stadium District",
+   "category": "other",
+   "purpose": "Large-scale mixed commercial, institutional, residential and attraction uses including a regional stadium (Miami Gardens area).",
+   "permitted_uses": [
+    "Lodging, civic and athletic, health care, entertainment, retail, offices, rowhouse and multifamily, workshops; agricultural uses prohibited"
+   ],
+   "conditional_uses": [],
+   "standards": {
+    "min_lot_size": "5,000 sq ft; 50 ft frontage (7,500 sq ft and 75 ft corner)",
+    "max_height": "Per City of Miami Gardens Comprehensive Plan",
+    "setbacks": "Front 20, side street 15 ft",
+    "lot_coverage": "FAR 3.0",
+    "other": null
+   },
+   "section": "Secs. 33-450 to 33-463",
+   "notes": "Applies to the area bounded by NW 203rd St, the Turnpike, NW 195th St and NW 27th Ave.",
+   "source": "https://www.zoneomics.com/code/miami-dade-county-unincorporated-FL/chapter_84 (Zoneomics mirror; Official host: https://library.municode.com/fl/miami_-_dade_county/codes/code_of_ordinances (Chapter 33, blocked 403))"
+  },
+  {
+   "code": "TND",
+   "name": "Traditional Neighborhood Development District",
+   "category": "planned",
+   "purpose": "Recreates pre-1940s neighborhood patterns with mixed uses in a compact, size-limited neighborhood.",
+   "permitted_uses": [
+    "Mix of parks, civic, shopfront, rowhouse, house and workshop categories"
+   ],
+   "conditional_uses": [],
+   "standards": {
+    "min_lot_size": "Site 40 to 200 acres",
+    "max_height": null,
+    "setbacks": null,
+    "lot_coverage": null,
+    "other": "Average block perimeter 1,300 ft"
+   },
+   "section": "Secs. 33-284.46 to 33-284.54",
+   "notes": "",
+   "source": "https://www.zoneomics.com/code/miami-dade-county-unincorporated-FL/chapter_60 (Zoneomics mirror; Official host: https://library.municode.com/fl/miami_-_dade_county/codes/code_of_ordinances (Chapter 33, blocked 403))"
+  },
+  {
+   "code": "PCUC",
+   "name": "Princeton Community Urban Center District",
+   "category": "planned",
+   "purpose": "Urban center / urban area district implementing CDMP urban center policy. Shared Standard Urban Center District Regulations (Art. XXXIII(K), Secs. 33-284.81 to 33-284.90) apply to all urban center and urban area districts; the district's own article overrides where it differs.",
+   "permitted_uses": [
+    "Marketplace Special District: outdoor produce markets and IU-1 uses; Utilities District: GU-type uses; IU-2 in Industrial District by public hearing"
+   ],
+   "conditional_uses": [],
+   "standards": {
+    "min_lot_size": "Not stated in district article; SUCDR: single-family detached 5,000 sq ft, rowhouse 1,200 sq ft, duplex 7,500 sq ft",
+    "max_height": "Per SUCDR 33-284.84.1 by sub-district; abutting single-family limited to 3 stories (2 stories within 35 ft)",
+    "setbacks": "SUCDR 33-284.85 build-to lines",
+    "lot_coverage": null,
+    "other": null
+   },
+   "section": "Secs. 33-284.98 to 33-284.99.5",
+   "notes": "",
+   "source": "https://www.zoneomics.com/code/miami-dade-county-unincorporated-FL/chapter_65 (Zoneomics mirror; Official host: https://library.municode.com/fl/miami_-_dade_county/codes/code_of_ordinances (Chapter 33, blocked 403))"
+  },
+  {
+   "code": "LCCUC",
+   "name": "Leisure City Community Urban Center District",
+   "category": "planned",
+   "purpose": "Urban center / urban area district implementing CDMP urban center policy. Shared Standard Urban Center District Regulations (Art. XXXIII(K), Secs. 33-284.81 to 33-284.90) apply to all urban center and urban area districts; the district's own article overrides where it differs.",
+   "permitted_uses": [
+    "Mixed-Use Corridor: automotive uses and self-service mini-warehouses with conditions; otherwise SUCDR table"
+   ],
+   "conditional_uses": [],
+   "standards": {
+    "min_lot_size": "Not stated in district article; SUCDR: single-family detached 5,000 sq ft, rowhouse 1,200 sq ft, duplex 7,500 sq ft",
+    "max_height": "Per SUCDR 33-284.84.1 by sub-district; abutting single-family limited to 3 stories (2 stories within 35 ft)",
+    "setbacks": "SUCDR 33-284.85 build-to lines",
+    "lot_coverage": null,
+    "other": null
+   },
+   "section": "Secs. 33-284.99.32 to 33-284.99.38",
+   "notes": "Our data code is LCCUC; the mirrored article uses the abbreviation LCUC.",
+   "source": "https://www.zoneomics.com/code/miami-dade-county-unincorporated-FL/chapter_69 (Zoneomics mirror; Official host: https://library.municode.com/fl/miami_-_dade_county/codes/code_of_ordinances (Chapter 33, blocked 403))"
+  },
+  {
+   "code": "GCUC",
+   "name": "Goulds Community Urban Center District",
+   "category": "planned",
+   "purpose": "Urban center / urban area district implementing CDMP urban center policy. Shared Standard Urban Center District Regulations (Art. XXXIII(K), Secs. 33-284.81 to 33-284.90) apply to all urban center and urban area districts; the district's own article overrides where it differs.",
+   "permitted_uses": [
+    "Outdoor produce markets; MM and MC uses; entertainment centers (hearing, 5-20 net acres)"
+   ],
+   "conditional_uses": [],
+   "standards": {
+    "min_lot_size": "Not stated in district article; SUCDR: single-family detached 5,000 sq ft, rowhouse 1,200 sq ft, duplex 7,500 sq ft",
+    "max_height": "Per SUCDR 33-284.84.1 by sub-district; abutting single-family limited to 3 stories (2 stories within 35 ft)",
+    "setbacks": "SUCDR 33-284.85 build-to lines",
+    "lot_coverage": null,
+    "other": null
+   },
+   "section": "Secs. 33-284.91 to 33-284.97",
+   "notes": "",
+   "source": "https://www.zoneomics.com/code/miami-dade-county-unincorporated-FL/chapter_64 (Zoneomics mirror; Official host: https://library.municode.com/fl/miami_-_dade_county/codes/code_of_ordinances (Chapter 33, blocked 403))"
+  },
+  {
+   "code": "CCUAD",
+   "name": "Country Club Urban Area District",
+   "category": "planned",
+   "purpose": "Urban center / urban area district implementing CDMP urban center policy. Shared Standard Urban Center District Regulations (Art. XXXIII(K), Secs. 33-284.81 to 33-284.90) apply to all urban center and urban area districts; the district's own article overrides where it differs.",
+   "permitted_uses": [
+    "Per 33-284.83 table; liquor package stores conditional"
+   ],
+   "conditional_uses": [],
+   "standards": {
+    "min_lot_size": "Not stated in district article; SUCDR: single-family detached 5,000 sq ft, rowhouse 1,200 sq ft, duplex 7,500 sq ft",
+    "max_height": "Per SUCDR 33-284.84.1 by sub-district; abutting single-family limited to 3 stories (2 stories within 35 ft)",
+    "setbacks": "SUCDR 33-284.85 build-to lines",
+    "lot_coverage": null,
+    "other": null
+   },
+   "section": "Secs. 33-284.99.74 to 33-284.99.80",
+   "notes": "",
+   "source": "https://www.zoneomics.com/code/miami-dade-county-unincorporated-FL/chapter_74 (Zoneomics mirror; Official host: https://library.municode.com/fl/miami_-_dade_county/codes/code_of_ordinances (Chapter 33, blocked 403))"
+  },
+  {
+   "code": "BRCUAD",
+   "name": "Bird Road Corridor Urban Area District",
+   "category": "planned",
+   "purpose": "Urban center / urban area district implementing CDMP urban center policy. Shared Standard Urban Center District Regulations (Art. XXXIII(K), Secs. 33-284.81 to 33-284.90) apply to all urban center and urban area districts; the district's own article overrides where it differs.",
+   "permitted_uses": [
+    "Per SUCDR; new/used auto sales and auto body prohibited in MCS area; liquor package stores conditional"
+   ],
+   "conditional_uses": [],
+   "standards": {
+    "min_lot_size": "Not stated in district article; SUCDR: single-family detached 5,000 sq ft, rowhouse 1,200 sq ft, duplex 7,500 sq ft",
+    "max_height": "Per SUCDR 33-284.84.1 by sub-district; abutting single-family limited to 3 stories (2 stories within 35 ft)",
+    "setbacks": "SUCDR 33-284.85 build-to lines",
+    "lot_coverage": null,
+    "other": null
+   },
+   "section": "Secs. 33-284.99.67 to 33-284.99.71",
+   "notes": "",
+   "source": "https://www.zoneomics.com/code/miami-dade-county-unincorporated-FL/chapter_73 (Zoneomics mirror; Official host: https://library.municode.com/fl/miami_-_dade_county/codes/code_of_ordinances (Chapter 33, blocked 403))"
+  },
+  {
+   "code": "OUAD",
+   "name": "Ojus Urban Area District",
+   "category": "planned",
+   "purpose": "Urban center / urban area district implementing CDMP urban center policy. Shared Standard Urban Center District Regulations (Art. XXXIII(K), Secs. 33-284.81 to 33-284.90) apply to all urban center and urban area districts; the district's own article overrides where it differs.",
+   "permitted_uses": [
+    "Per 33-284.83 with additions for R, RM and live/work areas"
+   ],
+   "conditional_uses": [],
+   "standards": {
+    "min_lot_size": "Not stated in district article; SUCDR: single-family detached 5,000 sq ft, rowhouse 1,200 sq ft, duplex 7,500 sq ft",
+    "max_height": "Per SUCDR 33-284.84.1 by sub-district; abutting single-family limited to 3 stories (2 stories within 35 ft)",
+    "setbacks": "SUCDR 33-284.85 build-to lines",
+    "lot_coverage": null,
+    "other": null
+   },
+   "section": "Secs. 33-284.99.14 to 33-284.99.22",
+   "notes": "",
+   "source": "https://www.zoneomics.com/code/miami-dade-county-unincorporated-FL/chapter_67 (Zoneomics mirror; Official host: https://library.municode.com/fl/miami_-_dade_county/codes/code_of_ordinances (Chapter 33, blocked 403))"
+  },
+  {
+   "code": "NCUAD",
+   "name": "North Central Urban Area District",
+   "category": "planned",
+   "purpose": "Urban center / urban area district implementing CDMP urban center policy. Shared Standard Urban Center District Regulations (Art. XXXIII(K), Secs. 33-284.81 to 33-284.90) apply to all urban center and urban area districts; the district's own article overrides where it differs.",
+   "permitted_uses": [
+    "MCS area allows auto and truck services; new junkyard/scrap metal prohibited"
+   ],
+   "conditional_uses": [],
+   "standards": {
+    "min_lot_size": "Not stated in district article; SUCDR: single-family detached 5,000 sq ft, rowhouse 1,200 sq ft, duplex 7,500 sq ft",
+    "max_height": "Per SUCDR 33-284.84.1 by sub-district; abutting single-family limited to 3 stories (2 stories within 35 ft)",
+    "setbacks": "SUCDR 33-284.85 build-to lines",
+    "lot_coverage": null,
+    "other": null
+   },
+   "section": "Secs. 33-284.99.48 to 33-284.99.54",
+   "notes": "",
+   "source": "https://www.zoneomics.com/code/miami-dade-county-unincorporated-FL/chapter_71 (Zoneomics mirror; Official host: https://library.municode.com/fl/miami_-_dade_county/codes/code_of_ordinances (Chapter 33, blocked 403))"
+  }
+ ]
+}

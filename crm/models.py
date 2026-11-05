@@ -1934,7 +1934,7 @@ class LandCounty(models.Model):
 
     @property
     def state_name(self):
-        return {"TX": "Texas", "MD": "Maryland", "VA": "Virginia", "AL": "Alabama", "NC": "North Carolina", "AZ": "Arizona", "IN": "Indiana"}.get(self.state, self.state)
+        return {"TX": "Texas", "MD": "Maryland", "VA": "Virginia", "AL": "Alabama", "NC": "North Carolina", "AZ": "Arizona", "IN": "Indiana", "FL": "Florida", "UT": "Utah", "HI": "Hawaii"}.get(self.state, self.state)
 
 
 class Parcel(models.Model):

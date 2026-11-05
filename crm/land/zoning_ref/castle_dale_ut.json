@@ -1,0 +1,177 @@
+{
+  "jurisdiction": "Castle Dale City, UT",
+  "code_name": "Castle Dale City zoning ordinance (text not found; only the official zone map was located)",
+  "edition": "None found. District names come from the Emery County hosted Official Zone Map, 18-August-2023 revision (map legend only).",
+  "code_url": "https://emery.utah.gov/wp-content/uploads/2023/08/CDzone.pdf",
+  "retrieved": "2026-11-04",
+  "caveats": [
+    "No zoning ordinance text was found for Castle Dale. The URL supplied (https://emery.utah.gov/wp-content/uploads/2023/08/CDzone.pdf) is only the official zone MAP (18-August-2023 revision): its legend lists RR-1 Rural Residential, R-1-8000 Residential, R-4-7500 Residential, R-1-MHP Mobile Home Park, HC-1 Highway Commercial, CC-1 Central Commercial, SC-1 Shopping Center, I-1 Light Industrial, PUD Planned Unit Development, plus flood plain overlays (Flood Plain Overlay, Flood Hazard, Primary Floodway).",
+    "Searched: emery.utah.gov (county zoning page links only maps), Zoneomics (castle-dale-UT code pages exist but contain no text), web search for a Castle Dale city code on any code host (none found). A Utah public notice shows the Castle Dale Planning Commission held land use hearings in March 2026, so the ordinance may have been revised. Ask Castle Dale City (20 South 100 East; zoning (435) 381-2115 per the county permit packet) for the current Land Use ordinance.",
+    "Do NOT substitute the neighbouring Ferron or Huntington codes: they are different ordinances even where district names match.",
+    "Every field except the district names is null/empty because nothing was verified."
+  ],
+  "districts": [
+    {
+      "code": "I-1",
+      "name": "Light Industrial",
+      "category": "industrial",
+      "purpose": null,
+      "permitted_uses": [],
+      "conditional_uses": [],
+      "standards": {
+        "min_lot_size": null,
+        "max_height": null,
+        "setbacks": null,
+        "lot_coverage": null,
+        "other": null
+      },
+      "section": null,
+      "notes": "District text not found; only the district name from the map/GIS label is known. Rules not addressed here; do not infer. Name is from the map legend 'I-1 Light Industrial'. Hazardous/explosive manufacturing, outdoor storage, solar, data centers, truck terminals: unknown (not found).",
+      "source": "https://emery.utah.gov/wp-content/uploads/2023/08/CDzone.pdf (map legend only)"
+    },
+    {
+      "code": "RR-1",
+      "name": "Rural Residential",
+      "category": "rural",
+      "purpose": null,
+      "permitted_uses": [],
+      "conditional_uses": [],
+      "standards": {
+        "min_lot_size": null,
+        "max_height": null,
+        "setbacks": null,
+        "lot_coverage": null,
+        "other": null
+      },
+      "section": null,
+      "notes": "District text not found; only the district name from the map/GIS label is known. Rules not addressed here; do not infer. Name is from the map legend 'RR-1 Rural Residential'. Lot size, agricultural and other uses unknown.",
+      "source": "https://emery.utah.gov/wp-content/uploads/2023/08/CDzone.pdf (map legend only)"
+    },
+    {
+      "code": "CC-1",
+      "name": "Central Commercial",
+      "category": "commercial",
+      "purpose": null,
+      "permitted_uses": [],
+      "conditional_uses": [],
+      "standards": {
+        "min_lot_size": null,
+        "max_height": null,
+        "setbacks": null,
+        "lot_coverage": null,
+        "other": null
+      },
+      "section": null,
+      "notes": "District text not found; only the district name from the map/GIS label is known. Rules not addressed here; do not infer. Map legend 'CC-1 Central Commercial'.",
+      "source": "https://emery.utah.gov/wp-content/uploads/2023/08/CDzone.pdf (map legend only)"
+    },
+    {
+      "code": "HC-1",
+      "name": "Highway Commercial",
+      "category": "commercial",
+      "purpose": null,
+      "permitted_uses": [],
+      "conditional_uses": [],
+      "standards": {
+        "min_lot_size": null,
+        "max_height": null,
+        "setbacks": null,
+        "lot_coverage": null,
+        "other": null
+      },
+      "section": null,
+      "notes": "District text not found; only the district name from the map/GIS label is known. Rules not addressed here; do not infer. Map legend 'HC-1 Highway Commercial'.",
+      "source": "https://emery.utah.gov/wp-content/uploads/2023/08/CDzone.pdf (map legend only)"
+    },
+    {
+      "code": "SC-1",
+      "name": "Shopping Center",
+      "category": "commercial",
+      "purpose": null,
+      "permitted_uses": [],
+      "conditional_uses": [],
+      "standards": {
+        "min_lot_size": null,
+        "max_height": null,
+        "setbacks": null,
+        "lot_coverage": null,
+        "other": null
+      },
+      "section": null,
+      "notes": "District text not found; only the district name from the map/GIS label is known. Rules not addressed here; do not infer. Map legend 'SC-1 Shopping Center'.",
+      "source": "https://emery.utah.gov/wp-content/uploads/2023/08/CDzone.pdf (map legend only)"
+    },
+    {
+      "code": "R-4",
+      "name": "Residential (R-4-7500 on the map legend)",
+      "category": "residential",
+      "purpose": null,
+      "permitted_uses": [],
+      "conditional_uses": [],
+      "standards": {
+        "min_lot_size": null,
+        "max_height": null,
+        "setbacks": null,
+        "lot_coverage": null,
+        "other": null
+      },
+      "section": null,
+      "notes": "District text not found; only the district name from the map/GIS label is known. Rules not addressed here; do not infer. Map legend label is 'R-4-7500 Residential'; the base code R-4 is used here, the 7,500 figure is part of the label, not a verified lot size.",
+      "source": "https://emery.utah.gov/wp-content/uploads/2023/08/CDzone.pdf (map legend only)"
+    },
+    {
+      "code": "R-1-8000",
+      "name": "Residential (R-1-8000 on the map legend)",
+      "category": "residential",
+      "purpose": null,
+      "permitted_uses": [],
+      "conditional_uses": [],
+      "standards": {
+        "min_lot_size": null,
+        "max_height": null,
+        "setbacks": null,
+        "lot_coverage": null,
+        "other": null
+      },
+      "section": null,
+      "notes": "District text not found; only the district name from the map/GIS label is known. Rules not addressed here; do not infer. Map legend 'R-1-8000 Residential'.",
+      "source": "https://emery.utah.gov/wp-content/uploads/2023/08/CDzone.pdf (map legend only)"
+    },
+    {
+      "code": "MHP",
+      "name": "Mobile Home Park (R-1-MHP on the map legend)",
+      "category": "residential",
+      "purpose": null,
+      "permitted_uses": [],
+      "conditional_uses": [],
+      "standards": {
+        "min_lot_size": null,
+        "max_height": null,
+        "setbacks": null,
+        "lot_coverage": null,
+        "other": null
+      },
+      "section": null,
+      "notes": "District text not found; only the district name from the map/GIS label is known. Rules not addressed here; do not infer. Map legend 'R-1-MHP Mobile Home Park'.",
+      "source": "https://emery.utah.gov/wp-content/uploads/2023/08/CDzone.pdf (map legend only)"
+    },
+    {
+      "code": "PUD",
+      "name": "Planned Unit Development",
+      "category": "planned",
+      "purpose": null,
+      "permitted_uses": [],
+      "conditional_uses": [],
+      "standards": {
+        "min_lot_size": null,
+        "max_height": null,
+        "setbacks": null,
+        "lot_coverage": null,
+        "other": null
+      },
+      "section": null,
+      "notes": "District text not found; only the district name from the map/GIS label is known. Rules not addressed here; do not infer. Map legend 'PUD Planned Unit Development'.",
+      "source": "https://emery.utah.gov/wp-content/uploads/2023/08/CDzone.pdf (map legend only)"
+    }
+  ]
+}
