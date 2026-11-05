@@ -622,6 +622,41 @@ def comment_add(request, mailbox, client):
     return redirect(nxt)
 
 
+@require_POST
+@mail_required
+def thread_task(request, mailbox, client):
+    """Make a task from an email: the subject (or what was typed) is the title, it's yours, it links back to the thread
+    and sits on the company or deal the thread is filed to. Kellen, 2026-11-05: "get an email and convert it to a task"."""
+    from datetime import date
+
+    from crm.models import Task
+
+    nxt = _safe_next(request, reverse("crm:inbox"))
+    gmail_id = request.POST.get("t", "")[:40]
+    try:
+        thread = mail_render.get_thread(mailbox, client, gmail_id)
+        subject = mail_render.thread_view(mailbox, client, gmail_id)[0]
+    except NotFound:
+        raise Http404()
+    except (MailboxError, requests.RequestException) as exc:
+        messages.error(request, gmail_error(exc))
+        return redirect(nxt)
+    title = (request.POST.get("title", "").strip() or subject or "Follow up on an email")[:300]
+    try:
+        due = date.fromisoformat(request.POST.get("due_date", ""))
+    except ValueError:
+        due = None
+    ids = mail_comments.message_ids(thread)
+    link = request.build_absolute_uri(f"{reverse('crm:inbox_open')}?m={ids[-1]}") if ids else ""
+    filing = (MailFiling.objects.filter(mailbox=mailbox, gmail_id=gmail_id).select_related("company", "opportunity").first())
+    task = Task.objects.create(
+        title=title, due_date=due, assignee=request.user, created_by=request.user,
+        notes=f"From the email “{subject}”." + (f"\nOpen it: {link}" if link else ""),
+        company=filing.company if filing else None, opportunity=filing.opportunity if filing else None)
+    messages.success(request, f"Task made: {task.title}. It's on your task list.")
+    return redirect(nxt)
+
+
 @mail_required
 def open_message(request, mailbox, client):
     """From a timeline: find that email (by its Message-ID) in your own mailbox and open its thread."""

@@ -98,6 +98,15 @@
           <div class="mail-note-actions"><span class="muted lc-small">Only you and the people you @mention see it.</span><button class="btn btn-small">Add note</button></div>
         </form>
       </details>
+      <details class="mail-notes mail-task">
+        <summary class="lc-small">Make this email a task</summary>
+        <form method="post" action="{% url 'crm:inbox_task' %}" class="mail-note-form">{% csrf_token %}
+          <input type="hidden" name="t" value="{{ reader.id }}"><input type="hidden" name="next" value="{{ here }}">
+          <input type="text" name="title" value="{{ reader.subject }}" maxlength="300" aria-label="Task title">
+          <div class="mail-note-actions"><label class="lc-small">Due <input type="date" name="due_date"></label><button class="btn btn-small btn-primary">Make task</button></div>
+          <span class="muted lc-small">It's yours, links back to this email, and sits on the company or deal the email is filed to.</span>
+        </form>
+      </details>
       {% if reader.file_groups %}
       <details class="mail-filepanel"{% if reader.messages|length > 3 or reader.file_groups|length > 2 %} open{% endif %}>
         <summary><strong>Attachments</strong> <span class="muted lc-small">{{ reader.file_groups|length }} document{{ reader.file_groups|length|pluralize }}, newest first{% if reader.files_hidden %} · {{ reader.files_hidden }} hidden (logos, calendar files, unchanged re-attachments){% endif %}</span></summary>

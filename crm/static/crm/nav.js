@@ -217,3 +217,27 @@
   });
   peek.addEventListener('close', () => { body.innerHTML = ''; stack.length = 0; });
 })();
+
+// Accessible names for controls a template left unlabeled (filter dropdowns, row checkboxes): the first option's
+// wording ("Every kind"), else the field name, so a screen reader doesn't just say "combo box".
+(function () {
+  const human = s => s.replace(/[_\[\]]+/g, ' ').trim().replace(/^./, c => c.toUpperCase());
+  function nameControls(root) {
+    root.querySelectorAll('input:not([type=hidden]):not([type=submit]):not([type=button]):not([type=image]),select,textarea').forEach(el => {
+      if ((el.labels && el.labels.length) || el.getAttribute('aria-label') || el.getAttribute('aria-labelledby') || el.title || el.placeholder) return;
+      let label = '';
+      if (el.tagName === 'SELECT' && el.options.length) label = el.options[0].textContent.trim();
+      else if (el.type === 'checkbox') label = 'Select row';
+      else if (el.type === 'file') label = 'Choose a file';
+      if (!label && el.name) label = human(el.name);
+      if (label) el.setAttribute('aria-label', label);
+    });
+  }
+  nameControls(document);
+  let pending = false;  // cards, panels and the inbox pane add fields later; scan once per frame at most
+  new MutationObserver(() => {
+    if (pending) return;
+    pending = true;
+    requestAnimationFrame(() => { pending = false; nameControls(document); });
+  }).observe(document.body, {childList: true, subtree: true});
+})();

@@ -186,8 +186,10 @@
   }
 
   // Bring a box forward: open it if it was folded, and make room for it.
+  let closeChatPanel = () => {};
   function show(w) {
     if (!w) return;
+    if (w.kind === 'chat' || innerWidth <= PHONE) closeChatPanel();
     w.min = false;
     makeRoom(w);
     layout();
@@ -297,6 +299,19 @@
       if (d.type === 'hub-window' && d.window) openUrl(d.window, d.read);
     });
   }
+  // The visible area on a phone shrinks when the keyboard opens; the full-screen box follows it (--vv-top, --vv-h in
+  // app.css) so the message box and Send stay in sight and the page doesn't show through underneath.
+  if (window.visualViewport) {
+    const fit = () => {
+      const v = visualViewport, root = document.documentElement.style;
+      if (innerWidth > PHONE) { root.removeProperty('--vv-top'); root.removeProperty('--vv-h'); return; }
+      root.setProperty('--vv-top', Math.round(v.offsetTop) + 'px');
+      root.setProperty('--vv-h', Math.round(v.height) + 'px');
+    };
+    visualViewport.addEventListener('resize', fit);
+    visualViewport.addEventListener('scroll', fit);
+    fit();
+  }
   let resizing = null;
   addEventListener('resize', () => { clearTimeout(resizing); resizing = setTimeout(() => { makeRoom(null); layout(); }, 150); });
 
@@ -311,6 +326,13 @@
 
   const chatBtn = document.querySelector('[data-chat-toggle]');
   let chatPanel = null;
+  // A tap inside the list's own frame never reaches this page's click handler, so the list used to stay open on top
+  // of the conversation it had just opened. Opening any box closes it.
+  closeChatPanel = () => {
+    if (!chatPanel || chatPanel.hidden) return;
+    chatPanel.hidden = true;
+    if (chatBtn) chatBtn.setAttribute('aria-expanded', 'false');
+  };
   function toggleChat() {
     if (!PATH.chats || !chatBtn) return;
     if (chatPanel && !chatPanel.hidden) { chatPanel.hidden = true; chatBtn.setAttribute('aria-expanded', 'false'); return; }

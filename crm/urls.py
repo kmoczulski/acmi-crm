@@ -177,6 +177,7 @@ urlpatterns = [
     path("inbox/suggest/", inbox_views.suggest, name="inbox_suggest"),
     path("inbox/file/<int:pk>/remove/", inbox_views.unfile, name="inbox_unfile"),
     path("inbox/note/", inbox_views.comment_add, name="inbox_note"),
+    path("inbox/task/", inbox_views.thread_task, name="inbox_task"),
     path("inbox/open/", inbox_views.open_message, name="inbox_open"),
     path("inbox/window/", inbox_views.thread_window, name="inbox_window"),
     path("chat/", chat_views.home, name="chat"),

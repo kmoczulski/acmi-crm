@@ -27,6 +27,53 @@
     return d;
   }
 
+  // ---- Files and pictures: opened over the chat, with a Close button ------------------------------------------------
+  // target=_blank on an iPhone's home-screen app opens the system preview, which has no way back (you had to swipe the
+  // whole app away). The viewer stays inside the app: a picture, or a file card with Download, and a big Close.
+  (function () {
+    if (window.__chatViewer) return;
+    window.__chatViewer = true;
+    let view = null, back = null;
+    function close() {
+      if (!view) return;
+      view.remove(); view = null;
+      document.removeEventListener('keydown', onKey, true);
+      if (back && back.focus) back.focus();
+      back = null;
+    }
+    const onKey = e => { if (e.key === 'Escape') { e.preventDefault(); close(); } };
+    function open(link) {
+      close();
+      back = link;
+      const name = link.getAttribute('title') || (link.querySelector('.chat-file-name') || {}).textContent || 'File';
+      const href = link.getAttribute('href');
+      const shut = h('button', {type: 'button', class: 'chat-viewer-close', 'aria-label': 'Close', text: '✕'});
+      shut.addEventListener('click', close);
+      let body;
+      if (link.classList.contains('chat-img')) {
+        body = h('div', {class: 'chat-viewer-body'}, h('img', {src: href, alt: name}));
+      } else {
+        const get = h('a', {class: 'btn btn-primary', href, download: name, text: 'Download'});
+        const see = h('a', {class: 'btn', href, target: '_blank', rel: 'noopener noreferrer', text: 'Open in the browser'});
+        body = h('div', {class: 'chat-viewer-body'}, h('div', {class: 'chat-viewer-card'},
+          h('div', {class: 'chat-viewer-ico', 'aria-hidden': 'true', text: (link.querySelector('.chat-file-ico') || {}).textContent || '📄'}),
+          h('div', {class: 'chat-viewer-name', text: name}), h('div', {class: 'chat-viewer-acts'}, get, see)));
+      }
+      view = h('div', {class: 'chat-viewer', role: 'dialog', 'aria-modal': 'true', 'aria-label': name},
+        h('div', {class: 'chat-viewer-bar'}, shut, h('span', {class: 'chat-viewer-title', text: name})), body);
+      view.addEventListener('click', e => { if (e.target === view || e.target === body) close(); });
+      document.body.append(view);
+      document.addEventListener('keydown', onKey, true);
+      shut.focus();
+    }
+    document.addEventListener('click', e => {
+      const a = e.target.closest && e.target.closest('a.chat-img, a.chat-file[href]');
+      if (!a || e.metaKey || e.ctrlKey || e.shiftKey || e.button) return;  // a new tab stays a new tab
+      e.preventDefault();
+      open(a);
+    });
+  })();
+
   // ---- The emoji picker: a reaction, or an emoji in a message -----------------------------------------------------
   const Picker = (() => {
     let el = null, anchor = null;
