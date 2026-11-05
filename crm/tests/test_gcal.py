@@ -123,7 +123,7 @@ class CalendarSyncTests(TestCase):
         self.assertContains(r, "Your Google Calendar is connected")
         other = User.objects.create_user("simon", password="x")
         self.client.force_login(other)
-        self.assertContains(self.client.get(reverse("crm:meeting_list")), "Connect Google Calendar")
+        self.assertContains(self.client.get(reverse("crm:meeting_list")), "Connect in Google access")
 
     # The Times panel beside an email: one week, read live
 

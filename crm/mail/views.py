@@ -9,7 +9,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
-from crm import gcal, prefs
+from crm import gcal, prefs, settings_nav
 from django.urls import reverse
 
 from crm.models import Company, Firm, MailConnection, MailFilter, Mailbox, MailboxAccess, UnmatchedEmail
@@ -345,6 +345,7 @@ def mail_turn_on(request):
     if reason:
         messages.error(request, reason)
         return redirect("crm:mail_settings")
+    settings_nav.remember(request)
     request.session[connect.SESSION_KEY] = True
     return redirect(connect.connect_url(request))
 
@@ -353,16 +354,16 @@ def mail_turn_on(request):
 def mail_connected(request):
     """Where Google sends the person back after Turn on Mail."""
     if not request.session.pop(connect.SESSION_KEY, False):
-        return redirect("crm:mail_settings")
+        return settings_nav.back(request, "crm:mail_settings")
     try:
         connect.finish(request.user)
     except (connect.MailConnectError, requests.RequestException) as exc:
         text = str(exc) if isinstance(exc, connect.MailConnectError) else "Couldn't reach Google. Try again."
         MailConnection.objects.update_or_create(user=request.user, defaults={"last_error": text})
         messages.error(request, text)
-        return redirect("crm:mail_settings")
+        return settings_nav.back(request, "crm:mail_settings")
     messages.success(request, "Mail is on. Gmail is connected to the hub.")
-    return redirect("crm:mail_settings")
+    return settings_nav.back(request, "crm:mail_settings")
 
 
 @team_only
@@ -371,11 +372,11 @@ def mail_turn_off(request):
     removed = connect.turn_off(request.user)
     if removed:
         messages.success(request, "Mail is off. The hub's Gmail permission was removed at Google. Google keeps one "
-                                  "permission for the hub, so your calendar was disconnected too: use Connect Google "
-                                  "Calendar below to bring it back.")
+                                  "permission for the hub, so your calendar was disconnected too: connect it again "
+                                  "under Google access.")
     else:
         messages.success(request, "Mail is off.")
-    return redirect("crm:mail_settings")
+    return settings_nav.back(request, "crm:mail_settings")
 
 
 # ---------------------------------------------------------------------------

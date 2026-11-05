@@ -10,26 +10,28 @@ from django.contrib import messages
 from django.db.models import Count
 from django.http import Http404
 from django.shortcuts import redirect, render
+from django.views.decorators.http import require_POST
 
-from . import choices, gcal, settings_nav
+import requests
+
+from . import choices, gcal, google_access, settings_nav
 from .chat import connect as chat_connect
 from .mail import connect as mail_connect
 from .mail.views import team_only
-from .models import CalendarSync, ChoiceOption, Mailbox, PushSubscription
+from .models import ChoiceOption, PushSubscription
 from .permissions import is_manager, manager_required
-from .schedule import connect as schedule_connect
 
 
 def _status(user):
     """A line on where each of the person's own sections stand. Cheap on purpose: nothing here calls Google."""
     devices = PushSubscription.objects.filter(user=user).count()
     mail_on = mail_connect.is_on(user)
+    on = [name for name, flag in (("Calendar", gcal.connected(user)), ("Gmail", mail_on),
+                                  ("Chat", chat_connect.is_on(user))) if flag]
     return {
         "notifications": f"Browser alerts on in {devices} browser{'s' if devices != 1 else ''}" if devices
         else "Browser alerts are off",
-        "google": " · ".join([f"Mail {'on' if mail_on else 'off'}",
-                              f"Calendar {'connected' if gcal.connected(user) else 'not connected'}",
-                              f"Chat {'on' if chat_connect.is_on(user) else 'off'}"]),
+        "google": ("Connected: " + ", ".join(on)) if on else "Nothing connected yet",
         "mail": "" if mail_on else "Mail is off",
     }
 
@@ -44,34 +46,63 @@ def settings_home(request):
 
 
 @team_only
-def google_connections(request):
-    """Everything the hub may use in this person's Google account, in one list: Gmail, Calendar, scheduling and Chat.
-    Each button posts to the view that already switches it (they send the person to Google and back); the hidden
-    `next` brings them back here (crm/settings_nav.py)."""
+def profile(request):
+    """Who you are, how the hub looks for you, your dashboard and Sign out."""
+    from .permissions import is_partner
+
     user = request.user
-    token = gcal.token_for(user)
-    mail_conn = mail_connect.connection(user)
-    chat_conn = chat_connect.connection(user)
-    sync = CalendarSync.objects.filter(user=user).first()
-    shared = Mailbox.objects.filter(shared=True)
+    role = "Partner" if is_partner(user) else ("Manager" if is_manager(user) else "Team member")
+    return render(request, "crm/settings_profile.html", {"role": role})
+
+
+@team_only
+def google_connections(request):
+    """Everything the hub may use in this person's Google account, one row each, with its own button. The buttons post
+    to the views that already switch each piece; the hidden `next` (crm/settings_nav.py) brings the person back here."""
     return render(request, "crm/settings_google.html", {
+        "rows": google_access.rows(request, request.path),
         "google_ready": settings.GOOGLE_SIGNIN_ENABLED,
-        "google_email": (token.account.extra_data or {}).get("email", "") if token else "",
-        "mail": {"on": mail_connect.is_on(user), "reason": mail_connect.unavailable_reason(user), "conn": mail_conn,
-                 "error": mail_conn.last_error if mail_conn else ""},
-        "calendar": {"connected": token is not None, "synced": sync.last_synced_at if sync else None,
-                     "error": sync.last_error if sync else ""},
-        "scheduling": {"allowed": schedule_connect.can_schedule(user)},
-        "chat": {"on": chat_connect.is_on(user), "reason": chat_connect.unavailable_reason(user), "conn": chat_conn,
-                 "error": chat_conn.last_error if chat_conn else ""},
-        "is_manager": is_manager(user),
-        "shared_count": shared.count(),
-        "shared_connected": shared.filter(shared_token__isnull=False).count(),
+        "connected": gcal.connected(request.user),
     })
 
 
-def appearance(request):
-    return render(request, "crm/settings_appearance.html")
+@team_only
+@require_POST
+def google_drive_connect(request):
+    if not google_access.drive_needed(request.user):
+        messages.error(request, "Drive isn't needed for your account.")
+        return redirect("crm:settings_google")
+    if not settings.GOOGLE_SIGNIN_ENABLED or not gcal.connected(request.user):
+        messages.error(request, "Connect your Calendar first.")
+        return redirect("crm:settings_google")
+    settings_nav.remember(request)
+    request.session[google_access.DRIVE_SESSION_KEY] = True
+    return redirect(google_access.drive_connect_url(request))
+
+
+@team_only
+def google_drive_done(request):
+    """Where Google sends the person back after Connect Drive."""
+    if not request.session.pop(google_access.DRIVE_SESSION_KEY, False):
+        return settings_nav.back(request, "crm:settings_google")
+    try:
+        google_access.drive_finish(request.user)
+    except (google_access.DriveConnectError, requests.RequestException) as exc:
+        messages.error(request, str(exc) if isinstance(exc, google_access.DriveConnectError)
+                       else "Couldn't reach Google. Try again.")
+    else:
+        messages.success(request, "Drive is connected. The hub can read your Granola folder.")
+    return settings_nav.back(request, "crm:settings_google")
+
+
+@team_only
+@require_POST
+def google_disconnect(request):
+    """Take back the hub's whole Google permission (Google drops them together)."""
+    google_access.disconnect_all(request.user)
+    messages.success(request, "The hub's Google access is removed. Mail, Chat, scheduling and Calendar are off. "
+                              "Connect any of them again below.")
+    return redirect("crm:settings_google")
 
 
 @manager_required

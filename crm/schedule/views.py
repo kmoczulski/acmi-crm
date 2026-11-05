@@ -15,7 +15,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-from crm import gcal
+from crm import gcal, settings_nav
 from crm.mail.views import team_only
 from crm.models import Company, Person
 
@@ -135,6 +135,7 @@ def allow(request):
     if not settings.GOOGLE_SIGNIN_ENABLED or not gcal.connected(request.user):
         messages.error(request, "Connect Google Calendar first (Calendar page).")
         return redirect("crm:schedule")
+    settings_nav.remember(request)
     request.session[connect.SESSION_KEY] = True
     return redirect(connect.connect_url(request))
 
@@ -143,12 +144,12 @@ def allow(request):
 def allowed(request):
     """Where Google sends the person back after Allow scheduling."""
     if not request.session.pop(connect.SESSION_KEY, False):
-        return redirect("crm:schedule")
+        return settings_nav.back(request, "crm:schedule")
     try:
         connect.finish(request.user)
     except (connect.ScheduleConnectError, requests.RequestException) as exc:
         text = str(exc) if isinstance(exc, connect.ScheduleConnectError) else "Couldn't reach Google. Try again."
         messages.error(request, text)
-        return redirect("crm:schedule")
+        return settings_nav.back(request, "crm:schedule")
     messages.success(request, "Done. Meetings you schedule here go on your Google Calendar and Google emails the invitations.")
-    return redirect("crm:schedule")
+    return settings_nav.back(request, "crm:schedule")

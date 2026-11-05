@@ -21,7 +21,7 @@ class DropdownListTests(TestCase):
         return {v: (l, h) for v, l, h, _ in choices.options(key)}
 
     def test_settings_lists_every_dropdown_but_the_system_ones(self):
-        page = self.client.get("/settings/")
+        page = self.client.get("/settings/dropdowns/")
         for text in ("Site stage", "Tenant deal stage", "Task label", "Critical date type", "logic"):
             self.assertContains(page, text)
         self.assertNotContains(page, "Activity")
@@ -104,6 +104,6 @@ class DropdownListTests(TestCase):
 
         other = get_user_model().objects.create_user("intern", password="x")
         self.client.force_login(other)
-        self.assertNotEqual(self.client.get("/settings/").status_code, 200)
+        self.assertNotEqual(self.client.get("/settings/dropdowns/").status_code, 200)
         Campus.objects.create(code="MEIH", name="x")  # pages still render for everyone
         self.assertEqual(self.client.get("/land/sites/").status_code, 200)

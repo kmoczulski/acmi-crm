@@ -28,11 +28,11 @@
   {% elif calendar_connected %}
     <span>📅 Your Google Calendar is connected{% if calendar_state.last_synced_at %} · synced {{ calendar_state.last_synced_at|ago }}{% endif %}.</span>
     {% if calendar_state.last_error %}<span class="overdue">{{ calendar_state.last_error }}</span>
-      <a class="btn btn-small" href="{% provider_login_url 'google' process='connect' auth_params='prompt=consent' next=request.path %}">Reconnect</a>{% endif %}
+      <a class="btn btn-small" href="{% url 'crm:settings_google' %}#calendar">Reconnect</a>{% endif %}
     <form method="post" action="{% url 'crm:calendar_sync_now' %}" style="display:inline">{% csrf_token %}<button class="btn btn-small">Sync now</button></form>
   {% else %}
     <span>Connect your Google Calendar so your meetings show up here and on company timelines automatically.</span>
-    <a class="btn btn-small btn-primary" href="{% provider_login_url 'google' process='connect' auth_params='prompt=consent' next=request.path %}">Connect Google Calendar</a>
+    <a class="btn btn-small btn-primary" href="{% url 'crm:settings_google' %}#calendar">Connect in Google access</a>
   {% endif %}
 </div>
 

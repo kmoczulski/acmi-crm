@@ -561,7 +561,7 @@ class PageTests(ScheduleTestCase):
     def test_without_google_it_says_what_to_connect(self):
         self.user.socialaccount_set.all().delete()
         r = self.client.get(reverse("crm:schedule"))
-        self.assertContains(r, "Connect Google Calendar")
+        self.assertContains(r, "Connect in Google access")
         self.assertNotContains(r, 'id="sched-config"')
         with override_settings(GOOGLE_SIGNIN_ENABLED=False):
             self.assertContains(self.client.get(reverse("crm:schedule")), "isn't set up")

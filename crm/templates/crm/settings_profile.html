@@ -1,0 +1,27 @@
+{# Settings -> Profile: who you are, how the hub looks for you, your dashboard, Sign out. #}
+{% extends "crm/settings_base.html" %}
+{% block title %}Profile · Settings · ACMI Hub{% endblock %}
+{% block settings_body %}
+<section class="panel profile-card">
+  <div class="profile-id">
+    <span class="avatar profile-avatar" aria-hidden="true">{{ user.first_name|default:user.username|slice:":1"|upper }}{{ user.last_name|slice:":1"|upper }}</span>
+    <div>
+      <h3>{{ user.get_full_name|default:user.username }}</h3>
+      <p class="muted">{{ user.email|default:"No email address on your account" }} · {{ role }}</p>
+    </div>
+  </div>
+  <p class="muted lc-small">Your name and role are kept by an admin. Ask one to change them.</p>
+</section>
+<section class="panel access-row">
+  <div class="access-main"><h3>Dark mode</h3><p class="access-purpose">Switches this browser between light and dark.</p></div>
+  <div class="access-actions"><button type="button" class="btn" data-theme-toggle>Switch light / dark</button></div>
+</section>
+<section class="panel access-row">
+  <div class="access-main"><h3>Your dashboard</h3><p class="access-purpose">Choose and arrange the boxes on your home page.</p></div>
+  <div class="access-actions"><a class="btn" href="{% url 'crm:home' %}?customize=1">Customize dashboard</a></div>
+</section>
+<section class="panel access-row">
+  <div class="access-main"><h3>Sign out</h3><p class="access-purpose">Ends your session on this device.</p></div>
+  <div class="access-actions"><form method="post" action="{% url 'account_logout' %}">{% csrf_token %}<button class="btn">Sign out</button></form></div>
+</section>
+{% endblock %}

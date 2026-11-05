@@ -13,12 +13,9 @@
     {% if unavailable %}
       <p class="muted">{{ unavailable }}</p>
     {% else %}
-      <form method="post" action="{% url 'crm:mail_turn_on' %}">{% csrf_token %}
-        <button class="btn btn-primary">Turn on Mail</button>
-      </form>
+      <p><a class="btn btn-primary" href="{% url 'crm:settings_google' %}#gmail">Turn on Mail in Google access</a></p>
       <p class="muted lc-small">Google asks you once to let the hub use your Gmail. Leave the Gmail box ticked on that screen.</p>
     {% endif %}
-    {% if conn.last_error %}<p style="color:var(--bad)">Last try: {{ conn.last_error }}</p>{% endif %}
   {% endif %}
 </section>
 {% if on %}

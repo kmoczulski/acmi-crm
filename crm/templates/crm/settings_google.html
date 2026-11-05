@@ -1,0 +1,40 @@
+{# Settings -> Google access: one row per Google permission, each with what it is for and its own button (crm/google_access.py). #}
+{% extends "crm/settings_base.html" %}
+{% block title %}Google access · Settings · ACMI Hub{% endblock %}
+{% block settings_body %}
+<p class="muted settings-intro">What the hub may use in your Google account. Each permission is separate: turn on only what you want, and nobody has to sign out and back in. Google asks once for each, then brings you back here.</p>
+{% if not google_ready %}<p class="muted">Google sign-in isn't set up on this hub yet.</p>{% endif %}
+<div class="access-list">
+{% for r in rows %}
+  <section class="panel access-row" id="{{ r.key }}">
+    <div class="access-main">
+      <h3>{{ r.label }} <span class="access-state st-{{ r.state }}">{{ r.state_text }}</span></h3>
+      <p class="access-purpose">{{ r.purpose }}</p>
+      {% if r.detail %}<p class="muted lc-small access-detail">{{ r.detail }}</p>{% endif %}
+    </div>
+    {% if r.actions %}
+    <div class="access-actions">
+      {% for a in r.actions %}
+        {% if a.url %}<a class="btn{% if a.primary %} btn-primary{% endif %}" href="{{ a.url }}">{{ a.label }}</a>
+        {% else %}<form method="post" action="{{ a.post }}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.path }}">
+          <button class="btn{% if a.primary %} btn-primary{% endif %}{% if a.danger %} btn-danger{% endif %}"{% if a.confirm %} onclick="return confirm('{{ a.confirm|escapejs }}')"{% endif %}>{{ a.label }}</button></form>{% endif %}
+      {% endfor %}
+    </div>
+    {% endif %}
+  </section>
+{% endfor %}
+</div>
+{% if connected %}
+<section class="panel access-row access-remove">
+  <div class="access-main">
+    <h3>Remove all Google access</h3>
+    <p class="access-purpose">Takes back everything above at Google in one step. Google keeps one permission for the hub, so single permissions can't be removed on their own. Signing in with Google still works.</p>
+  </div>
+  <div class="access-actions">
+    <form method="post" action="{% url 'crm:settings_google_disconnect' %}">{% csrf_token %}
+      <button class="btn btn-danger" onclick="return confirm('Remove all of the hub\'s Google access? Calendar, Gmail, Chat and scheduling turn off. You can connect them again here.')">Remove all access</button>
+    </form>
+  </div>
+</section>
+{% endif %}
+{% endblock %}

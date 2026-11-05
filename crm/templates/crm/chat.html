@@ -10,9 +10,7 @@
   {% if unavailable %}
     <p class="muted">{{ unavailable }}</p>
   {% else %}
-    <form method="post" action="{% url 'crm:chat_turn_on' %}">{% csrf_token %}
-      <button class="btn btn-primary">Turn on Chat</button>
-    </form>
+    <p><a class="btn btn-primary" href="{% url 'crm:settings_google' %}#chat">Turn on Chat in Google access</a></p>
     <p class="muted lc-small">Google asks you once to let the hub use your Chat. Leave every box ticked on that screen. Nobody else in the hub can see your conversations.</p>
   {% endif %}
   {% if conn.last_error %}<p style="color:var(--bad)">Last try: {{ conn.last_error }}</p>{% endif %}
@@ -25,7 +23,7 @@
       <button type="button" class="btn btn-small" data-new-chat title="Start a chat or a space" aria-label="Start a chat or a space">＋</button>
       <details class="menu-wrap chat-menu"><summary class="btn btn-small" aria-label="Chat settings">⋯</summary>
         <div class="menu">
-          <form method="post" action="{% url 'crm:chat_turn_off' %}">{% csrf_token %}<button class="menu-btn">Turn off Chat</button></form>
+          <a href="{% url 'crm:settings_google' %}#chat">Chat access</a>
           <a href="{% url 'crm:notification_settings' %}">Chat alerts</a>
         </div>
       </details>

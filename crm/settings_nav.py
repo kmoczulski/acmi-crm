@@ -31,12 +31,12 @@ class Section:
 
 
 SECTIONS = (
+    Section("profile", "Profile", "settings_profile", "Who you are in the hub, light or dark, your dashboard, sign out."),
+    Section("google", "Google access", "settings_google",
+            "What the hub may use in your Google account: sign-in, Calendar, scheduling, Gmail, Chat, Drive."),
+    Section("mail", "Mail", "mail_settings", "Your signature, CRM labels in Gmail and shared mailboxes."),
     Section("notifications", "Notifications", "notification_settings",
             "Which alerts reach you, in the hub and as browser notifications."),
-    Section("google", "Google connections", "settings_google",
-            "Gmail, Calendar, scheduling and Chat: what the hub may use in your Google account."),
-    Section("mail", "Mail", "mail_settings", "Your signature, CRM labels in Gmail and shared mailboxes."),
-    Section("appearance", "Appearance", "settings_appearance", "Light or dark, and your dashboard."),
     Section("dropdowns", "Dropdown lists", "dropdown_lists", "Rename, reorder and hide the options in every dropdown.",
             managers=True, also=("dropdown_edit",)),
     Section("outreach", "Outreach", "outreach_settings", "The campaign, the daily limit and who gets the weekly report.",

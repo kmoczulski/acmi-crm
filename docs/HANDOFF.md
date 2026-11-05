@@ -199,7 +199,35 @@ from the title; every imported text value is cut to its field limit). Kellen run
 Open: `/chat/poll/` returns 502 in the logs (not looked at). The `ux-fixes` and other branches below are still not deployed.
 
 **[Update: the two fixes below shipped in revision 00030, see the first entry above; the proposed-task edit / delete is
-still NOT built.]** **Pick up here, 2026-11-04 after the deploy (Claude on the laptop; Kellen asked for this handoff so work can resume later).
+still NOT built.]** **Settings restructured, 2026-11-04 (side session; branch `settings-one-page`, worktree `.claude/worktrees/settings-page`, NOT pushed,
+NOT deployed; Kellen: "the settings for google access aren't that well organized... restructure settings and my profile").**
+- **Before:** settings sat in five places: a top-bar "Settings" menu (managers only: Dropdown lists, Outreach, Contract
+  templates, Data room), the avatar menu (Customize dashboard, Notification settings, Mail in the hub, Dark mode, Sign
+  out), Google buttons scattered over Meetings (Connect / Reconnect Calendar), Schedule (Connect Calendar, Allow
+  scheduling), Chat (Turn on / off) and Mail settings (Turn on / off), and Drive had no button at all: it was added to the
+  Google sign-in scope when `ACMI_GRANOLA_DRIVE_USER` is set, so Kellen had to sign out and in.
+- **Now:** one area, `/settings/`, with a tab strip (`crm/settings_nav.py` lists the sections; the top bar's Settings menu,
+  the landing page and the tabs all read it). Yours: **Profile** (name, role, dark mode, dashboard, sign out), **Google
+  access**, **Mail** (signature, CRM labels, shared mailboxes), **Notifications**. Managers also: Dropdown lists, Outreach,
+  Contract templates, Data rooms (the last two keep their addresses, `/contracts/templates/`, `/data-rooms/`). The avatar menu
+  is now Profile and settings, Google access, Notifications, Dark mode, Sign out. Capital partners have no Settings.
+- **Google access** (`/settings/google/`, `crm/google_access.py`): a row each for Sign-in, Calendar, Scheduling, Gmail, Chat
+  and Drive (Drive only for the `ACMI_GRANOLA_DRIVE_USER` person), with what it is for, a state and its own button. Each
+  button goes to Google for just that permission (include_granted_scopes) and **comes back to this page** (hidden `next`,
+  `settings_nav.remember` / `back`; Mail, Chat, scheduling and Drive views all use it, and still land on their old page when
+  started elsewhere). **Drive is no longer in the sign-in scope** (`config/settings.py`); it is requested from the Drive row
+  (`/settings/google/drive/`), checked with Google's tokeninfo when the page draws (only for that one person). "Remove all
+  access" revokes the whole Google grant (Google keeps one per person, so a single permission cannot be removed alone; Turn
+  off for Mail says so). The in-page Connect buttons on Meetings, Schedule and Chat now link to this page.
+- **Old addresses redirect:** `/notifications/settings/` -> `/settings/notifications/`, `/mail-setup/` -> `/settings/mail/`,
+  `/outreach/settings/` -> `/settings/outreach/`. The old `/settings/` (Dropdown lists) is now the landing page; lists are at
+  `/settings/dropdowns/`. POST endpoints (`/mail-setup/on/`, signature, labels, shared) are unchanged.
+- **Tests:** `crm/tests/test_settings_area.py` (21); `test_choices`, `test_outreach`, `test_gcal` follow the new addresses
+  and wording. Checked on a scratch database in light and dark. **Not checked:** a real Google round trip (the Drive row
+  needs `ACMI_GRANOLA_DRIVE_USER` and Kellen pressing Connect Drive once after deploy; the live revision still asks for Drive
+  at sign-in until this ships). The branch is `main` (c1ff5e0) merged in; deploy only with Kellen's go.
+
+**Pick up here, 2026-11-04 after the deploy (Claude on the laptop; Kellen asked for this handoff so work can resume later).
 Live was then revision `acmi-crm-00022-fbx`, image `a799272` (the entry below is that deploy). Since then Kellen reported
 three things from using the live app: two are fixed on a branch and NOT deployed, one is not built.** Resume in this
 order: read CI on the branch, ship the two fixes (Kellen's OK to deploy), build the proposed-task edit / delete from the

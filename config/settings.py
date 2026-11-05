@@ -180,7 +180,7 @@ DRIVE_TENANCY_FOLDER = env("ACMI_DRIVE_TENANCY_FOLDER", "")
 NEWS_DRIVE_FOLDER = env("ACMI_NEWS_DRIVE_FOLDER", "")
 GRANOLA_DRIVE_FOLDER = env("ACMI_GRANOLA_DRIVE_FOLDER", "")
 # Email of the team member whose Google sign-in reads that folder (their My Drive), instead of the service account.
-# Setting it adds Drive read-only to the Google sign-in, so each person is asked once at their next sign-in.
+# That person connects Drive from Settings > Google access (crm/google_access.py); it is not asked at sign-in.
 GRANOLA_DRIVE_USER = env("ACMI_GRANOLA_DRIVE_USER", "")
 
 GOOGLE_SIGNIN_ENABLED = bool(env("GOOGLE_CLIENT_ID"))
@@ -188,8 +188,7 @@ if GOOGLE_SIGNIN_ENABLED:
     SOCIALACCOUNT_PROVIDERS["google"] = {
         "APP": {"client_id": env("GOOGLE_CLIENT_ID"), "secret": env("GOOGLE_CLIENT_SECRET", "")},
         # Calendar read access lets the CRM put everyone's meetings on the Meetings calendar.
-        "SCOPE": ["profile", "email", "https://www.googleapis.com/auth/calendar.readonly"]
-        + (["https://www.googleapis.com/auth/drive.readonly"] if GRANOLA_DRIVE_USER else []),
+        "SCOPE": ["profile", "email", "https://www.googleapis.com/auth/calendar.readonly"],
         # offline = Google returns a refresh token, so the scheduled sync works while nobody is signed in.
         # include_granted_scopes keeps permissions given earlier (Gmail, for people who turned Mail on) when someone
         # signs in or reconnects the calendar, instead of swapping the grant for this request's scopes only.
