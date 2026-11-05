@@ -3569,3 +3569,30 @@ input[type=checkbox], input[type=radio] { width: 16px; height: 16px; }
 /* The duplicates table keeps its columns and scrolls sideways on a narrow screen instead of squeezing the name. */
 .dup-group { overflow-x: auto; }
 table.dup-table { min-width: 780px; }
+
+/* Mail reader 2026-11-05: the message first. One action row, a More group for the rest, thread tools folded away. */
+.mail-bar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 6px 0; }
+.mail-bar .mail-reply-bar, .mail-bar .mail-actions { margin: 0; }
+.mail-more > summary { list-style: none; cursor: pointer; }
+.mail-more > summary::-webkit-details-marker { display: none; }
+.mail-more[open] { flex: 0 0 100%; }
+.mail-more-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 6px; }
+.mail-thread > summary { cursor: pointer; margin-top: 4px; }
+.mail-thread-body { margin-top: 6px; }
+.mail-notebar { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; align-items: flex-start; }
+.mail-notebar .mail-notes { margin: 0; padding: 0; background: transparent; }
+.mail-notebar .mail-notes > summary { display: inline-block; list-style: none; padding: 3px 10px; border: 1px solid var(--line); border-radius: 999px; color: var(--text-2); font-weight: 500; }
+.mail-notebar .mail-notes[open] { flex: 0 0 100%; background: var(--warn-bg); padding: 8px 10px; }
+
+/* Inline reply 2026-11-05: lighter, so the message you are answering stays in view. */
+.mail-inline { max-height: 60%; }
+.mail-inline .compose-body, .mail-inline .compose-editor { min-height: 90px; }
+/* A reply keeps its subject; only a forward asks for one. */
+.mail-inline:has(input[name=mode][value=reply]) .compose-row:has(input[name=subject]),
+.mail-inline:has(input[name=mode][value=all]) .compose-row:has(input[name=subject]) { display: none; }
+/* The signature shows as a faded two-line preview, not a full block. */
+.mail-inline .compose-sig-preview { max-height: 3.2em; overflow: hidden; opacity: .75; font-size: 12px;
+  -webkit-mask-image: linear-gradient(#000 55%, transparent); mask-image: linear-gradient(#000 55%, transparent); }
+.mail-inline .compose-attach input[type=file] { font-size: 12px; }
+.mail-inline .compose-attach input[type=file]::file-selector-button { font: inherit; font-size: 12px; padding: 3px 10px; margin-right: 8px;
+  border: 1px solid var(--line); border-radius: 999px; background: var(--panel); color: var(--text-2); cursor: pointer; }
