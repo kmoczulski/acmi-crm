@@ -33,7 +33,7 @@ from .models import (
     List, ListEntry, Note, ObjectType, Opportunity, OpportunityContact, OpportunityStage, Person, Project, SavedView,
     CalendarSync, LandSite, Meeting, Notification, Task, TenantNeeds,
 )
-from .permissions import manager_required
+from .permissions import manager_required, team_users
 from .pipeline import risk_reasons
 from .reports import COLUMNS as REPORT_COLUMNS, DEFAULT_KEYS as DEFAULT_REPORT_KEYS
 from .reports import chosen_columns as chosen_report_columns
@@ -1390,16 +1390,38 @@ def meeting_list(request):
     from datetime import date
 
     today = timezone.localdate()
+    view = request.GET.get("view", "")
+    view = view if view in ("day", "week") else "month"
     try:
         year, month = (int(x) for x in request.GET.get("month", "").split("-"))
         first = date(year, month, 1)
     except ValueError:
         first = today.replace(day=1)
-    weeks = cal.Calendar(firstweekday=6).monthdatescalendar(first.year, first.month)
+    try:
+        anchor = date.fromisoformat(request.GET.get("when", ""))
+    except ValueError:
+        anchor = today
+    month_weeks = cal.Calendar(firstweekday=6).monthdatescalendar(first.year, first.month)
+    if view == "month":
+        weeks, prev_when, next_when = month_weeks, None, None
+    elif view == "week":
+        start = anchor - timezone.timedelta(days=(anchor.weekday() + 1) % 7)  # the Sunday that starts the week
+        weeks = [[start + timezone.timedelta(days=i) for i in range(7)]]
+        prev_when, next_when = start - timezone.timedelta(days=7), start + timezone.timedelta(days=7)
+        first = start
+    else:
+        weeks = [[anchor]]
+        prev_when, next_when = anchor - timezone.timedelta(days=1), anchor + timezone.timedelta(days=1)
+        first = anchor
     qs = (Meeting.objects.filter(start__date__gte=weeks[0][0], start__date__lte=weeks[-1][-1])
-          .prefetch_related("companies", "firms"))
+          .prefetch_related("companies", "firms").order_by("start"))
+    team = list(team_users().order_by("first_name", "username"))
+    picked = {int(p) for p in request.GET.getlist("people") if p.isdigit()} & {u.pk for u in team}
     who = request.GET.get("who", "me")
-    if who == "me" or not who:
+    if picked:  # specific people, by checkbox: meetings any of them is on
+        qs = qs.filter(team__in=picked).distinct()
+        who = "people"
+    elif who == "me" or not who:
         qs = qs.filter(team=request.user)
         who = "me"
     elif who == "outside":
@@ -1413,8 +1435,10 @@ def meeting_list(request):
     next_month = (first.replace(day=28) + timezone.timedelta(days=7)).replace(day=1)
     upcoming = Meeting.objects.filter(start__gte=timezone.now()).prefetch_related("companies", "firms")[:8]
     return render(request, "crm/meetings.html", {
-        "weeks": [[{"date": d, "meetings": by_day.get(d, []), "other": d.month != first.month, "today": d == today}
-                   for d in week] for week in weeks],
+        "weeks": [[{"date": d, "meetings": by_day.get(d, []), "other": view == "month" and d.month != first.month,
+                    "today": d == today} for d in week] for week in weeks],
+        "view": view, "prev_when": prev_when, "next_when": next_when, "anchor": anchor, "today": today,
+        "team": team, "picked": picked,
         "first": first, "prev": prev_month, "next": next_month, "who": who, "upcoming": upcoming,
         "open_id": request.GET.get("open", "") if request.GET.get("open", "").isdigit() else "",
         "google_ready": settings.GOOGLE_SIGNIN_ENABLED,

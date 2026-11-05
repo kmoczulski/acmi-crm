@@ -2678,6 +2678,27 @@ body[data-chat-list] .dock-main > p, body[data-chat-list] .dock-main > a { margi
     left: 0; right: 0; top: var(--vv-top, 0px); bottom: auto; width: 100%; max-width: 100vw; height: var(--vv-h, 100dvh); z-index: 1; }
   .dock-win.dock-chats:not(.min) { z-index: 0; }
 }
+/* Meetings: week and day views, and the People picker (checkboxes). */
+.cal-view-week .cal-day { min-height: 260px; }
+.cal-view-day .cal-week { grid-template-columns: minmax(0, 1fr); }
+.cal-view-day .cal-day { min-height: 320px; border-right: 0; }
+.cal-view-month .cal-dow { display: none; }
+.cal-view-week .cal-dow, .cal-view-day .cal-dow { font-size: 11px; font-weight: 500; }
+.cal-view-week .cal-date, .cal-view-day .cal-date { background: none !important; color: var(--text) !important; padding: 0; font-weight: 600; }
+.cal-view-week .cal-day.today, .cal-view-day .cal-day.today { background: var(--accent-soft); }
+@media (max-width: 760px) {
+  .cal-view-week .cal-week { grid-template-columns: minmax(0, 1fr); }
+  .cal-view-week .cal-head { display: none; }
+  .cal-view-week .cal-day { min-height: 0; border-right: 0; }
+}
+.cal-people { position: relative; }
+.cal-people > summary { list-style: none; cursor: pointer; }
+.cal-people > summary::-webkit-details-marker { display: none; }
+.cal-people-box { position: absolute; z-index: 20; top: calc(100% + 4px); right: 0; min-width: 220px; max-height: 60vh; overflow: auto;
+  display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; background: var(--panel); border: 1px solid var(--line);
+  border-radius: var(--radius); box-shadow: var(--shadow-2); }
+.cal-people-box label { display: flex; align-items: center; gap: 8px; padding: 3px 0; white-space: nowrap; }
+.cal-people-acts { display: flex; gap: 6px; margin-top: 6px; }
 /* A quiet reminder to turn Chat on (so read receipts work both ways); "Not now" hides it for two weeks. */
 .chat-nudge { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 0 0 12px; padding: 10px 14px;
   background: var(--accent-soft); border: 1px solid var(--line); border-radius: var(--radius); font-size: 13px; }
