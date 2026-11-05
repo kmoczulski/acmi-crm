@@ -268,6 +268,7 @@ urlpatterns = [
     path("land/drive/isochrone/", land_views.drive_isochrone, name="land_drive_isochrone"),
     path("land/qd/", land_views.qd_layout, name="land_qd"),
     path("land/siteplan/", land_views.site_plan, name="land_site_plan"),
+    path("land/autofit/", land_views.auto_fit, name="land_autofit"),
     path("land/views.json", land_views.views_json, name="land_views"),
     path("land/views/save/", land_views.view_save, name="land_view_save"),
     path("land/views/<int:pk>/delete/", land_views.view_delete, name="land_view_delete"),
