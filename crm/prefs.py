@@ -42,6 +42,7 @@ WIDGETS = {
     "stages": ("Pipeline by stage", 6, 0, "Deals, value and weighted value per stage."),
     "attention": ("Deals that need attention", 6, 0, "No next step, overdue or gone quiet."),
     "suggestions": ("Possible deals found in email", 6, 0, "LOI, PDA, NDA or lease talk with no deal in the CRM yet."),
+    "people_suggest": ("People you email", 6, 0, "People who keep writing to you but aren't in the CRM yet, one click to add."),
     "changes": ("This week in the pipeline", 6, 0, "Stage moves and new deals in the last 7 days."),
     "activity": ("Recent activity", 6, 0, "Emails, meetings and notes from the last week."),
     "my_sites": ("My sites", 6, 0, "Land sites you own or work on."),
@@ -50,7 +51,7 @@ WIDGETS = {
 DEFAULT_DASHBOARD = [
     {"id": i, "w": WIDGETS[i][1], "h": WIDGETS[i][2]}
     for i in ("kpis", "week", "my_day", "attention", "stages", "deadlines", "critical", "replies", "suggestions",
-              "changes", "activity", "funnel")
+              "people_suggest", "changes", "activity", "funnel")
 ]
 WIDTHS = (3, 4, 6, 8, 12)  # the quick width buttons; dragging the corner gives any width from 2 to 12 columns
 # Widgets that draw their own title row (with week or month arrows); their frame title shows only while customizing.

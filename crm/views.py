@@ -475,6 +475,10 @@ def home(request):
         ctx["changes"] = pipeline.changes_since(7)
     if "suggestions" in shown:
         ctx["suggestions"] = pipeline.suggestions(limit=40)
+    if "people_suggest" in shown:
+        from .mail import people_suggest
+
+        ctx["people_suggest"] = people_suggest.suggest(request.user)
     if "week" in shown:
         ctx["week"] = week_calendar(request)
     if "deadlines" in shown:
@@ -617,6 +621,35 @@ def person_create(request):
         person.save()
         return redirect(person)
     return render(request, "crm/form.html", {"form": form, "title": "New person", "cancel": reverse("crm:person_list")})
+
+
+@require_POST
+def person_suggest_add(request):
+    """One click from the dashboard's "People you email" list: make the Person (on the company the address's domain
+    belongs to, when one does) and open it so a title or phone can be added."""
+    from .names import clean_name
+
+    email = request.POST.get("email", "").strip().lower()[:254]
+    if "@" not in email:
+        messages.error(request, "That isn't an email address.")
+        return redirect("crm:home")
+    existing = Person.objects.filter(email=email).first()
+    if existing:
+        return redirect(existing)
+    company = Company.objects.filter(pk=request.POST.get("company") or 0).first()
+    first, last, name = clean_name(request.POST.get("name", ""), email) or ("", "", "")
+    person = Person.objects.create(first_name=first, last_name=last, full_name=name, email=email, company=company,
+                                   created_by=request.user)
+    messages.success(request, f"Added {person}" + (f" at {company}." if company else "."))
+    return redirect(person)
+
+
+@require_POST
+def person_suggest_dismiss(request):
+    from .mail import people_suggest
+
+    people_suggest.dismiss(request.user, request.POST.get("email", ""))
+    return redirect(request.POST.get("next") if request.POST.get("next", "").startswith("/") else "crm:home")
 
 
 def person_detail(request, pk):
