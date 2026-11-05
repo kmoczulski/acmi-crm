@@ -1,7 +1,7 @@
 {# One open conversation: header, messages, the box to write in (crm/chat/views.py _conversation; static/crm/chat.js). #}
 <section class="chat-convo" data-chat-convo data-space="{{ convo.space.id }}" data-latest="{{ convo.latest }}" data-earliest="{{ convo.earliest }}" data-sig="{{ convo.sig }}" data-hit="{{ convo.hit }}"{% if convo.everyone %} data-everyone="1"{% endif %} data-max-mb="{{ convo.max_mb }}"
          data-messages-url="{% url 'crm:chat_messages' %}" data-send-url="{% url 'crm:chat_send' %}" data-read-url="{% url 'crm:chat_read' %}"
-         data-mute-url="{% url 'crm:chat_mute' %}" data-refresh-url="{% url 'crm:chat_refresh' %}" data-react-url="{% url 'crm:chat_react' %}"
+         data-mute-url="{% url 'crm:chat_mute' %}" data-seen-url="{% url 'crm:chat_seen' %}" data-refresh-url="{% url 'crm:chat_refresh' %}" data-react-url="{% url 'crm:chat_react' %}"
          data-reactions-url="{% url 'crm:chat_reactions' %}" data-edit-url="{% url 'crm:chat_edit' %}" data-delete-url="{% url 'crm:chat_delete' %}"
          data-upload-url="{% url 'crm:chat_upload' %}">
   <header class="chat-head">

@@ -492,6 +492,46 @@ def search(user, client, text, page_token=None):
     return {"results": results, "next": answer.get("nextPageToken", "")}
 
 
+SEEN_TTL = 20  # seconds a teammate's read time is reused
+SEEN_MAX_PEOPLE = 12  # a bigger space isn't asked about: it would be a call per person on every look
+
+
+def seen_by(user, client, space, since):
+    """Who has read up to `since` (the time of the person's latest message): {"by": [names], "others": n, "known": n}.
+
+    Google Chat tells each person only their own read time, so "known" are the teammates who turned Chat on in the hub
+    with the read-state permission: each is asked for their own read time (which includes reading it in Google Chat
+    itself). Everyone else is simply not counted, never shown as "not seen"."""
+    directory = members_directory(client, space)
+    me = me_of(user)
+    others = {k: v for k, v in directory.items() if v["email"] and v["email"] != me}
+    out = {"by": [], "others": len(others), "known": 0}
+    if not others or len(directory) > SEEN_MAX_PEOPLE:
+        return out
+    by_email = {}
+    for u in team_users().exclude(pk=user.pk):
+        conn = connect.connection(u)
+        for address in {(u.email or "").lower(), ((conn.google_email if conn else "") or "").lower()} - {""}:
+            by_email.setdefault(address, u)
+    for person in others.values():
+        teammate = by_email.get(person["email"])
+        conn = connect.connection(teammate) if teammate else None
+        if not teammate or not connect.is_on(teammate) or (conn and not conn.can_read_state):
+            continue
+        key = f"chat:seen:{teammate.pk}:{space}"
+        when = cache.get(key)
+        if when is None:
+            try:
+                when = parse_time(client_for(teammate).read_state(space).get("lastReadTime")) or False
+            except (ChatError, ValueError):
+                continue  # their token or Chat failed: not counted
+            cache.set(key, when, SEEN_TTL)
+        out["known"] += 1
+        if when and when >= since:
+            out["by"].append(person["name"])
+    return out
+
+
 def mark_read(user, client, space):
     try:
         client.mark_read(space, stamp(timezone.now()))

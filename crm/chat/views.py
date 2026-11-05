@@ -381,6 +381,17 @@ def search(request, client):
 
 
 @api
+def seen(request, client):
+    """Who has read the person's latest message: ?s=<space>&t=<its time>. See service.seen_by."""
+    space = space_name(request.GET.get("s", ""))
+    since = parse_time(request.GET.get("t", ""))
+    if not space or not since:
+        return JsonResponse({"error": NOT_THERE}, status=404)
+    service.find(request.user, client, space)  # only a conversation that is really in this person's Chat
+    return JsonResponse(service.seen_by(request.user, client, space, since))
+
+
+@api
 @require_POST
 def read(request, client):
     space = space_name(request.POST.get("s", ""))

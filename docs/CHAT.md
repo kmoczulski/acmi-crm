@@ -38,6 +38,15 @@ to a message, attachments." That is the section **Like Google Chat's own web app
   seconds; with it closed the 15-minute sweep does (`notify.sweep_everyone`). The alert text holds the first 100 characters of
   the message (without Chat's markup), so mute a busy space or switch the kind off.
 
+## Seen by (2026-11-05)
+
+Under your latest message the conversation shows **✓ Delivered** or **✓✓ Seen by Simon, Dave**. Google's API gives each
+person only their *own* read time, so the hub asks each teammate who turned Chat on in the hub (with the read-state
+permission) for theirs (`service.seen_by`, `/chat/seen/`, every 15 seconds while the conversation is on screen, each
+read time kept 20 seconds). That counts reading in Google Chat itself, not only in the hub. People without a hub
+account or Chat turned on are not counted and never shown as "not seen"; with nobody countable no line shows. Spaces
+of more than 12 people aren't asked about. Not checked against real Google (the fake Chat in the tests stands in).
+
 ## Like Google Chat's own web app
 
 Hover a message for its buttons: **☺ react, ↩ reply in the thread, ❝ quote, ✎ edit, 🗑 delete** (the last two only on your own).

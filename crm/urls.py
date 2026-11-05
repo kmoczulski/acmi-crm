@@ -196,6 +196,7 @@ urlpatterns = [
     path("chat/new/", chat_views.new, name="chat_new"),
     path("chat/search/", chat_views.search, name="chat_search"),
     path("chat/read/", chat_views.read, name="chat_read"),
+    path("chat/seen/", chat_views.seen, name="chat_seen"),
     path("chat/mute/", chat_views.mute, name="chat_mute"),
     path("chat/poll/", chat_views.poll, name="chat_poll"),
     path("chat/on/", chat_views.turn_on, name="chat_turn_on"),
