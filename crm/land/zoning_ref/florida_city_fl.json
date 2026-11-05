@@ -1,0 +1,186 @@
+{
+  "jurisdiction": "City of Florida City, FL",
+  "code_name": "Florida City Code of Ordinances, Chapter 62 Zoning (Article III District Regulations); Land Development Regulations on Municode",
+  "edition": "Zoneomics mirror of the Municode text (code history not shown); Miami-Dade County Code Chapter 33 text for GU and AU also from a Zoneomics mirror and the county zoning page; Municode itself not read",
+  "code_url": "https://www.zoneomics.com/code/florida-city-FL/chapter_3 (Zoneomics mirror)",
+  "retrieved": "2026-11-04",
+  "caveats": [
+    "All text came from the Zoneomics mirror (and, for AU, the Miami-Dade County zoning web page), not from Municode, which blocks automated fetching. Treat as 'check source'; the mirror's edition date is unknown.",
+    "IMPORTANT: Florida City's own Chapter 62 Article III defines RS-1 to RS-5, RD-1, RD-2, RM-15, RM-20, RT, C-1 to C-4, I, CF, PUD, PCD and a Division 8 'Agriculture and Open Land' (mining rules only), and a TOD district. The codes AU, GU and EU-M do NOT appear as districts anywhere in the Chapter 62 text read. They are Miami-Dade County Code Chapter 33 district names (AU Agricultural, GU Interim, EU-M Estate Modified), probably carried by the zoning layer for land the county still zones or that came into the city with county zoning. The entries below describe the county definitions, not Florida City code.",
+    "GU details are from the Miami-Dade County code, Article XIII (Sec. 33-194 to 33-198) via mirror. EU-M (Article XX, Miami-Dade) text was not available; all its standards are null.",
+    "AU standards are from the Miami-Dade County AU zoning page (Chapter 33, Article XXXIII); the page gives no purpose statement, no height limit and no conditional use list. The county code text itself was not read.",
+    "Data centers, solar and explosives / energetics manufacturing are not addressed in any Florida City district read. Outdoor storage: 'storage yards' are prohibited in the I district; overnight truck or heavy equipment parking is conditional. Truck terminals are not named (truck stops are prohibited in I).",
+    "Florida City PUD (Division 6) is a residential PUD of at least 5 acres with no industrial use; Division 8 sets only mining rules. Sections 62-67, 62-69 (special exceptions), 62-275 (day care) and 62-26 (rezoning) were not read.",
+    "C-3 and C-2 permitted-use lists are summarized, not reproduced in full."
+  ],
+  "districts": [
+    {
+      "code": "AU",
+      "name": "Agricultural",
+      "category": "rural",
+      "purpose": null,
+      "permitted_uses": [
+        "Agricultural uses and single-family residences on five-acre lots, with customary accessory uses (pools, sheds, private garages, carports); home offices as an ancillary use",
+        "Rural event venues are allowed in the county AU district (separate county page)",
+        "Florida City Chapter 62 Division 8 separately bars surface-reducing mining (rockmining, lake excavation, strip mining) on land designated agricultural (62-242)",
+        "Data centers, solar, explosives / energetics manufacturing, outdoor storage, truck terminals: not addressed"
+      ],
+      "conditional_uses": [],
+      "standards": {
+        "min_lot_size": "5 acres",
+        "max_height": null,
+        "setbacks": "Principal building: front 50 ft, rear 25 ft, interior side 15 ft, side street 25 ft. Accessory (guest house, sheds, gazebos, pools): front 75 ft, rear 7.5 ft, interior side 20 ft, side street 30 ft, 20 ft between buildings",
+        "lot_coverage": "15% of net lot area",
+        "other": "Fences, walls and hedges maximum 6 ft; boat and RV storage addressed in Miami-Dade Sec. 33-20."
+      },
+      "section": "Miami-Dade County Code Chapter 33, Article XXXIII (AU); Florida City Sec. 62-241 to 62-244 (Agriculture and Open Land, mining only)",
+      "notes": "Not a district defined in Florida City's own code; see caveats. County AU does not list industrial uses, so a data center or energetics campus would need a rezoning and a land-use change. County page says to confirm with Regulatory and Economic Resources (305-375-2800).",
+      "source": "https://miamidade.gov/global/economy/zoning/districts/au-agricultural.page; https://www.zoneomics.com/code/florida-city-FL/chapter_3 (mirror)"
+    },
+    {
+      "code": "GU",
+      "name": "General Use (Interim)",
+      "category": "other",
+      "purpose": "Interim district for land not placed in another district (Miami-Dade Article XIII); purpose statement not given in the text read.",
+      "permitted_uses": [
+        "No fixed use list. Inside the Urban Development Boundary, use follows the predominant use in the neighborhood; if no trend is established, EU-2 minimum standards apply",
+        "Outside the boundary, land designated Agriculture follows the AU district; Open Land and Environmental Protection land follows the neighborhood-trend process",
+        "Municipal parks and recreation facilities permitted inside the boundary",
+        "Data centers, solar, explosives / energetics manufacturing, outdoor storage, truck terminals: not addressed"
+      ],
+      "conditional_uses": [],
+      "standards": {
+        "min_lot_size": "Where EU-2 standards apply, 5 acres gross unless the comprehensive plan requires larger",
+        "max_height": null,
+        "setbacks": "Follow the regulations for the neighborhood's predominant use class (Sec. 33-196(A)(1))",
+        "lot_coverage": null,
+        "other": "Sec. 33-198 allows a public hearing if a permit is refused."
+      },
+      "section": "Miami-Dade County Code Sec. 33-194 to 33-198 (Article XIII); standards in 33-196",
+      "notes": "Not defined in Florida City Chapter 62. Seven parcels carry GU, so the practical use is whatever the neighborhood trend or the AU standards allow; confirm with the city planning office which regime it applies.",
+      "source": "https://www.zoneomics.com/code/miami-dade-county-unincorporated-FL/chapter_17 (mirror)"
+    },
+    {
+      "code": "C-2",
+      "name": "General Commercial",
+      "category": "commercial",
+      "purpose": "Sites for retail and service commercial uses serving the broader community's varied needs.",
+      "permitted_uses": [
+        "Everything allowed in C-1 (small retail, personal services, restaurants, banks, professional and medical offices)",
+        "Auto sales and rentals, car washes, hotels and motels, hospitals and clinics, theaters, bowling, pool rooms, furniture and home-improvement stores, funeral homes, service stations",
+        "Drugstores and medical marijuana dispensing facilities: 1,000 ft spacing from another one, a school or a day care",
+        "Service stations barred on US-1 or Palm Drive parcels not operating or under construction before 1 Sept 2021",
+        "Uses that belong to C-3 or I are excluded",
+        "Data centers, solar, explosives / energetics manufacturing, outdoor storage, truck terminals: not addressed"
+      ],
+      "conditional_uses": [
+        "Animal hospitals (fully indoors, soundproofed, 300 ft from residential)",
+        "Dancehalls (500 ft from residential)",
+        "Day care centers (Sec. 62-275)"
+      ],
+      "standards": {
+        "min_lot_size": "5,000 sq ft; width 50 ft",
+        "max_height": "5 stories or 50 ft (more by commission approval)",
+        "setbacks": "Front 10 ft; rear, interior side and corner 0 ft; 25 ft adjacent to a more restrictive district; US-1 50 ft; SR 27 (Krome Ave) 25 ft",
+        "lot_coverage": "No building coverage limit; minimum 20% pervious open space",
+        "other": null
+      },
+      "section": "62-172",
+      "notes": "Conditional uses are decided by the city commission after hearing and planning board recommendation.",
+      "source": "https://www.zoneomics.com/code/florida-city-FL/chapter_3 (mirror)"
+    },
+    {
+      "code": "C-3",
+      "name": "Intensive Commercial",
+      "category": "commercial",
+      "purpose": "Sites for more intensive commercial establishments, located and designed to limit harmful effects on nearby homes.",
+      "permitted_uses": [
+        "All C-2 uses except drugstores and medical marijuana dispensing facilities",
+        "Animal hospitals, auto body and repair shops, boat and motorcycle sales and service, RV sales and service, lumberyards, plant nurseries, sign shops, skating rinks, taxi and limousine services, tire retreading, building trades contractors, wholesale distributors",
+        "Similar uses not allowed in the I district",
+        "Data centers, solar, explosives / energetics manufacturing, outdoor storage, truck terminals: not addressed"
+      ],
+      "conditional_uses": [
+        "Day care centers (Sec. 62-275)"
+      ],
+      "standards": {
+        "min_lot_size": "5,000 sq ft; width 50 ft",
+        "max_height": "2 stories or 30 ft",
+        "setbacks": "Front 10 ft; rear, interior side and corner 0 ft; 25 ft adjacent residential",
+        "lot_coverage": "No building coverage limit; minimum 20% pervious open space",
+        "other": null
+      },
+      "section": "62-173",
+      "notes": null,
+      "source": "https://www.zoneomics.com/code/florida-city-FL/chapter_3 (mirror)"
+    },
+    {
+      "code": "I",
+      "name": "Light Industrial",
+      "category": "industrial",
+      "purpose": "Sites for light industrial uses of a wholesaling or service nature that play a substantial economic role and need good access to major transportation.",
+      "permitted_uses": [
+        "All C-3 uses except RV sales, rental and service (carrying forward C-2 and C-1 uses)",
+        "Wholesaling and service establishments: HVAC and refrigeration services, cleaning and linen services, exterminators, monument sales, moving and transfer companies, printers and bookbinders, product distributors, restaurant equipment suppliers, pool services, upholsterers",
+        "Prohibited: truck stops; storage yards; overnight truck and heavy equipment parking (unless approved as below)",
+        "Data centers, solar, explosives / energetics manufacturing: not addressed. No manufacturing use is listed",
+        "Outdoor storage: storage yards prohibited. Truck terminals: not named; truck stops prohibited"
+      ],
+      "conditional_uses": [
+        "Warehouses, self-storage facilities, and overnight truck or heavy equipment parking or storage (city commission approval under Sec. 62-69). Conditions: not located or fronting on US-1, Palm Drive, Arthur Vining Davis Parkway or Krome Avenue unless trucks / equipment are owned or leased by the business on the local business tax application and kept out of sight from public roads"
+      ],
+      "standards": {
+        "min_lot_size": "10,000 sq ft; width 100 ft",
+        "max_height": "2 stories or 30 ft",
+        "setbacks": "Front 40 ft with parking, 10 ft without; rear, interior side and corner 0 ft; 100 ft adjacent to a residential district",
+        "lot_coverage": "50% maximum building coverage; minimum 15% pervious open space",
+        "other": "Adult entertainment allowed only in I with 500 ft separation from residential districts (62-70); communication towers allowed only in I (62-72); bars and midget racetracks are special uses in I (62-67)."
+      },
+      "section": "62-191; 62-67; 62-69; 62-70; 62-72",
+      "notes": "This is the city's only industrial district and it is light wholesaling and service; heavy manufacturing, energetics and data centers are not provided for, so a rezoning or PUD / PCD would be needed. 30 ft height is a serious limit for data-center or process buildings.",
+      "source": "https://www.zoneomics.com/code/florida-city-FL/chapter_3 (mirror); https://www.zoneomics.com/code/florida-city-FL/chapter_2 (mirror)"
+    },
+    {
+      "code": "PUD",
+      "name": "Planned Unit Development",
+      "category": "planned",
+      "purpose": "Flexibility in planning and design, more efficient layout of roads, utilities and common facilities, innovative community design, varied housing types, preservation of natural features.",
+      "permitted_uses": [
+        "Residential types from RS-1 through RS-5, RD-1, RD-2 and RM-15, subject to city commission approval",
+        "Accessory uses (parking garages, recreation buildings, pools, utility or maintenance buildings)",
+        "Convenience retail under C-1 standards, limited to 30 sq ft per dwelling unit and built only after residential construction starts",
+        "Commercial areas must meet C-2 standards",
+        "Industrial uses, data centers, solar, explosives / energetics manufacturing, outdoor storage, truck terminals: not addressed"
+      ],
+      "conditional_uses": [],
+      "standards": {
+        "min_lot_size": "Minimum 5 contiguous acres; lot sizes vary by type (single-family 1,000 sq ft floor area on 5,000 sq ft lots)",
+        "max_height": "Defers to the underlying district: RS-4, RD-2, RM-15 / RM-20, C-2 by use",
+        "setbacks": "Defers to the underlying district",
+        "lot_coverage": null,
+        "other": "Density set per development by the city commission in line with the comprehensive plan; 20 trees per gross acre; townhouse buildings capped at 8 units; planner may approve up to four variances of up to 25% per project. Review as a rezoning under Sec. 62-26."
+      },
+      "section": "62-231 to 62-235",
+      "notes": "Residential-oriented; no industrial use. The Planned Commercial Development district (62-236 to 62-240, 5-acre minimum) is the commercial analogue and was not read in detail.",
+      "source": "https://www.zoneomics.com/code/florida-city-FL/chapter_3 (mirror)"
+    },
+    {
+      "code": "EU-M",
+      "name": "Estate Modified",
+      "category": "residential",
+      "purpose": null,
+      "permitted_uses": [],
+      "conditional_uses": [],
+      "standards": {
+        "min_lot_size": null,
+        "max_height": null,
+        "setbacks": null,
+        "lot_coverage": null,
+        "other": null
+      },
+      "section": "Miami-Dade County Code Chapter 33, Article XX (EU-M); text not obtained",
+      "notes": "Not defined in Florida City Chapter 62. Miami-Dade's index lists Article XX 'EU-M, Estate Modified District' but its text was not available on the mirror. Data centers, solar, explosives, outdoor storage and truck terminals: not addressed. Only one parcel carries this code; the nearest Florida City equivalent is RS-1 (estate, 15,000 sq ft).",
+      "source": "https://www.zoneomics.com/code/miami-dade-county-unincorporated-FL/chapter_17 (mirror, index only)"
+    }
+  ]
+}

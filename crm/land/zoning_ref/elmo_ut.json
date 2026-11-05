@@ -1,0 +1,67 @@
+{
+  "jurisdiction": "Elmo Town, UT",
+  "code_name": "Zoning Ordinances Adopted for Elmo Town (adopted 20 January 1975, with later amendments; Section 02.0700 Establishment of Zones, Section 02.0800 Regulations within Zones)",
+  "edition": "PDF posted by Emery County (county-hosted copy of the town ordinance, not a third-party mirror); latest amendment seen in the text is 4-3-2015. Retrieved 2026-11-04.",
+  "code_url": "https://emery.utah.gov/wp-content/uploads/2024/01/ZONING-ORDINANCES.pdf",
+  "retrieved": "2026-11-04",
+  "caveats": [
+    "The ordinance is a 1975 document with scattered amendments (latest seen 2015); confirm it is the current version with Elmo Town. Emery County also posts an Elmo zoning map (https://emery.utah.gov/wp-content/uploads/2023/03/elmo_zoning.pdf) showing only C-1 and R-1.",
+    "Section 02.0701 establishes four zones (A-1, R-1, C-1, I-1), but 02.0820 says the entire town is zoned R-1 except the northwest quarter of lot 3, block 5 of the Elmo Townsite Survey (David Tanner property), which is C-1. A-1 and I-1 are defined in the text but are not mapped, and are not documented here.",
+    "The ordinance has no conditional-use table; uses in R-1 and C-1 are 'permitted' lists, a few needing Board of Adjustments approval (home occupations, public utility buildings in R-1). The conditional use procedure was not read.",
+    "R-1 location, height and dwelling-size rules are stated as 'same as A-1'; the A-1 values (02.0813 to 02.0818) were used.",
+    "Solar, data centers, explosives manufacturing, truck terminals and outdoor storage yards are not mentioned in R-1 or C-1."
+  ],
+  "districts": [
+    {
+      "code": "R-1",
+      "name": "Residential Zone",
+      "category": "residential",
+      "purpose": "Primarily suited for residential development: one-, two- and multiple-family dwellings plus parks, playgrounds, schools, churches and community facilities; spacious lots, uncrowded buildings, quiet conditions. Primacy is given to residential development.",
+      "permitted_uses": [
+        "One-, two- and multiple-family dwellings and accessory buildings (private garage, private greenhouse, pools, arbors); bachelor dwellings and boarding houses",
+        "Individual mobile homes meeting Section 02.0524; mobile home parks when connected to a sewer (Section 02.0900 rules)",
+        "Public parks and recreation grounds (not private amusement parks)",
+        "Agriculture limited to a small number of livestock (not more than 4 large animals, 4 feeder pigs, 12 sheep, 24 rabbits or 24 chickens, or similar)",
+        "Schools and churches; rest homes and day care nurseries",
+        "Fences, walls and hedges up to 7 ft (4 ft in required front or street-side yard); signboard up to 8 sq ft; temporary construction storage yards (1 year, renewable up to two times)",
+        "Home occupations when approved by the Board of Adjustments; public utility buildings and facilities subject to Board of Adjustments approval"
+      ],
+      "conditional_uses": [],
+      "standards": {
+        "min_lot_size": "13,000 sq ft per one-family dwelling (A-1 rule: 20,000 sq ft where livestock/barns are kept; 1 acre for rest homes, schools, churches); minimum dwelling-site width 115 ft measured 30 ft back from the front lot line",
+        "max_height": "20 ft maximum building height measured grade to the square; 8 ft minimum for a dwelling (same as A-1, 02.0826 / 02.0816)",
+        "setbacks": "Same as A-1 (02.0825 / 02.0815): front 30'; side at least 8' with total of two sides at least 20'; rear 30' (20' for an attached garage/carport on corner lots); corner-lot street side 20' (accessory 30'); accessory buildings 8' from rear line",
+        "lot_coverage": null,
+        "other": "Min ground-floor area 550 sq ft for a one-family dwelling and 600 sq ft per additional unit; mobile homes at least 24 ft by 24 ft and not older than 10 years (2013/2015 amendments); no dwelling more than 200 ft from a public street."
+      },
+      "section": "02.0820 to 02.0829 (A-1 rules 02.0810 to 02.0819 incorporated by reference)",
+      "notes": "Residential district: industrial, commercial, hazardous manufacturing, outdoor storage yards, solar and data centers are not listed (not addressed; the use list is exclusive). Almost the entire town is zoned R-1.",
+      "source": "https://emery.utah.gov/wp-content/uploads/2024/01/ZONING-ORDINANCES.pdf (Sections 02.0820-02.0829 and 02.0810-02.0819)"
+    },
+    {
+      "code": "C-1",
+      "name": "Commercial Zone",
+      "category": "commercial",
+      "purpose": "Location for retail, commercial and service facilities for residents and the traveling public; a mixture of dwellings and commercial uses with requirements to avoid detrimental effects on surrounding dwellings.",
+      "permitted_uses": [
+        "Agriculture",
+        "All uses permitted in R-1, under R-1 requirements",
+        "Motels; recreational vehicle courts (Section 02.0900 rules)",
+        "All retail establishments",
+        "Service enterprises such as barber shops, garages, plumbing shops, carpenter shops and similar, provided merchandise, materials and equipment (except running vehicles and seasonal items) are inside a building or a 6 ft sight-obscuring metal fence or masonry wall enclosure",
+        "Accessory signs and bulletin boards"
+      ],
+      "conditional_uses": [],
+      "standards": {
+        "min_lot_size": "Same as R-1 for dwellings (13,000 sq ft); no other minimums stated",
+        "max_height": "Same as R-1/A-1: 20 ft",
+        "setbacks": "Buildings at least 30 ft from any public street or 65 ft from the street centerline, whichever is greater; gasoline pumps at least 15 ft from property lines on streets or alleys",
+        "lot_coverage": null,
+        "other": "Off-street parking hard surfaced; gasoline and flammable-liquid tanks per the adopted fire prevention code."
+      },
+      "section": "02.0830 to 02.0835",
+      "notes": "Not addressed: manufacturing (other than carpenter-type service shops), warehousing, explosives/hazardous manufacturing, solar, data centers, truck terminals. Outdoor storage must be fenced (6 ft sight-obscuring). C-1 applies only to the northwest quarter of lot 3 block 5, Elmo Townsite Survey.",
+      "source": "https://emery.utah.gov/wp-content/uploads/2024/01/ZONING-ORDINANCES.pdf (Sections 02.0830-02.0835)"
+    }
+  ]
+}

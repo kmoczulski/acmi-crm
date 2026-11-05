@@ -68,7 +68,7 @@
           L.esri.featureLayer({url: PUCT + path, simplifyFactor: .8, precision: 4, style: () => ({color, weight: 1.5, fillOpacity: .08})})
             .bindPopup(popup([['COMPANY_NAME', 'Electric'], ['COMPANY_TYPE', 'Type'], ['MAIN_PHONE', 'Phone'], ['COMPANY_WEBSITE', 'Web']]))),
         L.esri.featureLayer({url: 'https://services6.arcgis.com/BAJNi3EgCdtQ1BCG/arcgis/rest/services/Electric_Retail_Service_Territories/FeatureServer/0',
-          where: "STATE IN ('MD','VA','DC','AL','TN','NC','AZ','IN')", simplifyFactor: .8, precision: 4, style: () => ({color: '#66a61e', weight: 1.5, fillOpacity: .06})})
+          where: "STATE IN ('MD','VA','DC','AL','TN','NC','AZ','IN','FL','UT','HI')", simplifyFactor: .8, precision: 4, style: () => ({color: '#66a61e', weight: 1.5, fillOpacity: .06})})
           .bindPopup(popup([['NAME', 'Electric'], ['TYPE', 'Type'], ['CNTRL_AREA', 'Grid']])),
       ]),
       gas: () => L.esri.featureLayer({url: 'https://services2.arcgis.com/FiaPA4ga0iQKduv3/arcgis/rest/services/Natural_Gas_Interstate_and_Intrastate_Pipelines_1/FeatureServer/0',

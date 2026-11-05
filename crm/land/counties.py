@@ -188,7 +188,9 @@ def stamp(index, geom_wgs84):
         if not parent or key not in overlays:
             continue
         refined = overlays.pop(key)
-        if overlays.get(parent, {}).get("value") == spec["when_value"]:
+        if spec.get("fill_gaps") and parent not in overlays:  # land the parent layer doesn't cover (a city's own zoning)
+            overlays[parent] = {**refined, "label": spec["label"]}
+        elif spec.get("when_value") and overlays.get(parent, {}).get("value") == spec["when_value"]:
             overlays[parent + "_county"] = overlays[parent]
             overlays[parent] = {**refined, "label": spec["label"]}
     if "zoning" in overlays:
@@ -713,4 +715,199 @@ COUNTIES["18055"] = {
     "key_field": "parcel_id", "owner_field": "tax_special",  # no owner field: a column that is always empty
     "count_fields": ["parcel_id", "tax_special", "SHAPE__Area"], "acres_fn": _in_acres,
     "big_where_fn": lambda a: f"SHAPE__Area >= {a / IN_ACRES_PER_SQDEG:.9f}", "fields_fn": _in_fields, "overlays": {},
+}
+
+
+# --- Miami-Dade County, FL (Homestead / Florida City, south Miami-Dade) -------------------------------------------
+# Parcels: the County's own MD_LandInformation service, layer 26 "Parcels" (Property Appraiser roll joined to the
+# parcel polygons: owner, mailing address, lot size, land / building value, DOR use code, zoning). Weekly refresh.
+# 944k parcels countywide, so the 20-acre cutoff applies (LOT_SIZE is square feet; ~16k rows have LOT_SIZE = 0,
+# mostly condo / exempt records, and are skipped). Zoning: the county layer covers unincorporated land only; Homestead
+# and Florida City zone themselves (layer 19, filtered by MUNICNAME) and fill the land the county layer leaves blank.
+MDC = "https://gisweb.miamidade.gov/arcgis/rest/services/MD_LandInformation/MapServer"
+
+
+def _mdc_dor(rec):
+    """Florida DOR use code (first two digits of DOR_CODE_CUR) -> the Texas-style codes the scorer uses."""
+    c = _t(rec, "DOR_CODE_CUR")[:2]
+    if not c.isdigit():
+        return ""
+    n = int(c)
+    if n in (0, 10, 40):
+        return "C"          # vacant residential / commercial / industrial
+    if n in (1, 2, 9):
+        return "A"          # single family, mobile home, residential misc
+    if 3 <= n <= 8:
+        return "B"          # multifamily
+    if 11 <= n <= 39:
+        return "F1"         # commercial
+    if 41 <= n <= 49:
+        return "F2"         # industrial
+    if 50 <= n <= 69:
+        return "D"          # agricultural
+    if n == 91:
+        return "J"          # utility
+    if 70 <= n <= 99:
+        return "X"          # institutional, governmental, misc public
+    return ""
+
+
+def _mdc_acres(rec):
+    v = rec.get("LOT_SIZE")
+    return v / SQFT_ACRE if isinstance(v, (int, float)) and v > 0 else None
+
+
+def _mdc_fields(rec):
+    owner2 = " ".join(x for x in [_t(rec, "TRUE_OWNER2"), _t(rec, "TRUE_OWNER3")] if x)
+    mail = " ".join(x for x in [_t(rec, "TRUE_MAILING_ADDR1"), _t(rec, "TRUE_MAILING_ADDR2"),
+                                _t(rec, "TRUE_MAILING_ADDR3")] if x)
+    year = _t(rec, "YEAR_BUILT")
+    return {
+        "prop_id": _t(rec, "FOLIO"), "geo_id": _t(rec, "TTRRSS"),
+        "owner_name": _t(rec, "TRUE_OWNER1"), "care_of": owner2,
+        "mail_address": mail, "mail_city": _t(rec, "TRUE_MAILING_CITY"),
+        "mail_state": _mail_state(rec, "TRUE_MAILING_STATE", "TRUE_MAILING_ZIP_CODE"),
+        "mail_zip": _t(rec, "TRUE_MAILING_ZIP_CODE")[:5],
+        "situs_address": _t(rec, "TRUE_SITE_ADDR"), "situs_city": _t(rec, "TRUE_SITE_CITY"),
+        "situs_zip": _t(rec, "TRUE_SITE_ZIP_CODE")[:5],
+        "legal_desc": _t(rec, "SUBDIVISION")[:500], "legal_acres": _mdc_acres(rec),
+        "state_land_use": _mdc_dor(rec), "local_land_use": (_t(rec, "DOR_DESC") or _t(rec, "DOR_CODE_CUR"))[:20],
+        "year_built": "" if year in ("", "0") else year,
+        "land_value": _num_al(rec, "LAND_VAL_CUR"), "improvement_value": _num_al(rec, "BUILDING_VAL_CUR"),
+        "market_value": _num_al(rec, "TOTAL_VAL_CUR"), "tax_year": _t(rec, "ASSESSMENT_YEAR_CUR"),
+    }
+
+
+MDC_OVERLAYS = {
+    "zoning": {"label": "Zoning (Miami-Dade County)", "url": f"{MDC}/18", "fields": ["ZONE", "ZONE_DESC"],
+               "value": "ZONE", "name_field": "ZONE_DESC",
+               "authority": "Miami-Dade County (unincorporated land only)"},
+    "zoning_homestead": {"label": "Zoning (City of Homestead)", "url": f"{MDC}/19", "where": "MUNICNAME = 'HOMESTEAD'",
+                         "fields": ["ZONE", "ZONEDESC"], "value": "ZONE", "name_field": "ZONEDESC",
+                         "authority": "City of Homestead", "refines": "zoning", "fill_gaps": True},
+    "zoning_florida_city": {"label": "Zoning (City of Florida City)", "url": f"{MDC}/19",
+                            "where": "MUNICNAME = 'FLORIDA CITY'", "fields": ["ZONE", "ZONEDESC"], "value": "ZONE",
+                            "name_field": "ZONEDESC", "authority": "City of Florida City", "refines": "zoning",
+                            "fill_gaps": True},
+}
+
+COUNTIES["12086"] = {
+    "fips": "12086", "name": "Miami-Dade", "state": "FL", "bbox": (-80.95, 25.1, -80.1, 26.0),
+    "aliases": ["miami-dade", "miami dade", "miami-dade fl", "miami-dade county fl", "miami-dade county", "dade fl",
+                "dade county fl", "homestead fl", "homestead, fl", "florida city", "south miami-dade"],
+    "source": "Miami-Dade County Property Appraiser parcels (county GIS)", "release": "Miami-Dade County live service",
+    "parcels_url": f"{MDC}/26", "key_field": "FOLIO", "owner_field": "TRUE_OWNER1",
+    "base_where": "CANCEL_FLAG IS NULL OR CANCEL_FLAG <> 'Y'", "count_where": "LOT_SIZE >= 43560",
+    "count_fields": ["FOLIO", "TRUE_OWNER1", "LOT_SIZE"], "acres_fn": _mdc_acres,
+    "big_where_fn": lambda a: f"LOT_SIZE >= {a * SQFT_ACRE:.0f}", "fields_fn": _mdc_fields, "overlays": MDC_OVERLAYS,
+}
+
+
+# --- Emery County, UT (Cleveland, Huntington, Castle Dale, Ferron, Green River) ------------------------------------
+# Parcels: UGRC's statewide county-by-county LIR layer for Emery (boundaries from the County Recorder, values and
+# acres from the Assessor): parcel id, address, city, acres, land / total market value. Utah does not publish owner
+# names or mailing addresses in any public GIS layer, so owner fields stay blank until a list from the County Recorder
+# or a Regrid file is loaded with load_owners (same as Greene, IN). Zoning: UGRC's generalized-zoning layer holds only
+# the towns' zoning (Cleveland, Huntington, Castle Dale, Ferron, Orangeville, Elmo, Emery, Clawson, Green River);
+# unincorporated Emery County land has no public zoning layer.
+UGRC = "https://services1.arcgis.com/99lidPhWCzftIe9K/arcgis/rest/services"
+UGRC_ZONING = f"{UGRC}/planning_generalized_zoning/FeatureServer/1"
+
+
+def _emery_acres(rec):
+    v = rec.get("PARCEL_ACRES")
+    return float(v) if isinstance(v, (int, float)) and v > 0 else None
+
+
+def _emery_fields(rec):
+    year = _t(rec, "BUILT_YR").replace(".0", "")
+    exempt = _t(rec, "TAXEXEMPT_TYPE").upper() not in ("", "UNKNOWN", "NONE", "NOT EXEMPT")
+    prop_class = "" if _t(rec, "PROP_CLASS") == "Unknown" else _t(rec, "PROP_CLASS")
+    return {
+        "prop_id": _t(rec, "PARCEL_ID"), "geo_id": _t(rec, "SERIAL_NUM"),
+        "owner_name": "", "care_of": "", "mail_address": "", "mail_city": "", "mail_zip": "", "mail_state": "",
+        "situs_address": _t(rec, "PARCEL_ADD"), "situs_city": _t(rec, "PARCEL_CITY"), "situs_zip": "",
+        "legal_desc": _t(rec, "SUBDIV_NAME")[:500], "legal_acres": _emery_acres(rec),
+        "state_land_use": "X" if exempt else "", "local_land_use": prop_class[:20],
+        "year_built": "" if year in ("", "0") else year,
+        "land_value": _num_al(rec, "LAND_MKT_VALUE"), "improvement_value": None,
+        "market_value": _num_al(rec, "TOTAL_MKT_VALUE"), "tax_year": "",
+    }
+
+
+def _ugrc_zoning(city, authority, **extra):
+    return {"label": f"Zoning ({city})", "url": UGRC_ZONING, "where": f"county = 'Emery' AND city = '{city}'",
+            "fields": ["source_zone", "source_desc", "gen_zone"], "value": "source_zone",
+            "name_field": "source_desc", "general_field": "gen_zone", "authority": authority, **extra}
+
+
+EMERY_TOWNS = ("Huntington", "Castle Dale", "Ferron", "Orangeville", "Elmo", "Emery", "Clawson", "Green River")
+EMERY_OVERLAYS = {
+    # Cleveland is the "zoning" overlay; every other town's layer fills the land Cleveland's doesn't cover.
+    "zoning": _ugrc_zoning("Cleveland", "Town of Cleveland, UT"),
+    **{"zoning_" + c.lower().replace(" ", "_"):
+       _ugrc_zoning(c, f"{c}, UT", refines="zoning", fill_gaps=True) for c in EMERY_TOWNS},
+}
+
+COUNTIES["49015"] = {
+    "fips": "49015", "name": "Emery", "state": "UT", "bbox": (-111.6, 38.5, -109.05, 39.6),
+    "aliases": ["emery", "emery ut", "emery county ut", "emery county, ut", "emery, ut", "emery county utah",
+                "cleveland ut", "cleveland, ut", "cleveland utah", "huntington ut", "castle dale"],
+    "source": "Emery County, UT parcels (UGRC statewide LIR; no owner data)", "release": "UGRC live service",
+    "parcels_url": f"{UGRC}/Parcels_Emery_LIR/FeatureServer/0", "key_field": "PARCEL_ID",
+    "owner_field": "SERIAL_NUM",  # no owner field: a column that is always empty
+    "count_where": "PARCEL_ACRES > 0",
+    "count_fields": ["PARCEL_ID", "SERIAL_NUM", "PARCEL_ACRES"], "acres_fn": _emery_acres,
+    "big_where_fn": lambda a: f"PARCEL_ACRES >= {a:.1f} OR PARCEL_ACRES IS NULL OR PARCEL_ACRES = 0",
+    "fields_fn": _emery_fields, "overlays": EMERY_OVERLAYS,
+}
+
+
+# --- Honolulu County, HI (the island of Oahu) -----------------------------------------------------------------------
+# Parcels: the City and County's own tax-parcel layer (Cadastral_2020 layer 1, TMK keyed). The polygons carry no owner
+# names; the City publishes the owner roll as a separate table (CadastralTables/5 "OWNALL", keyed by TMK), joined after
+# loading with `hi_owners.py` / `load_owners` (see HANDOFF). rec_area_ac is blank on 95% of parcels, so acres come from
+# the polygon (Shape__Area is in square feet, State Plane HI zone 3 feet). Zoning: the City's Land Use Ordinance
+# districts (State Geoportal copy of the DPP layer, 1,965 areas). Honolulu is one county for the whole island.
+HI_GIS = "https://services.arcgis.com/tNJpAOha4mODLkXz/arcgis/rest/services"
+HI_ZONING = "https://geodata.hawaii.gov/arcgis/rest/services/ParcelsZoning/MapServer/3"
+
+
+def _hi_acres(rec):
+    v = rec.get("rec_area_ac")
+    if isinstance(v, (int, float)) and v > 0:
+        return float(v)
+    sf = rec.get("Shape__Area")
+    return sf / SQFT_ACRE if isinstance(sf, (int, float)) and sf > 0 else None
+
+
+def _hi_fields(rec):
+    return {
+        "prop_id": _t(rec, "tmk"), "geo_id": _t(rec, "taxpin"),
+        "owner_name": "", "care_of": "", "mail_address": "", "mail_city": "", "mail_zip": "", "mail_state": "",
+        "situs_address": "", "situs_city": "", "situs_zip": "",
+        "legal_desc": "", "legal_acres": _hi_acres(rec),
+        "state_land_use": "", "local_land_use": "",
+        "year_built": "", "land_value": None, "improvement_value": None, "market_value": None, "tax_year": "",
+    }
+
+
+HI_OVERLAYS = {
+    "zoning": {"label": "Zoning (City and County of Honolulu)", "url": HI_ZONING, "fields": ["zone_class", "zoning_des"],
+               "value": "zone_class", "name_field": "zoning_des",
+               "authority": "City and County of Honolulu (Land Use Ordinance)"},
+}
+
+COUNTIES["15003"] = {
+    "fips": "15003", "name": "Honolulu", "state": "HI", "bbox": (-158.35, 21.2, -157.6, 21.75),
+    "aliases": ["honolulu", "honolulu hi", "honolulu, hi", "honolulu county hi", "honolulu county, hi", "honolulu county",
+                "oahu", "oahu hi", "oahu, hi",
+                "kapolei", "ewa", "waianae"],
+    "source": "City and County of Honolulu tax parcels (county GIS; owners from the City's owner table)",
+    "release": "Honolulu County live service",
+    "parcels_url": f"{HI_GIS}/Cadastral_2020/FeatureServer/1", "key_field": "tmk", "owner_field": "rpa_spatial_source_doc",
+    "count_where": f"Shape__Area >= {SQFT_ACRE}",
+    "count_fields": ["tmk", "rpa_spatial_source_doc", "rec_area_ac", "Shape__Area"], "acres_fn": _hi_acres,
+    "big_where_fn": lambda a: f"rec_area_ac >= {a:.1f} OR Shape__Area >= {a * SQFT_ACRE * 0.9:.0f}",
+    "fields_fn": _hi_fields, "overlays": HI_OVERLAYS,
 }

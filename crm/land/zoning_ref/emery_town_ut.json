@@ -1,0 +1,87 @@
+{
+  "jurisdiction": "Emery Town, UT",
+  "code_name": "Emery Town Land Management and Development Code / zoning ordinance (text not found online)",
+  "edition": "None found. District names come from the Emery County hosted Emery City Zoning Map (https://emery.utah.gov/wp-content/uploads/2023/03/Emery-City-Zone.pdf), legend only.",
+  "code_url": "https://emery.utah.gov/wp-content/uploads/2023/03/Emery-City-Zone.pdf",
+  "retrieved": "2026-11-04",
+  "caveats": [
+    "No Emery Town zoning ordinance text was found. emery.utah.gov hosts only the zoning map (legend: R-1 10,000 Residential, RR-1 Rural Residential, I-1 Light Industrial, CC-1 Central Commercial). ZoningPoint states no official zoning map or code is published online by the municipality. Utah public notices show a 2022 rezone of about 5.98 acres from R-1 to I-1 and 2024 hearings on amendments to the town Land Management and Development Code, so such a code exists but its text was not located.",
+    "The Emery County 2026 Zoning Ordinance (https://emery.utah.gov/wp-content/uploads/2026/08/2026-Zoning-Ordinance.pdf) governs unincorporated county land and was not used for the town.",
+    "Do NOT substitute the Ferron or Huntington codes. Ask Emery Town Hall (65 N Center St) for the current Land Management and Development Code.",
+    "Every field except district names is null/empty because nothing was verified."
+  ],
+  "districts": [
+    {
+      "code": "RR-1",
+      "name": "Rural Residential",
+      "category": "rural",
+      "purpose": null,
+      "permitted_uses": [],
+      "conditional_uses": [],
+      "standards": {
+        "min_lot_size": null,
+        "max_height": null,
+        "setbacks": null,
+        "lot_coverage": null,
+        "other": null
+      },
+      "section": null,
+      "notes": "District text not found; only the district name from the map/GIS label is known. Rules not addressed here; do not infer. Map legend 'RR-1 Rural Residential'.",
+      "source": "https://emery.utah.gov/wp-content/uploads/2023/03/Emery-City-Zone.pdf (map legend only)"
+    },
+    {
+      "code": "CC-1",
+      "name": "Central Commercial",
+      "category": "commercial",
+      "purpose": null,
+      "permitted_uses": [],
+      "conditional_uses": [],
+      "standards": {
+        "min_lot_size": null,
+        "max_height": null,
+        "setbacks": null,
+        "lot_coverage": null,
+        "other": null
+      },
+      "section": null,
+      "notes": "District text not found; only the district name from the map/GIS label is known. Rules not addressed here; do not infer. Map legend 'CC-1 Central Commercial'.",
+      "source": "https://emery.utah.gov/wp-content/uploads/2023/03/Emery-City-Zone.pdf (map legend only)"
+    },
+    {
+      "code": "I-1",
+      "name": "Light Industrial",
+      "category": "industrial",
+      "purpose": null,
+      "permitted_uses": [],
+      "conditional_uses": [],
+      "standards": {
+        "min_lot_size": null,
+        "max_height": null,
+        "setbacks": null,
+        "lot_coverage": null,
+        "other": null
+      },
+      "section": null,
+      "notes": "District text not found; only the district name from the map/GIS label is known. Rules not addressed here; do not infer. Map legend 'I-1 Light Industrial'. Hazardous/explosive manufacturing, outdoor storage, solar, data centers, truck terminals: unknown (not found).",
+      "source": "https://emery.utah.gov/wp-content/uploads/2023/03/Emery-City-Zone.pdf (map legend only)"
+    },
+    {
+      "code": "R-1",
+      "name": "Residential (R-1 10,000 on the map legend)",
+      "category": "residential",
+      "purpose": null,
+      "permitted_uses": [],
+      "conditional_uses": [],
+      "standards": {
+        "min_lot_size": null,
+        "max_height": null,
+        "setbacks": null,
+        "lot_coverage": null,
+        "other": null
+      },
+      "section": null,
+      "notes": "District text not found; only the district name from the map/GIS label is known. Rules not addressed here; do not infer. Map legend 'R-1 10,000 Residential'; 10,000 is part of the label, not a verified lot size.",
+      "source": "https://emery.utah.gov/wp-content/uploads/2023/03/Emery-City-Zone.pdf (map legend only)"
+    }
+  ]
+}

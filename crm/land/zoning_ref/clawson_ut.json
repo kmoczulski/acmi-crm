@@ -1,0 +1,69 @@
+{
+  "jurisdiction": "Clawson Town, UT",
+  "code_name": "Clawson Town zoning ordinance (none found)",
+  "edition": "None found.",
+  "code_url": "https://emery.utah.gov/home/residents/cities-towns/clawson/ (town page; links only a town map and the county zoning boundary map)",
+  "retrieved": "2026-11-04",
+  "caveats": [
+    "No Clawson zoning ordinance or Clawson zoning map was found. emery.utah.gov lists zoning maps for Castle Dale, Cleveland, Elmo, Emery, Ferron, Green River, Huntington and Orangeville, not Clawson; the countywide map (https://emery.utah.gov/wp-content/uploads/2023/02/cntyzone.pdf) only labels Clawson. ZoningPoint and web searches found nothing. The Emery County 2026 Zoning Ordinance does not mention Clawson and was not used.",
+    "Codes RA ('Residential Agricultural') and I ('Industrial') are the GIS layer's own labels; the name of R-1 is unconfirmed. Nothing else is known.",
+    "Do NOT substitute other Utah RA or I districts. Ask Clawson Town or Emery County Building and Zoning (zoning contacts are in the county permit packet).",
+    "Every field except district codes and layer labels is null/empty because nothing was verified."
+  ],
+  "districts": [
+    {
+      "code": "RA",
+      "name": "Residential Agricultural (GIS layer label)",
+      "category": "rural",
+      "purpose": null,
+      "permitted_uses": [],
+      "conditional_uses": [],
+      "standards": {
+        "min_lot_size": null,
+        "max_height": null,
+        "setbacks": null,
+        "lot_coverage": null,
+        "other": null
+      },
+      "section": null,
+      "notes": "District text not found; only the district name from the map/GIS label is known. Rules not addressed here; do not infer. Label is from the GIS layer only.",
+      "source": "GIS layer label only; no document found"
+    },
+    {
+      "code": "I",
+      "name": "Industrial (GIS layer label)",
+      "category": "industrial",
+      "purpose": null,
+      "permitted_uses": [],
+      "conditional_uses": [],
+      "standards": {
+        "min_lot_size": null,
+        "max_height": null,
+        "setbacks": null,
+        "lot_coverage": null,
+        "other": null
+      },
+      "section": null,
+      "notes": "District text not found; only the district name from the map/GIS label is known. Rules not addressed here; do not infer. Label is from the GIS layer only. Hazardous/explosive manufacturing, outdoor storage, solar, data centers, truck terminals: unknown (not found).",
+      "source": "GIS layer label only; no document found"
+    },
+    {
+      "code": "R-1",
+      "name": "Residential (name unconfirmed)",
+      "category": "residential",
+      "purpose": null,
+      "permitted_uses": [],
+      "conditional_uses": [],
+      "standards": {
+        "min_lot_size": null,
+        "max_height": null,
+        "setbacks": null,
+        "lot_coverage": null,
+        "other": null
+      },
+      "section": null,
+      "notes": "District text not found; only the district name from the map/GIS label is known. Rules not addressed here; do not infer. Code requested as a likely companion district; not confirmed to exist in Clawson.",
+      "source": "none found"
+    }
+  ]
+}

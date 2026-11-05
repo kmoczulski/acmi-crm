@@ -1,0 +1,237 @@
+{
+  "jurisdiction": "Ferron City, UT",
+  "code_name": "Ferron City Zoning Code, Title 10 Zoning, Chapter 6 Regulations Within Zones (Articles A to I)",
+  "edition": "Zoneomics mirror of the Ferron City Zoning Code (amendments seen through Ord. 2020-3, 6-10-2020), retrieved 2026-11-04. The official American Legal copy (https://codelibrary.amlegal.com/codes/ferronut/latest/ferron_ut/) was not read.",
+  "code_url": "https://www.zoneomics.com/code/ferron-UT/chapter_6 (Zoneomics mirror; official code on American Legal)",
+  "retrieved": "2026-11-04",
+  "caveats": [
+    "Text is from the Zoneomics mirror, not American Legal; verify against the official code before relying on it. Reports should tag these districts 'check source'.",
+    "Ferron's zoning map (https://emery.utah.gov/wp-content/uploads/2023/02/ferzone.pdf) also shows RA-20, which is not in the Zoneomics text (chapter 6 has RA-1 and RA-2 only); RA-20 is not documented here.",
+    "Chapter 8 (Conditional Uses), Chapter 4 supplementary regulations (e.g. 10-4-6 storage prohibited in residential zones, 10-4-20 pollution prevention, 10-4-16 parking), Chapter 7 large scale developments and Chapter 12 livestock were not read. The zone articles list permitted uses only (no conditional use list inside each zone); several 'permitted' items need Planning Commission or City Council approval.",
+    "Setbacks for most residential zones are stated by reference to the RA-1 article ('same as RA-1'); values are restated below.",
+    "Ferron zone maps are paper approvals dated by the county; the code text and map were not reconciled parcel by parcel."
+  ],
+  "districts": [
+    {
+      "code": "RA-1",
+      "name": "RA-1 Residential-Agricultural Zone",
+      "category": "rural",
+      "purpose": "Fringe areas of the city where residential areas may be integrated with raising livestock for family food production and the pleasure of residents.",
+      "permitted_uses": [
+        "One-family dwellings (conventional construction); residential accessory uses; household pets and kennels",
+        "Growing of field crops and fruit; greenhouses with limited retail sales (7 AM to 7 PM, Mon-Sat); machinery and equipment sheds for agricultural use on the premises",
+        "Churches; public and parochial schools; public agency parks and playgrounds; public buildings and grounds (no storage yards or repair shops); public utility lines and buildings",
+        "Home occupations; low impact businesses; foster care homes; accessory signs and nameplates; temporary uses (Chapter 9)",
+        "Rest homes and daycare centers when approved by the city council"
+      ],
+      "conditional_uses": [],
+      "standards": {
+        "min_lot_size": "One-family dwelling 1 acre; churches 2 acres; other uses none. Frontage 125' for dwelling, 250' churches",
+        "max_height": "20 ft or two stories (20 ft treated as two stories)",
+        "setbacks": "Front 30'; side interior 20' (main building); corner street side 30'; rear 30' (20' for attached garage/carport on corner lots); accessory buildings 12' behind main building rear wall line and 5' from side/rear lot line with exceptions",
+        "lot_coverage": null,
+        "other": "Min dwelling 840 sq ft ground floor; 24 ft minimum width; 75% of front and street-side yards landscaped; public water supply for occupied buildings."
+      },
+      "section": "10-6A-1 to 10-6A-8",
+      "notes": "Residential-agricultural: industrial, commercial, outdoor storage, hazardous manufacturing, solar and data centers are not listed (not addressed). Livestock rules are in Chapter 12 (not read).",
+      "source": "https://www.zoneomics.com/code/ferron-UT/chapter_6 (Zoneomics mirror)"
+    },
+    {
+      "code": "RA-2",
+      "name": "RA-2 Residential-Agricultural Zone (subzone of RA-1)",
+      "category": "rural",
+      "purpose": "Subzone of the RA-1 residential-agricultural zone (Ord. 2008-2, 3-27-2008).",
+      "permitted_uses": [
+        "Same permitted uses as RA-1 except kennels, which are not permitted in RA-2"
+      ],
+      "conditional_uses": [],
+      "standards": {
+        "min_lot_size": "One-family dwelling 10,000 sq ft; churches 2 acres. Frontage 90' dwelling, 250' churches",
+        "max_height": "Same as RA-1 article (20 ft or two stories)",
+        "setbacks": "Same as R-1-10,000 zone: side 8' with total 20' (6' / 14' with attached garage or carport), other setbacks per RA-1",
+        "lot_coverage": null,
+        "other": null
+      },
+      "section": "10-6A1-1 to 10-6A1-4",
+      "notes": "Not addressed: industrial, hazardous, solar, data center and outdoor storage uses.",
+      "source": "https://www.zoneomics.com/code/ferron-UT/chapter_6 (Zoneomics mirror)"
+    },
+    {
+      "code": "R-1-10,000",
+      "name": "R-1-10,000 Residential Zone",
+      "category": "residential",
+      "purpose": "One-family detached dwellings on spacious lots with landscaped yards; multiple-family dwellings, apartment houses and commercial and industrial uses are not permitted.",
+      "permitted_uses": [
+        "One-family dwellings (conventional and manufactured homes); residential accessory uses",
+        "Growing of field crops and fruit; greenhouses with limited sales; machinery sheds for on-premises agriculture",
+        "Utility lines; home occupations; low impact businesses; foster care and family care homes",
+        "Public and parochial schools; public parks and playgrounds; public buildings; churches; household pets (no kennels); fences, walls and hedges; accessory and temporary signs; temporary uses"
+      ],
+      "conditional_uses": [],
+      "standards": {
+        "min_lot_size": "One-family dwelling 10,000 sq ft; churches 2 acres. Frontage 90'; churches 250'",
+        "max_height": "20 ft or two stories (per RA-1 article)",
+        "setbacks": "Front 30'; side 8' each with 20' combined (6' / 14' with attached garage or carport); rear 30'; corner street side 30'",
+        "lot_coverage": null,
+        "other": "Min dwelling 840 sq ft (per RA-1 reference)."
+      },
+      "section": "10-6B-1 to 10-6B-8",
+      "notes": "Industrial and commercial uses expressly not permitted; hazardous, solar, data center, outdoor storage not addressed.",
+      "source": "https://www.zoneomics.com/code/ferron-UT/chapter_6 (Zoneomics mirror)"
+    },
+    {
+      "code": "R-1-7500",
+      "name": "R-1-7500 Residential Zone",
+      "category": "residential",
+      "purpose": "One-family detached dwellings on somewhat smaller lots than R-1-10,000; high density apartments and commercial and industrial uses not permitted.",
+      "permitted_uses": [
+        "Same uses as R-1-10,000",
+        "One-family dwellings including double-wide mobile homes at least 24 ft wide meeting HUD 1976+ standards and Section 10-4-21"
+      ],
+      "conditional_uses": [],
+      "standards": {
+        "min_lot_size": "One-family dwelling 7,500 sq ft; churches 2 acres. Frontage 75'; churches 250'",
+        "max_height": "20 ft or two stories (per RA-1 article)",
+        "setbacks": "Front 30'; side 8' each with 20' combined (6' / 14' with attached garage or carport); rear 30'",
+        "lot_coverage": null,
+        "other": "Min dwelling 840 sq ft; building width at least 20 ft."
+      },
+      "section": "10-6C-1 to 10-6C-8",
+      "notes": "Industrial and commercial uses not permitted; other items not addressed.",
+      "source": "https://www.zoneomics.com/code/ferron-UT/chapter_6 (Zoneomics mirror)"
+    },
+    {
+      "code": "R-2-7500",
+      "name": "R-2-7500 Residential Zone",
+      "category": "residential",
+      "purpose": "One- and two-family detached dwellings on individual lots; multiple-family dwellings not permitted.",
+      "permitted_uses": [
+        "Same as R-1-7500",
+        "Two-family dwellings (conventional; manufactured/mobile subject to 10-4-21 and Chapter 7 Art. C)",
+        "Manufactured home parks (central sewer, Chapter 7 Art. C); recreational vehicle courts (Chapter 7 Art. D)"
+      ],
+      "conditional_uses": [],
+      "standards": {
+        "min_lot_size": "One-family 7,500 sq ft; two-family 10,000 sq ft; churches 2 acres. Frontage 75' / 85' / 250'",
+        "max_height": "20 ft or two stories (per RA-1 article)",
+        "setbacks": "Side per R-1-10,000 (8' / 20' combined); front, rear per RA-1 (30')",
+        "lot_coverage": null,
+        "other": "Min dwelling 840 sq ft one-family, 1,200 sq ft two-family."
+      },
+      "section": "10-6D-1 to 10-6D-8",
+      "notes": "Not addressed: industrial, hazardous, solar, data center, outdoor storage.",
+      "source": "https://www.zoneomics.com/code/ferron-UT/chapter_6 (Zoneomics mirror)"
+    },
+    {
+      "code": "R-3-7500",
+      "name": "R-3-7500 Residential Zone",
+      "category": "residential",
+      "purpose": "One-, two- and multiple-family dwellings.",
+      "permitted_uses": [
+        "Same as R-2-7500",
+        "Multiple-family dwellings, not more than eight units per structure"
+      ],
+      "conditional_uses": [],
+      "standards": {
+        "min_lot_size": "One-family 7,500 sq ft; two-family 10,000; multiple-family 10,000 for the first two units plus 2,500 per additional unit; churches 2 acres. Frontage 75' / 85' / 85' / 150'",
+        "max_height": "20 ft or two stories (per RA-1 article)",
+        "setbacks": "Side per R-1-10,000; front and rear per RA-1 (30')",
+        "lot_coverage": null,
+        "other": "Landscape plan required for multiple-family dwellings; min dwelling sizes 840 / 1,200 / 1,200 plus 600 per unit over two."
+      },
+      "section": "10-6E-1 to 10-6E-8",
+      "notes": "Not addressed: industrial, hazardous, solar, data center, outdoor storage.",
+      "source": "https://www.zoneomics.com/code/ferron-UT/chapter_6 (Zoneomics mirror)"
+    },
+    {
+      "code": "CC-1",
+      "name": "CC-1 Central Commercial Zone",
+      "category": "commercial",
+      "purpose": "Retail and service uses serving the city and surrounding areas, maintaining the central business district as the heart of the city; retail stores, banks, offices, theaters, motels and specialty shops.",
+      "permitted_uses": [
+        "General retail stores and shops (storage and sales inside a building; manufacturing and processing that is integral and incidental to the retail establishment)",
+        "Hotels and motels; office buildings, medical clinics, hospitals; restaurants and food drive-ins; personal service establishments; automotive service (gas stations, car washes, parking lots, minor repair); hardware, lumber and building products sales (storage in a building or inside a 6 ft fenced enclosure); automobile, motorcycle and snowmobile sales and related repair; recreational enterprises; funeral homes; kennels; public parks and buildings; accessory signs and uses; similar uses interpreted by the Planning Commission"
+      ],
+      "conditional_uses": [],
+      "standards": {
+        "min_lot_size": "No area, width or location requirements (enough area for parking, unloading and access)",
+        "max_height": null,
+        "setbacks": "No setbacks beyond the Building Code; gasoline pumps 20' from property lines",
+        "lot_coverage": null,
+        "other": "All materials, merchandise and equipment (except running vehicles) stored in an enclosed building or a fenced enclosure at least 6 ft high; no dust, odor, smoke, vibration, glare or noise beyond premises; hard surface parking."
+      },
+      "section": "10-6F-1 to 10-6F-4",
+      "notes": "Not addressed: industrial manufacturing, hazardous, solar, data center, truck terminals.",
+      "source": "https://www.zoneomics.com/code/ferron-UT/chapter_6 (Zoneomics mirror)"
+    },
+    {
+      "code": "H-1",
+      "name": "H-1 Highway Commercial Zone",
+      "category": "commercial",
+      "purpose": "Location for retail and service commercial activities that are inconsistent with and detrimental to the Central Commercial zone; mixture of commercial and residential uses with design and operation requirements.",
+      "permitted_uses": [
+        "Any use permitted in RA-1",
+        "Automobile service stations; sales of automobiles, motorcycles, snowmobiles; automobile repair (all work in an enclosed structure, no outside storage of parts or inoperative vehicles); recreation vehicle courts; lumber and building materials sales; convenience stores up to 2,400 sq ft",
+        "Hotels and motels; office buildings and medical clinics; restaurants and food drive-ins; personal service establishments; funeral homes; similar uses interpreted by the Planning Commission"
+      ],
+      "conditional_uses": [],
+      "standards": {
+        "min_lot_size": "Dwellings per RA-1 (1 acre); commercial uses per the location plan approved by the Planning Commission",
+        "max_height": "Dwellings per RA-1 (20 ft or two stories); commercial height per approved plan",
+        "setbacks": "Commercial buildings (except agricultural sheds) at least 50 ft from the right-of-way line of any public street; dwellings per RA-1",
+        "lot_coverage": null,
+        "other": "Site plan approval by the Planning Commission required before commercial use or construction; no noise, vibration, smoke, odor, dust or fumes discernible beyond the property; approved water and sewer."
+      },
+      "section": "10-6G-1 to 10-6G-4",
+      "notes": "Not addressed: manufacturing, hazardous, solar, data center, truck terminals (no truck stop listed), outdoor storage beyond the automobile repair rule.",
+      "source": "https://www.zoneomics.com/code/ferron-UT/chapter_6 (Zoneomics mirror)"
+    },
+    {
+      "code": "SC-1",
+      "name": "SC-1 Planned Shopping Center Zone",
+      "category": "planned",
+      "purpose": "Development of retail commercial centers: a harmonious grouping of retail and service stores designed as an integrated unit with low-intensity shielded lighting.",
+      "permitted_uses": [
+        "Uses limited to planned shopping center developments built under Chapter 7 (Large Scale Developments) of the title"
+      ],
+      "conditional_uses": [],
+      "standards": {
+        "min_lot_size": null,
+        "max_height": null,
+        "setbacks": null,
+        "lot_coverage": null,
+        "other": null
+      },
+      "section": "10-6H-1 to 10-6H-3",
+      "notes": "Chapter 7 requirements not read; not addressed: industrial, hazardous, solar, data center, truck terminals.",
+      "source": "https://www.zoneomics.com/code/ferron-UT/chapter_6 (Zoneomics mirror)"
+    },
+    {
+      "code": "I-1",
+      "name": "I-1 Industrial Zone",
+      "category": "industrial",
+      "purpose": "Manufacturing, processing, warehousing and fabrication of goods and materials with minimum conflict with neighbors, to broaden the tax base. Certain industrial uses are excluded to protect adjoining residential zones, such as industries that are hazardous or offensive due to unusual emission of odors, vibration, dust, glare, noise or fumes. Dwellings, schools, churches and most general retail are excluded.",
+      "permitted_uses": [
+        "Manufacturing, compounding, processing, packaging, fabrication and warehousing of goods and materials, except processing of animal by-products, livestock feed yards, steel manufacturing, oil refineries, wall board manufacturing and similar establishments that emit offensive fumes, smoke, noise or odor",
+        "Asphalt and concrete mixing plants, coal yards, earth moving equipment and equipment storage, gas and oil wells, gas and oil storage facilities, public and public utility buildings, craft shops, tire recapping, billboards, accessory signs",
+        "Automobile wrecking and salvage yards inside an 8 ft sight-obscuring fence",
+        "Mines, gravel pits, sand pits, clay pits, rock quarries, rock crushers and related buildings; railroads and railroad maintenance yards",
+        "Agriculture, farm machinery storage sheds, vegetable and fruit packing and processing plants, livestock raising",
+        "Utility transmission lines and substations, water treatment plants, pumping plants, power plants",
+        "Office buildings and research parks; accessory buildings, parking lots, fences and walls",
+        "Other uses ruled by the City Council to be similar to those specifically permitted"
+      ],
+      "conditional_uses": [],
+      "standards": {
+        "min_lot_size": "No area requirements except enough for setbacks, parking, loading and access; no width requirements",
+        "max_height": "No height requirements",
+        "setbacks": "Front 30' from the right-of-way; interior side none (10' when adjacent to a residential zone); corner street side 30'; rear same as interior side",
+        "lot_coverage": null,
+        "other": "Site plan approved by the Planning Commission before any building, fence or wall; adequate on-site parking and loading; no walls or hedges that restrict vehicle sight distance; 50% of the front yard landscaped; public water supply and building code compliance for occupied buildings; supplementary standards in Chapter 4 apply."
+      },
+      "section": "10-6I-1 to 10-6I-7",
+      "notes": "ACMI-relevant: (1) Hazardous/explosive manufacturing: not named as a use, but the intent excludes industries that are hazardous or offensive, and permitted manufacturing excludes steel, oil refineries, wall board and similar offensive-emission establishments; explosives/energetics would require a City Council ruling that they are 'similar' to a permitted use; treat as not allowed or doubtful until confirmed. (2) Outdoor storage: equipment storage and earth-moving equipment storage are permitted; no general outdoor storage screening rule in this article except the 8 ft fence for wrecking yards. (3) Solar: not addressed (power plants are permitted by right). (4) Data centers: not addressed (research parks and office buildings permitted; City Council may rule similar). (5) Truck terminals: not listed; railroads and rail maintenance yards and warehousing are. Everything in the I-1 list is permitted (no conditional list in the article); Chapter 8 conditional uses not read. Zoneomics mirror.",
+      "source": "https://www.zoneomics.com/code/ferron-UT/chapter_6 (Zoneomics mirror)"
+    }
+  ]
+}

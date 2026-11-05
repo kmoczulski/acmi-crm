@@ -1609,3 +1609,151 @@ class FemaLayerLookupTests(TestCase):
         with mock.patch.object(sources.SESSION, "get", return_value=ok):
             self.assertEqual(sources.fema_flood_layer_id(), 36)
         self.assertNotIn("failed", sources._fema_layer_cache)
+
+
+class FloridaUtahCountyTests(TestCase):
+    """Miami-Dade, FL (county GIS, city zoning fills gaps) and Emery, UT (UGRC layer, no owner data)."""
+
+    def test_miami_dade_record_maps_to_parcel_fields(self):
+        from crm.land import counties
+        from crm.land.sources import region_for
+
+        cfg = counties.find("Homestead, FL")
+        self.assertEqual(cfg["fips"], "12086")
+        rec = {"FOLIO": "3059220000010", "TTRRSS": "565622", "TRUE_OWNER1": "FLORIDA FARMS LLC", "TRUE_OWNER2": "C/O A SMITH",
+               "TRUE_OWNER3": None, "TRUE_MAILING_ADDR1": "1 MAIN ST", "TRUE_MAILING_ADDR2": "STE 4",
+               "TRUE_MAILING_CITY": "MIAMI", "TRUE_MAILING_STATE": "FL", "TRUE_MAILING_ZIP_CODE": "33131-0000",
+               "TRUE_SITE_ADDR": "", "DOR_CODE_CUR": "5101", "DOR_DESC": "AGRICULTURAL : CROPLAND", "LOT_SIZE": 871200.0,
+               "YEAR_BUILT": 0, "LAND_VAL_CUR": 500000, "BUILDING_VAL_CUR": 0, "TOTAL_VAL_CUR": 500000,
+               "ASSESSMENT_YEAR_CUR": 2027}
+        f = counties.record_fields(cfg, rec)
+        self.assertEqual(counties.acres_of(cfg, rec), 20.0)
+        self.assertEqual((f["prop_id"], f["owner_name"], f["care_of"], f["mail_address"], f["mail_zip"], f["mail_state"]),
+                         ("3059220000010", "FLORIDA FARMS LLC", "C/O A SMITH", "1 MAIN ST STE 4", "33131", "FL"))
+        self.assertEqual((f["state_land_use"], f["market_value"], f["year_built"], f["tax_year"]), ("D", 500000.0, "", "2027"))
+        self.assertEqual(region_for("Miami-Dade", "FL"), "South Florida (Homestead)")
+        self.assertEqual(counties.big_where(cfg, 20), "(CANCEL_FLAG IS NULL OR CANCEL_FLAG <> 'Y') AND (LOT_SIZE >= 871200)")
+        for code, want in (("0000", "C"), ("0100", "A"), ("0800", "B"), ("1100", "F1"), ("4100", "F2"), ("8600", "X"), ("9100", "J")):
+            self.assertEqual(counties._mdc_dor({"DOR_CODE_CUR": code}), want, code)
+
+    def test_city_zoning_fills_land_the_county_layer_does_not_cover(self):
+        from shapely import STRtree
+
+        from crm.land import counties
+        from crm.land.layers import to_albers
+        from crm.land.score import zoning_class
+
+        def index_of(layers):
+            out = {}
+            for key, spec, geom, props in layers:
+                g = to_albers(geom)
+                out[key] = (STRtree([g]), [g], [props], spec)
+            return out
+
+        county = {"label": "Zoning (Miami-Dade County)", "value": "ZONE", "fields": ["ZONE"], "name_field": "ZONE_DESC",
+                  "authority": "Miami-Dade County (unincorporated land only)"}
+        city = {"label": "Zoning (City of Homestead)", "value": "ZONE", "fields": ["ZONE"], "name_field": "ZONEDESC",
+                "authority": "City of Homestead", "refines": "zoning", "fill_gaps": True}
+        parcel = box(-80.46, 25.46, -80.458, 25.462)
+        away = box(-80.9, 25.2, -80.8, 25.3)
+        # Inside Homestead only: the city layer becomes the zoning.
+        zoning, overlays = counties.stamp(index_of([
+            ("zoning", county, away, {"ZONE": "AU", "ZONE_DESC": "Agricultural"}),
+            ("zoning_homestead", city, box(-80.5, 25.4, -80.4, 25.5), {"ZONE": "I-1", "ZONEDESC": "LIGHT INDUSTRY DISTRICT"})]), parcel)
+        self.assertEqual((zoning, overlays["zoning"]["authority"], overlays["zoning"]["value"]), ("I-1", "City of Homestead", "I-1"))
+        # Where the county layer covers the parcel, it keeps the county zoning and the city overlay is dropped.
+        zoning, overlays = counties.stamp(index_of([
+            ("zoning", county, box(-80.5, 25.4, -80.4, 25.5), {"ZONE": "AU", "ZONE_DESC": "Agricultural"}),
+            ("zoning_homestead", city, box(-80.5, 25.4, -80.4, 25.5), {"ZONE": "I-1", "ZONEDESC": "LIGHT INDUSTRY"})]), parcel)
+        self.assertEqual((zoning, overlays["zoning"]["authority"]), ("AU", "Miami-Dade County (unincorporated land only)"))
+        self.assertNotIn("zoning_homestead", overlays)
+
+        class Cty:
+            fips = "12086"
+
+        class P:
+            county = Cty()
+            overlays = {"zoning": {"value": "IU-2"}}
+            in_city = False
+
+        self.assertEqual(zoning_class(P()), "industrial")
+
+    def test_emery_record_maps_to_parcel_fields_with_no_owner(self):
+        from crm.land import counties
+        from crm.land.sources import region_for
+
+        cfg = counties.find("Cleveland, UT")
+        self.assertEqual(cfg["fips"], "49015")
+        rec = {"PARCEL_ID": "01-049A-0001", "PARCEL_ADD": "40 W 300 N", "PARCEL_CITY": "Cleveland", "PARCEL_ACRES": 3.26,
+               "TOTAL_MKT_VALUE": 401678, "LAND_MKT_VALUE": 45504, "BUILT_YR": 2008, "PROP_CLASS": "Unknown",
+               "TAXEXEMPT_TYPE": "Unknown"}
+        f = counties.record_fields(cfg, rec)
+        self.assertEqual((f["prop_id"], f["owner_name"], f["situs_city"], f["market_value"], f["state_land_use"]),
+                         ("01-049A-0001", "", "Cleveland", 401678.0, ""))
+        self.assertEqual(f["year_built"], "2008")
+        self.assertEqual(counties.acres_of(cfg, rec), 3.26)
+        self.assertEqual(region_for("Emery", "UT"), "Central Utah (Emery County)")
+        self.assertIn("PARCEL_ACRES >= 20.0", counties.big_where(cfg, 20))
+        self.assertEqual(counties.record_fields(cfg, {**rec, "TAXEXEMPT_TYPE": "Federal"})["state_land_use"], "X")
+        self.assertIn("zoning", cfg["overlays"])
+        self.assertEqual(cfg["overlays"]["zoning"]["authority"], "Town of Cleveland, UT")
+
+
+class FloridaUtahUtilityTests(TestCase):
+    def test_utility_checks_are_wired_for_miami_dade_and_emery(self):
+        from crm.land import lookup
+
+        fl = lookup.checks_for("FL", "Miami-Dade")
+        ut = lookup.checks_for("UT", "Emery")
+        for checks in (fl, ut):
+            self.assertIn("water", checks)
+            self.assertIn("sewer", checks)
+            self.assertIs(checks["electric"], lookup.check_electric_national)
+        self.assertEqual(lookup.OTHER_PROVIDERS[("FL", "Miami-Dade")]["water"]["names"]["HOMSTD"], "City of Homestead")
+        # Utah has no statewide sewer layer: the check answers "none mapped" with a note and makes no request.
+        data, _ = ut["sewer"](None, None)
+        self.assertEqual(data["providers"], [])
+        self.assertIn("No public sewer", data["note"])
+
+
+class HonoluluCountyTests(TestCase):
+    """Oahu (Honolulu County, HI): acres from the polygon, TMK key, zoning buckets, utility wiring."""
+
+    def test_honolulu_record_maps_to_parcel_fields(self):
+        from crm.land import counties, lookup
+        from crm.land.sources import region_for
+
+        cfg = counties.find("Oahu")
+        self.assertEqual(cfg["fips"], "15003")
+        self.assertEqual(counties.find("Honolulu, HI")["fips"], "15003")
+        # rec_area_ac is blank on most parcels: acres fall back to the polygon (square feet).
+        self.assertEqual(counties.acres_of(cfg, {"rec_area_ac": 301.8, "Shape__Area": 1}), 301.8)
+        self.assertAlmostEqual(counties.acres_of(cfg, {"rec_area_ac": None, "Shape__Area": 871200}), 20.0)
+        self.assertIsNone(counties.acres_of(cfg, {"Shape__Area": 0}))
+        f = counties.record_fields(cfg, {"tmk": "11001001", "taxpin": 113716, "rec_area_ac": 301.813})
+        self.assertEqual((f["prop_id"], f["geo_id"], f["owner_name"]), ("11001001", "113716", ""))
+        self.assertEqual(region_for("Honolulu", "HI"), "Oahu, Hawaii")
+        self.assertIn("Shape__Area >= 784080", counties.big_where(cfg, 20))
+        checks = lookup.checks_for("HI", "Honolulu")
+        water, _ = checks["water"](None, None)
+        self.assertIn("Board of Water Supply", water["providers"][0])
+
+    def test_honolulu_zoning_codes_have_a_bucket_whatever_their_case(self):
+        from crm.land.score import zoning_class
+
+        class Cty:
+            fips = "15003"
+
+        def bucket(code):
+            class P:
+                county = Cty()
+                overlays = {"zoning": {"value": code}}
+                in_city = False
+            return zoning_class(P())
+
+        self.assertEqual(bucket("I-2"), "industrial")
+        self.assertEqual(bucket("AG-1"), "agricultural")
+        self.assertEqual(bucket("P-1"), "conservation")
+        self.assertEqual(bucket("F-1"), "public")
+        self.assertEqual(bucket("Resort"), "commercial")
+        self.assertEqual(bucket("Kak"), "public")

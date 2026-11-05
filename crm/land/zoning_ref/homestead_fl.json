@@ -1,0 +1,305 @@
+{
+  "jurisdiction": "City of Homestead, FL",
+  "code_name": "City of Homestead Code of Ordinances, Chapter 30 Zoning (Article III District Regulations; Article VI Planned Unit Developments); Land Development Code on Municode",
+  "edition": "Zoneomics mirror of the Municode text (code history not shown on the mirror); Municode itself (Supp. 88, codified through Ord. 2026-05-17) blocks automated fetching of section text, so the mirror is the source",
+  "code_url": "https://www.zoneomics.com/code/homestead-FL/chapter_3 (Zoneomics mirror); official: https://library.municode.com/fl/homestead/codes/code_of_ordinances",
+  "retrieved": "2026-11-04",
+  "caveats": [
+    "All district text was read from the Zoneomics mirror, not from Municode. Municode returns HTTP 403 to automated fetching and its content API returns 401; only the Municode landing page (Supp. 88, updated 2026-10-08) was viewable. Treat everything as 'check source' and confirm against Municode before relying on it.",
+    "The mirror's edition date is unknown. Municode lists ordinances adopted in 2026 (for example 2026-08-22 and 2026-08-24 amending B-1, B-2, B-3 use lists for animal clinics and express car washes) that may not be reflected in the mirror text.",
+    "Text was extracted from long pages by summarization; lists of B-1 and B-2 permitted uses (about 100 items in B-1) are summarized, not reproduced. B-3 and B-1A were not requested and are not documented except as inherited by I-1 and I-2.",
+    "Data centers, solar energy generation and explosives / energetics manufacturing are not addressed by name in any district read (explosives appear only as a prohibition on on-site storage by B-1 cleaning agencies and B-2 dry cleaners). Whether a data center would be classed as a similar use is not stated.",
+    "Referenced sections were not read: 30-488 (alternative screening), 30-431 (parking), 30-531 (unusual uses, special public hearing), 30-475 (community residential homes), 30-398 (minimum unit size), Sec. 27-46 et seq. (mobile home parks), 30-70 and 30-47.",
+    "The code letter 'G' (General Use) is mentioned only in the interpretation section; Sec. 30-366 is titled 'Annexed property' and was not documented as a district. GP is the Government Property district.",
+    "TMU: lot size, height, setback and coverage figures are not given in the text read (they are set by the project's regulating plan); marked null.",
+    "PUD: the PUD article (Sec. 30-566 to 30-571) was read from the Zoneomics chapter_6 page in summarized form. Section numbering '571(a)-(d)' is as the mirror showed it.",
+    "Rapid Transit Development Overlay (30-396.573 to .582), Planned Urban Neighborhood, Business Mixed Use, Neighborhood Mixed Use and I-3 districts exist but were not requested."
+  ],
+  "districts": [
+    {
+      "code": "PUD",
+      "name": "Planned Unit Development",
+      "category": "planned",
+      "purpose": "Evaluates unique projects that standard zoning does not allow, encouraging well-planned mixed-use communities; the applicant gets design flexibility in exchange for tangible community benefits.",
+      "permitted_uses": [
+        "Residential: single-family, two-family and twin homes, townhouses, multifamily, community residential homes",
+        "Nonresidential: not broadly defined; hotels, motels and bed-and-breakfasts allowed under listed criteria",
+        "Every PUD must mix residential and nonresidential uses; if more than 50% of the acreage is residential, at least 20% must be nonresidential",
+        "Industrial uses: not listed as a permitted category; any proposed industrial use must be buffered at least 50 ft from residential uses",
+        "Self-service storage facilities are prohibited (except within the Villages of Homestead DRI)",
+        "Data centers, solar, outdoor storage, truck terminals, explosives / energetics manufacturing: not addressed"
+      ],
+      "conditional_uses": [
+        "Assisted living facilities (special exception)"
+      ],
+      "standards": {
+        "min_lot_size": "Minimum PUD area 20 acres (5 acres within the Homestead Community Redevelopment Area); average residential lot size may not be reduced more than 25% below the base residential district minimum",
+        "max_height": "Proposed by the applicant with the master plan, capped at 150 ft; City Council sets the limit for each PUD",
+        "setbacks": "Proposed by the applicant and approved by City Council",
+        "lot_coverage": null,
+        "other": "Minimum 35% of gross PUD area as common recreation and open space (at least one-third usable; water bodies excluded); residential open-space minimums 25% of lot (single-family), 20% of pod (townhouse / cluster / twinhome), 35% of pod (apartment / condo). Density set by the comprehensive plan land-use designation and Article IV Division 3."
+      },
+      "section": "30-566 to 30-571 (Article VI); procedure in 30-46",
+      "notes": "A PUD's real use list lives in its own approved master plan / ordinance, which was not located. Rezoning to PUD is a council action; expect the underlying land-use plan category to control. Industrial and heavy storage uses would not fit the stated mix requirement without a specific approval.",
+      "source": "https://www.zoneomics.com/code/homestead-FL/chapter_6 (mirror)"
+    },
+    {
+      "code": "AU",
+      "name": "Agricultural",
+      "category": "rural",
+      "purpose": "Agricultural district. Land annexed from the county as AU, or unzoned annexed land with a continuous history of agricultural use (row crops, groves), enters the city as AU (Sec. 30-366(b)).",
+      "permitted_uses": [
+        "All uses allowed in R-1, A-1 or A-2 (single-family), subject to those districts' restrictions",
+        "Groves, farms, truck gardens, cattle or stock grazing (no hog raising), commercial and horticultural nurseries and greenhouses, commercial horticultural farming, hydroponics or other chemical farming, fish farms",
+        "Barns and sheds for cattle or stock (no hogs); public hearing if within 250 ft of a separately owned residence or an R or A district",
+        "Storage buildings including packing plants: packing plants may handle only produce grown on the property; accessory to the farm use unless approved after public hearing; 50 ft from separately owned residences and R or A property unless approved after hearing",
+        "Commercial poultry (100 or more birds): buildings 500 ft from any EU or RU boundary and 50 ft from an adjacent separately owned residence",
+        "Farm labor housing: one single-family structure for the first 10 acres (5-acre minimum farm) plus one per additional 5 acres, 100 ft from other ownership",
+        "Primary and secondary schools and institutions of higher learning (all structures 250 ft from any lot line)",
+        "Data centers, explosives / energetics manufacturing, solar, outdoor storage, truck terminals, mining / excavation and utilities: not addressed in the AU sections read"
+      ],
+      "conditional_uses": [
+        "Hog farms and hog raising (public hearing approval)",
+        "Dairy barns (public hearing if within 50 ft of a separately owned residence or within 500 ft of an R, A-1 or A-2 boundary)",
+        "Dude ranches and riding academies (public hearing approval)",
+        "Other farm labor barracks or structures (public hearing only)"
+      ],
+      "standards": {
+        "min_lot_size": "5 acres and 200 ft street frontage (right-of-way dedication earns credit). Exceptions for earlier platted or contracted lots: at least 1 acre and 150 ft frontage (poultry lots 2.5 acres for 100+ birds); pre-1951 lots of 10,000 sq ft and 100 ft frontage usable for a residence",
+        "max_height": "35 ft and 2 stories",
+        "setbacks": "Principal building, lot 1 acre or more: front 50 ft, rear 25 ft, interior side 15 ft, street side 25 ft. Lots 10,000 sq ft to 1 acre: front 25 ft, rear 25 ft, side 15 ft, street side 25 ft. Accessory buildings: front 75 ft, rear 7.5 ft, interior side 20 ft, street side 30 ft, 20 ft between buildings. Hogs, cattle and stock 250 ft from a residential district; hog enclosures 500 ft from a separately owned residence; stock 10 ft from highway rights-of-way",
+        "lot_coverage": "15% for lots of 1 acre or more; 25% for smaller excepted lots; no limit for poultry buildings or glass, slat or saran-type nursery buildings",
+        "other": "Principal structures minimum 750 sq ft; permits and fees required for structures (Sec. 30-396)."
+      },
+      "section": "30-391 to 30-396; 30-366(b)",
+      "notes": "Industrial or data-center development on AU land would need a rezoning (or PUD / land-use change); no industrial use is listed. These are the same standards as Miami-Dade County's AU district (annexed county zoning carries over).",
+      "source": "https://www.zoneomics.com/code/homestead-FL/chapter_3 (mirror)"
+    },
+    {
+      "code": "GP",
+      "name": "Government Property",
+      "category": "public",
+      "purpose": "Property used by governmental agencies, including school boards, parks, public works yards and housing authorities.",
+      "permitted_uses": [
+        "Government-agency uses: school boards, parks, public works yards, housing authorities",
+        "Affordable housing up to 30 dwelling units per net acre (units reserved affordable for at least 15 years; design guidelines and unified site plan under 30-47(a), approved by council)",
+        "Data centers, solar, explosives / energetics manufacturing, outdoor storage, truck terminals: not addressed"
+      ],
+      "conditional_uses": [],
+      "standards": {
+        "min_lot_size": null,
+        "max_height": null,
+        "setbacks": null,
+        "lot_coverage": null,
+        "other": "No dimensional standards in Sec. 30-381 / 30-382 as read."
+      },
+      "section": "30-381, 30-382",
+      "notes": "The district is only two short sections; use is tied to the owner being a government agency. Not available for private industrial development.",
+      "source": "https://www.zoneomics.com/code/homestead-FL/chapter_3 (mirror)"
+    },
+    {
+      "code": "A-2",
+      "name": "One Family, One-Half Acre Estates",
+      "category": "residential",
+      "purpose": "Single-family estate district; no separate purpose statement in the sections read.",
+      "permitted_uses": [
+        "One single-family residence and customary accessory uses",
+        "Accessory buildings (not over 5% of remaining net land area); gardens and groves (no signs or commercial stands); community residential homes type 1; home occupations"
+      ],
+      "conditional_uses": [],
+      "standards": {
+        "min_lot_size": "One-half acre per single-family residence",
+        "max_height": "3 stories or 35 ft",
+        "setbacks": "Front 50 ft; side 10% of average tract width; rear 25 ft (principal building)",
+        "lot_coverage": "50% of lot area (buildings, driveways, walks, pools, other impervious)",
+        "other": "Minimum floor area 1,500 sq ft."
+      },
+      "section": "30-96 to 30-98",
+      "notes": "No special exceptions listed. No industrial, solar or data-center use.",
+      "source": "https://www.zoneomics.com/code/homestead-FL/chapter_3 (mirror)"
+    },
+    {
+      "code": "RMH",
+      "name": "Residential Mobile Home Park",
+      "category": "residential",
+      "purpose": "Establishes the mobile home park district; standards are by reference to Sec. 27-46 et seq.",
+      "permitted_uses": [
+        "Mobile home parks (regulated by Sec. 27-46 et seq., not read)"
+      ],
+      "conditional_uses": [],
+      "standards": {
+        "min_lot_size": null,
+        "max_height": null,
+        "setbacks": null,
+        "lot_coverage": null,
+        "other": "Standards, setbacks and regulations are in Sec. 27-46 et seq., outside the text read."
+      },
+      "section": "30-388",
+      "notes": "Single section; details live in Chapter 27.",
+      "source": "https://www.zoneomics.com/code/homestead-FL/chapter_3 (mirror)"
+    },
+    {
+      "code": "R-3",
+      "name": "Multiple Apartments",
+      "category": "residential",
+      "purpose": "Multifamily apartment district; no separate purpose statement in the sections read.",
+      "permitted_uses": [
+        "Multiple-family residences and apartments with accessory and garage uses",
+        "R-1 and R-2 uses where adjacent properties are R-1 or R-2",
+        "Community residential homes types 1 and 2; home occupations; accessory buildings",
+        "R-TH townhouses on substandard lots zoned R-3 as of 1 July 2003"
+      ],
+      "conditional_uses": [
+        "R-1 or R-2 uses where adjacent properties are not R-1 or R-2",
+        "Assisted living facilities",
+        "R-TH development where adjacent properties are not R-1, R-2, R-TH or R-3"
+      ],
+      "standards": {
+        "min_lot_size": "13,000 sq ft per multifamily structure, average width 100 ft",
+        "max_height": "35 ft or 3 stories",
+        "setbacks": "Front 25 ft (not less than 15 ft); side 20 ft total (neither under 5 ft); rear 25 ft; each +5 ft per story above two",
+        "lot_coverage": "70%",
+        "other": "Developments of six or more residential lots need council approval at public hearing. Density not stated in 30-206 to 30-220 (Sec. 30-70(b) refers to a 15 du/acre general cap, 20 in the fringe area)."
+      },
+      "section": "30-206 to 30-220",
+      "notes": "No industrial, solar or data-center use.",
+      "source": "https://www.zoneomics.com/code/homestead-FL/chapter_3 (mirror)"
+    },
+    {
+      "code": "TMU",
+      "name": "Technology Mixed Use",
+      "category": "planned",
+      "purpose": "Mixed-use nodes outside downtown focused on technology, education, industry and health, with walkability and innovative design.",
+      "permitted_uses": [
+        "Residential per the underlying land-use category",
+        "Clean, light industry: computer research, development, manufacturing and servicing; software development; telecommunications; testing and calibration",
+        "Uses permitted in B-1A, B-1, B-2 and part of B-3; outdoor dining as of right",
+        "Vertical and / or horizontal mixed use is required; at least 20% of land area (excluding amenities, open space, retention, rights-of-way) must be mixed-use or nonresidential",
+        "Data centers: not addressed by name (computer servicing / telecommunications are listed but a data center is not named)",
+        "Solar, explosives / energetics manufacturing: not addressed"
+      ],
+      "conditional_uses": [],
+      "standards": {
+        "min_lot_size": "Master site plan and regulating plan minimum 40 gross acres; parcels of 10 to under 40 acres may qualify if they meet urban design and compatibility standards",
+        "max_height": null,
+        "setbacks": null,
+        "lot_coverage": null,
+        "other": "Minimum 20% of development lot area as private and common open space. Prohibited: airports, airplane hangars and repair shops, automobile and truck services and facilities, contractor plants, storage yards (including vehicle storage, primary or ancillary), pawnshops, fuel and gas sales and service, fertilizer stores, tire vulcanizing / retreading, adult uses, retail over 40,000 sq ft. Parking fallback 1 space per residential unit and 1 per 400 sq ft nonresidential."
+      },
+      "section": "30-396.560 to 30-396.572",
+      "notes": "No special exceptions listed. Outdoor storage and truck services are prohibited, so this is not a fit for energetics, outdoor storage or truck terminals. Dimensional standards come from the project's regulating plan.",
+      "source": "https://www.zoneomics.com/code/homestead-FL/chapter_3 (mirror)"
+    },
+    {
+      "code": "B-2",
+      "name": "Retail Commercial Business",
+      "category": "commercial",
+      "purpose": "Retail commercial; allows B-1 uses plus automotive service, funeral homes, dry cleaning and similar uses; operations generally enclosed.",
+      "permitted_uses": [
+        "All B-1 uses (offices, retail, personal services, restaurants, banks, medical and dental offices, hotels, motels)",
+        "Automobile service and gas stations, dry cleaning, printing, repair shops, nurseries, skating rinks, funeral homes, parking lots, telephone exchanges, small and large animal clinics and hospitals, express mechanical car washes (per 2026 amendments noted on Municode)",
+        "Explosives: dry cleaners may not store or use gasoline or explosives on site",
+        "Data centers, solar, outdoor storage, truck terminals: not addressed"
+      ],
+      "conditional_uses": [
+        "Retail over 20,000 sq ft (special exception)"
+      ],
+      "standards": {
+        "min_lot_size": "None",
+        "max_height": "70 ft or 6 stories, whichever is less",
+        "setbacks": "Front 20 ft (15 ft minimum; 5 ft on Krome); side none (10 ft abutting residential); rear 20 ft",
+        "lot_coverage": "85% (downtown core and fringe exempt)",
+        "other": "Rooftop equipment screened by parapet; ice machines and propane tanks allowed outdoors with bollard protection."
+      },
+      "section": "30-276 to 30-289",
+      "notes": "Mirror text is ambiguous about whether the 10 ft / 20 ft rear setback abutting residential applies.",
+      "source": "https://www.zoneomics.com/code/homestead-FL/chapter_3 (mirror)"
+    },
+    {
+      "code": "B-1",
+      "name": "Retail Commercial Restricted Business",
+      "category": "commercial",
+      "purpose": "Restricted retail commercial; operations occur within enclosed walls and under a roof, with limited exceptions (ice machines, propane tanks, certain restaurants).",
+      "permitted_uses": [
+        "About 100 numbered uses, mainly offices, retail, personal services, restaurants, banks, medical and dental offices, hotels and motels; telephone exchanges excluded",
+        "Cleaning agencies may not store or use gasoline or explosives on site",
+        "Small animal clinics and hospitals (per 2026 amendment noted on Municode)",
+        "Data centers, solar, outdoor storage, truck terminals: not addressed"
+      ],
+      "conditional_uses": [
+        "Retail over 10,000 sq ft up to 20,000 sq ft",
+        "Convenience stores with self-service gas pumps"
+      ],
+      "standards": {
+        "min_lot_size": "None (residential density limits apply)",
+        "max_height": "70 ft or 6 stories, whichever is less",
+        "setbacks": "Front 20 ft (15 ft minimum; 5 ft on Krome); side none; rear 20 ft",
+        "lot_coverage": "85% (downtown core and fringe exempt)",
+        "other": "Rooftop equipment screened by parapet."
+      },
+      "section": "30-256 to 30-267",
+      "notes": "Full use list not reproduced.",
+      "source": "https://www.zoneomics.com/code/homestead-FL/chapter_3 (mirror)"
+    },
+    {
+      "code": "I-1",
+      "name": "Light Industry",
+      "category": "industrial",
+      "purpose": "Light industrial district; the industrial tier that builds on the B-3 commercial use list.",
+      "permitted_uses": [
+        "Any use permitted in B-3 and I-1 except day care centers, nurseries or schools unless by special exception (B-3 includes airports, truck services, contractor storage yards, pawnshops, transfer companies, truck storage, warehousing, broadcasting stations with towers and power plants)",
+        "Canning factories and furniture manufacturing (200 ft from an R district), hydroponic farming, ice manufacturing (20-ton minimum), insecticide manufacturing, leather goods (no tanning), light manufacturing with no offensive odor, fumes, gas, dust, smoke, vibration or noise, lumber yards (200 ft from R), machine shops, packing plants, poultry markets",
+        "Radio and television towers and transmitters (FCC and FAA approved)",
+        "Railroad, motor truck and water freight and passenger stations (truck terminal-type use is expressly listed)",
+        "Storage and handling of heavy and industrial equipment; yards for storage and sale of lumber and building materials",
+        "Warehouses for storage, freight or wholesale distribution; tire vulcanizing / retreading; welding and ornamental iron shops; other similar industrial plants",
+        "Data centers, solar, explosives / energetics manufacturing: not addressed"
+      ],
+      "conditional_uses": [
+        "Junk yards, recycling and transfer facilities, athletic fields",
+        "Trade or vocational schools, accessory employee day care, one operator apartment",
+        "Canning factories, insecticide manufacturing and poultry markets also appear in the special exception list",
+        "Unusual uses require a special public hearing under 30-531"
+      ],
+      "standards": {
+        "min_lot_size": "No minimum area; adequate space and highway access for firefighting and parking",
+        "max_height": "70 ft or 6 stories, whichever is less",
+        "setbacks": "Front 20 ft; side none, except 10 ft where abutting A-1, A-2, R-1, R-2, R-TH, R-CH, R-3, R-4 or residential use; rear not stated",
+        "lot_coverage": "90% (buildings, driveways, sidewalks, pools, other impervious surfaces)",
+        "other": "All storage and work inside walls or under a roof; outside work enclosed by an 8 ft masonry wall (alternative screening under 30-488); masonry construction required; parking 1 space per 3 employees, paved; rooftop equipment screened by parapet."
+      },
+      "section": "30-306 to 30-320",
+      "notes": "Outdoor storage of heavy equipment is allowed only behind the 8 ft masonry wall. Explosives manufacturing is not named; 'other industrial plants similar to those listed' with no offensive emissions is the nearest catch-all. Few parcels carry this code.",
+      "source": "https://www.zoneomics.com/code/homestead-FL/chapter_3 (mirror)"
+    },
+    {
+      "code": "I-2",
+      "name": "Medium Industry",
+      "category": "industrial",
+      "purpose": "Medium industrial district; builds on I-1 and adds petroleum, gas and concrete products uses.",
+      "permitted_uses": [
+        "Any use permitted in B-3 and I-1 (same exclusions as I-1), including warehouses, motor truck freight stations, heavy equipment storage, machine shops, light manufacturing",
+        "Concrete products manufacturing",
+        "Similar industries not otherwise prohibited that produce no offensive odors, fumes, gases, dust, smoke, vibration or noise",
+        "Yards and facilities for petroleum products and for natural, manufactured or mixed gases are listed but each requires a special exception (see below)",
+        "Data centers, solar, explosives / energetics manufacturing: not addressed"
+      ],
+      "conditional_uses": [
+        "Petroleum product yards and facilities (tanks 20 ft from property lines, 8 ft wire fence set 10 ft from tanks, earthen dike holding two-thirds of capacity)",
+        "Natural, manufactured or mixed gas yards and facilities (sprinklers indoors, fire chief quarterly inspection)",
+        "Recycling and transfer facilities, junk yards, athletic fields",
+        "Oil and gas are 'unusual uses' needing a special public hearing under 30-531(b)"
+      ],
+      "standards": {
+        "min_lot_size": "No minimum area; adequate space and highway access for firefighting and parking",
+        "max_height": "70 ft or 6 stories, whichever is less",
+        "setbacks": "Front 20 ft; side none, except 10 ft where abutting listed residential zones or residential use; rear not stated",
+        "lot_coverage": "90%",
+        "other": "Work inside walls or roof, or outdoor work behind an 8 ft masonry wall; masonry construction; parking 1 per 3 employees, paved; rooftop equipment screened; one operator apartment allowed."
+      },
+      "section": "30-321 to 30-335",
+      "notes": "Explosives and energetics manufacturing are not named; hazardous storage is handled only for petroleum and gases. Few parcels carry this code.",
+      "source": "https://www.zoneomics.com/code/homestead-FL/chapter_3 (mirror)"
+    }
+  ]
+}

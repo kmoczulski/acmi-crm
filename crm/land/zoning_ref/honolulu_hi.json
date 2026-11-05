@@ -1,0 +1,362 @@
+{
+ "jurisdiction": "City and County of Honolulu, HI (island of Oahu)",
+ "code_name": "Revised Ordinances of Honolulu (ROH) Chapter 21, Land Use Ordinance (LUO): Article 3 zoning districts, Article 5 use regulations / Table 21-5.1 (Table of Permitted Uses)",
+ "edition": "Article 3 text from the Zoneomics mirror (zoneomics.com/code/honolulu-HI/chapter_4), which already shows the Ord. 25-2 amendments. Table 21-5.1 and Article 5 use standards read from the enacted text of Honolulu Ordinance 25-2 (Bill 64 (2023), CD2, FD2, signed Jan 2025) as a scanned PDF on American Legal; table cells were read from page images. Mirror: tag 'check source'.",
+ "code_url": "https://www.zoneomics.com/code/honolulu-HI/chapter_4 (Zoneomics mirror); official: https://codelibrary.amlegal.com/codes/honolulu/latest/honolulu/0-0-0-19356 and https://files.amlegal.com/pdffiles/Honolulu/ORD25-002.pdf",
+ "retrieved": "2026-11-05",
+ "caveats": [
+  "American Legal codelibrary pages returned 403 to automated fetching; Article 3 text came from the Zoneomics mirror, so verify against codelibrary.amlegal.com/codes/honolulu before relying on it.",
+  "Table 21-5.1 (use table) was read from the PDF of Ordinance 25-2 (enacted bill text). Any amendments after January 2025 were not checked. The older Table 21-3 Master Use Table (2019/2021 supplement) is superseded; it still listed 'Data processing facilities'.",
+  "Table 21-5.1 has columns P-2, AG-1, AG-2, Country, R-20/R-10, R-7.5/R-5/R-3.5, A-1..A-3, AMX-1..3, Resort, B-1, B-2, BMX-3, BMX-4, I-1, I-2, I-3, IMX-1. It has NO column for P-1 or F-1 (P-1 is governed by State agencies, F-1 allows all military and federal uses), none for Pub, WI or Kak.",
+  "Key to the table: P = permitted; C = major conditional use permit (public hearing); Cm = minor conditional use permit; PRU = plan review use; Ac = accessory use; * = use-specific standards apply (Article 5); + = on State Land Use Agricultural District land a special use permit approved by the Planning Commission (HRS 205) may be required; '--' = not allowed. Where two symbols appear all apply.",
+  "Land in the State Land Use Conservation District is regulated by the State DLNR under HRS 183C regardless of the City zoning (LUO 21-5.20(e)). Land in the State Agricultural District is also subject to HRS 205 / HAR 15-15 use limits, which can be stricter than the City table.",
+  "Data centers: the LUO has no 'data center' use. The former 'Data processing facilities' use (mainframe digital records) was struck by Ord. 25-2 and is not in Table 21-5.1. Under LUO 21-5.20(b)-(c) an unlisted use is allowed only as an accessory use or after the DPP director decides whether it fits a listed use (for example General office or General storage/warehousing) or needs a zoning variance. Treat as 'not addressed; director determination'.",
+  "Solar: no stand-alone solar row in Table 21-5.1; solar generation is a Utility use sized by 21-5.60-6(a)(2): ground-mounted under 20 acres is a small utility, 20 acres or more (or any site in the State agricultural or conservation district, or aggregated adjacent facilities over 20 acres) is a medium utility; generation over 5 MW is a large utility per the definition. The interplay of the 20-acre rule and the 5 MW 'Utility, Large' definition was not reconciled; confirm with DPP.",
+  "Lot sizes, height, yards and FAR for Article 3 districts come from the Zoneomics mirror's Tables 21-3.1 to 21-3.5; several table cells were misaligned in extraction (noted per district). 'Height per zoning map' districts have a map height (not in the text).",
+  "Pub (Public Precinct), Resort when inside Waikiki, WI (Waterfront Industrial Precinct) and Kak were not read in detail. Waikiki Special District uses are in Table 21-9.6(A) and Article 9 (Special District Regulations); Kakaako Special Design District is Appendix 21-F; the State's Kakaako Community Development District is run by the Hawaii Community Development Authority under HAR Ch. 15-22 (Mauka) and 15-23 (Makai) per general knowledge, not read here.",
+  "Parcel counts and acreage are not in the code; zoning-map height limits, overlays (flood, shoreline, special management area, TOD, planned development, cluster permits) and State Land Use district were not checked."
+ ],
+ "districts": [
+  {
+   "code": "P-1",
+   "name": "Restricted Preservation District",
+   "category": "open-space",
+   "purpose": "Preserves and manages major open space, recreation and scenic natural-resource land. The code intends that all land in the State Conservation District be zoned P-1.",
+   "permitted_uses": [
+    "All uses, structures and development standards are governed by the appropriate State agencies (DLNR conservation district rules, HRS 183C), not by the City use table",
+    "Not listed in Table 21-5.1; no City use list for P-1"
+   ],
+   "conditional_uses": [],
+   "standards": {"min_lot_size": null, "max_height": null, "setbacks": null, "lot_coverage": null, "other": "Set by State agencies. Explosives, data centers, solar, outdoor storage, truck terminals: not addressed by the City for P-1; effectively not allowed absent a State Conservation District Use Permit. Treat as very restrictive."},
+   "section": "ROH 21-3.40, 21-3.40-1(a); 21-5.20(e)",
+   "notes": "Land removed from the State conservation district reverts to P-2 standards (21-3.40(d)). Verify any specific use with DLNR Office of Conservation and Coastal Lands.",
+   "source": "https://www.zoneomics.com/code/honolulu-HI/chapter_4 (Article 3, Zoneomics mirror); ORD25-002.pdf 21-5.20(e)"
+  },
+  {
+   "code": "P-2",
+   "name": "General Preservation District",
+   "category": "open-space",
+   "purpose": "Open space and outdoor-recreation lands, urban lands that give visual relief, and areas unsuitable for other use because of topography or hazards.",
+   "permitted_uses": [
+    "Aquaculture; crop raising (use standards); forestry; minor animal raising",
+    "Minor composting (standards); livestock and poultry veterinary service not listed (see AG)",
+    "Park (standards); public facility; small utility (standards, includes small solar under 20 acres per 21-5.60-6)",
+    "Accessory: caretaker unit; accessory office/ receive-only antenna; utility installations small"
+   ],
+   "conditional_uses": [
+    "Medium utility Cm (minor conditional use); large utility C (major conditional use)",
+    "Cemetery P/PRU (standards); broadcasting antenna, communication support structure, communication tower Cm",
+    "Nature-based recreation Cm/C; general marine, minor: C; waste disposal and processing C",
+    "Plan review use: golf course, zoo, airport, hospital, university, prison",
+    "Historic structure reuse and joint development Cm"
+   ],
+   "standards": {"min_lot_size": "5 acres", "max_height": "15 ft, up to 25 ft with height setbacks", "setbacks": "Front 30 ft; side/rear 15 ft; above 15 ft, 1 ft extra setback per 2 ft of height", "lot_coverage": "Max building area 5%", "other": "Min width/depth 200 ft. Explosives/toxic chemical manufacturing, general or heavy manufacturing, storage yards, truck terminals, warehousing, resource extraction: not allowed ('--'). Data centers: not addressed. Solar: only as utility (small P*, medium Cm*, large C*)."},
+   "section": "ROH 21-3.40, 21-3.40-1(c)-(e); Table 21-3.1; Table 21-5.1",
+   "notes": "Very restrictive. Table row cells for utility, cemetery and waste read from the page image; the cemetery cell is split P* / PRU*.",
+   "source": "https://www.zoneomics.com/code/honolulu-HI/chapter_4; ORD25-002.pdf Table 21-5.1 pp. 3-10"
+  },
+  {
+   "code": "F-1",
+   "name": "Military and Federal Preservation District",
+   "category": "public",
+   "purpose": "Identifies land in military or federal government use and allows the full range of military or federal activities.",
+   "permitted_uses": [
+    "All military and federal uses and structures are permitted (21-3.40-1(b))",
+    "No Table 21-5.1 column and no City standards"
+   ],
+   "conditional_uses": [],
+   "standards": {"min_lot_size": null, "max_height": null, "setbacks": null, "lot_coverage": null, "other": "If land leaves federal jurisdiction, it takes P-2 uses and standards (21-3.40(d)). Federal land is generally outside City permit control; private development (data center, explosives, solar) is not addressed and would require rezoning or federal lease terms."},
+   "section": "ROH 21-3.40(c)-(d), 21-3.40-1(b)",
+   "notes": "Federal and military uses permitted by right; non-federal private uses are not addressed.",
+   "source": "https://www.zoneomics.com/code/honolulu-HI/chapter_4"
+  },
+  {
+   "code": "AG-1",
+   "name": "Restricted Agricultural District",
+   "category": "rural",
+   "purpose": "Conserves important (prime or unique) agricultural land for food, feed, forage, fiber and horticulture by allowing only uses that keep land in production; guideline is parcels typically over 5 acres.",
+   "permitted_uses": [
+    "Aquaculture, crop raising (standards), forestry, plant nursery (standards)",
+    "Animal raising: minor P; major P (standards)",
+    "Agricultural support: minor collection/storage P; equipment service P*; minor processing P*; minor composting P*; feed store P+; sawmill P*; livestock and poultry veterinary service P+",
+    "School, vocational (minor and major) P*",
+    "Public facility P+; small utility P* (includes small solar); park P*",
+    "Accessory: farm dwelling Ac*, farm stand Ac*, home occupation Ac*+, ohana unit Ac*+, caretaker unit Ac*+, accessory dish antenna"
+   ],
+   "conditional_uses": [
+    "Major agricultural collection/storage, major processing, major composting: C*",
+    "Biofuel processing facility C*; general resource extraction C*",
+    "Agricultural energy facility Cm*; agritourism Cm*; farmers market Cm*; farm worker housing Cm*",
+    "Medium utility Cm*; large utility C*; broadcasting antenna, communication support structure and tower Cm*; dish antenna Cm*",
+    "Helistop/heliport C*+; historic structure reuse Cm*; joint development Cm*",
+    "Plan review use: airport, hospital, prison, university"
+   ],
+   "standards": {"min_lot_size": "5 acres", "max_height": "15 ft (nonagricultural), up to 25 ft with height setbacks", "setbacks": "Front 15 ft; side/rear 10 ft; height setbacks per 21-3.50-4(c)", "lot_coverage": "Max building area 10% (nonagricultural)", "other": "Min width/depth 150 ft. Cluster: 15 contiguous acres, one farm dwelling per 5 acres, max 4 units per multi-unit building. Explosives/toxic chemical manufacturing: not allowed. General/heavy manufacturing: not allowed. Storage yard, base yard, warehousing, truck terminal: not allowed. Data centers: not addressed. Solar: utility only; any solar on land in the State agricultural district is a medium utility (Cm*), ground-mounted under 20 acres elsewhere small (P*), large utility C*. Biofuel plants must be 1,500 ft (min. 500 ft) from country/residential/apartment/resort districts."},
+   "section": "ROH 21-3.50, 21-3.50-1 to 21-3.50-4; Table 21-3.1; Table 21-5.1",
+   "notes": "Single-unit dwelling is not a permitted principal use in AG-1 (farm dwelling only as accessory). State agricultural district rules (HRS 205) also apply. 'Agricultural energy facility' definition excludes utility-scale solar.",
+   "source": "https://www.zoneomics.com/code/honolulu-HI/chapter_4; ORD25-002.pdf Table 21-5.1 pp. 3-10"
+  },
+  {
+   "code": "AG-2",
+   "name": "General Agricultural District",
+   "category": "rural",
+   "purpose": "Conserves agricultural activity on smaller parcels (typically under 5 acres), on land in the State agricultural or urban district classified 'other' for agriculture.",
+   "permitted_uses": [
+    "Same agricultural by-right list as AG-1 (aquaculture, crops, forestry, nurseries, animal raising, minor collection/processing, equipment service, feed store, sawmill, vet service)",
+    "Small group living and small utility; park P*; public facility P+",
+    "School, vocational P*; accessory: farm dwelling, farm stand, home occupation, ohana unit, caretaker unit"
+   ],
+   "conditional_uses": [
+    "Major collection/processing/composting C*; biofuel processing C*; general resource extraction C*",
+    "Agritourism, agricultural energy facility, farmers market, farm worker housing Cm*",
+    "Small meeting facility Cm*+; medium meeting facility C*+; school PreK-12 C*+; child and adult daycare C*+; small/non-State group living C*+",
+    "Major animal care P*+; waste disposal and processing C*+; helistop C*+",
+    "Medium utility Cm*; large utility C*; communication towers Cm*; plan review use for cemetery, zoo, airport, hospital, university, prison"
+   ],
+   "standards": {"min_lot_size": "3 acres (major animal raising), 2 acres (other)", "max_height": "15 ft (nonagricultural and dwellings), up to 25 ft with height setbacks", "setbacks": "Front 15 ft; side/rear 10 ft", "lot_coverage": "Max building area 10% (nonagricultural)", "other": "Min width/depth 150 ft. Cluster: 6 acres, one farm dwelling per 2 acres. Explosives, manufacturing, storage yards, truck terminals, warehousing: not allowed. Data centers: not addressed. Solar: utility rules as in AG-1."},
+   "section": "ROH 21-3.50, 21-3.50-1 to 21-3.50-4; Table 21-3.1; Table 21-5.1",
+   "notes": "Same State agricultural district caveat as AG-1. Single-unit dwelling not shown as permitted in the table for AG-2 (farm dwelling accessory); verify with DPP.",
+   "source": "https://www.zoneomics.com/code/honolulu-HI/chapter_4; ORD25-002.pdf Table 21-5.1 pp. 3-10"
+  },
+  {
+   "code": "C",
+   "name": "Country District",
+   "category": "rural",
+   "purpose": "Limited agriculture, low-density residential use and supporting services, with basic (not full urban) public services.",
+   "permitted_uses": ["Single-unit dwelling; duplex (standards); aquaculture; crop raising; minor animal raising; major animal care; accessory farm stand, home occupation, ohana, ADU", "Park; public facility; small utility; plant nursery"],
+   "conditional_uses": ["Small/medium meeting facility, small group living, school PreK-12, daycare (Cm/C)", "Medium utility Cm*; large utility C*; remote parking Cm*; plan review use for airport, hospital, university, prison"],
+   "standards": {"min_lot_size": "1 acre", "max_height": "15-30 ft", "setbacks": "Front 15 ft; side/rear 10 ft", "lot_coverage": "Max building area 25% (nonagricultural)", "other": "Min width/depth 100 ft. Industrial uses, truck terminals, explosives, data centers: not allowed or not addressed."},
+   "section": "ROH 21-3.60 to 21-3.60-4; Table 21-3.1",
+   "notes": "Shorter entry.",
+   "source": "https://www.zoneomics.com/code/honolulu-HI/chapter_4"
+  },
+  {
+   "code": "R-20",
+   "name": "Residential District (20,000 sq ft)",
+   "category": "residential",
+   "purpose": "Large-lot residential, often transitional; R-20 and R-10 are the large-lot residential districts.",
+   "permitted_uses": ["Single-unit dwelling; duplex and two-unit dwelling (standards); accessory uses; small utility; park; public facility; consulate; small community uses"],
+   "conditional_uses": ["Schools, group living, medium utility (Cm*), large utility C*, daycare and remote parking Cm*"],
+   "standards": {"min_lot_size": "20,000 sq ft (25,000 sq ft two-unit)", "max_height": "25-30 ft", "setbacks": "Front 10 ft (30 ft other uses); side/rear 5 ft (15 ft other uses)", "lot_coverage": "50% building area; FAR 0.7 for lots with dwellings", "other": "Min width/depth 100 ft. No industrial use, truck terminal, explosives or data center."},
+   "section": "ROH 21-3.70, 21-3.70-1; Table 21-3.2",
+   "notes": "Shorter entry; some width/yard cells misaligned in the mirror extraction.",
+   "source": "https://www.zoneomics.com/code/honolulu-HI/chapter_4"
+  },
+  {
+   "code": "R-10",
+   "name": "Residential District (10,000 sq ft)",
+   "category": "residential",
+   "purpose": "Large-lot residential, often transitional.",
+   "permitted_uses": ["Single-unit dwelling; duplex and two-unit dwelling (standards); accessory uses; small utility; park; public facility"],
+   "conditional_uses": ["Schools, group living, medium utility Cm*, large utility C*"],
+   "standards": {"min_lot_size": "10,000 sq ft (15,000 sq ft two-unit)", "max_height": "25-30 ft", "setbacks": "Front 10 ft (30 ft other uses); side/rear 5 ft (15 ft other uses)", "lot_coverage": "50% building area; FAR 0.7 for lots with dwellings", "other": "Min width/depth 100 ft. No industrial use, truck terminal, explosives or data center."},
+   "section": "ROH 21-3.70, 21-3.70-1; Table 21-3.2",
+   "notes": "Shorter entry.",
+   "source": "https://www.zoneomics.com/code/honolulu-HI/chapter_4"
+  },
+  {
+   "code": "R-7.5",
+   "name": "Residential District (7,500 sq ft)",
+   "category": "residential",
+   "purpose": "Urban residential district.",
+   "permitted_uses": ["Single-unit dwelling; duplex, two-unit, multi-unit limited; accessory uses; small utility; park; public facility"],
+   "conditional_uses": ["Schools, group living, medium utility Cm*, large utility C*"],
+   "standards": {"min_lot_size": "7,500 sq ft (14,000 sq ft two-unit)", "max_height": "25-30 ft", "setbacks": "Front 10 ft (30 ft other uses); side/rear 5 ft (15 ft other uses)", "lot_coverage": "50% building area; FAR 0.7", "other": "Min width/depth 65 ft (100 ft other uses). No industrial use, truck terminal, explosives or data center."},
+   "section": "ROH 21-3.70, 21-3.70-1; Table 21-3.2",
+   "notes": "Shorter entry.",
+   "source": "https://www.zoneomics.com/code/honolulu-HI/chapter_4"
+  },
+  {
+   "code": "R-5",
+   "name": "Residential District (5,000 sq ft)",
+   "category": "residential",
+   "purpose": "Urban residential district.",
+   "permitted_uses": ["Single-unit dwelling; duplex, two-unit; accessory uses; small utility; park; public facility"],
+   "conditional_uses": ["Schools, group living, medium utility Cm*, large utility C*"],
+   "standards": {"min_lot_size": "5,000 sq ft (7,500 sq ft two-unit)", "max_height": "25-30 ft", "setbacks": "Front 10 ft (30 ft other uses); side/rear 5 ft (15 ft other uses)", "lot_coverage": "50% building area; FAR 0.7", "other": "Min width 35 ft (duplex) or 65 ft (other). No industrial use, truck terminal, explosives or data center."},
+   "section": "ROH 21-3.70, 21-3.70-1; Table 21-3.2",
+   "notes": "Shorter entry.",
+   "source": "https://www.zoneomics.com/code/honolulu-HI/chapter_4"
+  },
+  {
+   "code": "R-3.5",
+   "name": "Residential District (3,500 sq ft)",
+   "category": "residential",
+   "purpose": "Urban residential district, smallest lots.",
+   "permitted_uses": ["Single-unit dwelling; duplex, two-unit; accessory uses; small utility; park; public facility"],
+   "conditional_uses": ["Schools, group living, medium utility Cm*, large utility C*"],
+   "standards": {"min_lot_size": "3,500 sq ft (7,000 sq ft two-unit)", "max_height": "25-30 ft", "setbacks": "Front 10 ft (30 ft other uses); side/rear 5 ft (15 ft other uses)", "lot_coverage": "50% building area; FAR 0.7", "other": "No industrial use, truck terminal, explosives or data center."},
+   "section": "ROH 21-3.70, 21-3.70-1; Table 21-3.2",
+   "notes": "Shorter entry.",
+   "source": "https://www.zoneomics.com/code/honolulu-HI/chapter_4"
+  },
+  {
+   "code": "A-1",
+   "name": "Low-Density Apartment District",
+   "category": "residential",
+   "purpose": "Low-density apartment district, often a buffer between residential and higher-intensity areas.",
+   "permitted_uses": ["Single-unit, duplex, two-unit and multi-unit dwellings; bed and breakfast; transient vacation unit; accessory uses; small utility; park; public facility"],
+   "conditional_uses": ["Schools, group living, medium utility Cm*, large utility C*"],
+   "standards": {"min_lot_size": "7,500 sq ft", "max_height": "30 ft (per table; verify)", "setbacks": "Front 10 ft; side/rear 5 ft (10 ft other uses)", "lot_coverage": "Building area 60% / 50% / 40% by lot size; FAR 0.3-0.9 by lot-size formula", "other": "Min width 70 ft. No industrial use, truck terminal, explosives or data center."},
+   "section": "ROH 21-3.80, 21-3.80-1; Table 21-3.3",
+   "notes": "Shorter entry.",
+   "source": "https://www.zoneomics.com/code/honolulu-HI/chapter_4"
+  },
+  {
+   "code": "A-2",
+   "name": "Medium-Density Apartment District",
+   "category": "residential",
+   "purpose": "Medium-density apartment district in concentrated urban areas.",
+   "permitted_uses": ["Multi-unit and other dwellings; animal care, minor and bed and breakfast (as table); accessory uses; small utility; park; public facility"],
+   "conditional_uses": ["Schools, group living, medium utility Cm*, large utility C*"],
+   "standards": {"min_lot_size": "10,000 sq ft", "max_height": "per zoning map (extraction ambiguous)", "setbacks": "Front 10 ft; side/rear 5 ft (10 ft other uses); portions over 40 ft step back 1 ft per 10 ft of height", "lot_coverage": "Building area 60% / 50% / 40% by lot size; FAR up to 1.9", "other": "Min width 70 ft. No industrial use, truck terminal, explosives or data center."},
+   "section": "ROH 21-3.80, 21-3.80-1; Table 21-3.3",
+   "notes": "Shorter entry.",
+   "source": "https://www.zoneomics.com/code/honolulu-HI/chapter_4"
+  },
+  {
+   "code": "A-3",
+   "name": "High-Density Apartment District",
+   "category": "residential",
+   "purpose": "High-density apartment district in the urban core.",
+   "permitted_uses": ["Multi-unit dwellings; accessory uses; small utility; park; public facility"],
+   "conditional_uses": ["Schools, group living, medium utility Cm*, large utility C*"],
+   "standards": {"min_lot_size": "15,000 sq ft", "max_height": "per zoning map (extraction ambiguous)", "setbacks": "Front 10 ft; side/rear 5 ft (10 ft other uses); portions over 40 ft step back 1 ft per 10 ft of height", "lot_coverage": "Building area 60% / 50% / 40% by lot size; FAR up to 2.8", "other": "Min width 70 ft. No industrial use, truck terminal, explosives or data center."},
+   "section": "ROH 21-3.80, 21-3.80-1; Table 21-3.3",
+   "notes": "Shorter entry.",
+   "source": "https://www.zoneomics.com/code/honolulu-HI/chapter_4"
+  },
+  {
+   "code": "AMX-2",
+   "name": "Medium-Density Apartment Mixed-Use District",
+   "category": "residential",
+   "purpose": "Limited commercial uses in medium-density apartment neighborhoods, mixed horizontally or vertically while keeping apartment character.",
+   "permitted_uses": ["Apartment uses as A-2 plus general eating and drinking, general office, general medical, personal services, small retail, commercial parking, general repair (P), car wash and vehicle fueling in other AMX only as shown", "Small utility, park, public facility"],
+   "conditional_uses": ["Medium utility Cm*; large utility C*; meeting facility, remote parking Cm*"],
+   "standards": {"min_lot_size": "10,000 sq ft", "max_height": "per zoning map", "setbacks": "Front 10 ft; side/rear 5-10 ft; step-backs over 40 ft", "lot_coverage": "Same as A-2; commercial FAR about 0.4 (inferred from extraction)", "other": "No heavy industry, truck terminal, explosives or data center. Dwelling access must be independent of commercial access."},
+   "section": "ROH 21-3.90, 21-3.90-1; Table 21-3.3",
+   "notes": "Commercial FAR value is inferred from a misaligned table; verify.",
+   "source": "https://www.zoneomics.com/code/honolulu-HI/chapter_4; ORD25-002.pdf Table 21-5.1"
+  },
+  {
+   "code": "Resort",
+   "name": "Resort District",
+   "category": "other",
+   "purpose": "Visitor-oriented destination centers: lodging units, hotels and multi-unit dwellings, with visitor-serving retail and business. Waikiki resort land is governed by the Waikiki Special District (Article 9, Table 21-9.6(A)), not the general table.",
+   "permitted_uses": ["Hotel; multi-unit dwelling; timeshare; transient vacation unit; bed and breakfast", "General eating and drinking, general office, retail, personal services, indoor recreation, theater, minor marine/other visitor uses", "Small utility, park, public facility"],
+   "conditional_uses": ["Meeting facility (large PRU); general outdoor recreation C; remote parking Cm*; medium utility Cm*, large utility C*; golf course PRU"],
+   "standards": {"min_lot_size": "15,000 sq ft (none for remote parking)", "max_height": "per zoning map; over 30 ft side/rear step-back 1 ft per 10 ft", "setbacks": "Front 25 ft; side/rear 20 ft (variations footnoted)", "lot_coverage": "Building area 50%; FAR by lot size formula up to 1.4", "other": "Min width/depth 70 ft. Industry, truck terminal, explosives: not allowed. Data centers: not addressed."},
+   "section": "ROH 21-3.100, 21-3.100-1; Table 21-3.4; Waikiki: Article 9, Table 21-9.6(A)",
+   "notes": "If the parcel lies in the Waikiki Special District, use the special-district rules (not read).",
+   "source": "https://www.zoneomics.com/code/honolulu-HI/chapter_4"
+  },
+  {
+   "code": "B-2",
+   "name": "Community Business District",
+   "category": "commercial",
+   "purpose": "Community-wide business establishments serving several neighborhoods, with a wider range of uses than B-1; applied along major streets and in centrally located urban areas.",
+   "permitted_uses": ["General eating and drinking, general office, general medical, general and large retail, personal services, commercial parking, indoor recreation, theater", "Light general manufacturing P* (max 10,000 sq ft total floor area); general research and development, production studio, publishing facility, general repair, medical laboratory", "Food manufacturing P* (max 4,000 sq ft, no slaughter); self-storage P*; vehicle fueling P; vehicle sales (light); car wash P*; minor brewery/distillery P; linen supplier P", "Base yard P*; small utility P*; vocational school P"],
+   "conditional_uses": ["General outdoor recreation C; heliport C; general marine minor Cm*", "Large utility C*; multimodal facility Cm*", "Remote parking Cm*; plan review use for airport, hospital, university, prison"],
+   "standards": {"min_lot_size": "5,000 sq ft", "max_height": "per zoning map; over 40 ft step-back 1 ft per 10 ft", "setbacks": "Front 5 ft; side/rear 10 ft for multi-family dwellings, 0 ft other uses", "lot_coverage": "FAR 2.5 base, 3.5 with open-space bonus", "other": "Min width 50 ft. Heavy manufacturing, explosives/toxic chemicals, storage yard, truck terminal: not allowed ('--'). Data centers: not addressed (may be treated as general office; director determination). Solar: utility only."},
+   "section": "ROH 21-3.110, 21-3.110-1; Table 21-3.4; Table 21-5.1",
+   "notes": "B-2 column cells for retail/lodging read from page images; hotel row shows '--' for B-2 and C* for BMX-3. Medium utility is P* in business districts per page image.",
+   "source": "https://www.zoneomics.com/code/honolulu-HI/chapter_4; ORD25-002.pdf Table 21-5.1"
+  },
+  {
+   "code": "BMX-3",
+   "name": "Community Business Mixed-Use District",
+   "category": "commercial",
+   "purpose": "Commercial and residential uses together outside downtown, at a lower intensity than BMX-4; applied along major thoroughfares and where the land-use pattern is already mixed.",
+   "permitted_uses": ["Dwellings (single-unit P, multi-unit P) plus all B-2-type commercial uses: office, retail, eating and drinking, personal services, medical, research and development, production studio, general repair", "Light manufacturing P* (max 10,000 sq ft); food manufacturing P* (4,000 sq ft); self-storage P*; vehicle fueling; base yard P*; general marine minor Cm*", "Small and medium utility"],
+   "conditional_uses": ["Hotel C*; general outdoor recreation C; heliport C; group living C", "Large utility C*; remote parking Cm*; multimodal facility Cm*; plan review use for hospital, airport, university, prison"],
+   "standards": {"min_lot_size": "5,000 sq ft", "max_height": "per zoning map; over 40 ft step-back 1 ft per 10 ft, plus transitional setbacks", "setbacks": "Front 10 ft (dwellings) or 5 ft (other); side/rear 5 ft dwellings, 10 ft multi-unit, 0 ft other", "lot_coverage": "FAR 2.5 base, 3.5 with bonus", "other": "Min width 50 ft. Heavy manufacturing, explosives, storage yard, truck terminal: not allowed. Data centers: not addressed."},
+   "section": "ROH 21-3.120, 21-3.120-2; Table 21-3.4; Table 21-5.1",
+   "notes": "Marginal for industrial campuses.",
+   "source": "https://www.zoneomics.com/code/honolulu-HI/chapter_4; ORD25-002.pdf Table 21-5.1"
+  },
+  {
+   "code": "I-1",
+   "name": "Limited Industrial District",
+   "category": "industrial",
+   "purpose": "Industrial employment and service needs of rural and suburban communities; light industrial with few environmental impacts at community scale.",
+   "permitted_uses": ["Light general manufacturing P; heavy manufacturing P* (100 ft from residential/apartment; night pickup 300 ft)", "Aquaculture, plant nursery, minor/ major agricultural collection (major C*), agricultural equipment service, minor agricultural processing P*, feed store, minor/major brewery or distillery, linen supplier, publishing, production studio, medical laboratory, R&D", "General storage, warehousing and distribution P; self-storage P; storage yard P*; base yard P*; heavy repair P*; vehicle sales (light and heavy P); general repair; vehicle service; car wash P*; vehicle fueling", "Small and medium utility P/P*; communication tower P*; vocational school P; eating, office, indoor and outdoor recreation, minor animal care"],
+   "conditional_uses": ["Large utility C*; agricultural major processing not allowed; multimodal facility Cm*; remote parking Cm*; helistop/heliport C*", "Plan review use: airport, hospital, prison, university", "Joint development, historic reuse Cm*"],
+   "standards": {"min_lot_size": "7,500 sq ft", "max_height": "40 ft", "setbacks": "Front 10 ft; side/rear 0 ft or per adjacent residential yard; transitional setbacks", "lot_coverage": "Building area 80%; FAR 1.0", "other": "Explosive/toxic chemical manufacturing: not allowed ('--'). Petrochemical plant: not allowed. Storage yard P* with 6 ft fence/wall and, in I-1, 100 ft from residential/apartment lots and 6am-10pm startup within 300 ft. Truck terminal: not allowed in I-1 (allowed I-2, I-3). Data center: not addressed. Solar: utility only (small P*, medium P*, large C*)."},
+   "section": "ROH 21-3.130, 21-3.130-1; Table 21-3.5; Table 21-5.1; 21-5.80",
+   "notes": "I-1 allows heavy manufacturing P* in Table 21-5.1 despite the district intent text calling it light; read from page image.",
+   "source": "https://www.zoneomics.com/code/honolulu-HI/chapter_4; ORD25-002.pdf Table 21-5.1 pp. 8-10 and 21-5.80"
+  },
+  {
+   "code": "I-2",
+   "name": "Intensive Industrial District",
+   "category": "industrial",
+   "purpose": "Full range of industrial uses needed to support the city, in areas with supporting infrastructure near major transportation systems and away from residential communities, where certain heavy industrial uses would be allowed.",
+   "permitted_uses": ["Light and heavy general manufacturing P (heavy: 100 ft from residential/apartment lots)", "Warehousing and distribution P; self-storage P; storage yard P*; base yard P*; heavy repair; vehicle service; vehicle sales (light, heavy)", "Truck terminal P", "General resource extraction P (blasting weekdays 8am-5pm; reuse plan); composting minor and major P*; sawmill P; major brewery; linen supplier; research and development; production studio; publishing facility", "Marine: general minor and major P; small and medium utility P/P*; communication tower P*; office, medical lab, indoor recreation, eating and drinking"],
+   "conditional_uses": ["Explosive or toxic chemical manufacturing, storage and distribution: C (major conditional use permit, public hearing), 21-5.80-1(c)", "Petrochemical plant C*; biofuel processing Cm*; salvage, scrap and junk storage Cm*; waste disposal and processing Cm*", "Large utility C*; heliport C*/Ac*; multimodal facility not allowed in I-2", "Plan review use: airport, hospital, prison, university"],
+   "standards": {"min_lot_size": "7,500 sq ft", "max_height": "per zoning map; street setback: height max twice distance to street centerline", "setbacks": "Front 5 ft; side/rear 0 ft; transitional setbacks next to residential/apartment/resort", "lot_coverage": "FAR 2.5", "other": "Explosives/toxic chemicals (C): all structures and activities at least 1,500 ft from any country, residential, apartment, apartment mixed-use or resort lot (director may reduce, never below 500 ft); explosive storage screened by earthen mound or revetted wall at least 3 ft thick and taller than any magazine. Petrochemical plant: same 1,500 ft rule. Data center: not addressed (listing deleted by Ord. 25-2; director decides per 21-5.20). Solar: utility only (small P*, medium P*, large C*). Outdoor storage: storage yard P* (6 ft fence, no scrap/salvage sales)."},
+   "section": "ROH 21-3.130, 21-3.130-1; Table 21-3.5; Table 21-5.1; 21-5.80-1 to 21-5.80-7",
+   "notes": "Best match for energetics / defense manufacturing on Oahu (I-2), but explosives require a major conditional use permit with a 1,500 ft buffer (500 ft minimum if reduced). Parcels of 20+ acres in I-2 are scarce.",
+   "source": "https://www.zoneomics.com/code/honolulu-HI/chapter_4; ORD25-002.pdf Table 21-5.1 pp. 8-10 and 21-5.80"
+  },
+  {
+   "code": "I-3",
+   "name": "Waterfront Industrial District",
+   "category": "industrial",
+   "purpose": "Sets apart and protects land vital to port functions and their efficient operation; permits the full range of facilities needed for port performance.",
+   "permitted_uses": ["Light and heavy general manufacturing P", "Port P; general marine minor and major P; warehousing and distribution P; storage yard P*; base yard P*; heavy repair P; vehicle sales (heavy) P; truck terminal P", "Brewery/distillery; linen supplier; general repair; minor/major composting not allowed; small utility P/P*; medium utility Cm*"],
+   "conditional_uses": ["Biofuel processing Cm*; petrochemical plant Cm*; salvage, scrap and junk Cm*; waste disposal and processing Cm*", "Large utility C*; multimodal facility not allowed; plan review use for airport, hospital, prison, university"],
+   "standards": {"min_lot_size": "7,500 sq ft", "max_height": "per zoning map; street setback twice distance to street centerline", "setbacks": "Front 0 ft; side/rear 0 ft (15 ft minimum next to residential, apartment, mixed-use or resort)", "lot_coverage": "FAR 2.5", "other": "Explosive/toxic chemical manufacturing: not allowed in I-3 ('--'). Data centers: not addressed. Solar: utility only (small P*, medium Cm*, large C*)."},
+   "section": "ROH 21-3.130, 21-3.130-1; Table 21-3.5; Table 21-5.1",
+   "notes": "Port land; cell values for I-3 read from page images.",
+   "source": "https://www.zoneomics.com/code/honolulu-HI/chapter_4; ORD25-002.pdf Table 21-5.1 pp. 8-10"
+  },
+  {
+   "code": "IMX-1",
+   "name": "Industrial-Commercial Mixed-Use District",
+   "category": "industrial",
+   "purpose": "Mixes light industrial and commercial uses to provide diversified businesses and employment, without exposing nonindustrial uses to unsafe environments; limited residential allowed.",
+   "permitted_uses": ["Light general manufacturing P; general repair; research and development; production studio; publishing facility; linen supplier; brewery; warehousing and distribution P; self-storage P", "General office, medical, retail, eating and drinking, personal services, commercial parking, vehicle sales and service (light)", "Small, medium utility; base yard P*; mobile commercial establishment P*"],
+   "conditional_uses": ["Urban agriculture Cm*; large utility C*; heliport C; remote parking Cm*; multimodal facility Cm*; general outdoor recreation Cm", "Plan review use: airport, hospital, prison, university"],
+   "standards": {"min_lot_size": "5,000 sq ft", "max_height": "setbacks over 40 ft (1 ft per 10 ft)", "setbacks": "Front 5 ft; side/rear 0 ft or per adjacent residential; transitional setbacks", "lot_coverage": "FAR 1.5 (2.0 if 0.5 FAR noncommercial; 2.5 if 0.75 noncommercial)", "other": "Heavy manufacturing: not allowed in IMX-1. Explosives: not allowed. Storage yard: not allowed. Truck terminal: not allowed. Data centers: not addressed. Solar: utility only."},
+   "section": "ROH 21-3.140, 21-3.140-1; Table 21-3.5; Table 21-5.1",
+   "notes": "Light industrial only.",
+   "source": "https://www.zoneomics.com/code/honolulu-HI/chapter_4; ORD25-002.pdf Table 21-5.1"
+  },
+  {
+   "code": "Pub",
+   "name": "Public Precinct (Waikiki Special District)",
+   "category": "public",
+   "purpose": "One of four Waikiki Special District zoning precincts listed in 21-3.20 (apartment, apartment mixed-use subprecinct, resort mixed-use, public). Uses and standards are set in Article 9, Special District Regulations.",
+   "permitted_uses": ["Governed by Waikiki Special District rules (Table 21-9.6(A)); not in Table 21-5.1"],
+   "conditional_uses": [],
+   "standards": {"min_lot_size": null, "max_height": null, "setbacks": null, "lot_coverage": null, "other": "Not read. Industrial, explosives, data center, truck terminal: not addressed here."},
+   "section": "ROH 21-3.20; Article 9 (Waikiki Special District); Table 21-9.6(A)",
+   "notes": "Special-district rules govern; verify with DPP.",
+   "source": "https://www.zoneomics.com/code/honolulu-HI/chapter_4"
+  },
+  {
+   "code": "Kak",
+   "name": "State Jurisdiction: Kakaako Community Development District (HCDA)",
+   "category": "other",
+   "purpose": "Land in the Kakaako Community Development District is zoned and permitted by the Hawaii Community Development Authority (state), not under the City LUO district tables.",
+   "permitted_uses": ["Governed by HCDA rules (HAR Chapter 15-22 Mauka Area, 15-23 Makai Area, per general knowledge; not read)"],
+   "conditional_uses": [],
+   "standards": {"min_lot_size": null, "max_height": null, "setbacks": null, "lot_coverage": null, "other": "Not addressed by the City LUO. Contact HCDA."},
+   "section": null,
+   "notes": "Not a City district. The City's Kakaako Special Design District is a separate set of rules in LUO Appendix 21-F (see WI).",
+   "source": "https://www.zoneomics.com/code/honolulu-HI/chapter_1 (table of contents lists Appendix 21-F Kakaako Special Design District)"
+  },
+  {
+   "code": "WI",
+   "name": "Waterfront Industrial Precinct (Kakaako Special Design District)",
+   "category": "industrial",
+   "purpose": "Precinct of the Kakaako Special Design District (LUO Appendix 21-F); not read in detail.",
+   "permitted_uses": ["Governed by Appendix 21-F (Kakaako Special Design District) and the land's HCDA status"],
+   "conditional_uses": [],
+   "standards": {"min_lot_size": null, "max_height": null, "setbacks": null, "lot_coverage": null, "other": "Not read. Explosives, data centers, solar, outdoor storage, truck terminals: not confirmed."},
+   "section": "ROH Chapter 21 Appendix 21-F",
+   "notes": "Special-district rules; confirm with DPP/HCDA.",
+   "source": "https://www.zoneomics.com/code/honolulu-HI/chapter_1 (table of contents only)"
+  }
+ ]
+}
