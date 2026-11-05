@@ -1189,6 +1189,56 @@ def _dominant_zone(parcels):
     return fips, code
 
 
+def _std_with_overrides(fips, zone, overrides):
+    """Zone standards with the planner's typed-in overrides applied ("" clears FAR / ISR / coverage)."""
+    from . import siteplan
+
+    std = siteplan.standards_for(fips, zone)
+    for key, value in (overrides or {}).items():
+        if key in ("front", "side", "rear", "height", "stories", "far", "isr", "coverage") and value not in ("", None):
+            try:
+                std[key] = float(value)
+            except (TypeError, ValueError):
+                pass
+        elif key in ("far", "isr", "coverage") and value == "":
+            std[key] = None
+    return std
+
+
+def _flood_wetland_exclusion(geom, to_m):
+    """(FEMA flood + NWI wetland geometry in metres or None, acres, note). The planners re-run on every edit: ask
+    FEMA and NWI once per outline per day, and don't wait minutes on them (the default is 90 s x 3 tries)."""
+    import hashlib
+
+    from django.core.cache import cache
+    from shapely import wkb
+
+    from . import siteplan
+    from .lookup import constraint_geometry
+
+    key = "siteplan-cons:" + hashlib.sha1(geom.wkb).hexdigest()
+    try:
+        hit = cache.get(key)
+        down = cache.get(key + ":down")
+        if hit is None and down:
+            raise RuntimeError(down)  # failed a few minutes ago: don't wait on it again for every edit
+        if hit is None:
+            try:
+                found = constraint_geometry(geom, timeout=20, tries=1)
+            except Exception as exc:
+                cache.set(key + ":down", str(exc)[:60], 300)
+                raise
+            hit = found.wkb if found is not None and not found.is_empty else b""
+            cache.set(key, hit, 24 * 3600)
+        cons = wkb.loads(hit) if hit else None
+        if cons is not None and not cons.is_empty:
+            exclude_m = to_m(cons)
+            return exclude_m, round(exclude_m.area * siteplan.SQFT_PER_M2 / siteplan.SQFT_PER_ACRE, 1), ""
+        return None, 0, ""
+    except Exception as exc:  # lay the site out anyway and say the exclusion was skipped
+        return None, 0, f"Flood/wetland maps didn't respond ({str(exc)[:60]}); laid out without excluding them."
+
+
 @require_POST
 def site_plan(request):
     """Quick site plan. JSON in: {parcel|parcels|site, zone?, overrides?, program, parking_mode, exclude, action}.
@@ -1197,7 +1247,6 @@ def site_plan(request):
     from shapely.ops import transform as reproject
 
     from . import qd, siteplan
-    from .lookup import constraint_geometry
 
     try:
         data = json.loads(request.body or "{}")
@@ -1208,52 +1257,15 @@ def site_plan(request):
         return JsonResponse({"error": "Open a parcel or an assemblage first."}, status=400)
     fips, current = _dominant_zone(parcels)
     zone = data.get("zone") if data.get("zone") is not None else current
-    std = siteplan.standards_for(fips, zone)
-    for key, value in (data.get("overrides") or {}).items():
-        if key in ("front", "side", "rear", "height", "stories", "far", "isr", "coverage") and value not in ("", None):
-            try:
-                std[key] = float(value)
-            except (TypeError, ValueError):
-                pass
-        elif key in ("far", "isr", "coverage") and value == "":
-            std[key] = None
+    std = _std_with_overrides(fips, zone, data.get("overrides"))
     program = [p for p in (data.get("program") or []) if isinstance(p, dict) and p.get("type") in siteplan.BUILDING_TYPES][:12]
     if not program:
         program = [{"type": "flex", "count": 4}, {"type": "warehouse"}]
     c = geom.representative_point()
     to_m, fwd, inv = qd.projector(c.y, c.x)
     site_m = to_m(geom if geom.is_valid else geom.buffer(0))
-    exclude_m = None
-    excluded_acres = 0
-    exclusion_note = ""
-    if data.get("exclude"):
-        import hashlib
-
-        from django.core.cache import cache
-        from shapely import wkb
-
-        # The planner re-runs on every edit: ask FEMA and NWI once per outline per day, and don't wait minutes on
-        # them (the default is 90 s x 3 tries per service).
-        key = "siteplan-cons:" + hashlib.sha1(geom.wkb).hexdigest()
-        try:
-            hit = cache.get(key)
-            down = cache.get(key + ":down")
-            if hit is None and down:
-                raise RuntimeError(down)  # failed a few minutes ago: don't wait on it again for every edit
-            if hit is None:
-                try:
-                    found = constraint_geometry(geom, timeout=20, tries=1)
-                except Exception as exc:
-                    cache.set(key + ":down", str(exc)[:60], 300)
-                    raise
-                hit = found.wkb if found is not None and not found.is_empty else b""
-                cache.set(key, hit, 24 * 3600)
-            cons = wkb.loads(hit) if hit else None
-            if cons is not None and not cons.is_empty:
-                exclude_m = to_m(cons)
-                excluded_acres = round(exclude_m.area * siteplan.SQFT_PER_M2 / siteplan.SQFT_PER_ACRE, 1)
-        except Exception as exc:  # lay the site out anyway and say the exclusion was skipped
-            exclusion_note = f"Flood/wetland maps didn't respond ({str(exc)[:60]}); laid out without excluding them."
+    exclude_m, excluded_acres, exclusion_note = (
+        _flood_wetland_exclusion(geom, to_m) if data.get("exclude") else (None, 0, ""))
     setback = data.get("setback")
     try:
         setback = float(setback) if setback not in (None, "") else None
@@ -1276,7 +1288,9 @@ def site_plan(request):
     summary["note"] = exclusion_note
     if data.get("action") == "save" and target is not None:
         keep = {k: data.get(k) for k in ("zone", "overrides", "program", "parking_mode", "exclude", "setback")}
-        target.site_plan = {**keep, "saved_at": timezone.now().isoformat(), "saved_by": request.user.username,
+        old = (target.site_plan or {}).get("autofit")
+        target.site_plan = {**keep, **({"autofit": old} if old else {}),
+                            "saved_at": timezone.now().isoformat(), "saved_by": request.user.username,
                             "summary": {k: summary[k] for k in ("gfa_sf", "buildings", "stalls", "site_acres")}}
         target.save(update_fields=["site_plan", "updated_at"])
     return JsonResponse({
@@ -1284,5 +1298,95 @@ def site_plan(request):
         "types": siteplan.BUILDING_TYPES, "code_parking": siteplan.CODE_PARKING,
         "features": {"type": "FeatureCollection", "features": features}, "summary": summary,
         "saved": (target.site_plan if target is not None else {}) or {},
+        "saved_to": "site" if isinstance(target, LandSite) else ("parcel" if target is not None else None),
+    })
+
+
+@require_POST
+def auto_fit(request):
+    """One auto-fit for flex-industrial AND hazard (magazine / operating) buildings on a parcel or assemblage.
+
+    JSON in: {parcel|parcels|site, zone?, overrides?, program, parking_mode, exclude, setback?, shrink?, action}.
+    program lines are siteplan building types (warehouse, manufacturing, flex, office, lab) or hazard buildings
+    ("magazine", "operating" + hd, newqd, pes, barricaded, mce, k, sqft). action "save" keeps the inputs on the site
+    (or the single parcel) under site_plan["autofit"]. Screening only, not a DDESB submission.
+    """
+    from shapely.geometry import mapping
+    from shapely.ops import transform as reproject
+
+    from . import autofit, qd, siteplan
+
+    try:
+        data = json.loads(request.body or "{}")
+    except ValueError:
+        return JsonResponse({"error": "Bad request"}, status=400)
+    geom, parcels, target = _plan_target(data)
+    if geom is None:
+        return JsonResponse({"error": "Open a parcel or an assemblage first."}, status=400)
+    fips, current = _dominant_zone(parcels)
+    zone = data.get("zone") if data.get("zone") is not None else current
+    std = _std_with_overrides(fips, zone, data.get("overrides"))
+    allowed = set(siteplan.BUILDING_TYPES) | set(autofit.HAZARD_TYPES)
+    program = [p for p in (data.get("program") or []) if isinstance(p, dict) and p.get("type") in allowed][:20]
+    if not program:
+        return JsonResponse({"error": "Add at least one building to the program."}, status=400)
+    c = geom.representative_point()
+    to_m, fwd, inv = qd.projector(c.y, c.x)
+    whole = to_m(geom if geom.is_valid else geom.buffer(0))
+    site_m = max(whole.geoms, key=lambda g: g.area) if whole.geom_type == "MultiPolygon" else whole
+    exclude_m, excluded_acres, exclusion_note = (
+        _flood_wetland_exclusion(geom, to_m) if data.get("exclude") else (None, 0, ""))
+    try:
+        setback = float(data["setback"]) if data.get("setback") not in (None, "") else None
+    except (TypeError, ValueError):
+        setback = None
+    try:
+        result = autofit.plan(site_m, std, program, setback_ft=setback, exclude_m=exclude_m,
+                              parking_mode=data.get("parking_mode", "market"), shrink=bool(data.get("shrink")),
+                              whole_m=whole)
+    except (ValueError, TypeError) as exc:
+        return JsonResponse({"error": str(exc)}, status=400)
+    to_wgs = lambda g: mapping(reproject(inv, g))  # noqa: E731
+    features = []
+    if not result["envelope"].is_empty:
+        features.append({"type": "Feature", "geometry": to_wgs(result["envelope"]), "properties": {"kind": "envelope"}})
+    if exclude_m is not None:
+        features.append({"type": "Feature", "geometry": to_wgs(exclude_m), "properties": {"kind": "excluded"}})
+    for g in result["courts"]:
+        features.append({"type": "Feature", "geometry": to_wgs(g), "properties": {"kind": "parking"}})
+    for b in result["flex_shapes"]:
+        features.append({"type": "Feature", "geometry": to_wgs(b["geom"]), "properties": {
+            "kind": "building", "type": b["type"], "label": b["label"], "color": b["color"], "gfa": round(b["gfa"]),
+            "stalls": b["stalls"], "stories": b["stories"], "exposure": b["exposure"]}})
+    for b, row in zip(result["hazards"], result["hazard"]):
+        if "_pos" not in b:
+            continue
+        for key, arc in qd.arcs_m(b, *b["_pos"]).items():
+            features.append({"type": "Feature", "geometry": to_wgs(arc.simplify(0.5)),
+                             "properties": {"kind": "arc", "arc": key, "name": b["name"]}})
+        features.append({"type": "Feature", "geometry": to_wgs(b["_fp"]), "properties": {
+            "kind": "hazard", "name": b["name"], "type": b["kind"], "hd": b["hd"], "newqd": b["newqd"]}})
+        lon, lat = inv(*b["_pos"])
+        row["lat"], row["lon"] = round(lat, 7), round(lon, 7)
+        row.pop("x", None)
+        row.pop("y", None)
+    summary = result["summary"]
+    summary["excluded_acres"] = excluded_acres
+    summary["note"] = exclusion_note
+    if data.get("action") == "save" and target is not None:
+        keep = {k: data.get(k) for k in ("zone", "overrides", "program", "parking_mode", "exclude", "setback", "shrink")}
+        target.site_plan = {**(target.site_plan or {}), "autofit": {
+            **keep, "saved_at": timezone.now().isoformat(), "saved_by": request.user.username,
+            "summary": {"buildings": summary["buildings"], "hazard_buildings": summary["hazard_buildings"],
+                        "gfa_sf": summary["gfa_sf"], "all_clear": summary["all_clear"]}}}
+        target.save(update_fields=["site_plan", "updated_at"])
+    return JsonResponse({
+        "standards": std, "current_zone": current, "fips": fips, "zones": siteplan.zone_choices(fips),
+        "types": {**siteplan.BUILDING_TYPES, **{k: {"label": v} for k, v in autofit.HAZARD_TYPES.items()}},
+        "exposures": autofit.EXPOSURES, "hd": qd.HAZARD_DIVISIONS, "pes": qd.PES_TYPES,
+        "features": {"type": "FeatureCollection", "features": features}, "summary": summary,
+        "hazard": result["hazard"], "flex": result["flex"], "notes": result["notes"],
+        "disclaimer": result["disclaimer"],
+        "saved": ((target.site_plan or {}).get("autofit") if target is not None else None) or {},
         "saved_to": "site" if isinstance(target, LandSite) else ("parcel" if target is not None else None),
     })

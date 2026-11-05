@@ -603,6 +603,159 @@ class SitePlanTests(TestCase):
         self.assertEqual(site.site_plan["zone"], "IG")
 
 
+class AutoFitTests(TestCase):
+    """The combined planner: flex-industrial + hazard buildings under zoning AND quantity-distance limits."""
+
+    def setUp(self):
+        from shapely.geometry import box as sbox
+
+        self.big = sbox(0, 0, 1800, 1400)     # ~623 ac: room for 1,250 ft IBD arcs
+        self.small = sbox(0, 0, 640, 640)     # ~101 ac: too small for them
+        self.user = get_user_model().objects.create_user("kellen", password="x")
+        self.client.force_login(self.user)
+
+    def test_new_county_standards_from_zoning_files(self):
+        from crm.land import siteplan
+
+        iu = siteplan.standards_for("12086", "IU-1")
+        self.assertEqual((iu["front"], iu["side"], iu["rear"], iu["height"], iu["open_space"]), (20, 15, 20, None, 0.10))
+        self.assertIn("confirm", iu["source"])
+        au = siteplan.standards_for("12086", "AU")
+        self.assertEqual((au["front"], au["rear"], au["coverage"], au["height"], au["stories"]), (50, 25, 0.15, 35, 2))
+        gu = siteplan.standards_for("12086", "GU")  # the file has no numbers: generic defaults, and it says so
+        self.assertEqual((gu["front"], gu["side"], gu["rear"]), (50, 25, 25))
+        self.assertIn("front", gu["generic"])
+        hom = siteplan.standards_for("12086", "I-1")
+        self.assertEqual((hom["front"], hom["isr"], hom["height"]), (20, 0.90, 70))
+        self.assertEqual(hom["generic"], ["rear"])  # rear setback is not in the file
+        self.assertEqual(siteplan.standards_for("12086", "PUD")["open_space"], 0.35)
+        cl = siteplan.standards_for("49015", "I-1")
+        self.assertEqual((cl["front"], cl["height"], cl["stories"]), (25, 30, 2))
+        gr = siteplan.standards_for("49015", "GR I-3")
+        self.assertEqual((gr["front"], gr["height"]), (25, None))
+        self.assertTrue(all(z["code"] for z in siteplan.zone_choices("49015")))
+        self.assertEqual(siteplan.standards_for("12086", "XX")["code"], "")  # unknown zone: no-zoning default
+
+    def test_layout_start_counts_against_limits_and_reports_stops(self):
+        from crm.land import siteplan
+
+        std = {**siteplan.standards_for("24017", "IG"), "isr": None}
+        _, plain = siteplan.layout(self.small, std, [{"type": "warehouse"}])
+        self.assertEqual(plain["stops"][0]["reason"], "FAR")
+        used = 0.5 * 640 * 640 * siteplan.SQFT_PER_M2
+        _, held = siteplan.layout(self.small, std, [{"type": "warehouse"}],
+                                  start={"footprint": used, "gfa": used, "paved": 0})
+        self.assertEqual(held["buildings"], 0)  # FAR 0.50 already used up by what stands there
+
+    def test_big_site_places_everything_with_every_arc_legal(self):
+        from crm.land import autofit, qd, siteplan
+
+        prog = [{"type": "magazine", "count": 2, "newqd": 5000}, {"type": "operating", "newqd": 500},
+                {"type": "warehouse", "count": 2}, {"type": "flex", "count": 3}, {"type": "lab", "count": 1}]
+        r = autofit.plan(self.big, siteplan.standards_for("12086", "IU-1"), prog)
+        self.assertEqual(r["summary"]["hazard_buildings"], 3)
+        self.assertTrue(r["summary"]["all_clear"], r["summary"])
+        self.assertEqual([f["placed"] for f in r["flex"]], [2, 3, 1])
+        for h in r["hazard"]:
+            self.assertTrue(h["ibd_clear"])
+            self.assertGreaterEqual(h["edge_ft"], h["ibd_ft"] - 1)
+            self.assertGreaterEqual(h["max_newqd"], h["newqd"])
+        # Each hazard building's exposure distance to every flex building holds (IBD for the unrelated ones).
+        for fb in r["flex_shapes"]:
+            for b in r["hazards"]:
+                need = b["dist"][fb["exposure"]]
+                self.assertGreaterEqual(b["_fp"].distance(fb["geom"]) * qd.FT_PER_M, need - 1e-6)
+        self.assertEqual(r["summary"]["exposure_conflicts"], [])
+
+    def test_hazard_buildings_count_toward_far_and_zoning_limits_flex(self):
+        from crm.land import autofit, siteplan
+
+        std = {**siteplan.standards_for("12086", "IU-1"), "far": 0.02}
+        prog = [{"type": "magazine", "newqd": 5000, "sqft": 20000}, {"type": "warehouse"}]
+        r = autofit.plan(self.big, std, prog)
+        far = next(c for c in r["summary"]["checks"] if c["key"] == "far")
+        self.assertTrue(far["ok"])
+        self.assertLessEqual(far["value"], 0.02 + 1e-9)
+        wh = r["flex"][0]
+        self.assertEqual(wh["limits"][0]["kind"], "zoning")
+        self.assertIn("FAR", wh["limits"][0]["text"])
+        # The magazine's 20,000 sf is part of that FAR: without it the warehouse gets more.
+        r2 = autofit.plan(self.big, std, [{"type": "warehouse"}])
+        self.assertGreater(r2["flex"][0]["gfa_sf"], wh["gfa_sf"])
+
+    def test_small_site_reports_arc_limit_and_shrink_fixes_it(self):
+        from crm.land import autofit, siteplan
+
+        std = siteplan.standards_for("12086", "IU-1")
+        prog = [{"type": "magazine", "newqd": 5000}, {"type": "flex"}]
+        r = autofit.plan(self.small, std, prog)
+        mag = r["hazard"][0]
+        self.assertTrue(mag["placed"])
+        self.assertFalse(mag["ibd_clear"])
+        self.assertFalse(r["summary"]["all_clear"])
+        self.assertTrue(any(l["kind"] == "qd" and "off the property" in l["text"] for l in mag["limits"]))
+        self.assertLess(mag["max_newqd"], 5000)  # what it could hold where it stands
+        # The 1,250 ft arc takes the whole envelope: the flex building is limited by the arcs.
+        self.assertEqual(r["flex"][0]["placed"], 0)
+        self.assertEqual(r["flex"][0]["limits"][0]["kind"], "qd")
+        shrunk = autofit.plan(self.small, std, prog, shrink=True)
+        self.assertTrue(shrunk["hazard"][0]["ibd_clear"])
+        self.assertLessEqual(shrunk["hazard"][0]["newqd"], mag["max_newqd"])
+        self.assertTrue(any("NEWQD cut" in n for n in shrunk["notes"]))
+
+    def test_exposure_none_ignores_arcs_and_exclusion_is_reported(self):
+        from shapely.geometry import box as sbox
+
+        from crm.land import autofit, siteplan
+
+        std = siteplan.standards_for("12086", "IU-1")
+        r = autofit.plan(self.small, std, [{"type": "magazine", "newqd": 5000}, {"type": "flex", "exposure": "none"}])
+        self.assertGreater(r["flex"][0]["placed"], 0)
+        wet = sbox(0, 0, 1800, 500)  # the southern part is flood / wetland
+        r = autofit.plan(self.big, std, [{"type": "magazine", "newqd": 5000}], exclude_m=wet)
+        self.assertGreater(r["summary"]["losses"]["exclusion_acres"], 0)
+        # No room left at all once the exclusion covers the whole site.
+        r = autofit.plan(self.small, std, [{"type": "magazine"}], exclude_m=sbox(-10, -10, 700, 700))
+        self.assertFalse(r["hazard"][0]["placed"])
+        self.assertIn(r["hazard"][0]["limits"][0]["kind"], ("zoning", "exclusion"))
+
+    def test_zone_height_caps_the_program(self):
+        from crm.land import autofit, siteplan
+
+        r = autofit.plan(self.big, siteplan.standards_for("49015", "I-1"), [{"type": "warehouse", "count": 1}])
+        self.assertEqual(r["flex"][0]["height_ft"], 30)
+        self.assertTrue(any("30 ft" in n for n in r["notes"]))
+
+    def test_endpoint_runs_the_combined_program_and_saves(self):
+        county = LandCounty.objects.create(fips="12086", name="Miami-Dade", state="FL")
+        p = make_parcel(county, "1", -80.5, 25.5, size=0.008,
+                        overlays={"zoning": {"value": "IU-1", "parts": {"IU-1": 100}}})
+        site = LandSite.objects.create(name="Test site")
+        site.parcels.set([p])
+        body = {"site": site.pk, "action": "save", "program": [
+            {"type": "operating", "hd": "HD 1.4", "newqd": 500, "sqft": 4000},
+            {"type": "magazine", "hd": "HD 1.4", "newqd": 1000},
+            {"type": "warehouse", "count": 1}, {"type": "flex", "count": 1}]}
+        r = self.client.post("/land/autofit/", json.dumps(body), content_type="application/json").json()
+        self.assertEqual(r["current_zone"], "IU-1")
+        self.assertEqual(r["standards"]["front"], 20)
+        self.assertEqual(len(r["hazard"]), 2)
+        self.assertTrue(all(h["placed"] and h["max_newqd"] for h in r["hazard"]))
+        kinds = {f["properties"]["kind"] for f in r["features"]["features"]}
+        self.assertTrue({"envelope", "building", "hazard", "arc"} <= kinds)
+        self.assertIn("DDESB", r["disclaimer"])
+        site.refresh_from_db()
+        self.assertEqual(site.site_plan["autofit"]["summary"]["hazard_buildings"], 2)
+        # A normal site-plan save keeps the auto-fit program.
+        self.client.post("/land/siteplan/", json.dumps({"site": site.pk, "program": [{"type": "flex"}], "action": "save"}),
+                         content_type="application/json")
+        site.refresh_from_db()
+        self.assertIn("autofit", site.site_plan)
+        empty = self.client.post("/land/autofit/", json.dumps({"site": site.pk, "program": []}),
+                                 content_type="application/json")
+        self.assertEqual(empty.status_code, 400)
+
+
 class ArchiveAndParcelDealTests(TestCase):
     def setUp(self):
         self.user = get_user_model().objects.create_user("kellen", password="x")

@@ -440,12 +440,12 @@ def home(request):
     shown = grid["shown"]
     ctx = {"grid": grid, "layout": grid["layout"], "customize": grid["customize"]}
     if "my_day" in shown:
+        ctx["day"] = day = pipeline.my_day(request.user)  # first: it makes the follow-up tasks the list below shows
         my_tasks = Task.objects.filter(assignee=request.user, done=False).select_related("company", "person", "assignee", "opportunity")
         ctx["overdue"] = [t for t in my_tasks if t.due_date and t.due_date < today]
         ctx["upcoming"] = [t for t in my_tasks if not t.due_date or t.due_date >= today][:15]
-        ctx["day"] = day = pipeline.my_day(request.user)
-        for r in day["replies"]:
-            r.gist = reply_gist(r.body, r.person, limit=120)
+        ctx["follow_ups"] = _follow_up_rows(day["waiting"]["all"], limit=8)
+        ctx["follow_up_counts"] = {k: len(day["waiting"][k]) for k in ("us", "them")}
     if "replies" in shown:
         ctx["replies"] = replies = list(
             Activity.objects.filter(kind=Activity.Kind.REPLY, outcome__in=POSITIVE_OUTCOMES, person__isnull=False)
@@ -744,10 +744,34 @@ def suggestion_create(request, company_id):
     return redirect(opp)
 
 
+def _follow_up_rows(entries, limit=None):
+    """Follow-up entries ready to draw: the gist of the email and where it opens in Mail."""
+    rows = []
+    for e in entries[:limit]:
+        a = e["act"]
+        e["gist"] = reply_gist(a.body, a.person, limit=140)
+        e["thread"] = pipeline.thread_hex(a.thread_id)
+        rows.append(e)
+    return rows
+
+
+def follow_ups(request):
+    """Mail > Follow-ups: every thread where the ball sits, redder and higher the longer it waits."""
+    found = pipeline.follow_ups(request.user)
+    pipeline.sync_follow_up_tasks(request.user, found)
+    side = request.GET.get("side", "all")
+    side = side if side in ("us", "them") else "all"
+    return render(request, "crm/follow_ups.html", {
+        "rows": _follow_up_rows(found[side]), "side": side,
+        "counts": {"all": len(found["all"]), "us": len(found["us"]), "them": len(found["them"])},
+        "red": sum(1 for e in found["all"] if e["level"] == 3),
+    })
+
+
 @require_POST
 def reply_dismiss(request, pk):
-    """My day: this reply needs no answer from me, so take it off my list (only mine)."""
-    act = get_object_or_404(Activity, pk=pk, kind=Activity.Kind.REPLY)
+    """Follow-ups: this one needs no answer or nudge from me, so take it off my list (only mine)."""
+    act = get_object_or_404(Activity, pk=pk, kind__in=[Activity.Kind.REPLY, Activity.Kind.EMAIL_SENT])
     kept = [i for i in prefs.get_prefs(request.user).get(pipeline.REPLIES_DISMISSED, []) if i != act.pk]
     prefs.set_pref(request.user, pipeline.REPLIES_DISMISSED, (kept + [act.pk])[-500:])
     if request.headers.get("X-Requested-With") == "fetch":

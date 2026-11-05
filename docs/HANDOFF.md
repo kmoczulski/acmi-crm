@@ -3,6 +3,47 @@
 Read this first when picking the project up in a new chat, along with
 `attio_spec.md` in this folder. Start with "Pick up here"; the dated sections after it are the history.
 
+**Update, 2026-11-04 (late; side session started from the county-adding session; Kellen: "I want to be able to put in a warehouse,
+magazine, and other hazard buildings that can all be autofited based on the site constraints and zoning etc."): one Auto-fit planner
+for flex-industrial AND hazard buildings is built, tested and **LIVE as revision `acmi-crm-00035-5hh` (image `0c079ee`, deployed 2026-11-04 ~11 pm Central; rollback `acmi-crm-00034-2mh` / `4e5f5ac`)**. `main` is `0c079ee`: it holds Auto-fit, the LOI / PSA tracker (migration 0079, already applied by the 00033 deploy), the recalculation and the Granola cloudbuild fix. Fingerprints of the service and 3 jobs identical before / after except the image; migrate "No migrations to apply"; no WARNING logs.**
+Before, `qd.py` (QD) and `siteplan.py` (zoning layout) were separate tools that did not know each other.
+- **Engine: `crm/land/autofit.py`, `plan()`.** One program list: flex types (`warehouse`, `manufacturing`, `flex`, `office`, `lab`) and
+  hazard types (`magazine` = IMD spacing, `operating` = ILD) with HD, NEWQD, PES, barricade, MCE, K, footprint sf. Order: (1) hazard
+  buildings first, inside the zoning envelope (setback, flood / wetland exclusion, via `siteplan.envelope`), each at a spot whose IBD arc
+  stays on the property (largest IBD first, `qd.footprint`, spacing to the other hazard buildings); (2) each flex line then runs
+  `siteplan.layout` with the hazard arcs, earlier buildings and courts carved out. The carve-out distance is the line's **Exposed at**:
+  default IBD (an unrelated inhabited building), `lab` defaults to ILD, or PTRD / ILD / none per line. Hazard buildings count toward
+  FAR / coverage / ISR (`layout(start=...)`, new) and the zone's open space is checked as the pervious share; (3) every hazard building
+  gets **Max NEWQD given the final layout** (IBD to the property line, spacing to the other hazard buildings, and the distance each flex
+  building needs from it; `qd.max_newqd` now takes `(name, ft, key)` gaps). Zone height / stories cap each line (notes say so).
+- **What limited each building** is reported per line: `zoning` (FAR / coverage / ISR from `layout`'s new `stops`, or setback), `qd`
+  (arc runs N ac off the property, spacing, or the arcs took X ac of the envelope), `exclusion` (flood / wetland: deepest spot with vs
+  without it). "Cut NEWQD to fit" lowers a hazard building's NEWQD to what its spot allows when the arc won't fit.
+- **UI:** an **Auto-fit** button in the land toolbar opens a drawer (same family as QD plan / Site plan; one drawer at a time): zone
+  picker (rezone scenarios), setback, program table with hazard columns, results (verdict, hazard table with Max NEWQD, flex table,
+  limits, acres lost to setback / exclusion / arcs), arcs and footprints on the map. Endpoint `POST /land/autofit/`
+  (`views.auto_fit`); "Save program" keeps it on the site / parcel in `site_plan["autofit"]` (a normal Site plan save keeps it; no
+  migration). `site_plan` now shares `_std_with_overrides` and `_flood_wetland_exclusion` with it. The old QD plan and Site plan
+  drawers are unchanged and still work.
+- **New zoning standards in `siteplan.STANDARDS`** (from `crm/land/zoning_ref/`, same sources, "check source" caveats kept, no numbers
+  invented; a field the file leaves null keeps the generic 50 / 25 / 25 ft, 45 ft / 2 story default and is listed in `generic`, which
+  the drawer shows): **Miami-Dade 12086** AU (also Homestead's AU), GU (all generic: the article has no numbers), IU-1 / IU-2 / IU-3
+  (front 20, side 15 and rear 20 as the conservative end of the 33-51 ranges, open space 10%, no height), BU-2 (FAR / coverage 0.40),
+  Homestead I-1 / I-2 (front 20, side 10, **rear generic**, 70 ft / 6 stories, 90% impervious as ISR), PUD (setbacks generic, 150 ft
+  cap, 35% open space). **Emery 49015** Cleveland A-1 / R-1 / C-1 / I-1 (I-1: 25 ft all round, 30 ft / 2 stories) and Green River
+  I-1 / I-2 / I-3 (25 ft from the easement line, no height) coded **`GR I-1`..`GR I-3`** because Cleveland's I-1 shares the zoning
+  layer's plain "I-1": a Green River parcel opens as Cleveland's I-1 until you pick the GR zone in the drawer (the layer doesn't say
+  which town; a better fix would carry the authority into `_dominant_zone`). Not added: Florida City, the other Utah towns, Miami-Dade
+  residential / business districts other than BU-2. `BUILDING_TYPES` gained a `height` (clear height, ft) for the zone-height check.
+- **Limits to know:** screening only, never a DDESB submission (wording kept in the drawer and the API); 360-degree arcs; hazard
+  buildings get no access road or apron; the 15 ft margin `siteplan.envelope` puts around exclusions also pads the arcs; a flex line
+  with no count fills what is left (the default program sets counts); flex lines are laid out one after another in program order, so
+  the first greedy line takes the room.
+- **Tests:** `AutoFitTests` in `crm/tests/test_land.py` (standards, `layout(start)` / stops, big site clears every arc, hazard sf
+  counts toward FAR, small site reports the arc limit and "cut to fit" repairs it, exclusion, zone height cap, endpoint + save);
+  97 land tests pass. Checked in the browser on a scratch database (`ACMI_SQLITE_PATH` in the scratchpad): the real Miami-Dade flood
+  layer answered, the program fitted and the limits read correctly. Not deployed: no hosted-service, migration or `db.sqlite3` change.
+
 **Update, 2026-11-04 (evening; Claude on the laptop; Kellen: "Can we add this LOI/PSA trackline capability? It should be used to
 align on proposed closing timelines and deposits etc.", with the Lewis Place "LOI Tracker" workbook, then "Merge"): the LOI / PSA
 terms tracker is built, tested and merged into `main` (commit `c9edb51`, fast-forwarded after CI on Postgres went green), NOT

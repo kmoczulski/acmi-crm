@@ -403,3 +403,19 @@ Steps 1 to 3 give a working read-only inbox. Each later step stands on its own.
 - **For shared mailboxes (later)**: someone who can sign in to each shared account, once.
 - **Still open from before**: turn on device encryption on the laptop; turn on billing for hosting (the phone and
   instant push wait on it).
+
+
+---
+
+## Follow-ups and search (2026-11-05)
+
+**Follow-ups** (Mail > Follow-ups, `/inbox/follow-ups/`, also "See all" on My day) lists every thread where the ball
+sits: replies waiting on us, and emails we sent that got no answer (after 3 days; campaign sends are left out). Rows
+deepen from amber to orange to red as days pass (us: 1 / 3 / 7 days, them: 3 / 7 / 14) and sort by that, us before
+them. A row opens the thread in Mail. Each one is also a task (`Task.source_activity`), due the day after the reply
+(us) or 3 days after our send (them), so it turns overdue by itself; it ticks itself when someone answers or the row is
+dismissed. A task someone ticked or deleted by hand is not made again. Tasks are made when My day or the page loads.
+
+**Search** keeps Gmail's own engine, with Gmail's front door: click the box for recent searches and quick filters
+(unread, attachment, starred, last 7 days, PDF/Word/Excel); typing offers From / To rows for people and companies the
+CRM knows; matched words are highlighted in the list and the header shows the result count.
