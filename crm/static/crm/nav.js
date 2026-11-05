@@ -305,3 +305,33 @@
     }
   });
 })();
+
+// Unsaved edits: leaving a page with a form you've typed into (a note, a contract, a site, a firm...) asks first, instead
+// of silently throwing it away. A form counts as changed only when a field really differs from how it started, so one
+// that clears itself after saving, or that you typed and erased, never warns. The mail composer and News review keep
+// their own guards; search, filter and GET forms, and forms marked data-no-guard, are left alone.
+(function () {
+  if (window.top !== window) return;
+  const forms = new Map();
+  const eligible = f => f.method && f.method.toLowerCase() === 'post' && !f.hasAttribute('data-no-guard')
+    && !f.matches('[data-compose], [data-inline], [role=search]') && !f.closest('dialog:not([open]), [hidden]')
+    && f.querySelector('textarea, input:not([type=hidden]):not([type=checkbox]):not([type=radio]):not([type=file]):not([type=submit]):not([type=button]), select');
+  const state = f => [...f.elements].filter(e => e.name && e.type !== 'file' && e.type !== 'hidden' && e.type !== 'submit' && e.type !== 'button'
+    && e.name !== 'csrfmiddlewaretoken').map(e => e.name + '=' + ((e.type === 'checkbox' || e.type === 'radio') ? (e.checked ? '1' : '0') : e.value)).join('&');
+  function watch() {
+    document.querySelectorAll('form').forEach(f => { if (!forms.has(f) && eligible(f)) forms.set(f, {start: state(f), sent: false}); });
+  }
+  document.addEventListener('submit', e => { const r = forms.get(e.target); if (r) r.sent = true; }, true);
+  // A form sent from script (onchange="this.form.submit()") raises no submit event: mark it too, or its own page
+  // change would ask "leave this page?".
+  const nativeSubmit = HTMLFormElement.prototype.submit;
+  HTMLFormElement.prototype.submit = function () { const r = forms.get(this); if (r) r.sent = true; return nativeSubmit.call(this); };
+  window.addEventListener('load', () => setTimeout(watch, 800));  // after scripts have filled their defaults
+  document.addEventListener('focusin', e => { const f = e.target.form; if (f && !forms.has(f) && eligible(f)) forms.set(f, {start: state(f), sent: false}); });
+  window.addEventListener('beforeunload', e => {
+    for (const [f, r] of forms) {
+      if (!f.isConnected || r.sent || f.offsetParent === null) continue;
+      if (state(f) !== r.start) { e.preventDefault(); e.returnValue = ''; return ''; }
+    }
+  });
+})();
