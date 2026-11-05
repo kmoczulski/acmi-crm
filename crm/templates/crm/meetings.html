@@ -57,7 +57,7 @@
   <div class="cal-week">
     {% for day in week %}
     <div class="cal-day {% if day.other %}other{% endif %} {% if day.today %}today{% endif %}">
-      <div class="cal-date">{{ day.date.day }}{% if view != "month" %}<span class="cal-dow"> {{ day.date|date:"D, M j" }}</span>{% endif %}</div>
+      <div class="cal-date">{% if view == "month" %}{{ day.date.day }}{% else %}{{ day.date|date:"D, M j" }}{% endif %}</div>
       {% if view != "month" and not day.meetings %}<div class="muted lc-small">Nothing scheduled</div>{% endif %}
       {% for m in day.meetings %}
         <button type="button" class="cal-event {% if m.companies.all or m.firms.all %}ext{% endif %} {% if m.summary %}notes{% endif %}" data-id="{{ m.pk }}"

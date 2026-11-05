@@ -296,6 +296,31 @@ backup was taken (`1793324941228`, 8:49 pm Central). Rollback is traffic back to
 a table and a column, so the old code runs on the new schema). What e-signature would take is in `docs/ESIGN_AND_CHAT.md`
 (nothing built).
 
+## Usability pass 2026-11-05 (branch `worktree-ux-polish-2026-11`, committed, NOT pushed, NOT deployed, no migration)
+
+Kellen: "review the entire website... functionality and navigation tested and improved". Worktree `.claude/worktrees/ux-polish-2026-11`,
+built on `calendar-fixes-v2` (Kellen's pick) with `main` merged in (4 CSS conflicts in `app.css`, resolved to main's theme). Tested on a
+scratch database of made-up data only (the live and hosted databases were never touched). Full suite green at the last full run
+(1,197 tests); the last round (calendar, session, people, unsaved-edit guard) is covered by new tests and a final run is in the session.
+- **Found and fixed:** the Meetings page's Day / Week buttons did nothing (the view only drew months) and now work, with a **People**
+  checkbox filter (`?people=<id>&people=<id>`, `meeting_list`); the phone Chat list floated over an open conversation (the toolbar
+  dropdown never closed, `dock.js` `closeChatPanel`); text under 16px made iPhones zoom in and cut off Send (`@media (pointer: coarse)`);
+  the open chat box follows the keyboard (`--vv-top`/`--vv-h` from `visualViewport`); Chat files and mail attachments opened in an iOS
+  preview with no way back and now open in an in-app viewer (`hubViewer` in `nav.js`, `a[data-viewer]`, `.chat-img`, `.chat-file`).
+- **Added:** Chat **Seen by** under your latest message (`service.seen_by`, `/chat/seen/`; each teammate with Chat on in the hub is asked
+  for their own read time, Google gives no one else's; people without it are never shown as "not seen") and a dismissible "Turn on Chat"
+  nudge; **Make this email a task** in the reading pane (`/inbox/task/`); dashboard widget **People you email** with one-click Add / Dismiss
+  (`crm/mail/people_suggest.py`: addresses in 2+ of your conversations in 180 days, not a Person, not a teammate / free mail / no-reply);
+  mail search handles words mixed with operators and quotes (`search.expand`); sessions last 60 days and renew daily
+  (`RollingSessionMiddleware`, `SESSION_COOKIE_AGE`) and the page says "You were signed out" instead of silently going stale
+  (`alerts.js`); unsaved-edit warning on POST forms (`nav.js`); skip link, focus ring, friendly 404 / 500, darker low-contrast greys,
+  names for unlabeled controls, finger-sized tap targets, `.env` instructions replaced with "ask an admin".
+- **Not verified on real devices or accounts:** the iPhone fixes, Chat read receipts and the Chat list fix (only against fakes), Gmail.
+  Phone symptom for "disconnects" was never described by Kellen: the two causes found (fixed 14-day session, silent sign-in page poll) are
+  inferred from code.
+- **Still open:** undo / Trash for delete and merge; Land briefs take a minute when an outside service is down; tablet width; the pages
+  were not looked at by eye after the merge (browser screenshots timed out). To ship: push, CI, merge `main` again, Kellen deploys.
+
 ## Pick up here (2026-10-25)
 
 **Done 2026-11-04 (Claude on the laptop, after Kellen had Grok and Gemini work on the code): review of that work, phone
