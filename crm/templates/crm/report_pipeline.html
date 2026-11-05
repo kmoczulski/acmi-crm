@@ -31,7 +31,7 @@
 
 {# One table for all three sections, so their columns line up whichever columns are shown. #}
 <div class="panel rp-panel">
-  <div class="table-wrap"><table class="data compact pipeline-table rp-sections">
+  <div class="table-wrap"><table class="data compact pipeline-table rp-sections" data-no-peek>
     {% for s in sections %}<tbody>
       <tr class="rp-title"><th colspan="{{ columns|length }}">{{ s.title }} <span class="rp-totals">{{ s.rows|length }} tenant{{ s.rows|length|pluralize }}{% if "size" in column_keys %} · {{ s.sf|intcomma }} sf{% endif %}{% if "cost" in column_keys %} · {{ s.cost|money|default:"$0" }}{% endif %}{% if "weighted" in column_keys and s.weighted %} · weighted {{ s.weighted|money }}{% endif %}</span></th></tr>
       <tr class="rp-head">{% for c in columns %}<th class="{{ c.key|report_align }}">{{ c.label }}</th>{% endfor %}</tr>
