@@ -54,8 +54,8 @@ substitutions:
   _DB_USER: acmi
   _BUCKET: acmi-uploads-sincere-passage-511621-j3
   _NEWS_FOLDER: "1Oz5t51WMcGwFBU2FCM1PEwgKA0EsYgGZ"
-  _GRANOLA_FOLDER: ""
-  _GRANOLA_USER: ""
+  _GRANOLA_FOLDER: "1qREDx3CbuEVHkWTEyK344jFQ5cHG1HYn"
+  _GRANOLA_USER: "kmoczulski@acmigroup.com"
   _PUSH_TOPIC: projects/sincere-passage-511621-j3/topics/acmi-gmail-push
   _PUSH_SA: acmi-pubsub-push@sincere-passage-511621-j3.iam.gserviceaccount.com
   _PUSH_AUDIENCE: https://hub.acmiproperties.com/internal/gmail-push/
@@ -109,7 +109,7 @@ steps:
     args: ["run", "deploy", "${_SERVICE}",
            "--image=${_REGION}-docker.pkg.dev/$PROJECT_ID/acmi/${_SERVICE}:${_TAG}", "--region=${_REGION}",
            "--add-cloudsql-instances=${_SQL_INSTANCE}", "--timeout=900", "--memory=2Gi", "--allow-unauthenticated",
-           "--set-env-vars=^|^DJANGO_DEBUG=false|DJANGO_ALLOWED_HOSTS=${_HOSTS}|DJANGO_CSRF_TRUSTED_ORIGINS=${_ORIGINS}|ACMI_LOCAL_LOGIN=false|POSTGRES_DB=${_DB_NAME}|POSTGRES_USER=${_DB_USER}|POSTGRES_HOST=/cloudsql/${_SQL_INSTANCE}|GOOGLE_CLIENT_ID=${_GOOGLE_CLIENT_ID}|ACMI_SEND_JOB=${_SERVICE}-send|ACMI_GCP_REGION=${_REGION}|ACMI_GCS_BUCKET=${_BUCKET}|ACMI_DRIVE_ADC=true|ACMI_NEWS_DRIVE_FOLDER=${_NEWS_FOLDER}|ACMI_GMAIL_PUSH_TOPIC=${_PUSH_TOPIC}|ACMI_GMAIL_PUSH_SA=${_PUSH_SA}|ACMI_GMAIL_PUSH_AUDIENCE=${_PUSH_AUDIENCE}",
+           "--set-env-vars=^|^DJANGO_DEBUG=false|DJANGO_ALLOWED_HOSTS=${_HOSTS}|DJANGO_CSRF_TRUSTED_ORIGINS=${_ORIGINS}|ACMI_LOCAL_LOGIN=false|POSTGRES_DB=${_DB_NAME}|POSTGRES_USER=${_DB_USER}|POSTGRES_HOST=/cloudsql/${_SQL_INSTANCE}|GOOGLE_CLIENT_ID=${_GOOGLE_CLIENT_ID}|ACMI_SEND_JOB=${_SERVICE}-send|ACMI_GCP_REGION=${_REGION}|ACMI_GCS_BUCKET=${_BUCKET}|ACMI_DRIVE_ADC=true|ACMI_NEWS_DRIVE_FOLDER=${_NEWS_FOLDER}|ACMI_GRANOLA_DRIVE_USER=${_GRANOLA_USER}|ACMI_GMAIL_PUSH_TOPIC=${_PUSH_TOPIC}|ACMI_GMAIL_PUSH_SA=${_PUSH_SA}|ACMI_GMAIL_PUSH_AUDIENCE=${_PUSH_AUDIENCE}",
            "--set-secrets=DJANGO_SECRET_KEY=acmi-django-secret-key:latest,POSTGRES_PASSWORD=acmi-postgres-password:latest,ACMI_CRON_SECRET=acmi-cron-secret:latest,GOOGLE_CLIENT_SECRET=acmi-google-client-secret:latest,ANTHROPIC_API_KEY=acmi-anthropic-api-key:latest,ACMI_TOKEN_KEY=acmi-token-key:latest,ACMI_VAPID_PUBLIC_KEY=acmi-vapid-public-key:latest,ACMI_VAPID_PRIVATE_KEY=acmi-vapid-private-key:latest"]
 images:
   - "${_REGION}-docker.pkg.dev/$PROJECT_ID/acmi/${_SERVICE}:${_TAG}"
