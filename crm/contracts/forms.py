@@ -2,8 +2,9 @@ from django import forms
 
 from ..forms import CommaNumbersMixin, StyledForm, UserChoiceField, active_users
 from ..models import (
-    Campus, Contract, ContractDate, ContractDocument, ContractTemplate, LandSite, LeaseTerms, Opportunity,
+    Campus, Contract, ContractDate, ContractDocument, ContractTemplate, LandSite, LeaseTerms, Opportunity, TermsRound,
 )
+from . import terms
 
 MAX_UPLOAD_MB = 60
 
@@ -136,3 +137,149 @@ class TemplateForm(forms.ModelForm):
         fields = ["name", "description", "kinds", "instructions"]
         widgets = {"instructions": forms.Textarea(attrs={"rows": 3})}
         labels = {"instructions": "How to write it up"}
+
+
+def _form_text(field, value):
+    """A stored term as a form box shows it ("25,000", "182.99", "2026-11-13")."""
+    if value is None or value == "":
+        return ""
+    if field.kind == "money":
+        return f"{value:,.0f}" if value == value.to_integral_value() else f"{value:,.2f}"
+    if field.kind == "acres":
+        return format(value.normalize(), "f")
+    if field.kind == "date":
+        return value.isoformat()
+    return str(value)
+
+
+class TermsRoundForm(forms.Form):
+    """One round of LOI / PSA terms. The terms boxes come from crm/contracts/terms.py (`r_<key>` for the deal,
+    `p<n>_<key>` for phase n), so the form, the stored JSON, the schedule and the side-by-side grid can't drift apart.
+    A spare, empty phase block is always offered; leave a phase empty and it is not saved."""
+
+    GROUPS = ("Land and price", "Timeline", "Deposits", "Closing extensions")
+
+    label = forms.CharField(max_length=120, label="Round", help_text="e.g. ACMI initial offer, Seller redline, ACMI counter")
+    sent_by = forms.ChoiceField(choices=[("", "–"), *TermsRound.Side.choices], required=False, label="Proposal from")
+    dated = forms.DateField(required=False, widget=_date(), label="Sent or received")
+    document = forms.ModelChoiceField(queryset=ContractDocument.objects.none(), required=False,
+                                      label="Draft or letter it summarizes")
+    notes = forms.CharField(required=False, widget=forms.Textarea(attrs={"rows": 3}), label="Notes")
+    slots = forms.IntegerField(required=False, widget=forms.HiddenInput())
+
+    def __init__(self, *args, contract, instance=None, source=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.contract, self.instance = contract, instance
+        self.fields["document"].queryset = contract.documents.all()
+        self.fields["document"].empty_label = "–"
+        base = instance or source
+        stored = terms.typed(base.terms) if base else terms.typed({})
+        existing = [p for p in stored["phases"] if not terms.phase_is_empty(p)]
+        posted = (self.data.get("slots") or "") if self.is_bound else ""
+        self.slots = (min(max(int(posted), 1), terms.MAX_PHASES) if posted.isdigit()
+                      else min(terms.MAX_PHASES, max(1, len(existing)) + 1))
+        self.fields["slots"].initial = self.slots
+        for f in terms.ROUND_FIELDS:
+            self.fields[f"r_{f.key}"] = self._box(f)
+            if not self.is_bound:
+                self.initial.setdefault(f"r_{f.key}", _form_text(f, stored[f.key]))
+        for i in range(self.slots):
+            phase = existing[i] if i < len(existing) else {}
+            for f in terms.phase_fields(i):
+                self.fields[f"p{i + 1}_{f.key}"] = self._box(f, i)
+                if not self.is_bound:
+                    self.initial.setdefault(f"p{i + 1}_{f.key}", _form_text(f, phase.get(f.key)))
+        if instance and not self.is_bound:
+            for name in ("label", "sent_by", "dated", "document", "notes"):
+                self.initial.setdefault(name, getattr(instance, name))
+        self.used_phases = (
+            sum(1 for i in range(self.slots) if any(self.data.get(f"p{i + 1}_{f.key}") for f in terms.phase_fields(i)
+                                                    if f.key != "name"))
+            if self.is_bound else len(existing))
+
+    @staticmethod
+    def _box(f, phase=None):
+        attrs = {}
+        if f.kind in ("money", "acres", "int"):
+            attrs = {"inputmode": "numeric" if f.kind == "int" else "decimal", "autocomplete": "off"}
+        if f.kind == "money":
+            attrs["data-commas"] = "1"
+        common = {"required": False, "label": f.label, "help_text": f.help}
+        if f.kind == "date":
+            return forms.DateField(widget=_date(), **common)
+        if f.kind == "yesno":
+            return forms.ChoiceField(choices=[("", "–"), ("yes", "Yes"), ("no", "No")], **common)
+        if f.kind == "choice":
+            return forms.ChoiceField(choices=[("", "Automatic"), *f.choices], **common)
+        if f.kind == "text":
+            attrs["placeholder"] = terms.phase_name(phase or 0)
+            return forms.CharField(max_length=60, widget=forms.TextInput(attrs=attrs), **common)
+        return forms.CharField(max_length=24, widget=forms.TextInput(attrs=attrs), **common)
+
+    def _read(self, name, f):
+        raw = self.cleaned_data.get(name)
+        if f.kind in ("int", "money", "acres"):
+            try:
+                value = terms.coerce(f, raw, strict=True)
+            except ValueError:
+                self.add_error(name, "Enter a number, like 25,000")
+                return None
+            if value is not None and value < 0:
+                self.add_error(name, "Can't be negative")
+                return None
+            return value
+        return terms.coerce(f, raw)
+
+    def clean(self):
+        data = super().clean()
+        t = {f.key: self._read(f"r_{f.key}", f) for f in terms.ROUND_FIELDS}
+        phases = []
+        for i in range(self.slots):
+            n = i + 1
+            ph = {f.key: None for f in terms.PHASE_FIELDS}
+            ph.update({f.key: self._read(f"p{n}_{f.key}", f) for f in terms.phase_fields(i)})
+            for part, whole in (("initial_nonref", "initial_deposit"), ("go_hard_nonref", "go_hard"),
+                                ("close_ext_nonref", "close_ext_deposit")):
+                if ph[part] and ph[part] > (ph[whole] or 0):
+                    self.add_error(f"p{n}_{part}", "More than the deposit it is part of")
+            for used, available in (("feas_ext_used", "feas_ext_options"), ("close_ext_used", "close_ext_options")):
+                if ph[used]:
+                    if ph[available] is None:
+                        ph[available] = ph[used]  # "use 2" with nothing said about how many exist: there are 2
+                    elif ph[used] > ph[available]:
+                        self.add_error(f"p{n}_{used}", f"Only {ph[available]} available")
+            phases.append(ph)
+        t["phases"] = phases
+        self.typed_terms = t
+        return data
+
+    def terms(self):
+        """The JSON to store, once the form is valid."""
+        return terms.dump(self.typed_terms)
+
+    def deal_fields(self):
+        return [self[f"r_{f.key}"] for f in terms.ROUND_FIELDS]
+
+    def phase_blocks(self):
+        blocks = []
+        for i in range(self.slots):
+            groups = []
+            for g in self.GROUPS:
+                boxes = [self[f"p{i + 1}_{f.key}"] for f in terms.phase_fields(i) if f.group == g and f.key != "name"]
+                if boxes:
+                    groups.append({"title": g, "fields": boxes})
+            blocks.append({"n": i + 1, "name_field": self[f"p{i + 1}_name"], "groups": groups,
+                           "open": i == 0 or i < self.used_phases})
+        return blocks
+
+
+class TermsImportForm(forms.Form):
+    file = forms.FileField(label="LOI Tracker workbook (.xlsx)")
+
+    def clean_file(self):
+        f = self.cleaned_data["file"]
+        if not f.name.lower().endswith((".xlsx", ".xlsm")):
+            raise forms.ValidationError("Choose an Excel workbook (.xlsx).")
+        if f.size > 10 * 1024 * 1024:
+            raise forms.ValidationError("Workbooks up to 10 MB.")
+        return f

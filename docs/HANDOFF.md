@@ -3,6 +3,156 @@
 Read this first when picking the project up in a new chat, along with
 `attio_spec.md` in this folder. Start with "Pick up here"; the dated sections after it are the history.
 
+**Update, 2026-11-04 (evening; Claude on the laptop; Kellen: "Can we add this LOI/PSA trackline capability? It should be used to
+align on proposed closing timelines and deposits etc.", with the Lewis Place "LOI Tracker" workbook, then "Merge"): the LOI / PSA
+terms tracker is built, tested and merged into `main` (commit `c9edb51`, fast-forwarded after CI on Postgres went green), NOT
+deployed.** Branch `loi-tracker` (worktree `.claude/worktrees/loi-tracker`), cut from `6d597b7` and rebased onto `origin/main`
+`4eb5f5e`, then `main` (`fc7b0ec`) merged in. Per the entry below, live is `acmi-crm-00032-hlr` (`5ed007f`, photos / phones); `main` is
+ahead of it by the effective-date recalculation (`b705c40`, no migration) and this tracker, **neither deployed**: check the live
+image before any deploy. One new table, **migration `0079_termsround`** (it was `0078` until
+`0078_comment_photo` reached `main` first; it now depends on that one): a plain CREATE TABLE, no change to existing tables, so
+older code can run against it.
+- **What Kellen gets.** A **Terms** page on every contract (`/contracts/<id>/terms/`): a button and a panel on the contract page,
+  and "Terms (n)" beside the contract on the land site page. A *round* is one proposal (ACMI initial offer, Seller redline, ACMI
+  counter, ...). It holds the terms the workbook held: per phase the acres and price per acre, the feasibility period and its
+  extensions (days, options available, options used, deposit per extension), the initial deposit and its non-refundable part,
+  the deposit after feasibility and its non-refundable part, 30 / 60 / 90-day deposits, days to close counted from final zoning
+  approval or from the end of feasibility, closing extensions (days, options, used, deposit, non-refundable part); and for the
+  deal the days to PSA signing (or a fixed date), months to final zoning approval, outside date (months) and subdivision.
+  The page shows, side by side (up to four rounds, chips pick which): a card per round (price, deposits, what is lost if ACMI
+  walks away when feasibility ends, PSA / feasibility / closing dates, cash to close); **where ACMI and the seller stand** (the
+  latest round from each side, the gap = seller less ACMI, "Aligned" where equal); the timeline lanes (the contract timeline's
+  partial, ticks thinned on long spans); **the schedule** (each event's date, the deposit and its non-refundable part, the
+  cumulative "walk away here: lose $X, get back $Y", cash to close, extension rows say where the date moves to); the inputs
+  grid with differing rows tinted; print / save as PDF (logo prints; the on-screen logo is hidden). Adding or editing a round is
+  one vertical form with a **live preview** (the server does the arithmetic: `terms.js` posts the form to `.../terms/preview/`
+  as you type). A new round starts from the previous round's terms and is named for the other side. **Mark agreed** (one per
+  contract); once the contract is signed with an effective date the agreed round counts from the real date, labelled "PSA
+  signed". **Import** a team LOI Tracker workbook (.xlsx): one round per column under "LOI INFO", rows read by their wording.
+- **Where the code is.** Engine `crm/contracts/terms.py` (pure functions; `ROUND_FIELDS` / `PHASE_FIELDS` drive the form, the
+  stored JSON, both grids and the importer, so adding a term is one line there), `terms_views.py`, `terms_import.py`,
+  `forms.py` (`TermsRoundForm`, `TermsImportForm`), model `TermsRound` in `crm/models.py`, templates `contract_terms.html`,
+  `contract_terms_edit.html`, `partials/terms_preview.html`, `partials/terms_field.html`, the `lt-*` CSS at the end of
+  `app.css`, `static/crm/terms.js`; hooks in `contracts/views.py` (`terms_panel`), `land/views.py` (`_site_contracts`),
+  `contract_detail.html`, `land_site_detail.html`, `urls.py`. Tests: `test_terms.py` (engine), `test_terms_views.py` (pages,
+  form, permissions, import).
+- **How it was checked.** The engine reproduces the Lewis Place workbook to the dollar and the day for all three rounds (PSA,
+  feasibility end, zoning approval, closing, outside date, deposits, the refundable / non-refundable aggregates, cash to close);
+  the expected values in the tests are the workbook's own cached values. The importer read the real workbook
+  (`G:\Shared drives\1 ACMI Properties\1 Projects\MD\MEIH\01. Land Acquisition\Lewis Place\LOI Tracker - MD - Lewis Place.xlsx`)
+  with nothing skipped, and the imported rounds gave the same numbers. In the browser pane on a scratch database (never the
+  real one): the tracker with those three rounds, the edit form and its live preview recalculating, saving a round, validation
+  errors, the empty state, the contract page, light and dark, and a 375 px phone with no sideways scroll. **Tests:** the whole
+  suite on SQLite before the rebase (1,272 tests, 8 minutes) was green, 1 skipped; the tracker, contract, land, diligence,
+  static-integrity and phone-layout modules (239 tests) again after four small cleanups; `makemigrations --check` clean, also
+  after the rebase and the renumbering. The combination with `4eb5f5e` (comment photos, effective-date recalculation) was
+  checked by CI on Postgres before `main` moved. **Not checked:** a real phone, printing to a real PDF (the print CSS is small
+  and was read, not rendered), anyone but one test user on a scratch copy.
+- **Where it differs from the workbook, on purpose.** (1) A deposit for an extension is dated the day the extension has to be
+  exercised (the end of the period it extends), not the extended date; amounts, the aggregates, closing date and cash to close
+  are identical, only the dates of the two closing-extension deposits move (Apr 30 and Jun 29, 2028, not Jun 29 and Aug 28).
+  (2) Feasibility extension deposits are one row per extension (the workbook adds them up on the first date). (3) The
+  workbook's "Deposits Check" is true by construction here, so the page warns instead: deposits over the price, an extended
+  closing past the outside date (closing is held at the outside date), more extensions used than available. (4) The labels'
+  spelling slips are fixed. (5) Phase II and later start `start_days` after the previous phase closes and close after their own
+  feasibility, like the workbook's blocks; the workbook's Phase II / III aggregate formulas pointed at the wrong rows (they were
+  zero, so nobody saw it).
+- **Not built, ask Kellen.** Pushing the agreed round's dates into Critical dates (reminders, calendar, site timeline): left out
+  on purpose, since a signed PSA's dates are read from the document and two sources would duplicate. Claude reading the terms
+  out of an LOI draft. A view across all deals. An Excel export (print to PDF is there). Whether he wants extension deposits
+  dated the workbook's way.
+- **To ship.** Kellen's go-ahead right before, then the usual deploy steps (read the deploy note in memory first). The migrate
+  job will apply `0079_termsround` (one new table; 00032 already applied `0078_comment_photo`). It only adds, so rolling the
+  image back is safe. Shipping `main` ships the effective-date recalculation too. **Merge note:** the uncommitted land work
+  in the main folder (branch `task-groups`) edits `crm/models.py`; if it adds a migration it has to be numbered after `0079`
+  and depend on it.
+
+**Update, 2026-11-04 (evening; Claude on the laptop; Kellen: "I thought I added the ability to upload photos to comments on
+company cards? also within the company cards, people needs to add phone numbers if we have them", then "deploy"): both are
+built, checked and DEPLOYED: live is revision `acmi-crm-00032-hlr`, image `5ed007f`, since 4:21 pm Central.** Branch
+`card-photos-phones` (worktree `.claude/worktrees/card-photos-phones`, cut from `origin/main` `6d597b7`), commit `5ed007f`, CI
+green on it (run 41921163980). **`main` now holds `5ed007f` AND another session's critical-dates fix (`b705c40`, the next
+entry), which reached `main` while I waited for CI. I deployed only `5ed007f` (that fix was not part of what Kellen asked for
+here), so live has the photos and the phone numbers and NOT the effective-date recalculation. The next entry was written when
+live was 00031 / `a3048b0`; its fix is still not deployed.**
+- **The deploy (4:16-4:22 pm Central).** `main` moved under me (that other session's merge), so I merged `main` into the branch
+  (`4eb5f5e`; only this file conflicted, both entries kept), got CI green on the merge (run 41922613914), fast-forwarded `main`
+  to it, then built exactly `5ed007f` from a clean `git archive` with `cloudbuild.yaml` (`_TAG=5ed007f`; before building, the
+  file's settings matched the live env for all four resources). Cloud Build `30ee45b8-afb9-421c-aaba-da45acae9ca8`, 5 min 38 s;
+  a manual Cloud SQL backup first (id `1793829914222`, "before card-photos-phones 5ed007f"). After: the migrate job ran
+  `crm.0078_comment_photo... OK`; the service and the three jobs have **identical env / command / args / resources / Cloud SQL
+  / account** before and after (only the image changed); no WARNING and no 5xx on the new revision; the login page is 200,
+  `/companies/1/` and `/comments/1/photo/` answer 302 to sign-in, and the served `app.css` carries the new rules. **Rollback:**
+  `gcloud run services update-traffic acmi-crm --to-revisions=acmi-crm-00031-ptp=100 --region us-central1 --project
+  sincere-passage-511621-j3` (safe on the schema: the new column is nullable and old code ignores it). **Not checked on the live
+  copy:** anything behind sign-in (Claude cannot sign in as Kellen): attaching a real photo (its first upload goes through the
+  Cloud Storage bucket, the path documents use) and the people's numbers on the company card. Ask Kellen to try both.
+- **Why the photos were not there.** The upload had been built on 2026-11-03 as commit `7cf25af` on `origin/photo-comments`
+  (cut from `960e79c`, 67 commits behind `main`) and never merged, and no note here mentioned it. It could not have shipped as
+  it stood: its migration `0077_comment_photo` and main's `0077_deal_lease_roc` both depend on `0076`, so the migrations would
+  have two leaf nodes (`makemigrations --check` in CI fails and `migrate` refuses); it linked the file with `photo.url`, but
+  production runs DEBUG off (Django serves no media) with a private Cloud Storage bucket, which is why documents go through
+  an app view; and it never checked what was uploaded. That branch is left alone (not merged, not deleted); this one redoes
+  the work.
+- **Photos.** `Comment.photo` (a nullable `ImageField`, so code from before it can still insert comments after a rollback;
+  migration `0078_comment_photo`, one nullable column, no backfill). `crm/comment_photos.py` checks the upload is a real
+  JPG / PNG / GIF / WebP (the type the browser claims means nothing), at most 15 MB and 64 megapixels, stores it under a name
+  of its own, and scales anything over 2400 px down once (camera rotation baked in; animated GIFs untouched).
+  `views.comment_add` takes the optional `photo`; a bad file posts nothing and says why (the typed text is not kept).
+  `views.comment_photo` (`comments/<pk>/photo/`) streams the file to signed-in users, as `document_file` does, with a private
+  one-day cache; `comment_delete` removes the file too. "Add a photo" is on both comment forms (the company page's Activity
+  box and the comments panel on deals, tasks and sites); the picture shows in the feed, the panels and "Latest comments" on
+  the **company and deal cards** (`partials/comment_photo.html`, `comment_attach.html`). One photo per comment; the text is
+  still required. Not supported: iPhone HEIC files sent from a computer (a phone's own picker converts them to JPG).
+- **Phone numbers.** `phone_numbers` filter (`crm_tags.py`) and `partials/person_phones.html`: each saved number shows as a
+  tap-to-call `tel:` link with its office / mobile label beside it (`tel:` carries no label or extension; a saved value with no
+  digits, like "call the main line", shows as plain text). On the **company card** the People rows keep opening the person
+  (the name link is stretched over the row) while the numbers stay their own links; also a **Phone column on the company page's
+  People tab** and the numbers under each name in the Overview's "Who we know" widget. Nobody without a number gets an empty line.
+- **Checked.** `test_comment_photos.py` (16 tests: upload, serving, sign-in, delete, bad / huge / cut-off / SVG files,
+  rotation, GIF, the filter, the card, tab and widget); the whole suite 1203 OK (1 skipped) before a CSS-only tweak, and the 62
+  related tests again after it; `makemigrations --check` clean. In the browser pane on a scratch copy (own database, fake
+  data): a real upload through the form (3200 x 2400 stored as 2400 x 1800 and shown), a refused text file, the card popup,
+  the People tab, the deal page, dark mode and a phone width (no sideways scroll; the photo control drops under the button).
+  **Not checked:** the real Cloud Storage bucket (the same `open` / `FileResponse` path documents use), a real phone camera.
+- **Possible follow-ups, none asked:** several photos per comment (a second model), HEIC (needs `pillow-heif` in the image),
+  editing a comment, the numbers on the deal card's People list. The person card (`cards/person.html`) and
+  `person_details.html` still put the whole saved text, label included, in their `tel:` link; the new filter fixes that in
+  two lines if wanted.
+
+**Update, 2026-11-04 (evening; Claude on the laptop; Kellen: "I uploaded a contract then updated the effective date but the
+dates that Claude calculated didn't update. Was this fix deployed?"): the effective-date recalculation is fixed, tested and
+merged into `main` (`b705c40`, fast-forwarded after CI went green), NOT deployed. Live is still `acmi-crm-00031-ptp`, image `a3048b0`.** The fix was commit `b363621`
+(2026-11-03, branch `contract-dates-recompute`, one commit). It was never merged or deployed, and nothing in this file
+mentioned it, so it sat on its branch for a day. **It would not have worked if deployed:** `_post` in
+`crm/contracts/views.py` read `old_effective` after `form.is_valid()`, and `is_valid()` already copies the posted values
+onto the contract, so "the effective date changed" was never true. A test that posts a new effective date through the real
+page failed on the original (feasibility stayed May 1) and passed once the old date was read before the form is built.
+- **What it does now:** saving a contract's details with a new effective date calls
+  `timeline.recompute_dates(contract, old_effective, user)` (in `crm/contracts/timeline.py`; before `dates.sync_site`, so
+  the land site's timeline gets the new dates). It moves every stored critical date that has a rule (anchor + offset),
+  including Claude's suggestions nobody has kept and dates that were blank waiting for the effective date; chains follow
+  (closing = feasibility + 30). Fixed dates stay. A date that is done, or that a person moved (a push or an exercised
+  extension: a history entry not marked `auto`), stays where it is, and the dates that count from it work from where it
+  stands. A suggestion that shares a key with a kept date cannot move the kept date. Each move is in the date's history
+  (the "Moved N×" fold on the contract page) with the reason, marked `auto` so the next change of the effective date still
+  moves it. "Saved." says how many were recalculated and how many stayed. No model change, no migration.
+- **Not changed:** a date a person edited by hand that still carries a rule follows the next effective-date change (clear
+  its rule to pin it); old hand-added dates with no parsed rule (Trello imports) do not move.
+- **Tests:** `crm/tests/test_contract_recalc.py` (9 tests: the move and the chain, a second change, same-date save leaves
+  hand-set dates, blank dates fill in, done / pushed dates, key clash, site timeline, no effective date, idempotence).
+  Against `b363621` alone 6 of the 9 fail (the page test among them); with the fix all 9 pass. Full suite on the laptop:
+  1196 tests OK (1 skipped, 470 s). CI on Postgres green on PR 21 (https://github.com/kmoczulski/acmi-crm/pull/21, runs
+  41920844132 push and 41920890112 pull_request, head `b705c40`). Clicked through on a scratch copy (a contract with a done
+  date, a pushed date, a fixed date and one unkept Claude suggestion; effective date Mar 2 to Apr 1): the Saved message, the
+  new dates and the "Moved 1×" reason all showed. Not tried against real Google or the live data.
+- **To ship:** Kellen's go-ahead right before, then the usual deploy steps (live image and ancestor check, fingerprint
+  before / after, migrate job finds nothing, curl, logs). Rollback target `acmi-crm-00031-ptp`. Local `main` (checked out in
+  `.claude/worktrees/mail-booking`) is behind `origin/main`: do not deploy from it.
+- **Branches:** PR 21 (`contract-dates-fix`, merged by fast-forward) holds the work. `contract-dates-recompute` (the original
+  commit) is an ancestor of `main` through merge `6cc28ce` and can be deleted. The worktree
+  `.claude/worktrees/contract-dates-fix` can go once this is deployed.
+
 **Update, 2026-11-04 (afternoon, after 00030; Claude on the laptop; Kellen: "ok deploy", then "Yes, task groups"): task groups
 (PR 20, the Tasks page grouped by deal / campus, land site, prospecting, general) is merged into `main` and DEPLOYED: live is
 revision `acmi-crm-00031-ptp`, image `a3048b0` (= `main` `a3048b0`).** PR 20 was another session's work: 4 files (`views.py`

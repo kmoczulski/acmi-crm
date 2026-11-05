@@ -1,0 +1,3 @@
+{% load crm_tags %}{% comment %}A person's saved phone numbers, each one a tap-to-call link with its office / mobile label beside it. Needs
+person. The container decides the layout (.pk-phones on the record card, one per line in a table cell); nothing is drawn
+for a person with no number. The company card, the company page's People tab and its People widget draw it.{% endcomment %}{% for ph in person.phones|phone_numbers %}<span class="phone">{% if ph.href %}<a href="{{ ph.href }}">{{ ph.text }}</a>{% else %}{{ ph.text }}{% endif %}{% if ph.label %} <span class="phone-label">{{ ph.label }}</span>{% endif %}</span>{% endfor %}

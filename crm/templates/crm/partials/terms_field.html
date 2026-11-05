@@ -1,0 +1,6 @@
+<div class="lt-field{% if f.errors %} lt-bad{% endif %}">
+  <label for="{{ f.id_for_label }}">{{ f.label }}</label>
+  {{ f }}
+  {% if f.help_text %}<small>{{ f.help_text }}</small>{% endif %}
+  {% for e in f.errors %}<small class="lt-err">{{ e }}</small>{% endfor %}
+</div>

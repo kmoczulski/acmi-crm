@@ -16,7 +16,7 @@ from django.utils.dateparse import parse_date
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
-from . import ai, company_page, documents, gcal, meetings, merge, notify, pipeline, prefs
+from . import ai, comment_photos, company_page, documents, gcal, meetings, merge, notify, pipeline, prefs
 from . import projects as project_tagging
 from .company_pdf import tenant_rows
 from .boards import logic as board_logic
@@ -1009,7 +1009,15 @@ def comment_add(request):
         target.setdefault("opportunity", target["card"].opportunity)
     if "opportunity" in target and target["opportunity"]:
         target.setdefault("company", target["opportunity"].company)
-    comment = Comment.objects.create(body=body, author=request.user, **{k: v for k, v in target.items() if v})
+    photo = None
+    if upload := request.FILES.get("photo"):  # optional: one picture, checked and stored under a name of our own
+        try:
+            photo = comment_photos.prepare(upload)
+        except comment_photos.BadPhoto as e:
+            messages.error(request, f"Nothing was posted. {e}")
+            return redirect(_safe_next(request, "/"))
+    comment = Comment.objects.create(body=body, author=request.user, photo=photo,
+                                     **{k: v for k, v in target.items() if v})
     notify.comment_added(comment)
     return redirect(_safe_next(request, "/") + "#comments")
 
@@ -1017,8 +1025,27 @@ def comment_add(request):
 @require_POST
 def comment_delete(request, pk):
     comment = get_object_or_404(Comment, pk=pk, author=request.user)
+    if comment.photo:
+        comment.photo.delete(save=False)  # the picture goes too, not just the row
     comment.delete()
     return redirect(_safe_next(request, "/") + "#comments")
+
+
+def comment_photo(request, pk):
+    """A comment's picture, streamed to signed-in users (crm.models.Comment.photo_url). Served by the app, like
+    documents, so it works with DEBUG off and with the private Cloud Storage bucket."""
+    comment = get_object_or_404(Comment, pk=pk)
+    if not comment.photo:
+        raise Http404
+    try:
+        fh = comment.photo.open("rb")
+    except (FileNotFoundError, OSError):
+        raise Http404("That picture is no longer on the server.")
+    name = comment.photo.name.rsplit("/", 1)[-1]
+    kind = comment_photos.CONTENT_TYPES.get(name.rsplit(".", 1)[-1].lower())  # only types comment_add stores open inline
+    response = FileResponse(fh, content_type=kind or "application/octet-stream", as_attachment=not kind, filename=name)
+    response["Cache-Control"] = "private, max-age=86400"  # a stored picture never changes
+    return response
 
 
 def notification_list(request):

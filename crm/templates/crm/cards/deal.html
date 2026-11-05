@@ -45,7 +45,7 @@
         <div class="scard-sec"><h3>Recent activity</h3>
           {% for a in recent %}<div class="pk-act"><span class="pk-icon" title="{{ a.get_kind_display }}">{{ a.kind|kind_icon }}</span><div><div>{{ a.summary|truncatechars:110 }}{% if a.outcome %} {{ a.outcome|pill:"response" }}{% endif %}</div><div class="muted lc-small">{% conversation a %} · {{ a.occurred_at|date:"M j" }}</div></div></div>
           {% empty %}<p class="muted">Nothing yet.</p>{% endfor %}</div>
-        {% if comments %}<div class="scard-sec"><h3>Latest comments</h3>{% for c in comments %}<div class="pk-cmt"><b>{{ c.author|username|default:"Someone" }}</b> <span class="muted lc-small">{{ c.created_at|date:"M j" }}</span>{{ c.body|mentions }}</div>{% endfor %}</div>{% endif %}
+        {% if comments %}<div class="scard-sec"><h3>Latest comments</h3>{% for c in comments %}<div class="pk-cmt"><b>{{ c.author|username|default:"Someone" }}</b> <span class="muted lc-small">{{ c.created_at|date:"M j" }}</span>{{ c.body|mentions }}{% include "crm/partials/comment_photo.html" %}</div>{% endfor %}</div>{% endif %}
       </div>
       <aside class="pk-side">
         <div class="scard-sec"><h3>People</h3>

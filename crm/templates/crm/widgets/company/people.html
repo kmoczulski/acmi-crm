@@ -1,6 +1,6 @@
 {% load crm_tags %}
 <a href="{% qs_set tab='people' %}" class="widget-link">All {{ people|length }}</a>
 {% for p in people|slice:":6" %}
-  <div class="row-line"><span><a href="{{ p.get_absolute_url }}">{{ p }}</a>{% if p.title %} <span class="muted">· {{ p.title|truncatechars:40 }}</span>{% endif %}</span>
+  <div class="row-line"><span><a href="{{ p.get_absolute_url }}">{{ p }}</a>{% if p.title %} <span class="muted">· {{ p.title|truncatechars:40 }}</span>{% endif %}{% if p.phones %}<span class="phones">{% include "crm/partials/person_phones.html" with person=p %}</span>{% endif %}</span>
     <span class="muted">{{ p.last_interaction_at|ago|default:"no touch yet" }}</span></div>
 {% empty %}<p class="muted" style="margin:0">No people yet. <a href="{% url 'crm:person_create' %}?company={{ company.pk }}">Add one</a></p>{% endfor %}

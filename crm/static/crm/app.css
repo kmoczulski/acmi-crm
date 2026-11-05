@@ -287,6 +287,14 @@ details.checks label { display: flex !important; flex-direction: row !important;
 .comment-head { font-size: 12.5px; }
 .comment-body { font-size: 13.5px; }
 .comment-body p { margin: 3px 0; }
+/* The picture on a comment (partials/comment_photo.html) and the "Add a photo" control on the forms (comment_attach.html) */
+.comment-photo { display: block; width: fit-content; max-width: 100%; margin-top: 6px; }
+.comment-photo img { display: block; max-width: 100%; max-height: 260px; border-radius: 8px; border: 1px solid var(--line); }
+.pk .comment-photo img { max-height: 130px; }
+.comment-attach { display: block; margin: 4px 0 8px; }
+.comment-attach input { margin-left: 6px; max-width: 100%; }
+.feed-compose-actions { flex-wrap: wrap; }  /* on a phone the photo control drops under the Comment button */
+.feed-compose-actions .comment-attach { margin: 0; min-width: 0; max-width: 100%; }
 .mention { background: rgba(0, 76, 217, 0.106); color: color-mix(in srgb, #1d4ed8 var(--ink-mix), var(--text)); border-radius: 3px; padding: 0 3px; font-weight: 600; }
 .notif { display: grid; grid-template-columns: 130px 1fr auto; gap: 10px; padding: 8px 6px; border-bottom: 1px solid var(--line); color: var(--text); font-size: 13.5px; }
 .notif:hover { background: var(--fill); text-decoration: none; }
@@ -2323,6 +2331,19 @@ details.mail-notes:not([open]) { background: transparent; padding: 2px 0; }
 .pk-cmt:first-of-type { border-top: 0; }
 .pk-cmt p { margin: 2px 0; }
 .pk-row-sub { display: block; font-size: 12px; color: var(--muted); }
+/* A person's row on the company card: the whole row opens their card (the name link is stretched over it), but their phone
+   numbers on the last line are links of their own that stay tappable above it. */
+.pk-person { position: relative; }
+.pk-person-link { color: var(--text); text-decoration: none; }
+.pk-person-link::after { content: ""; position: absolute; inset: 0; border-radius: 8px; }
+.pk-phones { display: flex; flex-wrap: wrap; gap: 0 14px; }
+.pk-phones a { position: relative; z-index: 1; }
+/* Phone numbers (partials/person_phones.html): one per line in a table cell, side by side under a name in the widget */
+.phone { white-space: nowrap; }
+.phone-label { color: var(--muted); font-size: 11.5px; }
+td.phones .phone { display: block; }
+.row-line .phones { display: block; font-size: 12px; }
+.row-line .phones .phone { margin-right: 12px; }
 .pk .scard-sec .muted:only-child { margin: 0; font-size: 13px; }
 @media (max-width: 760px) { .pk-cols { grid-template-columns: 1fr; } }
 /* Needs filing (crm/needs_filing.py) and the calendar's firm chips and "no record" marker */
@@ -3301,3 +3322,56 @@ fieldset { min-width: 0; }
 .sc-split { display: flex; height: 100%; }
 .sc-split i { flex: 1; opacity: .55; }
 .sc-cell.sc-pick .sc-split { display: none; }
+
+/* LOI / PSA terms tracker (crm/contracts/terms_views.py; contract_terms.html, contract_terms_edit.html) */
+.lt-logo { display: none; }
+@media print { .lt-logo { display: block; } }
+.lt-picker { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 12px; }
+.lt-warn { background: var(--warn-bg); color: var(--warn); border-radius: var(--radius); padding: 7px 12px; font-size: 13px; margin-bottom: 8px; }
+.lt-warn ul { margin: 4px 0 0; padding-left: 18px; }
+.lt-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.lt-card { background: var(--panel); border-radius: var(--radius-lg); box-shadow: var(--shadow-1); padding: 14px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.lt-card.lt-agreed { box-shadow: 0 0 0 2px var(--good); }
+.lt-card-head { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.lt-card-head h3 { flex-basis: 100%; margin: 0; font-size: 16px; color: var(--text); }
+.tag.lt-side-us { background: var(--accent-soft); color: var(--accent); }
+.tag.lt-side-them { background: var(--warn-bg); color: var(--warn); }
+.lt-stats { display: grid; margin: 0; }
+.lt-stats > div { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; border-top: 1px solid var(--line); padding: 6px 0; }
+.lt-stats dt { color: var(--muted); font-size: 12px; }
+.lt-stats dd { margin: 0; font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; }
+.lt-stats dd small { display: block; font-weight: 400; color: var(--muted); font-size: 11px; }
+.lt-stats-wide { margin-bottom: 8px; }
+.lt-notes { border-top: 1px solid var(--line); padding-top: 6px; }
+.lt-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: auto; align-items: center; }
+.lt-actions form { margin: 0; }
+.lt-table th, .lt-table td { white-space: normal; vertical-align: top; min-width: 160px; }
+.lt-table th:first-child, .lt-table td:first-child { min-width: 220px; }
+.lt-table .lt-money { font-weight: 600; font-variant-numeric: tabular-nums; }
+.lt-table tr.lt-phase td, .lt-sched tr.lt-phase td { background: var(--panel-2); color: var(--muted); font-weight: 700; font-size: 12px; }
+.lt-gap th:not(:first-child), .lt-gap td:not(:first-child) { text-align: right; }
+.lt-gap tr.lt-same td { color: var(--muted); }
+.lt-sched td { vertical-align: top; }
+.lt-sched tr.lt-milestone td { color: var(--muted); }
+.lt-phase-title { margin: 14px 0 6px; font-size: 14px; }
+.lt-import { margin: 8px 0 24px; }
+.lt-how ul { margin: 8px 0 0; padding-left: 18px; }
+.lt-empty p { max-width: 62ch; }
+.lt-line { font-size: 14px; }
+.lt-edit { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.lt-preview { position: sticky; top: 64px; max-height: calc(100vh - 84px); overflow: auto; }
+.lt-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px 12px; }
+.lt-field label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 2px; }
+.lt-field input:not([type=checkbox]), .lt-field select, .lt-field textarea { width: 100%; box-sizing: border-box; }
+.lt-field small { display: block; font-size: 11px; color: var(--muted); margin-top: 2px; }
+.lt-field.lt-bad input, .lt-field.lt-bad select { border-color: var(--bad); }
+.lt-field small.lt-err { color: var(--bad); }
+details.lt-phase-box > summary { cursor: pointer; font-size: 14px; }
+details.lt-phase-box fieldset { border: 0; padding: 0; margin: 14px 0 0; min-width: 0; }
+details.lt-phase-box legend { font-size: 12px; font-weight: 600; color: var(--muted); padding: 0 0 6px; }
+@media (max-width: 900px) { .lt-edit { grid-template-columns: 1fr; } .lt-preview { position: static; max-height: none; } }
+@media print {
+  .lt-card { box-shadow: none; border: 1px solid var(--line); break-inside: avoid; }
+  .lt-cards { grid-template-columns: repeat(2, 1fr); }
+  .lt-table th, .lt-table td { min-width: 0; }
+}
