@@ -198,13 +198,21 @@ def summary_refresh(request, kind, pk):
     return redirect(_safe_next(request, record.get_absolute_url()))
 
 
+DUP_PAGE = 15
+
+
 def duplicates(request):
     groups = merge.suggestions()
     labels = dict(CompanyStatus.choices)
     for g in groups:
         for c in g["companies"]:
             c["status_label"] = labels.get(c["status"], c["status"])
-    return render(request, "crm/duplicates.html", {"groups": groups})
+    try:
+        shown = max(DUP_PAGE, int(request.GET.get("show", DUP_PAGE)))
+    except ValueError:
+        shown = DUP_PAGE
+    return render(request, "crm/duplicates.html", {"groups": groups[:shown], "total": len(groups),
+                                                   "more": max(0, len(groups) - shown), "next_show": shown + DUP_PAGE})
 
 
 @require_POST
@@ -939,6 +947,9 @@ def opportunity_set_stage(request, pk):
 # ---------------------------------------------------------------------------
 
 
+PROSPECT_CAP = 10
+
+
 def task_list(request):
     scope = request.GET.get("scope", "mine")
     state = request.GET.get("state", "open")
@@ -981,6 +992,15 @@ def task_list(request):
             box["more"] = box["count"] - len(box["tasks"])
         ctx["quads"] = [boxes[g] for g in (1, 2, 3, 4)]
     else:
+        # Prospecting is bulk "Research new lead" work: show the first PROSPECT_CAP, fold the rest behind a link.
+        show_all = request.GET.get("prospecting") == "all"
+        folded = 0
+        if not show_all:
+            extra = list(qs.filter(grp=3).values_list("pk", flat=True)[PROSPECT_CAP:])
+            folded = len(extra)
+            if extra:
+                qs = qs.exclude(pk__in=extra)
+        ctx["folded_prospecting"] = folded
         ctx["page"] = Paginator(qs, 100).get_page(request.GET.get("page"))
     return render(request, "crm/task_list.html", ctx)
 

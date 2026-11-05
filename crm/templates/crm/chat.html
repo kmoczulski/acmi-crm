@@ -16,6 +16,7 @@
   {% if conn.last_error %}<p style="color:var(--bad)">Last try: {{ conn.last_error }}</p>{% endif %}
 </section>
 {% else %}
+<h1 class="sr-only">Chat</h1>
 <div class="chat-app{% if convo %} has-convo{% endif %}" data-chat-app data-chat-url="{% url 'crm:chat' %}" data-rows-url="{% url 'crm:chat_rows' %}" data-search-url="{% url 'crm:chat_search' %}" data-new-url="{% url 'crm:chat_new' %}">
   <aside class="chat-side">
     <div class="chat-side-head">

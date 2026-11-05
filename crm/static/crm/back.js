@@ -15,7 +15,14 @@
   else trail.push(here);
   trail = trail.slice(-MAX);
   try { sessionStorage.setItem(KEY, JSON.stringify(trail)); } catch (e) { /* private window: no trail */ }
-  var prev = trail[trail.length - 2];
+  // Top-level pages (the sidebar's) are where you start, so they get no "back". A page filed under one has
+  // that page as its parent, not whatever you happened to open last.
+  var ROOTS = ["/", "/tasks/", "/meetings/", "/critical-dates/", "/schedule/", "/boards/", "/inbox/", "/chat/",
+               "/opportunities/", "/companies/", "/people/", "/leases/", "/land/sites/", "/land/", "/land/assignments/",
+               "/entitlements/", "/projects/", "/contracts/", "/capital/", "/directory/", "/lists/", "/outreach/"];
+  var PARENTS = { "/companies/duplicates/": { path: "/companies/", url: "/companies/", title: "Companies" } };
+  if (ROOTS.indexOf(here.path) !== -1) return;
+  var prev = PARENTS[here.path] || trail[trail.length - 2];
   if (!prev) return;
   var a = document.createElement("a");
   a.href = prev.url;

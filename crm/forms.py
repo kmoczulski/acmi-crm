@@ -293,6 +293,9 @@ class TaskForm(StyledForm):
             del self.fields["notes"]
             del self.fields["label"]
             self.fields["repeat"].widget.attrs["title"] = "Repeat"
+            for name, label in (("title", "New task"), ("due_date", "Due date"), ("due_time", "Due time"),
+                                ("assignee", "Assign to"), ("repeat", "Repeat")):
+                self.fields[name].widget.attrs.setdefault("aria-label", label)
 
 
 class NoteForm(forms.ModelForm):
