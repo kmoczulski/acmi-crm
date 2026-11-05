@@ -16,6 +16,7 @@ from django.urls import reverse
 
 from crm.news.drafts import sanitize_html
 
+from . import textfix
 from .parse import new_text
 
 CACHE_SECONDS = 300
@@ -42,9 +43,9 @@ def _decode(data, part):
     ctype = _headers(part).get("content-type", "").lower()
     charset = ctype.split("charset=", 1)[1].split(";")[0].strip().strip('"\'') if "charset=" in ctype else "utf-8"
     try:
-        return raw.decode(charset or "utf-8")
+        return textfix.repair(raw.decode(charset or "utf-8"))
     except (LookupError, UnicodeDecodeError):
-        return raw.decode("cp1252", errors="replace")
+        return textfix.repair(raw.decode("cp1252", errors="replace"))
 
 
 def get_thread(mailbox, client, gmail_id):

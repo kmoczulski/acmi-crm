@@ -24,6 +24,7 @@ from django.utils import timezone
 
 from crm import gcal
 
+from . import textfix
 from .imap import MailboxError, since_date
 from .parse import CALENDAR_TYPES, finish_text, parse_message
 
@@ -364,6 +365,7 @@ def parse_api_message(msg):
             text = text.decode(_charset(part))
         except (LookupError, UnicodeDecodeError):
             text = text.decode("cp1252", errors="replace")
+        text = textfix.repair(text)  # "weâ€™re" -> "we’re" (crm/mail/textfix.py)
         if mime == "text/plain" and plain is None:
             plain = text
         elif mime == "text/html" and html_part is None:
