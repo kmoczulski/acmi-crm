@@ -221,3 +221,121 @@
   });
   peek.addEventListener('close', () => { body.innerHTML = ''; stack.length = 0; });
 })();
+
+// Accessible names for controls a template left unlabeled (filter dropdowns, row checkboxes): the first option's
+// wording ("Every kind"), else the field name, so a screen reader doesn't just say "combo box".
+(function () {
+  const human = s => s.replace(/[_\[\]]+/g, ' ').trim().replace(/^./, c => c.toUpperCase());
+  function nameControls(root) {
+    root.querySelectorAll('input:not([type=hidden]):not([type=submit]):not([type=button]):not([type=image]),select,textarea').forEach(el => {
+      if ((el.labels && el.labels.length) || el.getAttribute('aria-label') || el.getAttribute('aria-labelledby') || el.title || el.placeholder) return;
+      let label = '';
+      if (el.tagName === 'SELECT' && el.options.length) label = el.options[0].textContent.trim();
+      else if (el.type === 'checkbox') label = 'Select row';
+      else if (el.type === 'file') label = 'Choose a file';
+      if (!label && el.name) label = human(el.name);
+      if (label) el.setAttribute('aria-label', label);
+    });
+  }
+  nameControls(document);
+  let pending = false;  // cards, panels and the inbox pane add fields later; scan once per frame at most
+  new MutationObserver(() => {
+    if (pending) return;
+    pending = true;
+    requestAnimationFrame(() => { pending = false; nameControls(document); });
+  }).observe(document.body, {childList: true, subtree: true});
+})();
+
+// Files and pictures open over the page with a Close button (Chat files, mail attachments). target=_blank, or a plain
+// download link, on an iPhone's home-screen app opens the system preview, which has no way back (you had to swipe the
+// whole app away). The viewer stays inside the app: a picture, or a file card with Download, and a big Close.
+(function () {
+  if (window.hubViewer) return;
+  const el = (tag, attrs, ...kids) => {
+    const n = document.createElement(tag);
+    Object.entries(attrs || {}).forEach(([k, v]) => { if (v !== false && v != null) { if (k === 'class') n.className = v; else if (k === 'text') n.textContent = v; else n.setAttribute(k, v === true ? '' : v); } });
+    kids.forEach(k => { if (k != null) n.append(k); });
+    return n;
+  };
+  const IMAGE = /\.(png|jpe?g|gif|webp)$/i;
+  let view = null, back = null;
+  function close() {
+    if (!view) return;
+    view.remove(); view = null;
+    document.removeEventListener('keydown', onKey, true);
+    if (back && back.focus) back.focus();
+    back = null;
+  }
+  const onKey = e => { if (e.key === 'Escape') { e.preventDefault(); close(); } };
+  // {href, name, image (shows the picture at src), src, icon}
+  function open(o, opener) {
+    close();
+    back = opener || null;
+    const name = o.name || 'File';
+    const shut = el('button', {type: 'button', class: 'chat-viewer-close', 'aria-label': 'Close', text: '\u2715'});
+    shut.addEventListener('click', close);
+    let body;
+    if (o.image) {
+      body = el('div', {class: 'chat-viewer-body'}, el('img', {src: o.src || o.href, alt: name}));
+    } else {
+      body = el('div', {class: 'chat-viewer-body'}, el('div', {class: 'chat-viewer-card'},
+        el('div', {class: 'chat-viewer-ico', 'aria-hidden': 'true', text: o.icon || '\ud83d\udcc4'}),
+        el('div', {class: 'chat-viewer-name', text: name}),
+        el('div', {class: 'chat-viewer-acts'},
+          el('a', {class: 'btn btn-primary', href: o.href, download: name, text: 'Download'}),
+          el('a', {class: 'btn', href: o.href, target: '_blank', rel: 'noopener noreferrer', text: 'Open in the browser'}))));
+    }
+    view = el('div', {class: 'chat-viewer', role: 'dialog', 'aria-modal': 'true', 'aria-label': name},
+      el('div', {class: 'chat-viewer-bar'}, shut, el('span', {class: 'chat-viewer-title', text: name})), body);
+    view.addEventListener('click', e => { if (e.target === view || e.target === body) close(); });
+    document.body.append(view);
+    document.addEventListener('keydown', onKey, true);
+    shut.focus();
+  }
+  window.hubViewer = {open, close};
+  document.addEventListener('click', e => {
+    const a = e.target.closest && e.target.closest('a.chat-img, a.chat-file[href], a[data-viewer]');
+    if (!a || e.metaKey || e.ctrlKey || e.shiftKey || e.button) return;  // a new tab stays a new tab
+    e.preventDefault();
+    const href = a.getAttribute('href');
+    if (a.classList.contains('chat-img')) {
+      open({href, name: a.getAttribute('title'), image: true}, a);
+    } else if (a.dataset.viewer !== undefined) {  // a mail attachment: the picture itself comes from ?inline=1
+      const name = (a.dataset.name || a.textContent || 'Attachment').replace(/^\s*\ud83d\udcce\s*/, '').trim();
+      const image = IMAGE.test(name);
+      open({href, name, image, src: image ? href + (href.includes('?') ? '&' : '?') + 'inline=1' : '', icon: '\ud83d\udcce'}, a);
+    } else {
+      open({href, name: a.getAttribute('title') || (a.querySelector('.chat-file-name') || {}).textContent, icon: (a.querySelector('.chat-file-ico') || {}).textContent}, a);
+    }
+  });
+})();
+
+// Unsaved edits: leaving a page with a form you've typed into (a note, a contract, a site, a firm...) asks first, instead
+// of silently throwing it away. A form counts as changed only when a field really differs from how it started, so one
+// that clears itself after saving, or that you typed and erased, never warns. The mail composer and News review keep
+// their own guards; search, filter and GET forms, and forms marked data-no-guard, are left alone.
+(function () {
+  if (window.top !== window) return;
+  const forms = new Map();
+  const eligible = f => f.method && f.method.toLowerCase() === 'post' && !f.hasAttribute('data-no-guard')
+    && !f.matches('[data-compose], [data-inline], [role=search]') && !f.closest('dialog:not([open]), [hidden]')
+    && f.querySelector('textarea, input:not([type=hidden]):not([type=checkbox]):not([type=radio]):not([type=file]):not([type=submit]):not([type=button]), select');
+  const state = f => [...f.elements].filter(e => e.name && e.type !== 'file' && e.type !== 'hidden' && e.type !== 'submit' && e.type !== 'button'
+    && e.name !== 'csrfmiddlewaretoken').map(e => e.name + '=' + ((e.type === 'checkbox' || e.type === 'radio') ? (e.checked ? '1' : '0') : e.value)).join('&');
+  function watch() {
+    document.querySelectorAll('form').forEach(f => { if (!forms.has(f) && eligible(f)) forms.set(f, {start: state(f), sent: false}); });
+  }
+  document.addEventListener('submit', e => { const r = forms.get(e.target); if (r) r.sent = true; }, true);
+  // A form sent from script (onchange="this.form.submit()") raises no submit event: mark it too, or its own page
+  // change would ask "leave this page?".
+  const nativeSubmit = HTMLFormElement.prototype.submit;
+  HTMLFormElement.prototype.submit = function () { const r = forms.get(this); if (r) r.sent = true; return nativeSubmit.call(this); };
+  window.addEventListener('load', () => setTimeout(watch, 800));  // after scripts have filled their defaults
+  document.addEventListener('focusin', e => { const f = e.target.form; if (f && !forms.has(f) && eligible(f)) forms.set(f, {start: state(f), sent: false}); });
+  window.addEventListener('beforeunload', e => {
+    for (const [f, r] of forms) {
+      if (!f.isConnected || r.sent || f.offsetParent === null) continue;
+      if (state(f) !== r.start) { e.preventDefault(); e.returnValue = ''; return ''; }
+    }
+  });
+})();

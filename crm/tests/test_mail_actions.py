@@ -68,6 +68,23 @@ class MailActionTests(TestCase):
         self.assertContains(r, "Undone.")
         self.assertIn("INBOX", self.labels("b2"))
 
+    def test_an_email_becomes_a_task_for_you_that_links_back(self):
+        from crm.models import Task
+
+        r = self.client.post(reverse("crm:inbox_task"), {"t": "b2", "title": "", "due_date": "2026-12-01",
+                                                          "next": "/inbox/?label=INBOX&t=b2"})
+        self.assertRedirects(r, "/inbox/?label=INBOX&t=b2", fetch_redirect_response=False)
+        task = Task.objects.get()
+        self.assertEqual((task.title, str(task.due_date), task.assignee, task.created_by),
+                         ("Site tour", "2026-12-01", self.user, self.user))  # blank title: the email's subject
+        self.assertIn("Site tour", task.notes)
+        self.assertEqual(self.client.get(reverse("crm:inbox_task")).status_code, 405)  # a plain link does nothing
+
+    def test_the_reading_pane_offers_make_a_task(self):
+        page = self.client.get(reverse("crm:inbox") + "?label=INBOX&t=b2")
+        self.assertContains(page, reverse("crm:inbox_task"))
+        self.assertContains(page, "Make this email a task")
+
     def test_several_at_once(self):
         self.act("unread", "b2", "c3")
         self.assertIn("UNREAD", self.labels("b2"))

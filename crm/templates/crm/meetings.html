@@ -4,10 +4,17 @@
 {% block content %}
 <div class="page-head">
   <h1>Meetings</h1>
-  <a class="btn" href="{% qs_set month=prev|date:'Y-m' open='' %}">‹</a>
+  {% if view == "month" %}
+  <a class="btn" href="{% qs_set month=prev|date:'Y-m' open='' %}" aria-label="Previous month">‹</a>
   <strong style="min-width:130px;text-align:center">{{ first|date:"F Y" }}</strong>
-  <a class="btn" href="{% qs_set month=next|date:'Y-m' open='' %}">›</a>
-  <a class="btn" href="{% qs_set month='' open='' %}">Today</a>
+  <a class="btn" href="{% qs_set month=next|date:'Y-m' open='' %}" aria-label="Next month">›</a>
+  <a class="btn" href="{% qs_set month='' when='' open='' %}">Today</a>
+  {% else %}
+  <a class="btn" href="{% qs_set when=prev_when|date:'Y-m-d' open='' %}" aria-label="Previous {{ view }}">‹</a>
+  <strong style="min-width:130px;text-align:center">{% if view == "week" %}{{ weeks.0.0.date|date:"M j" }} – {{ weeks.0.6.date|date:"M j, Y" }}{% else %}{{ anchor|date:"l, F j, Y" }}{% endif %}</strong>
+  <a class="btn" href="{% qs_set when=next_when|date:'Y-m-d' open='' %}" aria-label="Next {{ view }}">›</a>
+  <a class="btn" href="{% qs_set when='' open='' %}">Today</a>
+  {% endif %}
   <span class="spacer"></span>
   <a class="btn btn-primary" href="{% url 'crm:schedule' %}" title="See when people are free and put a meeting on the calendar">＋ Schedule a meeting</a>
   <span class="btn-row">
@@ -15,8 +22,16 @@
     <a class="btn btn-small{% if view == 'week' %} btn-primary{% endif %}" href="{% qs_set view='week' %}">Week</a>
     <a class="btn btn-small{% if view != 'day' and view != 'week' %} btn-primary{% endif %}" href="{% qs_set view='' %}">Month</a>
   </span>
-  <a class="btn {% if who == 'me' or not who %}btn-primary{% endif %}" href="{% qs_set who='me' %}">Mine</a>
-  <a class="btn {% if who == 'all' %}btn-primary{% endif %}" href="{% qs_set who='all' %}">Everyone</a>
+  <a class="btn {% if who == 'me' or not who %}btn-primary{% endif %}" href="{% qs_set who='me' people='' %}">Mine</a>
+  <a class="btn {% if who == 'all' %}btn-primary{% endif %}" href="{% qs_set who='all' people='' %}">Everyone</a>
+  <details class="cal-people{% if who == 'people' %} on{% endif %}">
+    <summary class="btn{% if who == 'people' %} btn-primary{% endif %}">People{% if picked %} ({{ picked|length }}){% endif %}</summary>
+    <form method="get" class="cal-people-box">
+      {% if view != "month" %}<input type="hidden" name="view" value="{{ view }}"><input type="hidden" name="when" value="{{ anchor|date:'Y-m-d' }}">{% else %}<input type="hidden" name="month" value="{{ first|date:'Y-m' }}">{% endif %}
+      {% for u in team %}<label><input type="checkbox" name="people" value="{{ u.pk }}"{% if u.pk in picked %} checked{% endif %}> {{ u.get_full_name|default:u.username }}</label>{% endfor %}
+      <div class="cal-people-acts"><button class="btn btn-small btn-primary">Show</button> <a class="btn btn-small" href="{% qs_set who='all' people='' %}">Clear</a></div>
+    </form>
+  </details>
   <a class="btn {% if who == 'outside' %}btn-primary{% endif %}" href="{% qs_set who='outside' %}">With companies</a>
   <a class="btn {% if who == 'unfiled' %}btn-primary{% endif %}" href="{% qs_set who='unfiled' %}" title="Outside attendees no person, company or firm knows yet">No record</a>
 </div>
@@ -36,13 +51,14 @@
   {% endif %}
 </div>
 
-<div class="cal">
-  <div class="cal-head">{% for d in "SMTWTFS" %}<div>{% cycle "Sun" "Mon" "Tue" "Wed" "Thu" "Fri" "Sat" %}</div>{% endfor %}</div>
+<div class="cal cal-view-{{ view }}">
+  {% if view != "day" %}<div class="cal-head">{% for d in "SMTWTFS" %}<div>{% cycle "Sun" "Mon" "Tue" "Wed" "Thu" "Fri" "Sat" %}</div>{% endfor %}</div>{% endif %}
   {% for week in weeks %}
   <div class="cal-week">
     {% for day in week %}
     <div class="cal-day {% if day.other %}other{% endif %} {% if day.today %}today{% endif %}">
-      <div class="cal-date">{{ day.date.day }}</div>
+      <div class="cal-date">{% if view == "month" %}{{ day.date.day }}{% else %}{{ day.date|date:"D, M j" }}{% endif %}</div>
+      {% if view != "month" and not day.meetings %}<div class="muted lc-small">Nothing scheduled</div>{% endif %}
       {% for m in day.meetings %}
         <button type="button" class="cal-event {% if m.companies.all or m.firms.all %}ext{% endif %} {% if m.summary %}notes{% endif %}" data-id="{{ m.pk }}"
                 title="{{ m.title }}">{{ m.start|time:"g:i" }} {{ m.title|truncatechars:34 }}{% for f in m.firms.all|slice:":1" %}<span class="cal-firm">{{ f.name }} · {{ f.get_kind_display|lower }}</span>{% endfor %}</button>

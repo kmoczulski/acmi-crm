@@ -26,12 +26,12 @@
   <ul class="mail-filelist mail-filelist-page">
     {% for g in groups %}
     <li>
-      <a href="{% url 'crm:inbox_part' g.latest.message g.latest.part %}" class="mail-filename">📎 {{ g.latest.name }}</a>
+      <a data-viewer href="{% url 'crm:inbox_part' g.latest.message g.latest.part %}" class="mail-filename">📎 {{ g.latest.name }}</a>
       <span class="muted lc-small">{{ g.type|file_type_name }} · {{ g.latest.size|filesizeformat }} · {{ g.latest.from_name }} · {{ g.latest.date|date:"M j, Y" }}</span>
       <a class="lc-small" href="{% url 'crm:inbox' %}?label=ALL&t={{ g.latest.thread }}">Open the email</a>
       {% if g.older %}
       <details class="mail-versions"><summary class="lc-small">{{ g.older|length }} earlier version{{ g.older|length|pluralize }}</summary>
-        <ul>{% for f in g.older %}<li><a href="{% url 'crm:inbox_part' f.message f.part %}">{{ f.name }}</a> <span class="muted lc-small">{{ f.from_name }} · {{ f.date|date:"M j, Y" }}</span> <a class="lc-small" href="{% url 'crm:inbox' %}?label=ALL&t={{ f.thread }}">Open the email</a></li>{% endfor %}</ul>
+        <ul>{% for f in g.older %}<li><a data-viewer href="{% url 'crm:inbox_part' f.message f.part %}">{{ f.name }}</a> <span class="muted lc-small">{{ f.from_name }} · {{ f.date|date:"M j, Y" }}</span> <a class="lc-small" href="{% url 'crm:inbox' %}?label=ALL&t={{ f.thread }}">Open the email</a></li>{% endfor %}</ul>
       </details>
       {% endif %}
     </li>

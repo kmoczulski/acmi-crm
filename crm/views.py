@@ -34,7 +34,7 @@ from .models import (
     List, ListEntry, Note, ObjectType, Opportunity, OpportunityContact, OpportunityStage, Person, Project, SavedView,
     CalendarSync, LandSite, Meeting, Notification, Task, TenantNeeds,
 )
-from .permissions import manager_required
+from .permissions import manager_required, team_users
 from .pipeline import risk_reasons
 from .reports import COLUMNS as REPORT_COLUMNS, DEFAULT_KEYS as DEFAULT_REPORT_KEYS
 from .reports import chosen_columns as chosen_report_columns
@@ -476,6 +476,10 @@ def home(request):
         ctx["changes"] = pipeline.changes_since(7)
     if "suggestions" in shown:
         ctx["suggestions"] = pipeline.suggestions(limit=40)
+    if "people_suggest" in shown:
+        from .mail import people_suggest
+
+        ctx["people_suggest"] = people_suggest.suggest(request.user)
     if "week" in shown:
         ctx["week"] = week_calendar(request)
     if "deadlines" in shown:
@@ -618,6 +622,35 @@ def person_create(request):
         person.save()
         return redirect(person)
     return render(request, "crm/form.html", {"form": form, "title": "New person", "cancel": reverse("crm:person_list")})
+
+
+@require_POST
+def person_suggest_add(request):
+    """One click from the dashboard's "People you email" list: make the Person (on the company the address's domain
+    belongs to, when one does) and open it so a title or phone can be added."""
+    from .names import clean_name
+
+    email = request.POST.get("email", "").strip().lower()[:254]
+    if "@" not in email:
+        messages.error(request, "That isn't an email address.")
+        return redirect("crm:home")
+    existing = Person.objects.filter(email=email).first()
+    if existing:
+        return redirect(existing)
+    company = Company.objects.filter(pk=request.POST.get("company") or 0).first()
+    first, last, name = clean_name(request.POST.get("name", ""), email) or ("", "", "")
+    person = Person.objects.create(first_name=first, last_name=last, full_name=name, email=email, company=company,
+                                   created_by=request.user)
+    messages.success(request, f"Added {person}" + (f" at {company}." if company else "."))
+    return redirect(person)
+
+
+@require_POST
+def person_suggest_dismiss(request):
+    from .mail import people_suggest
+
+    people_suggest.dismiss(request.user, request.POST.get("email", ""))
+    return redirect(request.POST.get("next") if request.POST.get("next", "").startswith("/") else "crm:home")
 
 
 def person_detail(request, pk):
@@ -1453,16 +1486,38 @@ def meeting_list(request):
     from datetime import date
 
     today = timezone.localdate()
+    view = request.GET.get("view", "")
+    view = view if view in ("day", "week") else "month"
     try:
         year, month = (int(x) for x in request.GET.get("month", "").split("-"))
         first = date(year, month, 1)
     except ValueError:
         first = today.replace(day=1)
-    weeks = cal.Calendar(firstweekday=6).monthdatescalendar(first.year, first.month)
+    try:
+        anchor = date.fromisoformat(request.GET.get("when", ""))
+    except ValueError:
+        anchor = today
+    month_weeks = cal.Calendar(firstweekday=6).monthdatescalendar(first.year, first.month)
+    if view == "month":
+        weeks, prev_when, next_when = month_weeks, None, None
+    elif view == "week":
+        start = anchor - timezone.timedelta(days=(anchor.weekday() + 1) % 7)  # the Sunday that starts the week
+        weeks = [[start + timezone.timedelta(days=i) for i in range(7)]]
+        prev_when, next_when = start - timezone.timedelta(days=7), start + timezone.timedelta(days=7)
+        first = start
+    else:
+        weeks = [[anchor]]
+        prev_when, next_when = anchor - timezone.timedelta(days=1), anchor + timezone.timedelta(days=1)
+        first = anchor
     qs = (Meeting.objects.filter(start__date__gte=weeks[0][0], start__date__lte=weeks[-1][-1])
-          .prefetch_related("companies", "firms"))
+          .prefetch_related("companies", "firms").order_by("start"))
+    team = list(team_users().order_by("first_name", "username"))
+    picked = {int(p) for p in request.GET.getlist("people") if p.isdigit()} & {u.pk for u in team}
     who = request.GET.get("who", "me")
-    if who == "me" or not who:
+    if picked:  # specific people, by checkbox: meetings any of them is on
+        qs = qs.filter(team__in=picked).distinct()
+        who = "people"
+    elif who == "me" or not who:
         qs = qs.filter(team=request.user)
         who = "me"
     elif who == "outside":
@@ -1476,8 +1531,10 @@ def meeting_list(request):
     next_month = (first.replace(day=28) + timezone.timedelta(days=7)).replace(day=1)
     upcoming = Meeting.objects.filter(start__gte=timezone.now()).prefetch_related("companies", "firms")[:8]
     return render(request, "crm/meetings.html", {
-        "weeks": [[{"date": d, "meetings": by_day.get(d, []), "other": d.month != first.month, "today": d == today}
-                   for d in week] for week in weeks],
+        "weeks": [[{"date": d, "meetings": by_day.get(d, []), "other": view == "month" and d.month != first.month,
+                    "today": d == today} for d in week] for week in weeks],
+        "view": view, "prev_when": prev_when, "next_when": next_when, "anchor": anchor, "today": today,
+        "team": team, "picked": picked,
         "first": first, "prev": prev_month, "next": next_month, "who": who, "upcoming": upcoming,
         "open_id": request.GET.get("open", "") if request.GET.get("open", "").isdigit() else "",
         "google_ready": settings.GOOGLE_SIGNIN_ENABLED,

@@ -114,7 +114,7 @@ class FlyerTests(TestCase):
         url = f"/land/sites/{self.site.pk}/listing/"
         with mock.patch.dict("os.environ", {"ANTHROPIC_API_KEY": ""}):
             self.client.post(url, {"action": "flyer", "flyer": SimpleUploadedFile("flyer.jpg", b"\xff\xd8")})
-            self.assertContains(self.client.get(url), "Add ANTHROPIC_API_KEY")
+            self.assertContains(self.client.get(url), "Claude isn't switched on")
         self.site.refresh_from_db()
         self.assertTrue(self.site.flyer)
         self.assertEqual(self.site.listing, CURRENT)

@@ -53,8 +53,22 @@ def expand(query):
     from their addresses. Operators and quotes are left as typed, so the advanced search box is unchanged.
     """
     q = (query or "").strip()
-    if not q or OPERATOR.search(q) or any(ch in q for ch in '{}()"'):
-        return q, []
+    if not q or any(ch in q for ch in "{}()"):
+        return q, []  # hand-built Gmail grouping: left exactly as typed
+    # Operators (from:x, has:attachment, newer_than:7d, -word) and "quoted phrases" stay as typed and still apply; only
+    # the plain words left over are widened, so "has:attachment firehawk" finds Firehawk's mail with attachments too.
+    fixed = re.findall(r'(?:-?[a-z_]+:(?:"[^"]*"|\S+)|-?"[^"]*"|(?<!\S)-\S+)', q, re.I)
+    plain = q
+    for token in fixed:
+        plain = plain.replace(token, " ", 1)
+    plain = " ".join(plain.split())
+    if fixed:
+        if not plain:
+            return q, []
+        widened, used = expand(plain)
+        if not used:
+            return q, []
+        return f"{' '.join(fixed)} ({widened})", used
     chunks = [q]
     words = [w for w in q.split() if len(w) >= 3]
     if len(words) > 1:

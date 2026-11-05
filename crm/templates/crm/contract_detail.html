@@ -65,7 +65,7 @@
       {% if not reads %}
         <p class="muted" style="margin:0">Upload the agreement (PDF or Word) under <a href="#documents">Agreement file</a> to ask questions about it.</p>
       {% elif not ai_ready %}
-        <p class="muted" style="margin:0">Add ANTHROPIC_API_KEY to .env to ask Claude about it. The reader, defined terms and redlines work without it.</p>
+        <p class="muted" style="margin:0">Claude isn't switched on. Ask an admin to turn it on to ask Claude about it. The reader, defined terms and redlines work without it.</p>
       {% else %}
         <form method="post" class="ct-ask" data-busy="Reading the documents… usually under a minute">{% csrf_token %}<input type="hidden" name="action" value="ask">
           <textarea name="question" rows="2" required placeholder="e.g. When does the deposit go hard, and what do we lose if we walk after that?"></textarea>

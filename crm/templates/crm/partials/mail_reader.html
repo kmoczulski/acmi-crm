@@ -98,6 +98,15 @@
           <div class="mail-note-actions"><span class="muted lc-small">Only you and the people you @mention see it.</span><button class="btn btn-small">Add note</button></div>
         </form>
       </details>
+      <details class="mail-notes mail-task">
+        <summary class="lc-small">Make this email a task</summary>
+        <form method="post" action="{% url 'crm:inbox_task' %}" class="mail-note-form">{% csrf_token %}
+          <input type="hidden" name="t" value="{{ reader.id }}"><input type="hidden" name="next" value="{{ here }}">
+          <input type="text" name="title" value="{{ reader.subject }}" maxlength="300" aria-label="Task title">
+          <div class="mail-note-actions"><label class="lc-small">Due <input type="date" name="due_date"></label><button class="btn btn-small btn-primary">Make task</button></div>
+          <span class="muted lc-small">It's yours, links back to this email, and sits on the company or deal the email is filed to.</span>
+        </form>
+      </details>
       {% if reader.file_groups %}
       <details class="mail-filepanel"{% if reader.messages|length > 3 or reader.file_groups|length > 2 %} open{% endif %}>
         <summary><strong>Attachments</strong> <span class="muted lc-small">{{ reader.file_groups|length }} document{{ reader.file_groups|length|pluralize }}, newest first{% if reader.files_hidden %} · {{ reader.files_hidden }} hidden (logos, calendar files, unchanged re-attachments){% endif %}</span></summary>
@@ -112,7 +121,7 @@
         <ul class="mail-filelist">
           {% for g in reader.file_groups %}
           <li data-type="{{ g.type }}" data-name="{{ g.latest.name|lower }}">
-            <a href="{% url 'crm:inbox_part' g.latest.message g.latest.part %}" class="mail-filename">📎 {{ g.latest.name }}</a>
+            <a data-viewer href="{% url 'crm:inbox_part' g.latest.message g.latest.part %}" class="mail-filename">📎 {{ g.latest.name }}</a>
             <span class="muted lc-small">{{ g.latest.size|filesizeformat }} · {{ g.latest.from_name }} · {{ g.latest.date|date:"M j, g:i a" }}</span>
             <form method="post" action="{% url 'crm:inbox_save_drive' g.latest.message g.latest.part %}" class="inline-form">{% csrf_token %}
               <input type="hidden" name="t" value="{{ reader.id }}"><input type="hidden" name="next" value="{{ here }}">
@@ -121,7 +130,7 @@
             <a href="#m-{{ g.latest.message }}" class="lc-small" data-goto="{{ g.latest.message }}">Go to message</a>
             {% if g.older %}
             <details class="mail-versions"><summary class="lc-small">{{ g.older|length }} earlier version{{ g.older|length|pluralize }}</summary>
-              <ul>{% for f in g.older %}<li><a href="{% url 'crm:inbox_part' f.message f.part %}">{{ f.name }}</a> <span class="muted lc-small">{{ f.from_name }} · {{ f.date|date:"M j" }}</span> <a href="#m-{{ f.message }}" class="lc-small" data-goto="{{ f.message }}">Go to message</a></li>{% endfor %}</ul>
+              <ul>{% for f in g.older %}<li><a data-viewer href="{% url 'crm:inbox_part' f.message f.part %}">{{ f.name }}</a> <span class="muted lc-small">{{ f.from_name }} · {{ f.date|date:"M j" }}</span> <a href="#m-{{ f.message }}" class="lc-small" data-goto="{{ f.message }}">Go to message</a></li>{% endfor %}</ul>
             </details>
             {% endif %}
           </li>
@@ -168,7 +177,7 @@
 {% if can_change %}        <div class="mail-msg-reply"><a class="btn btn-small" href="{% url 'crm:inbox_compose' %}?reply={{ m.id }}&mode=reply&back={{ here|urlencode }}" data-reply="{{ m.id }}" data-mode="reply">↩ Reply</a><a class="btn btn-small" href="{% url 'crm:inbox_compose' %}?reply={{ m.id }}&mode=all&back={{ here|urlencode }}" data-reply="{{ m.id }}" data-mode="all">↩ Reply all</a><a class="btn btn-small" href="{% url 'crm:inbox_compose' %}?reply={{ m.id }}&mode=forward&back={{ here|urlencode }}" data-reply="{{ m.id }}" data-mode="forward">↪ Forward</a></div>{% endif %}
         {% if m.files %}
         <ul class="mail-files">
-          {% for a in m.files %}<li><a href="{% url 'crm:inbox_part' m.id a.part %}">📎 {{ a.name }}</a> <span class="muted lc-small">{{ a.size|filesizeformat }}</span></li>{% endfor %}
+          {% for a in m.files %}<li><a data-viewer href="{% url 'crm:inbox_part' m.id a.part %}">📎 {{ a.name }}</a> <span class="muted lc-small">{{ a.size|filesizeformat }}</span></li>{% endfor %}
         </ul>
         {% endif %}
       </details>

@@ -528,8 +528,37 @@
     if (shown() && !('ontouchstart' in window) && !hit) setTimeout(() => text.focus(), 60);
     state.timer = setTimeout(tick, 6000);
     state.rtimer = setTimeout(refreshTail, 30000);
+
+    // "Seen by": under your latest message, which teammates have read it (their own Chat read time, asked of each
+    // teammate who has Chat on in the hub; people the hub can't ask are left out, never shown as "not seen").
+    const seenUrl = root.dataset.seenUrl;
+    async function lookSeen() {
+      if (state.stopped || !seenUrl) return;
+      if (shown()) {
+        const mine = [...list.querySelectorAll('.chat-msg.mine[data-iso]')].pop();
+        const stale = list.querySelector('.chat-seen');
+        if (!mine) { if (stale) stale.remove(); }
+        else if (!mine.dataset.iso) { /* nothing to compare with */ }
+        else {
+          try {
+            const d = await call(`${seenUrl}?${new URLSearchParams({s: space, t: mine.dataset.iso})}`);
+            const line = list.querySelector('.chat-seen') || h('div', {class: 'chat-seen muted'});
+            if (!d.known) line.remove();
+            else {
+              const all = d.by.length && d.by.length === d.others;
+              line.textContent = d.by.length ? '✓✓ Seen' + (all && d.others === 1 ? '' : ' by ' + d.by.join(', ')) : '✓ Delivered';
+              line.classList.toggle('seen', d.by.length > 0);
+              if (line.previousElementSibling !== mine) mine.after(line);
+              if (nearBottom()) toBottom();
+            }
+          } catch (err) { /* receipts are a nicety: stay quiet */ }
+        }
+      }
+      state.seenTimer = setTimeout(lookSeen, 15000);
+    }
+    state.seenTimer = setTimeout(lookSeen, 1500);
     root._chat = {stop() {
-      state.stopped = true; clearTimeout(state.timer); clearTimeout(state.rtimer);
+      state.stopped = true; clearTimeout(state.timer); clearTimeout(state.rtimer); clearTimeout(state.seenTimer);
       document.removeEventListener('visibilitychange', onVisible);
       Picker.close();
       state.files.forEach(f => f.url && URL.revokeObjectURL(f.url));

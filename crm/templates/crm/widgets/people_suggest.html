@@ -1,0 +1,21 @@
+{% load crm_tags %}{# Dashboard widget: people who write to you but aren't in the CRM (crm/mail/people_suggest.py) #}
+{% if people_suggest %}
+<ul class="clist ps-list">
+  {% for p in people_suggest %}
+  <li class="ps-row">
+    <div class="ps-who">
+      <b>{{ p.name|default:p.email }}</b>{% if p.name %} <span class="muted lc-small">{{ p.email }}</span>{% endif %}
+      <div class="muted lc-small">{{ p.threads }} conversation{{ p.threads|pluralize }}{% if p.last %} · last {{ p.last|date:"M j" }}{% endif %}{% if p.company %} · <a href="{% url 'crm:company_detail' p.company.id %}">{{ p.company.name }}</a>{% endif %}</div>
+    </div>
+    <form method="post" action="{% url 'crm:person_suggest_add' %}">{% csrf_token %}
+      <input type="hidden" name="email" value="{{ p.email }}"><input type="hidden" name="name" value="{{ p.name }}">{% if p.company %}<input type="hidden" name="company" value="{{ p.company.id }}">{% endif %}
+      <button class="btn btn-small btn-primary" title="Add {{ p.name|default:p.email }} to the CRM{% if p.company %} at {{ p.company.name }}{% endif %}">Add</button>
+    </form>
+    <form method="post" action="{% url 'crm:person_suggest_dismiss' %}">{% csrf_token %}
+      <input type="hidden" name="email" value="{{ p.email }}">
+      <button class="btn btn-small" aria-label="Not now: {{ p.name|default:p.email }}" title="Don't suggest this person again">×</button>
+    </form>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}<p class="muted" style="margin:0">Everyone you write to regularly is already in the CRM.</p>{% endif %}

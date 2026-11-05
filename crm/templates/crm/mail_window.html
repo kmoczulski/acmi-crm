@@ -32,7 +32,7 @@
   <p class="mail-images" hidden><button type="button" class="btn btn-small" data-show-images>Show images</button> <span class="muted lc-small">Images from the sender are blocked so they can't tell you opened this.</span></p>
   {% if m.files %}
   <ul class="mail-files">
-    {% for a in m.files %}<li><a href="{% url 'crm:inbox_part' m.id a.part %}" target="_blank" rel="noopener">📎 {{ a.name }}</a> <span class="muted lc-small">{{ a.size|filesizeformat }}</span></li>{% endfor %}
+    {% for a in m.files %}<li><a data-viewer href="{% url 'crm:inbox_part' m.id a.part %}" target="_blank" rel="noopener">📎 {{ a.name }}</a> <span class="muted lc-small">{{ a.size|filesizeformat }}</span></li>{% endfor %}
   </ul>
   {% endif %}
 </details>
