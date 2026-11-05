@@ -2678,6 +2678,11 @@ body[data-chat-list] .dock-main > p, body[data-chat-list] .dock-main > a { margi
     left: 0; right: 0; top: var(--vv-top, 0px); bottom: auto; width: 100%; max-width: 100vw; height: var(--vv-h, 100dvh); z-index: 1; }
   .dock-win.dock-chats:not(.min) { z-index: 0; }
 }
+/* A quiet reminder to turn Chat on (so read receipts work both ways); "Not now" hides it for two weeks. */
+.chat-nudge { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 0 0 12px; padding: 10px 14px;
+  background: var(--accent-soft); border: 1px solid var(--line); border-radius: var(--radius); font-size: 13px; }
+.chat-nudge[hidden] { display: none; }
+.chat-nudge > span { flex: 1 1 260px; min-width: 0; }
 /* Chat "Seen by" line under your latest message. */
 .chat-seen { grid-column: 2; font-size: 11px; text-align: right; margin: 1px 4px 0 0; }
 .chat-seen.seen { color: var(--accent); }

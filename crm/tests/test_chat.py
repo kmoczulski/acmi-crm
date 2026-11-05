@@ -756,6 +756,15 @@ class PageTests(ChatTestCase):
         self.assertEqual(self.client.get(reverse("crm:chat_poll")).status_code, 403)
         self.assertEqual(self.fake.calls, [])  # nothing asked of Google
 
+    def test_the_turn_on_nudge_shows_only_where_chat_is_off(self):
+        self.assertNotContains(self.client.get(reverse("crm:home")), "data-chat-nudge")  # on: no nudge
+        self.conn.enabled = False
+        self.conn.save()
+        r = self.client.get(reverse("crm:home"))
+        self.assertContains(r, "data-chat-nudge")
+        self.assertContains(r, "read their messages")
+        self.assertNotContains(self.client.get(reverse("crm:chat")), "data-chat-nudge")  # the page itself says it
+
     def test_the_polling_call_for_new_messages(self):
         mid = self.fake.add_message("AAA", "first", when=self.now - timedelta(minutes=5))
         self.fake.add_message("AAA", "second", sender="users/3", when=self.now - timedelta(minutes=4))
