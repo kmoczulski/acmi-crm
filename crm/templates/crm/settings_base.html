@@ -1,0 +1,22 @@
+{# The Settings shell: one heading and a strip of section tabs over whichever section is open (crm/settings_nav.py). #}
+{% extends "crm/base.html" %}
+{% load crm_tags %}
+{% block title %}Settings · ACMI Hub{% endblock %}
+{% block content %}
+{% settings_sections as sections %}
+<div class="page-head">
+  <h1><a class="settings-home-link" href="{% url 'crm:settings_home' %}">Settings</a></h1>
+  <span class="spacer"></span>
+  {% if user.is_staff %}<a class="btn" href="/admin/">Admin</a>{% endif %}
+</div>
+<nav class="settings-tabs no-print" aria-label="Settings sections">
+  {% for heading, items in sections %}
+  <div class="st-group" role="group" aria-label="{{ heading }}">
+    {% for s in items %}<a href="{{ s.url }}"{% if s.active %} class="on" aria-current="page"{% endif %}>{{ s.label }}</a>{% endfor %}
+  </div>
+  {% endfor %}
+</nav>
+<div class="settings-body">
+{% block settings_body %}{% endblock %}
+</div>
+{% endblock %}

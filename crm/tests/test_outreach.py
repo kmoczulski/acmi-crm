@@ -134,7 +134,7 @@ class OutreachTests(TestCase):
         self.assertEqual(batch.items.count(), 1)  # only Ben is eligible
         self.assertEqual(self.client.get(batch.get_absolute_url()).status_code, 200)
         for url in ("/outreach/templates/", f"/outreach/templates/{EmailTemplate.objects.first().pk}/",
-                    "/outreach/settings/", "/reports/weekly/"):
+                    "/settings/outreach/", "/reports/weekly/"):
             self.assertEqual(self.client.get(url).status_code, 200, url)
 
     def test_plain_text_converts_to_email_html(self):

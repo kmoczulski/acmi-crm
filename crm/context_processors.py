@@ -31,8 +31,14 @@ def app_context(request):
     queue = news_open = unread = due = 0
     user_prefs, pages, new_items, mail_on = {}, [], [], False
     chat_available = chat_on = False
+    settings_menu = []
     if getattr(request, "user", None) and request.user.is_authenticated:
-        from . import needs_filing
+        from . import needs_filing, settings_nav
+        from .permissions import is_partner
+
+        if not is_partner(request.user):  # capital partners have no Settings area
+            match = getattr(request, "resolver_match", None)
+            settings_menu = settings_nav.groups(request.user, match.url_name if match else "")
 
         queue = needs_filing.count()  # organizations with email or meetings and no record: the Outreach badge
         news_open = NewsScan.objects.filter(status=NewsScan.Status.OPEN).count()
@@ -60,6 +66,7 @@ def app_context(request):
         "PREFS": user_prefs,
         "NAV_PAGES": pages,
         "NEW_ITEMS": new_items,
+        "SETTINGS_MENU": settings_menu,  # the top bar's Settings menu: the sections this person may open
         "LOGO": _logo(),
         "ASSET_VERSION": _asset_version(),
         "GOOGLE_SIGNIN_ENABLED": settings.GOOGLE_SIGNIN_ENABLED,

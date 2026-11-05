@@ -20,6 +20,7 @@ from django.template.loader import render_to_string
 from django.utils.http import content_disposition_header
 from django.views.decorators.http import require_POST
 
+from crm import settings_nav
 from crm.mail.views import team_only
 from crm.models import ChatConnection
 
@@ -433,6 +434,7 @@ def turn_on(request):
     if reason:
         messages.error(request, reason)
         return redirect("crm:chat")
+    settings_nav.remember(request)
     request.session[connect.SESSION_KEY] = True
     return redirect(connect.connect_url(request))
 
@@ -441,16 +443,16 @@ def turn_on(request):
 def connected(request):
     """Where Google sends the person back after Turn on Chat."""
     if not request.session.pop(connect.SESSION_KEY, False):
-        return redirect("crm:chat")
+        return settings_nav.back(request, "crm:chat")
     try:
         connect.finish(request.user)
     except (connect.ChatConnectError, requests.RequestException) as exc:
         text = str(exc) if isinstance(exc, connect.ChatConnectError) else "Couldn't reach Google. Try again."
         ChatConnection.objects.update_or_create(user=request.user, defaults={"last_error": text})
         messages.error(request, text)
-        return redirect("crm:chat")
+        return settings_nav.back(request, "crm:chat")
     messages.success(request, "Chat is on. Your conversations are here, and new messages alert you.")
-    return redirect("crm:chat")
+    return settings_nav.back(request, "crm:chat")
 
 
 @team_only
@@ -459,4 +461,4 @@ def turn_off(request):
     connect.turn_off(request.user)
     messages.success(request, "Chat is off. The hub no longer reads your Google Chat. Google still lists the hub's Chat "
                               "permission; you can remove it at myaccount.google.com/permissions.")
-    return redirect("crm:chat")
+    return settings_nav.back(request, "crm:chat")

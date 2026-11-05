@@ -139,18 +139,13 @@
         </div>
       </details>
 
-      {% if IS_MANAGER or user.is_staff %}
-      <details class="tn-menu {% if '/settings/' in p or '/contracts/templates/' in p or '/data-rooms/' in p %}active{% endif %}">
+      {% if SETTINGS_MENU %}<details class="tn-menu {% if '/settings/' in p or '/notifications/settings' in p or '/contracts/templates/' in p or '/data-rooms/' in p %}active{% endif %}">
         <summary>Settings</summary>
         <div class="tn-drop tn-drop-right">
-          {% if IS_MANAGER %}<a href="{% url 'crm:settings_home' %}"><strong>Dropdown lists</strong><span></span></a>
-          <a href="{% url 'crm:outreach_settings' %}"><strong>Outreach settings</strong><span></span></a>
-          <a href="{% url 'crm:contract_templates' %}"><strong>Contract abstract templates</strong><span></span></a>
-          <a href="{% url 'crm:data_rooms' %}" class="{% if '/data-rooms/' in p %}on{% endif %}"><strong>Capital partner data room</strong><span>Who sees which deals and files</span></a>{% endif %}
-          {% if user.is_staff %}<a href="/admin/"><strong>Admin</strong><span></span></a>{% endif %}
+          {% for heading, items in SETTINGS_MENU %}{% for s in items %}<a href="{{ s.url }}" class="{% if s.active %}on{% endif %}"><strong>{{ s.label }}</strong><span>{{ s.blurb }}</span></a>{% endfor %}{% endfor %}
+          {% if user.is_staff %}<a href="/admin/"><strong>Admin</strong><span>Users, groups and raw records</span></a>{% endif %}
         </div>
-      </details>
-      {% endif %}
+      </details>{% endif %}
     </nav>
     <span class="spacer"></span>
     <button type="button" class="search-trigger" data-search-open title="Search everything (Ctrl K)">
@@ -171,10 +166,9 @@
       <summary class="avatar" title="{{ user.get_full_name|default:user.username }}">{{ user.first_name|default:user.username|slice:":1"|upper }}{{ user.last_name|slice:":1"|upper }}</summary>
       <div class="menu">
         <div class="menu-head">{{ user.get_full_name|default:user.username }}<span class="muted">{{ user.email }}</span></div>
-        <a href="{% url 'crm:home' %}?customize=1">Customize my dashboard</a>
+        {% if SETTINGS_MENU %}<a href="{% url 'crm:settings_profile' %}">Profile and settings</a>
+        <a href="{% url 'crm:settings_google' %}">Google access</a>{% endif %}
         <a href="{% url 'crm:notification_list' %}">Notifications</a>
-        <a href="{% url 'crm:notification_settings' %}">Notification settings</a>
-        <a href="{% url 'crm:mail_settings' %}">Mail in the hub</a>
         <button type="button" class="menu-btn" data-theme-toggle>Dark mode</button>
         <form method="post" action="{% url 'account_logout' %}">{% csrf_token %}<button class="menu-btn">Sign out</button></form>
       </div>

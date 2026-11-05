@@ -3446,6 +3446,51 @@ details.lt-phase-box legend { font-size: 12px; font-weight: 600; color: var(--mu
   .lt-table th, .lt-table td { min-width: 0; }
 }
 
+/* Settings: one heading, a strip of section tabs, the section below (crm/settings_nav.py, settings_base.html). */
+.settings-home-link { color: inherit; text-decoration: none; }
+.settings-intro { margin: 0 0 14px; max-width: 720px; }
+.settings-tabs { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 0 0 18px; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+.settings-tabs .st-group { display: flex; flex-wrap: wrap; gap: 4px; }
+.settings-tabs .st-group + .st-group { padding-left: 18px; border-left: 1px solid var(--line); }
+.settings-tabs a { padding: 6px 12px; border-radius: 980px; color: var(--text-2); text-decoration: none; font-size: 14px; }
+.settings-tabs a:hover { background: var(--hover); }
+.settings-tabs a.on { background: var(--accent); color: #fff; }
+.settings-body { max-width: 760px; }
+.settings-group-title { font-size: 13px; font-weight: 600; color: var(--muted); margin: 22px 0 8px; }
+.settings-list { background: var(--panel); border-radius: var(--radius-lg); box-shadow: var(--shadow-1); overflow: hidden; max-width: 760px; }
+.settings-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 18px; color: inherit; text-decoration: none; }
+.settings-row + .settings-row { border-top: 1px solid var(--line); }
+.settings-row:hover { background: var(--hover); }
+.settings-row::after { content: "\203A"; color: var(--muted-2); font-size: 20px; order: 3; }
+.sr-main { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.sr-label { font-weight: 600; }
+.sr-sub { color: var(--muted); font-size: 13px; }
+.sr-status { color: var(--muted); font-size: 13px; text-align: right; }
+.settings-sub-title { margin: 0; font-size: 18px; }
+
+/* Google access and Profile: a list of rows, each with what it is for and its own button. */
+.access-list { display: flex; flex-direction: column; gap: 10px; }
+.access-row { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin: 0 0 10px; }
+.access-list .access-row { margin: 0; }
+.access-main { flex: 1; min-width: 0; }
+.access-main h3 { margin: 0 0 4px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.access-purpose { margin: 0; color: var(--text-2); font-size: 14px; }
+.access-detail { margin: 6px 0 0; }
+.access-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.access-actions form { margin: 0; }
+.access-state { font-size: 12px; font-weight: 600; padding: 2px 9px; border-radius: 980px; background: var(--fill); color: var(--muted); }
+.access-state.st-on { background: var(--good-bg); color: var(--good); }
+.access-state.st-attention { background: var(--warn-bg); color: var(--warn); }
+.access-remove { margin-top: 18px; }
+.profile-card .profile-id { display: flex; align-items: center; gap: 14px; }
+.profile-card h3, .profile-card p { margin: 0; }
+.profile-avatar { width: 48px; height: 48px; font-size: 18px; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; background: var(--accent); color: #fff; font-weight: 600; flex: none; }
+@media (max-width: 640px) {
+  .access-row { flex-direction: column; align-items: stretch; }
+  .access-actions { justify-content: flex-start; }
+  .settings-tabs .st-group + .st-group { padding-left: 0; border-left: 0; }
+}
+
 /* Follow-ups: a coloured edge and age badge that deepen the longer a thread waits */
 .fu-tabs { display: flex; gap: 6px; margin: 8px 0; flex-wrap: wrap; }
 .fu-tabs a { padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line); text-decoration: none; color: inherit; }

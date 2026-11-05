@@ -17,14 +17,14 @@
   <section class="panel" style="max-width:720px">
     <h3>Connect your Google Calendar first</h3>
     <p>Scheduling reads when people are free from Google Calendar, using your own Google sign-in. Nothing is stored: the hub asks Google each time.</p>
-    <a class="btn btn-primary" href="{% provider_login_url 'google' process='connect' auth_params='prompt=consent' next=request.path %}">Connect Google Calendar</a>
+    <a class="btn btn-primary" href="{% url 'crm:settings_google' %}#calendar">Connect in Google access</a>
   </section>
 {% else %}
 <section class="panel sched-allow" data-allow{% if can_schedule %} hidden{% endif %}>
-  <form method="post" action="{% url 'crm:schedule_allow' %}">{% csrf_token %}
+  <form>
     <strong>To send invitations from here,</strong> allow the hub to put meetings on your Google Calendar. Google asks once; leave the box ticked.
     Until then, <em>Open in Google Calendar</em> fills the meeting in for you to save.
-    <button class="btn btn-small btn-primary">Allow scheduling</button>
+    <a class="btn btn-small btn-primary" href="{% url 'crm:settings_google' %}#scheduling">Allow scheduling</a>
   </form>
 </section>
 

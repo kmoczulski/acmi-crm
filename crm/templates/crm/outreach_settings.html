@@ -1,0 +1,11 @@
+{% extends "crm/settings_base.html" %}
+{% block title %}Outreach · Settings · ACMI Hub{% endblock %}
+{% block settings_body %}
+<div class="panel" style="max-width:640px">
+  <form method="post" class="fields">{% csrf_token %}
+    {{ form.as_p }}
+    <button class="btn-primary">Save</button>
+    <a class="btn" href="{% url 'crm:outreach_home' %}">Back to the send queue</a>
+  </form>
+</div>
+{% endblock %}

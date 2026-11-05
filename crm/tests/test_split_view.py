@@ -72,7 +72,7 @@ class SplitViewTests(TestCase):
             self.assertEqual(r["Location"], "/room/")
 
     def test_manager_only_pages_stay_closed_in_the_frame(self):
-        r = self.client.get(reverse("crm:settings_home") + "?embed=1")
+        r = self.client.get(reverse("crm:dropdown_lists") + "?embed=1")
         self.assertIn(r.status_code, (302, 403))
 
 
