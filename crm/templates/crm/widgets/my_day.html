@@ -1,23 +1,17 @@
-{% load crm_tags humanize %}{# Dashboard widget: replies waiting, my tasks, my deals (day, overdue, upcoming) #}
-<div class="subhead">Replies waiting on us <span class="muted">({{ day.replies|length }})</span></div>
-<div class="clist" data-limit="10">
-      {% for r in day.replies %}
-        <div class="row-line">
-          <span><a href="{{ r.company.get_absolute_url }}?tab=activity">{{ r.company.name }}</a>{% if r.person %} · {{ r.person }}{% endif %}
-            {% if r.message_id %}<a class="reply-open" href="{% url 'crm:inbox_open' %}?m={{ r.message_id|urlencode }}" title="Open this email to reply">{% if r.gist %}“{{ r.gist }}”{% else %}Open the email{% endif %} ↩</a>
-            {% elif r.gist %}<span class="muted"> “{{ r.gist }}”</span>{% endif %}</span>
-          <span class="muted" style="white-space:nowrap">{{ r.occurred_at|date:"M j" }}
-            <form method="post" action="{% url 'crm:reply_dismiss' r.pk %}" class="inline-form" data-reply-dismiss>{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button class="btn-link reply-dismiss" title="No reply needed: take it off my list" aria-label="No reply needed for {{ r.company.name }}">×</button></form></span>
-        </div>
-      {% empty %}<p class="muted" style="margin:4px 0">All caught up.</p>{% endfor %}
-      <script>
-        document.querySelectorAll('[data-reply-dismiss]').forEach(f => f.addEventListener('submit', async e => {
-          e.preventDefault();
-          const r = await fetch(f.action, {method: 'POST', body: new FormData(f), headers: {'X-Requested-With': 'fetch'}});
-          if (r.ok) f.closest('.row-line').remove(); else f.submit();
-        }));
-      </script>
-      </div>
+{% load crm_tags humanize %}{# Dashboard widget: follow-ups (waiting on us and on them), my tasks, my deals (day, overdue, upcoming) #}
+<div class="subhead">Follow-ups <span class="muted">({{ follow_up_counts.us }} on us · {{ follow_up_counts.them }} on them)</span>
+  {% if MAIL_ON %}<a class="fu-all" href="{% url 'crm:follow_ups' %}">See all →</a>{% endif %}</div>
+<div class="fu-list fu-compact">
+  {% for e in follow_ups %}{% include "crm/partials/follow_up_row.html" %}
+  {% empty %}<p class="muted" style="margin:4px 0">All caught up.</p>{% endfor %}
+  <script>
+    document.querySelectorAll('[data-reply-dismiss]').forEach(f => f.addEventListener('submit', async e => {
+      e.preventDefault();
+      const r = await fetch(f.action, {method: 'POST', body: new FormData(f), headers: {'X-Requested-With': 'fetch'}});
+      if (r.ok) f.closest('.fu-row').remove(); else f.submit();
+    }));
+  </script>
+</div>
       <div class="subhead">My tasks</div>
       <ul class="tasklist clist" data-limit="10">
         {% for t in overdue %}{% include "crm/partials/task_row.html" %}{% endfor %}

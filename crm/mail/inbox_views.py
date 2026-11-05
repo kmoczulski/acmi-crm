@@ -20,7 +20,7 @@ from django.utils.http import content_disposition_header, url_has_allowed_host_a
 from django.views.decorators.clickjacking import xframe_options_sameorigin
 from django.views.decorators.http import require_POST
 
-from crm import prefs
+from crm import pipeline, prefs
 from crm.ai import enabled as ai_enabled
 from crm.models import Company, MailFiling, MailLabel, MailSnooze, MailThread, Mailbox, Project, UnmatchedEmail
 
@@ -169,7 +169,17 @@ def inbox(request, mailbox, client):
                         .values_list("gmail_id", "until")),
         "here": request.get_full_path(),
         "thread_base": thread_base,
+        "follow_up_count": _follow_up_count(request.user),
     })
+
+
+def _follow_up_count(user):
+    """Threads waiting on us for the Follow-ups link in the folder pane; never stops the inbox from drawing."""
+    try:
+        return len(pipeline.awaiting_reply(user, days=60))
+    except Exception:
+        log.warning("Could not count follow-ups for %s", user, exc_info=True)
+        return 0
 
 
 def _pane(request, mailbox, client, open_id, label, query, tab, thread_base):

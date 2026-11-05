@@ -3375,3 +3375,40 @@ details.lt-phase-box legend { font-size: 12px; font-weight: 600; color: var(--mu
   .lt-cards { grid-template-columns: repeat(2, 1fr); }
   .lt-table th, .lt-table td { min-width: 0; }
 }
+
+/* Follow-ups: a coloured edge and age badge that deepen the longer a thread waits */
+.fu-tabs { display: flex; gap: 6px; margin: 8px 0; flex-wrap: wrap; }
+.fu-tabs a { padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line); text-decoration: none; color: inherit; }
+.fu-tabs a.on { background: var(--navy, #2d4a73); color: #fff; border-color: transparent; }
+.fu-tabs .mail-count { margin-left: 4px; }
+.fu-list { display: flex; flex-direction: column; }
+.fu-row { display: grid; grid-template-columns: 1fr auto auto; gap: 4px 12px; align-items: center; padding: 8px 10px 8px 12px;
+  border-left: 5px solid var(--line); border-bottom: 1px solid var(--line); }
+.fu-row:last-child { border-bottom: 0; }
+.fu-main { display: flex; flex-direction: column; min-width: 0; text-decoration: none; color: inherit; }
+.fu-main:hover .fu-who { text-decoration: underline; }
+.fu-who { font-weight: 600; }
+.fu-gist { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fu-age { font-size: 12px; font-weight: 600; white-space: nowrap; padding: 2px 8px; border-radius: 999px; background: rgba(0, 23, 59, .06); }
+.fu-acts { display: flex; align-items: center; gap: 6px; }
+.fu-amber { border-left-color: #e0a100; background: rgba(224, 161, 0, .06); }
+.fu-orange { border-left-color: #e8680c; background: rgba(232, 104, 12, .08); }
+.fu-red { border-left-color: var(--bad); background: var(--bad-bg); }
+.fu-age-amber { background: rgba(224, 161, 0, .2); color: #7a5600; }
+.fu-age-orange { background: rgba(232, 104, 12, .2); color: #9a4300; }
+.fu-age-red { background: var(--bad); color: #fff; }
+.fu-all { float: right; font-size: 13px; font-weight: 400; }
+.fu-compact .fu-row { grid-template-columns: 1fr auto; }
+.fu-compact .fu-acts .btn { display: none; }
+.fu-compact .fu-age { grid-column: 1; justify-self: start; }
+.mail-count-warn { background: var(--bad); color: #fff; border-radius: 999px; padding: 0 6px; }
+
+/* Mail search suggestions */
+.mail-search-pop { position: absolute; z-index: 40; top: calc(100% - 2px); left: 8px; right: 8px; background: var(--panel); border: 1px solid var(--line);
+  border-radius: 8px; box-shadow: 0 8px 24px rgba(0, 0, 0, .14); padding: 4px; max-height: 60vh; overflow: auto; }
+.mail-search-pop[hidden] { display: none; }
+.msp-head { display: block; width: 100%; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); padding: 8px 8px 2px; border: 0; background: none; }
+.msp-row { display: flex; justify-content: space-between; gap: 12px; width: 100%; text-align: left; border: 0; background: none; padding: 7px 8px; border-radius: 6px; cursor: pointer; font: inherit; }
+.msp-row:hover, .msp-row.on { background: rgba(45, 74, 115, .12); }
+.msp-hint { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mail-row mark { background: #fff2a8; color: inherit; padding: 0 1px; border-radius: 2px; }

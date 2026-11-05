@@ -740,6 +740,8 @@ class Task(models.Model):
     meetings = models.ManyToManyField("Meeting", blank=True, related_name="tasks",
                                       help_text="The meetings whose action item this came from (the same item on two "
                                                 "meetings is one task)")
+    source_activity = models.ForeignKey("Activity", null=True, blank=True, on_delete=models.SET_NULL, related_name="+",
+                                        help_text="The email this task follows up on (made by the follow-ups list)")
     created_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
     created_at = models.DateTimeField(auto_now_add=True)
 

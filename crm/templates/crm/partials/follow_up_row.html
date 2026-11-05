@@ -1,0 +1,14 @@
+{# One follow-up: a coloured edge that deepens with the days, the whole row opens the email. #}
+<div class="fu-row fu-{{ e.tone }}">
+  <a class="fu-main" href="{% if e.thread %}{% url 'crm:inbox' %}?label=ALL&t={{ e.thread }}{% elif e.act.message_id %}{% url 'crm:inbox_open' %}?m={{ e.act.message_id|urlencode }}{% else %}{{ e.act.company.get_absolute_url }}?tab=activity{% endif %}"
+     title="Open the email">
+    <span class="fu-who">{{ e.act.company.name }}{% if e.act.person %} · {{ e.act.person }}{% endif %}</span>
+    <span class="fu-gist">{% if e.gist %}“{{ e.gist }}”{% else %}{{ e.act.summary }}{% endif %}</span>
+  </a>
+  <span class="fu-age fu-age-{{ e.tone }}" title="{{ e.act.occurred_at|date:'M j, g:i A' }}">
+    {% if e.side == "us" %}Waiting on us{% else %}Waiting on them{% endif %} · {% if e.days == 0 %}today{% elif e.days == 1 %}1 day{% else %}{{ e.days }} days{% endif %}</span>
+  <span class="fu-acts">
+    <a class="btn btn-small" href="{% if e.thread %}{% url 'crm:inbox' %}?label=ALL&t={{ e.thread }}{% else %}{% url 'crm:inbox_open' %}?m={{ e.act.message_id|urlencode }}{% endif %}">{% if e.side == "us" %}Reply{% else %}Nudge{% endif %}</a>
+    <form method="post" action="{% url 'crm:reply_dismiss' e.act.pk %}" class="inline-form" data-reply-dismiss>{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button class="btn-link reply-dismiss" title="Not needed: take it off my list" aria-label="Take {{ e.act.company.name }} off my list">×</button></form>
+  </span>
+</div>

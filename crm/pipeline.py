@@ -218,6 +218,110 @@ def awaiting_reply(user, days=21):
     return [r for r in out if not answered(r)][:50]
 
 
+# Follow-ups: every email thread where the ball sits still. "Us" = they wrote and nobody on the team answered;
+# "them" = we wrote and they haven't. The colour and the order follow how many days it has sat.
+US_STEPS = (1, 3, 7)      # days waiting on us that turn a row amber, orange, red
+THEM_STEPS = (3, 7, 14)   # days waiting on them (we give people longer to answer)
+THEM_QUIET = THEM_STEPS[0]
+LEVELS = ("new", "amber", "orange", "red")
+
+
+def _level(days, steps):
+    return sum(1 for s in steps if days >= s)
+
+
+def _entry(act, side, now):
+    days = max((now - act.occurred_at).days, 0)
+    level = _level(days, US_STEPS if side == "us" else THEM_STEPS)
+    return {"act": act, "side": side, "days": days, "level": level, "tone": LEVELS[level],
+            "score": level * 1000 + days * 10 + (5 if side == "us" else 0)}
+
+
+def thread_hex(thread_id):
+    """Gmail's own thread id (hex) from the decimal one the timeline stores; "" if it isn't a number."""
+    try:
+        return format(int(thread_id), "x")
+    except (TypeError, ValueError):
+        return ""
+
+
+def waiting_on_them(user, days=60):
+    """Emails the team sent that nobody has answered, quiet for THEM_QUIET days or more. One per thread, newest send.
+    Outreach campaign sends are left out (they have their own report); a dismissed one stays off until we send again."""
+    from . import prefs
+
+    now = timezone.now()
+    dismissed = set(prefs.get_prefs(user).get(REPLIES_DISMISSED, []))
+    mine = my_companies(user).values("pk")
+    sent = (Activity.objects.filter(kind=Activity.Kind.EMAIL_SENT, occurred_at__gte=now - timedelta(days=days),
+                                    company__isnull=False, campaign="").exclude(thread_id="")
+            .filter(Q(team_members=user) | Q(company__in=mine))
+            .select_related("company", "person").distinct().order_by("-occurred_at"))
+    latest = {}
+    for a in sent:
+        latest.setdefault(a.thread_id, a)
+    heard = (Activity.objects.filter(thread_id__in=list(latest), occurred_at__gte=now - timedelta(days=days),
+                                     kind__in=[*Activity.RESPONSE_KINDS, Activity.Kind.EMAIL_RECEIVED])
+             .values_list("thread_id", "occurred_at"))
+    last_heard = {}
+    for thread_id, when in heard:
+        last_heard[thread_id] = max(last_heard.get(thread_id, when), when)
+    out = []
+    for tid, a in latest.items():
+        if a.pk in dismissed or (tid in last_heard and last_heard[tid] > a.occurred_at):
+            continue
+        if (now - a.occurred_at).days >= THEM_QUIET:
+            out.append(_entry(a, "them", now))
+    return out
+
+
+def follow_ups(user):
+    """{"us": [...], "them": [...], "all": [...]} entries ({act, side, days, level, tone, score}), most urgent first:
+    the redder and older a thread, the higher it sits, and what waits on us comes before what waits on them."""
+    now = timezone.now()
+    us = [_entry(a, "us", now) for a in awaiting_reply(user, days=60)]
+    them = waiting_on_them(user)
+    everything = sorted(us + them, key=lambda e: -e["score"])
+    return {"us": sorted(us, key=lambda e: -e["score"]), "them": sorted(them, key=lambda e: -e["score"]),
+            "all": everything}
+
+
+def follow_up_title(entry, gist=""):
+    who = entry["act"].person.full_name if entry["act"].person_id else entry["act"].company.name
+    head = "Reply to" if entry["side"] == "us" else "Follow up with"
+    tail = f": {gist}" if gist else ""
+    return f"{head} {who}{tail}"[:300]
+
+
+def sync_follow_up_tasks(user, found=None):
+    """Make a task for every follow-up that has none, and tick off the tasks whose email has since been answered or
+    dismissed. Safe to run any number of times: a task is tied to its email, and one that was ticked or deleted by
+    hand is not made again. Returns the number made."""
+    from .models import Task
+    from .views import reply_gist
+
+    found = found or follow_ups(user)
+    open_ids = {e["act"].pk for e in found["all"]}
+    existing = set(Task.objects.filter(assignee=user, source_activity__in=open_ids).values_list("source_activity_id", flat=True))
+    # Anything ever made for these emails counts as made, so a task someone ticked is not brought back.
+    made = set(Task.objects.filter(source_activity__in=open_ids).values_list("source_activity_id", flat=True))
+    n = 0
+    for e in found["all"]:
+        a = e["act"]
+        if a.pk in made or a.pk in existing:
+            continue
+        due = timezone.localtime(a.occurred_at).date() + timedelta(days=1 if e["side"] == "us" else THEM_QUIET)
+        Task.objects.create(
+            title=follow_up_title(e, reply_gist(a.body, a.person, limit=70)), due_date=due,
+            assignee=user, company=a.company, person=a.person, opportunity=a.opportunity, source_activity=a,
+            notes="Made by Follow-ups. Ticks itself when the email is answered.", created_by=None)
+        n += 1
+    # Answered or dismissed: the task closes itself.
+    stale = Task.objects.filter(assignee=user, done=False, source_activity__isnull=False).exclude(source_activity__in=open_ids)
+    stale.update(done=True, done_at=timezone.now())
+    return n
+
+
 def my_day(user):
     today = timezone.localdate()
     tasks = Task.objects.filter(assignee=user, done=False, due_date__lte=today).select_related("company", "person", "opportunity")
@@ -231,8 +335,11 @@ def my_day(user):
                                         occurred_at__lte=timezone.now() + timedelta(days=7))
                 .filter(Q(team_members=user) | Q(company__in=mine)).select_related("company").distinct()
                 .order_by("occurred_at")[:10])
+    found = follow_ups(user)
+    sync_follow_up_tasks(user, found)
     return {
-        "replies": awaiting_reply(user),
+        "replies": [e["act"] for e in found["us"]][:50],
+        "waiting": found,
         "tasks": list(tasks),
         "deals": needs_step[:50],
         "meetings": list(meetings),
