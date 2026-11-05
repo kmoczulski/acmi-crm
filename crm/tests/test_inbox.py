@@ -154,6 +154,22 @@ class InboxTests(TestCase):
         self.get(q="from:pat has:attachment")  # Gmail operators are left as typed
         self.assertEqual([p for path, p in self.fake.calls if path == "/threads"][-1]["q"], "from:pat has:attachment")
 
+    def test_words_mixed_with_operators_still_find_the_company(self):
+        """One search box: "has:attachment firehawk" keeps the operator and widens the plain word (feedback 2026-11-02)."""
+        self.get(q='has:attachment newer_than:30d firehawk')
+        q = [p for path, p in self.fake.calls if path == "/threads"][-1]["q"]
+        self.assertTrue(q.startswith("has:attachment newer_than:30d ((firehawk) OR {"), q)
+        self.assertIn("from:firehawkaerospace.com", q)
+        self.get(q='"term sheet" firehawk')  # a quoted phrase stays and still applies
+        q = [p for path, p in self.fake.calls if path == "/threads"][-1]["q"]
+        self.assertTrue(q.startswith('"term sheet" ((firehawk) OR {'), q)
+        self.get(q="-spam firehawk")
+        self.assertTrue([p for path, p in self.fake.calls if path == "/threads"][-1]["q"].startswith("-spam ((firehawk) OR {"))
+        self.get(q="from:pat nothingknown")  # nothing the CRM knows: as typed
+        self.assertEqual([p for path, p in self.fake.calls if path == "/threads"][-1]["q"], "from:pat nothingknown")
+        self.get(q="{from:a from:b} firehawk")  # hand-built grouping: untouched
+        self.assertEqual([p for path, p in self.fake.calls if path == "/threads"][-1]["q"], "{from:a from:b} firehawk")
+
     def test_search_in_this_folder_only(self):
         self.get(q="term sheet", **{"in": "SENT"})
         listing = [p for path, p in self.fake.calls if path == "/threads"][-1]

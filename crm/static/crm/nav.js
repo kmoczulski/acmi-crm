@@ -241,3 +241,67 @@
     requestAnimationFrame(() => { pending = false; nameControls(document); });
   }).observe(document.body, {childList: true, subtree: true});
 })();
+
+// Files and pictures open over the page with a Close button (Chat files, mail attachments). target=_blank, or a plain
+// download link, on an iPhone's home-screen app opens the system preview, which has no way back (you had to swipe the
+// whole app away). The viewer stays inside the app: a picture, or a file card with Download, and a big Close.
+(function () {
+  if (window.hubViewer) return;
+  const el = (tag, attrs, ...kids) => {
+    const n = document.createElement(tag);
+    Object.entries(attrs || {}).forEach(([k, v]) => { if (v !== false && v != null) { if (k === 'class') n.className = v; else if (k === 'text') n.textContent = v; else n.setAttribute(k, v === true ? '' : v); } });
+    kids.forEach(k => { if (k != null) n.append(k); });
+    return n;
+  };
+  const IMAGE = /\.(png|jpe?g|gif|webp)$/i;
+  let view = null, back = null;
+  function close() {
+    if (!view) return;
+    view.remove(); view = null;
+    document.removeEventListener('keydown', onKey, true);
+    if (back && back.focus) back.focus();
+    back = null;
+  }
+  const onKey = e => { if (e.key === 'Escape') { e.preventDefault(); close(); } };
+  // {href, name, image (shows the picture at src), src, icon}
+  function open(o, opener) {
+    close();
+    back = opener || null;
+    const name = o.name || 'File';
+    const shut = el('button', {type: 'button', class: 'chat-viewer-close', 'aria-label': 'Close', text: '\u2715'});
+    shut.addEventListener('click', close);
+    let body;
+    if (o.image) {
+      body = el('div', {class: 'chat-viewer-body'}, el('img', {src: o.src || o.href, alt: name}));
+    } else {
+      body = el('div', {class: 'chat-viewer-body'}, el('div', {class: 'chat-viewer-card'},
+        el('div', {class: 'chat-viewer-ico', 'aria-hidden': 'true', text: o.icon || '\ud83d\udcc4'}),
+        el('div', {class: 'chat-viewer-name', text: name}),
+        el('div', {class: 'chat-viewer-acts'},
+          el('a', {class: 'btn btn-primary', href: o.href, download: name, text: 'Download'}),
+          el('a', {class: 'btn', href: o.href, target: '_blank', rel: 'noopener noreferrer', text: 'Open in the browser'}))));
+    }
+    view = el('div', {class: 'chat-viewer', role: 'dialog', 'aria-modal': 'true', 'aria-label': name},
+      el('div', {class: 'chat-viewer-bar'}, shut, el('span', {class: 'chat-viewer-title', text: name})), body);
+    view.addEventListener('click', e => { if (e.target === view || e.target === body) close(); });
+    document.body.append(view);
+    document.addEventListener('keydown', onKey, true);
+    shut.focus();
+  }
+  window.hubViewer = {open, close};
+  document.addEventListener('click', e => {
+    const a = e.target.closest && e.target.closest('a.chat-img, a.chat-file[href], a[data-viewer]');
+    if (!a || e.metaKey || e.ctrlKey || e.shiftKey || e.button) return;  // a new tab stays a new tab
+    e.preventDefault();
+    const href = a.getAttribute('href');
+    if (a.classList.contains('chat-img')) {
+      open({href, name: a.getAttribute('title'), image: true}, a);
+    } else if (a.dataset.viewer !== undefined) {  // a mail attachment: the picture itself comes from ?inline=1
+      const name = (a.dataset.name || a.textContent || 'Attachment').replace(/^\s*\ud83d\udcce\s*/, '').trim();
+      const image = IMAGE.test(name);
+      open({href, name, image, src: image ? href + (href.includes('?') ? '&' : '?') + 'inline=1' : '', icon: '\ud83d\udcce'}, a);
+    } else {
+      open({href, name: a.getAttribute('title') || (a.querySelector('.chat-file-name') || {}).textContent, icon: (a.querySelector('.chat-file-ico') || {}).textContent}, a);
+    }
+  });
+})();
