@@ -93,6 +93,24 @@ class CalendarSyncTests(TestCase):
         self.assertEqual(state.events_seen, 4)
         self.assertEqual(state.last_error, "")
 
+    def test_a_declined_invite_leaves_the_dashboard_calendar(self):
+        """The Dashboard "This week" shows meetings the person is on. Declining in Google takes it off."""
+        other = User.objects.create_user("simon", password="x", email="sshewmaker@acmigroup.com",
+                                         first_name="Simon", last_name="Shewmaker")
+        soon = timezone.now() + timedelta(days=1)
+        both = ["kmoczulski@acmigroup.com", "sshewmaker@acmigroup.com", "kherrle@ara.com"]
+        gcal.sync_user(self.user, session=FakeGoogle({"first": {"items": [event("d1", "ARA sync", soon, both)]}}))
+        meeting = Meeting.objects.get(external_id="calendar:d1")
+        self.assertEqual(set(meeting.team.all()), {self.user, other})
+        declined = {**event("d1", "ARA sync", soon, both)}
+        declined["attendees"] = [{**a, "responseStatus": "declined"} if a["email"].startswith("kmoczulski") else a
+                                 for a in declined["attendees"]]
+        gcal.sync_user(self.user, session=FakeGoogle({"first": {"items": [declined]}}))
+        self.assertEqual(set(meeting.team.all()), {other})
+        self.client.force_login(self.user)
+        mine = self.client.get(reverse("crm:home"))
+        self.assertNotContains(mine, "ARA sync")
+
     def test_valid_token_is_not_refreshed(self):
         self.token.expires_at = timezone.now() + timedelta(minutes=30)
         self.token.save()

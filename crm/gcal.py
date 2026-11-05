@@ -265,6 +265,8 @@ def to_meeting(event):
         "source": "calendar", "id": event["id"], "title": event.get("summary", "") or "(no title)",
         "start": start, "end": event.get("end", {}).get("dateTime"), "url": event.get("htmlLink", ""),
         "attendees": attendees,
+        "declined": [a["email"].lower() for a in event.get("attendees", [])
+                     if a.get("email") and a.get("responseStatus") == "declined"],
     }
 
 

@@ -256,6 +256,8 @@ def import_meetings(meetings):
                 keep=meeting.source != m.get("source", "calendar") or getattr(meeting, "_took_invite", False))
             meeting.save()
             meeting.team.add(*internal)
+            # Declined in Google: off their calendar (the team is only ever added to, so an earlier sync's row stays).
+            meeting.team.remove(*[team[e] for e in m.get("declined", []) if e in team and team[e] not in internal])
             meeting.companies.add(*by_company.keys())
             needs_filing.link(meeting, known)
             stats["need_filing"] += bool(meeting.unfiled)
