@@ -191,9 +191,11 @@ def awaiting_reply(user, days=21):
     replies = (Activity.objects.filter(kind=Activity.Kind.REPLY, occurred_at__gte=since, company__isnull=False)
                .exclude(outcome__in=NEGATIVE_REPLIES)
                .filter(Q(team_members=user) | Q(company__in=mine))
-               .select_related("company", "person").distinct().order_by("-occurred_at"))
+               .select_related("company", "person").prefetch_related("attachments").distinct().order_by("-occurred_at"))
     out, seen = [], set()
     for r in replies:
+        if is_calendar_invite(r):
+            continue  # "Accepted: ..." / "Declined: ..." to our invite is a calendar answer, nothing to reply to
         key = r.thread_id or f"c{r.company_id}"
         if key in seen:
             continue
@@ -254,8 +256,12 @@ INVITE_SUBJECT = re.compile(
 
 def is_calendar_invite(act):
     """A meeting invite (or its accept / decline / cancel) we sent: it asks for a calendar answer, not an email one, so it
-    never counts as something we are "waiting on them" for (Kellen, 2026-11-05). The subject is the part of the summary
-    after "Email to <who>:"; a calendar file (.ics) on the email counts too. Attachments should be prefetched."""
+    never counts as something we are "waiting on them" for (Kellen, 2026-11-05). Recognised by the mark the mail sync
+    puts on it (outcome "Calendar invite": the email carried a calendar part, which has no file name to find later), by
+    its subject (the part of the summary after "Email to <who>:"), or by a calendar file (.ics) on it. Attachments
+    should be prefetched."""
+    if act.outcome == "Calendar invite":
+        return True
     subject = (act.summary or "").split(": ", 1)[-1]
     if INVITE_SUBJECT.match(subject):
         return True

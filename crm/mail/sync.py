@@ -62,6 +62,10 @@ class EmailEvent:
     name: str
     sender: str = ""  # who sent it, for outbound mail (may be a teammate other than the mailbox owner)
     attachments: tuple = ()  # [(filename, approx bytes, mime type)]
+    invite: bool = False  # a meeting invite (a calendar part, or an "Invitation:" subject): logged as outcome "Calendar invite"
+
+
+CALENDAR_INVITE = "Calendar invite"  # Activity.outcome of a logged invite; Follow-ups never waits on one (crm/pipeline.py)
 
 
 def squash(text):
@@ -197,7 +201,7 @@ class Recorder:
                 "is_background": event.kind == Activity.Kind.AUTO_REPLY,
                 "summary": f"{verb} {who}: {event.subject or '(no subject)'}"[:500],
                 "body": event.body,
-                "outcome": event.outcome,
+                "outcome": event.outcome or (CALENDAR_INVITE if event.invite else ""),
                 "message_id": event.message_id,
                 "thread_id": event.thread_id,
             },
@@ -333,6 +337,7 @@ def process_messages(mailbox, emails, recorder=None):
                     body="" if env.kind == Activity.Kind.EMAIL_SENT else email.body,
                     kind=env.kind, outcome=env.outcome, address=address, name=env.name,
                     sender=email.from_addr, attachments=tuple(email.attachments),
+                    invite=bool(email.calendar) or invites.is_invitation(email.subject),
                 )
                 with transaction.atomic():
                     person, company = recorder.resolve(event, allow_new_company_people=not bulk)
