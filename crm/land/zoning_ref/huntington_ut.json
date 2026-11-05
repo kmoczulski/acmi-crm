@@ -1,0 +1,94 @@
+{
+  "jurisdiction": "Huntington City, UT",
+  "code_name": "Huntington City Zoning Code, Title 9 Zoning and Subdivision Regulations (Chapter 7 Zone Standards: 9-7-1 Residential Zones, 9-7-2 Commercial Zone C-1, 9-7-3 Industrial Zone I-1)",
+  "edition": "Zoneomics mirror of the Huntington City code (text shows Ord. 2-2026, 3/18/2026), retrieved 2026-11-04. The official eCode360 page (https://ecode360.com/47331949) returned HTTP 403 and was not read.",
+  "code_url": "https://www.zoneomics.com/code/huntington-UT/chapter_10 (Zoneomics mirror; official code on eCode360)",
+  "retrieved": "2026-11-04",
+  "caveats": [
+    "Text is from the Zoneomics mirror, not the official eCode360 code (blocked, 403); verify against eCode360 or the city before relying on it. Reports should tag these districts 'check source'.",
+    "The GIS layer carries the literal code 'Residential' (not R1-A / R2-A / R3-A shown in the legend of the Emery County Huntington zoning map). The code text has a single Residential Zones chapter (9-7-1) with one use table and per-dwelling-type standards, so one entry covers it.",
+    "Use tables have columns Permitted / Administrative Conditional Use (ACU, staff-level) / Conditional Use (CUP, Planning Commission) / Business License. Some rows are marked in more than one column (for example warehouse storage, self-storage, RV storage, industrial outdoor storage are marked both Permitted and ACU); the code text does not say here what distinguishes them (likely size or scale thresholds in Chapter 8 Conditional Uses, which was not read).",
+    "I-1 'Subdivisions, industrial' row has no mark in any column in the mirror text (possible extraction loss).",
+    "Chapter 8 (Conditional Uses), Chapter 2 definitions (e.g. 'manufacturing', 'industrial outdoor storage facility') and the supplementary standards were not read; the definition of manufacturing, and whether explosives manufacturing counts, is unknown.",
+    "Table 9-7-3.3 setback text is garbled in the mirror ('Side: 30' minimum 10' interior side; Rear: 10' interior side'); the figures below are quoted as printed and may not be exact."
+  ],
+  "districts": [
+    {
+      "code": "Residential",
+      "name": "Residential Zones (high density residential; single-, two-, three- and four-family)",
+      "category": "residential",
+      "purpose": "High density residential area with single, two- and multiple-family dwellings; primacy is given to residential use.",
+      "permitted_uses": [
+        "Single, two-, three- and four-family dwellings; manufactured home; accessory structure (unoccupied)",
+        "Agriculture; household pets",
+        "Church; school, private; school, quasi-public",
+        "Public outdoor recreation, parks, playgrounds; public services; public rights-of-way",
+        "Telecommunications facilities, minor; temporary storage facility for construction of a dwelling (1 year)"
+      ],
+      "conditional_uses": [
+        "Administrative conditional use: fence; hedges; wall; home occupation; intermittent commercial use",
+        "Conditional use: bed and breakfast; family daycare (type 1 and 2); farm animals/livestock; group homes (assisted living, disabled, elderly, youth); manufactured and mobile home park; nursing home; RV court; registered preschool and daycare; public schools; subdivisions; utility structure incidental to primary use"
+      ],
+      "standards": {
+        "min_lot_size": "Single-family 10,000 sq ft; two-family 14,000; three-family 18,000; four-family 20,000. Frontage 85' (120' for three- and four-family)",
+        "max_height": "25 ft (grade to the square of the building), or 2 stories above average grade",
+        "setbacks": "Front 25'; side 10' minimum, 20' total; rear 25'; accessory structure 25' front / 2' side / 2' rear; corner lot street side 20' minimum",
+        "lot_coverage": null,
+        "other": null
+      },
+      "section": "9-7-1.1 to 9-7-1.3",
+      "notes": "Residential: no industrial, commercial or solar uses; data centers, explosives manufacturing, outdoor storage and truck terminals are not listed (not addressed; 'if a use is not specifically designated then it is prohibited'). Agriculture is permitted by right (no acreage threshold stated); farm animals need a conditional use permit.",
+      "source": "https://www.zoneomics.com/code/huntington-UT/chapter_8 (Zoneomics mirror)"
+    },
+    {
+      "code": "C-1",
+      "name": "Commercial Zone",
+      "category": "commercial",
+      "purpose": "Retail, wholesale, commercial and service facilities for residents and the traveling public; a mixture of existing dwellings and commercial uses with requirements to limit detrimental effects on surrounding dwellings.",
+      "permitted_uses": [
+        "Accessory structure (unoccupied); outdoor recreation, parks, playgrounds; public rights-of-way; public services",
+        "Signs, nameplates; subdivisions; temporary storage container for construction of commercial property (1 year)",
+        "RV storage facility; self-storage facility; warehouse storage facility (these three also marked administrative conditional use)"
+      ],
+      "conditional_uses": [
+        "Administrative conditional use: general merchandise sales and service; auto service and self-serve stations; auto, truck, RV sales and rental; auto repair and body/paint; agricultural and commercial equipment sales and service; bank; bar; car wash; church; hotel/motel; restaurant; office building; professional service; theater; drive-through facility; fun/recreation center; funeral home and reception center; nursing home; schools; residential dwelling in a commercial building; intermittent commercial use; warehouse; others per use table",
+        "Conditional use: telecommunications facilities, minor"
+      ],
+      "standards": {
+        "min_lot_size": "0' minimum area; frontage 40'",
+        "max_height": "Office and commercial areas 25 ft or 2 stories; warehouse/factory areas 35 ft or 3 stories (whichever is less)",
+        "setbacks": "Front 0' on Main Street, 20' off Main Street; side 0'; rear 0'; accessory structure 4' from lot line (exceptions for no side setback)",
+        "lot_coverage": null,
+        "other": "Manufacturing is not listed in the C-1 table (not allowed). Driveway width rules in the exceptions."
+      },
+      "section": "9-7-2.1 to 9-7-2.3",
+      "notes": "Not addressed in C-1: manufacturing, hazardous/explosive uses, solar, data centers, truck terminals, outdoor storage yards (only self-storage, RV storage and warehouse storage facilities listed).",
+      "source": "https://www.zoneomics.com/code/huntington-UT/chapter_9 (Zoneomics mirror)"
+    },
+    {
+      "code": "I-1",
+      "name": "Industrial Zone",
+      "category": "industrial",
+      "purpose": "Heavy industrial processes necessary to the economy, including manufacturing, processing, warehousing and fabrication, located with minimum conflict or deleterious effect on surrounding properties.",
+      "permitted_uses": [
+        "Agriculture; household pets",
+        "Church; outdoor recreation, parks, playgrounds; public rights-of-way; public services; signs, nameplates; utility structure incidental to primary use",
+        "Industrial outdoor storage facility (also marked ACU); RV storage facility (also ACU); self-storage facility (also ACU); warehouse storage facility (also ACU)"
+      ],
+      "conditional_uses": [
+        "Administrative conditional use: MANUFACTURING (with business license); asphalt plant; concrete mixing plant; coal yard; oil and gas facilities and wells; animal processing plant under 100 head; auto wrecking, salvage and impound lots (fully enclosed); automotive repair and body/paint; auto service station; agricultural and commercial equipment sales and service; car wash; warehouse storage units (commercial only); adult sexually oriented business; accessory structure; temporary storage container; home occupation; many commercial uses (restaurant, bar, hotel, motel, office, theater, etc.)",
+        "Conditional use (CUP): auto, truck and RV sales and rental; stable, private; telecommunications facilities, minor; wall"
+      ],
+      "standards": {
+        "min_lot_size": "7,000 sq ft; frontage 80'",
+        "max_height": "Office and commercial areas 25 ft or 2 stories; warehouse/factory areas 35 ft or 3 stories (whichever is less)",
+        "setbacks": "Front 30' (40' with parking in front); side 30' minimum / 10' interior side; rear 10' (as printed, garbled in mirror); accessory structure 4' from lot line; front 0' for buildings facing Main Street",
+        "lot_coverage": null,
+        "other": "9-7-3.3: K pollution prevention (uses emitting gases, fumes, dust, glare, noise or other pollutants above state Division of Air Quality / Department of Health standards, or releasing pollutants into soil or water above state Division of Water Quality standards, are prohibited); L enclosed storage (all merchandise, materials and equipment other than running vehicles and seasonal items must be inside a building or inside an enclosure with a sight-obscuring metal fence or masonry wall at least 6 ft high); M residential structures with combustible walls at least 16 ft from property line; N site plan required, reviewed by planning commission. 9-7-3.4 performance standards confine noise, odor, dust, smoke, vibration and light to the premises. 9-7-3.7 landscaping of front and side yards on public streets (10% minimum)."
+      },
+      "section": "9-7-3.1 to 9-7-3.9",
+      "notes": "ACMI-relevant: (1) Explosives / hazardous manufacturing: no specific rule; 'manufacturing' is an administrative conditional use (staff-level, not Planning Commission) and is not defined in the text read; the pollution-prevention standard 9-7-3.3 K is the only limit. Asphalt, concrete, coal yards and oil and gas facilities are also ACU. (2) Outdoor storage: 'industrial outdoor storage facility' is listed (permitted and ACU) and 9-7-3.3 L requires sight-obscuring 6 ft fencing. (3) Solar: not addressed. (4) Data centers: not addressed. (5) Truck terminals: not listed; nearest are auto/truck sales (CUP), warehouse storage facility. Mirror text; confirm on eCode360.",
+      "source": "https://www.zoneomics.com/code/huntington-UT/chapter_10 (Zoneomics mirror)"
+    }
+  ]
+}

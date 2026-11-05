@@ -1,0 +1,363 @@
+{
+  "jurisdiction": "City of Green River, Emery County, UT",
+  "code_name": "Green River City Code, Title 10 Zoning (Ch. 4 Establishment of Zones; Ch. 5 Agricultural; Ch. 6 Residential; Ch. 7 Commercial; Ch. 8 Industrial; Ch. 9 Open Space; Ch. 11-13 General, Supplementary, Conditional Uses; Ch. 17 Overlay Zones; Ch. 19 Redevelopment Overlay Zone)",
+  "edition": "Zoneomics mirror of the Green River, UT zoning code (zoneomics.com/code/green-river-UT/chapter_N), read 2026-11-04; amendments seen include Ord. 2007-03, 2011-02, 2021-02, 2023-01 and 2025-01 (Ch. 18). NOT the official American Legal text.",
+  "code_url": "https://www.zoneomics.com/code/green-river-UT/chapter_8 (Zoneomics mirror; official code at https://codelibrary.amlegal.com/codes/greenriverut/latest/overview)",
+  "retrieved": "2026-11-04",
+  "caveats": [
+    "Official American Legal code library returned HTTP 403 to automated fetch; every district below comes from the Zoneomics mirror only, so all districts should be treated as 'check source'. The mirror pages were read through a summarizing fetch, not as raw text, so wording is paraphrased and small details (footnotes, table cells) may have been lost. Confirm with Green River City Hall / planning before relying on it.",
+    "The code names the open space district OS-1 (Ch. 9). Our zoning layer labels it O-1; the O-1 entry below is the OS-1 text and the mapping O-1 = OS-1 is an assumption (the code lists no district called O-1).",
+    "The code names the overlay 'Sp-1 Special Overlay' (10-4-1). RDA corresponds to the 'Redevelopment Overlay Zone' (Ch. 19). Neither is a use zone. The RDA label is matched by name only; the code text never lists the redevelopment areas or their boundaries.",
+    "Title 10 appears to have no district-specific definitions for data center, solar farm, explosives, hazardous manufacturing, outdoor storage, truck terminal or heavy industry (Ch. 2 definitions only returned extractive industry, mineral processing and sight obscuring in the search; the full Chapter 2 was not read line by line). Treat them as 'not addressed' unless a use appears in the matrices below.",
+    "Under 10-11-5 any use not expressly permitted in a zone is prohibited, unless the board finds it similar to a permitted use. The industrial matrix (10-8-2) lists only 18 uses, so data centers, explosives/energetics, battery/chemical plants and utility-scale solar are not listed and would need a similarity finding or a rezone / code amendment.",
+    "Industrial districts state no minimum lot area, no minimum width, no height limit and no lot coverage limit (10-8-3, -4, -6). Only a 25 ft setback from the easement line (10-8-5) is stated; the mirror says the setback may be increased by use with Uniform Fire Code distances recommended. Chapter 12 (10-12-6) lets buildings exceed zone height limits if fire service can reach them and they are set back 1 ft per extra foot of height.",
+    "Lot coverage is not addressed in any district chapter read (A-1, R-1 to R-3, C-1, C-2, I-1 to I-3, OS-1).",
+    "C-1/C-2 lot area is shown as 'see below' with no values in the mirror; C-1/C-2 rear setback is 'A' (administrative); heights are 8 ft minimum and 35 ft maximum with fire marshal increases.",
+    "Green River city limits and the SP-1 area are described as being mainly west of the irrigation canal (expansive Mancos shale soils). Which base districts SP-1 parcels carry is not stated in the code; check the zone map held by the City Recorder (10-4-2).",
+    "Ch. 10 (Developments), Ch. 14 (Signs), Ch. 15-16 (Administration, Violations), the full Ch. 2 definitions and the title page were not read. G-1 Grazing exists in the code but is not requested and is not documented here."
+  ],
+  "districts": [
+    {
+      "code": "I-2",
+      "name": "Medium Industrial",
+      "category": "industrial",
+      "purpose": "Medium industry that buffers heavy industry from other zones; uses may be somewhat noisier or smellier than I-1 and produce fewer contaminants than heavy industry.",
+      "permitted_uses": [
+        "Asphalt mixing plants",
+        "Automobile salvage and wrecking yards (screened)",
+        "Coal yards",
+        "Grazing livestock and related agricultural buildings",
+        "Impound lots (screened)",
+        "Incidental retailing tied to permitted industrial uses",
+        "Public buildings and utility facilities",
+        "Repair and craft shops",
+        "Towers and high-voltage power lines",
+        "Trucking dispatch, loading and docking depots",
+        "Warehouse and storage facilities"
+      ],
+      "conditional_uses": [
+        "Commercial power generation plants",
+        "Food processing plant",
+        "Extractive industry",
+        "Mineral processing",
+        "Slaughterhouse / meat processing plant",
+        "Petroleum refining and related facilities are governed by conditional-use criteria in 10-13-5(L); the mirror does not show which district matrix lists them"
+      ],
+      "standards": {
+        "min_lot_size": "None stated (enough area for setbacks, parking, loading and access)",
+        "max_height": "None stated (10-8-6)",
+        "setbacks": "Buildings at least 25 ft from the easement line; may be increased by use, Uniform Fire Code distances recommended",
+        "lot_coverage": "Not addressed",
+        "other": "No minimum width. Cargo containers allowed as accessory storage, stacking limit waived (10-18-4). Pollution limits in 10-12-16. Loading spaces and 1 parking space per 2,000 sq ft for manufacturing / warehouse (10-12-13)."
+      },
+      "section": "10-8-1 to 10-8-7",
+      "notes": "Explosives / energetics / hazardous manufacturing: not addressed (not a listed use; not permitted unless the board finds it similar to a listed use under 10-11-5). Data center: not addressed. Solar farm: not addressed as a use; 'commercial power generation plants' is conditional and 10-13-5(J) sets conditions for small wind/solar (small-scale, 20 kW). Outdoor storage: salvage and impound yards (screened), coal yards and warehouse / storage facilities are permitted; screening required for yards, otherwise no general outdoor-storage rule found. Truck terminal: trucking dispatch / loading / docking depots are permitted (a separate 'truck terminal' use is prohibited in C-1/C-2 only). Strongest industrial fit of the three for heavy or messy uses without a conditional permit, but still not a fit for energetics by right.",
+      "source": "https://www.zoneomics.com/code/green-river-UT/chapter_8"
+    },
+    {
+      "code": "I-1",
+      "name": "Light Industrial",
+      "category": "industrial",
+      "purpose": "Light manufacturing, processing, warehousing and fabrication with minimal impact on neighbors; a buffer between medium/heavy industry and other zones. Quiet, low-odor, low-traffic uses with little airborne contamination.",
+      "permitted_uses": [
+        "Grazing livestock and related agricultural buildings",
+        "Impound lots (screened)",
+        "Public buildings and utility facilities",
+        "Repair and craft shops",
+        "Trucking dispatch, loading and docking depots",
+        "Warehouse and storage facilities"
+      ],
+      "conditional_uses": [
+        "Asphalt mixing plants",
+        "Food processing plant",
+        "Incidental retailing tied to permitted industrial uses",
+        "Extractive industry",
+        "Mineral processing",
+        "Towers and high-voltage power lines"
+      ],
+      "standards": {
+        "min_lot_size": "None stated",
+        "max_height": "None stated (10-8-6)",
+        "setbacks": "Buildings at least 25 ft from the easement line; may be increased by use",
+        "lot_coverage": "Not addressed",
+        "other": "No minimum width. Cargo containers allowed as accessory storage (10-18-4)."
+      },
+      "section": "10-8-1 to 10-8-7",
+      "notes": "Not allowed in I-1: automobile salvage / wrecking yards, coal yards, commercial power generation plants, slaughterhouses, sexually oriented businesses, landfills. Explosives / hazardous manufacturing, data center, solar farm: not addressed (commercial power generation is N here). Outdoor storage limited to screened impound lots and warehouse / storage. Trucking depots permitted.",
+      "source": "https://www.zoneomics.com/code/green-river-UT/chapter_8"
+    },
+    {
+      "code": "I-3",
+      "name": "Heavy Industrial",
+      "category": "industrial",
+      "purpose": "Heavy industry that is noisier, generates more traffic and produces more contaminants; primary purpose is manufacturing, processing, warehousing and fabrication of goods and materials.",
+      "permitted_uses": [
+        "Asphalt mixing plants",
+        "Automobile salvage and wrecking yards (screened)",
+        "Coal yards",
+        "Food processing plant",
+        "Grazing livestock and related agricultural buildings",
+        "Impound lots (screened)",
+        "Incidental retailing tied to permitted industrial uses",
+        "Extractive industry",
+        "Mineral processing",
+        "Public buildings and utility facilities",
+        "Repair and craft shops",
+        "Slaughterhouse / meat processing plant",
+        "Towers and high-voltage power lines",
+        "Trucking dispatch, loading and docking depots",
+        "Warehouse and storage facilities"
+      ],
+      "conditional_uses": [
+        "Commercial power generation plants",
+        "Sexually oriented businesses",
+        "State-permitted waste dumps and landfills"
+      ],
+      "standards": {
+        "min_lot_size": "None stated",
+        "max_height": "None stated (10-8-6)",
+        "setbacks": "Buildings at least 25 ft from the easement line; may be increased by use, Uniform Fire Code distances recommended",
+        "lot_coverage": "Not addressed",
+        "other": "No minimum width. Cargo containers allowed as accessory storage (10-18-4; the mirror lists the heavy zone as '3'). Petroleum refining criteria in 10-13-5(L) include 1,000 ft separation of residential development from industrial uses."
+      },
+      "section": "10-8-1 to 10-8-7",
+      "notes": "Broadest permitted list (extractive industry and mineral processing by right). Explosives / energetics / hazardous manufacturing: not addressed as a listed use; would need a similarity finding under 10-11-5 or an amendment. Data center: not addressed. Solar farm: not addressed as such; commercial power generation plants are conditional. Outdoor storage: salvage, impound and coal yards allowed (screened where noted). Truck terminal: trucking depots permitted. Best code fit in the city for heavy uses, with no height or coverage limits.",
+      "source": "https://www.zoneomics.com/code/green-river-UT/chapter_8"
+    },
+    {
+      "code": "O-1",
+      "name": "Open Space (code name OS-1)",
+      "category": "open-space",
+      "purpose": "Areas where development should be limited or excluded for health, safety and welfare, typically riverbeds, floodplains and undeveloped land without extended public utilities; should not be urbanized unless first amended to another zone.",
+      "permitted_uses": [
+        "Agriculture (row crops, grains, fruit, incidental buildings)",
+        "Non-supplemental livestock grazing on BLM open range allotments",
+        "Public facilities: parks, campgrounds, recreation developments with no dwellings, golf courses, utility substations, water storage, sewage treatment"
+      ],
+      "conditional_uses": [
+        "Limited raising and keeping of animals or fowl in barns, pens, coops",
+        "Private recreational facilities with no dwelling units"
+      ],
+      "standards": {
+        "min_lot_size": null,
+        "max_height": null,
+        "setbacks": null,
+        "lot_coverage": null,
+        "other": "Area, width, height, location, building size and special provisions are set by the planning commission when conditional use approval is granted."
+      },
+      "section": "10-9A-1 to 10-9A-4",
+      "notes": "No industrial, warehouse, solar, data center or storage uses listed; all not addressed, so prohibited under 10-11-5. The code has no district named O-1; mapped to OS-1 as an assumption. Floodplain / riverbed intent makes it a poor site for any campus.",
+      "source": "https://www.zoneomics.com/code/green-river-UT/chapter_9"
+    },
+    {
+      "code": "SP-1",
+      "name": "Special Overlay Zone (expansive soils)",
+      "category": "other",
+      "purpose": "Overlay covering Green River areas with expansive soils (Mancos shale, fine-grained clay), mainly west of the irrigation canal, where swelling and shrinking soil can crack foundations. The code gives guidelines, not a use list.",
+      "permitted_uses": [],
+      "conditional_uses": [],
+      "standards": {
+        "min_lot_size": null,
+        "max_height": null,
+        "setbacks": null,
+        "lot_coverage": null,
+        "other": "Suggested guidelines (10-17A-1): a soils report from a Utah-licensed civil or soils engineer (test holes, moisture, bearing pressure, expansion potential); the zoning administrator or building inspector may require added tests or foundation design; direct rain and irrigation water away from foundations. Floating adjustable piers suggested."
+      },
+      "section": "10-17A-1; listed in 10-4-1",
+      "notes": "SP-1 is an overlay, not a use zone: it creates no permitted or conditional uses and sets no mandatory standards in the text read. The base districts it sits on are not stated (null); use the zone map (10-4-2) or the parcel's own base zoning. For scoring: treat as a geotechnical flag (foundation cost / soils report), not as a use signal. A parcel labeled only SP-1 has no known permitted-use list in the code.",
+      "source": "https://www.zoneomics.com/code/green-river-UT/chapter_17"
+    },
+    {
+      "code": "A-1",
+      "name": "Agricultural",
+      "category": "rural",
+      "purpose": "Crop cultivation, livestock raising and related uses; agriculture takes priority; large lots and tracts mixed with dwellings.",
+      "permitted_uses": [
+        "Agriculture (row and forage crops, grains, fruit, incidental farm buildings)",
+        "Raising animals and fowl (no porcine or ratites); barns, corrals, pens, farm storage at least 50 ft from dwellings",
+        "State-approved daycare nurseries; fairgrounds, equestrian centers, golf courses",
+        "Single-family dwellings, individual manufactured homes",
+        "Kennels, veterinary clinics, animal hospitals; plant nurseries; beehives",
+        "Public utility buildings and facilities, airports",
+        "Rest homes, schools, churches",
+        "Temporary construction storage yards (up to 1 year, two 90-day renewals)",
+        "Retail sale of products the owner raises"
+      ],
+      "conditional_uses": [
+        "Feedlots, fur farms, hatcheries",
+        "Home businesses or professional occupations",
+        "Industry (planning commission recommendation and city council approval; permit not transferable between sites)",
+        "Porcine and ratite raising",
+        "Residential subdivisions",
+        "Water reservoirs, water facilities, oil and gas wells"
+      ],
+      "standards": {
+        "min_lot_size": "16,000 sq ft per dwelling (7,500 sq ft if on public sewer); 29,000 sq ft with animals; 1 acre for rest homes, schools, churches; no other area requirement",
+        "max_height": "2 stories or 25 ft",
+        "setbacks": "Front 25 ft from easement line; side 6 ft (16 ft combined) for dwellings; corner street side 25 ft; rear 30 ft for main buildings, 6 ft accessory; 10 ft between main and accessory buildings",
+        "lot_coverage": "Not addressed",
+        "other": "Lot width 70 ft (80 ft corner) for dwellings, none for other uses. Cargo containers allowed as accessory storage with no stacking limit (10-18-4)."
+      },
+      "section": "10-5A-1 to 10-5A-11",
+      "notes": "'Industry' is a conditional use with no definition or use list in the mirror, so heavy or hazardous industry, data centers and solar could only be sought by conditional use permit; each is otherwise not addressed. The code does not define what 'industry' includes. Outdoor storage: only temporary construction storage yards by right. Utility-scale solar: not addressed. Sibling district G-1 Grazing (5 acre minimum; quarries, gravel pits, cement mixing by right) is not documented here.",
+      "source": "https://www.zoneomics.com/code/green-river-UT/chapter_5"
+    },
+    {
+      "code": "RDA",
+      "name": "Redevelopment Overlay Zone",
+      "category": "other",
+      "purpose": "Flexible land use in city-established redevelopment areas where existing patterns and uses do not meet community standards (existing facilities, undersized lots, blighted areas); a conditional use permit may reduce parking or modify requirements for uses that benefit the area.",
+      "permitted_uses": [],
+      "conditional_uses": [
+        "Every use in the overlay is a conditional use requiring a conditional use permit; existing uses may continue or change, buildings may be altered, and uses may be limited in scope or duration"
+      ],
+      "standards": {
+        "min_lot_size": "Same as the underlying zone unless modified by conditional use permit after a public hearing",
+        "max_height": "Same as the underlying zone unless modified",
+        "setbacks": "Same as the underlying zone unless modified",
+        "lot_coverage": "Same as the underlying zone unless modified",
+        "other": "The municipal redevelopment agency must get timely notice of each application."
+      },
+      "section": "10-19-1 to 10-19-5",
+      "notes": "Overlay, not a use zone: no uses by right ('None', 10-19-2). The base districts and the mapped redevelopment areas are not stated in the text (null). For scoring: treat as an entitlement-risk flag (every use needs a conditional use permit and public hearing) and read the underlying base zone from the zone map; do not assume any use is allowed. Labeling RDA = 'Redevelopment Overlay Zone' is by name only.",
+      "source": "https://www.zoneomics.com/code/green-river-UT/chapter_19"
+    },
+    {
+      "code": "R-1",
+      "name": "Low Density Residential",
+      "category": "residential",
+      "purpose": "Primarily one- and two-family housing with parks, schools, churches and community facilities; spacious lots and quiet conditions. Newly annexed land is classified R-1 until rezoned (10-11-7).",
+      "permitted_uses": [
+        "Single-family dwellings, individual modular homes, accessory buildings and private garages",
+        "Agriculture; private greenhouses and gardens; swimming pools",
+        "Public parks, schools, churches",
+        "Temporary construction storage (up to 1 year, two 90-day renewals)"
+      ],
+      "conditional_uses": [
+        "Boarding houses, bed-and-breakfasts",
+        "Home businesses or professional occupations",
+        "Public utility buildings and facilities",
+        "Residential subdivisions",
+        "Rest homes and daycare nurseries designed as homes",
+        "Two-family dwellings (duplexes) designed to look like single-family homes"
+      ],
+      "standards": {
+        "min_lot_size": "7,500 sq ft per dwelling lot",
+        "max_height": "2 stories or 25 ft",
+        "setbacks": "Front 25 ft from easement line (may match neighbors); side 8 ft; corner street side 25 ft; rear 15 ft main building, 6 ft accessory",
+        "lot_coverage": "Not addressed",
+        "other": "Lot width 70 ft (80 ft corner); minimum ground floor 700 sq ft."
+      },
+      "section": "10-6A-1 to 10-6A-10",
+      "notes": "No industrial, storage, solar or data center uses; all not addressed. Parcels in our data labeled R-1 may be newly annexed, un-rezoned land (10-11-7), so the label may not reflect intended use.",
+      "source": "https://www.zoneomics.com/code/green-river-UT/chapter_6"
+    },
+    {
+      "code": "C-1",
+      "name": "Commercial (C-1)",
+      "category": "commercial",
+      "purpose": "Retail, commercial and service facilities for residents and the traveling public; predominantly commercial with limited dwellings.",
+      "permitted_uses": [
+        "Retail, restaurants, bars, banks, offices, hotels and motels, gas stations, automobile sales, car washes, medical and assembly uses",
+        "Bus terminal, taxi",
+        "Candy manufacture (non-industrial, in-shop retail); indoor sign manufacture"
+      ],
+      "conditional_uses": [
+        "Auto repair, towing and impound yards, wholesale business, cabinet shop, welding shop, ministorage, tire sales",
+        "Electrical substation or power station",
+        "Single-family homes, mixed-use residential, caretaker quarters"
+      ],
+      "standards": {
+        "min_lot_size": null,
+        "max_height": "35 ft (8 ft minimum); may be increased with Fire Marshal approval",
+        "setbacks": "Front 0, side 0, corner street side 0 (subject to Unified Fire Code and Fire Marshal approval); rear administrative",
+        "lot_coverage": "Not addressed",
+        "other": "Merchandise and equipment must be stored inside a building or enclosure; enclosures within 75 ft of a residence must be sight-obscuring (10-7A-4)."
+      },
+      "section": "10-7A-1 to 10-7A-6",
+      "notes": "Truck terminal, junkyards, materials recycling, wind turbines: not allowed. Data center, solar, explosives manufacturing: not addressed.",
+      "source": "https://www.zoneomics.com/code/green-river-UT/chapter_7"
+    },
+    {
+      "code": "C-2",
+      "name": "Commercial (C-2, interstate)",
+      "category": "commercial",
+      "purpose": "Agriculture, commercial storage, industrial warehouses and advertising sign display next to the interstate freeway, but not at on- or off-ramps; allows storage and warehouses in a non-residential area.",
+      "permitted_uses": [
+        "Everything permitted in C-1, plus agriculture accessory buildings, beehives, equestrian centers, fairgrounds, golf courses",
+        "Auto repair and storage (enclosed), towing and impound yards (fenced), tire sales, parts sales",
+        "Wholesale business, building materials and lumberyard, cabinet, welding, farm implement, trailer sales, monument works",
+        "Moving and storage company, ministorage and self-storage, RV storage, RV parks",
+        "Stadium, arena, water park, boarding of small animals"
+      ],
+      "conditional_uses": [
+        "Ball fields, boarding of large animals, kennels",
+        "Sign manufacture or painting (outdoor), auction and swap meets, landscape rock sales yard",
+        "Independent crematorium, used auto parts",
+        "Electrical substation or power station",
+        "Single-family homes, mixed-use residential"
+      ],
+      "standards": {
+        "min_lot_size": null,
+        "max_height": "35 ft (8 ft minimum); may be increased with Fire Marshal approval",
+        "setbacks": "Front 0, side 0, corner street side 0 (Unified Fire Code, Fire Marshal approval); rear administrative",
+        "lot_coverage": "Not addressed",
+        "other": "Outdoor merchandise and equipment storage must be enclosed; hard-surfaced parking; landscape standards in 10-7A-6."
+      },
+      "section": "10-7A-1 to 10-7A-6",
+      "notes": "Truck terminal, junkyards, materials recycling, wind turbines: not allowed. Data center, solar, explosives manufacturing: not addressed. Warehousing and storage are the stated district purpose.",
+      "source": "https://www.zoneomics.com/code/green-river-UT/chapter_7"
+    },
+    {
+      "code": "R-2",
+      "name": "Residential (manufactured / modular homes)",
+      "category": "residential",
+      "purpose": "Residential environment typified by modular and manufactured homes (HUD code units built on or after June 15, 1976) that blends with surrounding neighborhoods.",
+      "permitted_uses": [
+        "Single-family dwellings, individual manufactured homes, accessory buildings",
+        "Agriculture, parks, schools, churches, temporary construction storage"
+      ],
+      "conditional_uses": [
+        "Multiple-family dwellings, duplexes, mobile home parks",
+        "Home businesses, residential subdivisions"
+      ],
+      "standards": {
+        "min_lot_size": "5,000 sq ft per family dwelling",
+        "max_height": "2 stories or 25 ft",
+        "setbacks": "Front 20 ft; side 8 ft; corner street side 25 ft; rear 15 ft main, 6 ft accessory",
+        "lot_coverage": "Not addressed",
+        "other": "Lot width 50 ft (60 ft corner)."
+      },
+      "section": "10-6B-1 to 10-6B-11",
+      "notes": "No industrial, solar or data center use; not addressed.",
+      "source": "https://www.zoneomics.com/code/green-river-UT/chapter_6"
+    },
+    {
+      "code": "R-3",
+      "name": "Residential (high density)",
+      "category": "residential",
+      "purpose": "Variety of dwelling types at higher density and traffic; multiple-family dwellings have priority.",
+      "permitted_uses": [
+        "Apartments, condominiums, single-family, townhomes, two-family dwellings",
+        "Childcare nurseries, foster group homes, nursing and rest homes, orphanages",
+        "Manufactured homes, churches, schools, public parks, accessory structures, agriculture"
+      ],
+      "conditional_uses": [
+        "Clubs, lodges, nonprofit recreation buildings",
+        "Home occupations, residential subdivisions",
+        "Privately owned amusement or recreation parks",
+        "Retail businesses incidental to multiple-family buildings"
+      ],
+      "standards": {
+        "min_lot_size": "5,000 sq ft plus 600 sq ft per additional dwelling unit",
+        "max_height": "2 stories or 25 ft",
+        "setbacks": "Front 20 ft; side 8 ft; corner street side 25 ft; rear 15 ft main, 6 ft accessory",
+        "lot_coverage": "Not addressed",
+        "other": "Lot width 50 ft (80 ft corner)."
+      },
+      "section": "10-6C-1 to 10-6C-10",
+      "notes": "No industrial, solar or data center use; not addressed.",
+      "source": "https://www.zoneomics.com/code/green-river-UT/chapter_6"
+    }
+  ]
+}

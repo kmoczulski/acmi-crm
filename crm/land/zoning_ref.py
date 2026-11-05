@@ -22,6 +22,19 @@ AUTHORITY_FILES = {
     "City of Eloy": "eloy",
     "Pinal County (city names = zoned by that city)": "pinal_county",
     "City of Huntsville": "huntsville_al",
+    "Miami-Dade County (unincorporated land only)": "miami_dade_county",
+    "City of Homestead": "homestead_fl",
+    "City of Florida City": "florida_city_fl",
+    "Town of Cleveland, UT": "cleveland_ut",
+    "City and County of Honolulu (Land Use Ordinance)": "honolulu_hi",
+    "Green River, UT": "green_river_ut",
+    "Castle Dale, UT": "castle_dale_ut",
+    "Huntington, UT": "huntington_ut",
+    "Emery, UT": "emery_town_ut",
+    "Clawson, UT": "clawson_ut",
+    "Orangeville, UT": "orangeville_ut",
+    "Ferron, UT": "ferron_ut",
+    "Elmo, UT": "elmo_ut",
 }
 COUNTY_FILES = {"24017": "charles_county_md"}  # counties whose zoning layer carries no authority text
 
@@ -30,6 +43,7 @@ NO_LAYER = {
     "TX": "Texas counties have no zoning authority; a city zones only land inside its limits, and no city zoning layer is loaded here.",
     "NC": "No zoning layer is loaded for this North Carolina county, so the district is not shown. Ask the county or city planning office.",
     "IN": "No zoning layer is loaded for this Indiana county, so the district is not shown. Ask the county or city planning office.",
+    "UT": "Utah publishes zoning only for incorporated towns; unincorporated Emery County land has no public zoning layer, so the district is not shown. Ask the county planning office.",
 }
 
 
