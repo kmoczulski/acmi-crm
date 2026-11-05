@@ -187,6 +187,63 @@ class PipelineLogicTests(TestCase):
         self.assertNotIn(reply.pk, prefs.get_prefs(other).get(pipeline.REPLIES_DISMISSED, []))
 
 
+    def _mail(self, kind, hours_ago, thread, sid, **kw):
+        return Activity.objects.create(kind=kind, occurred_at=timezone.now() - timedelta(hours=hours_ago),
+                                       company=self.company, summary="s", thread_id=thread, source=Activity.Source.GMAIL,
+                                       source_id=sid, **kw)
+
+    def test_follow_ups_get_redder_with_days_and_cover_both_sides(self):
+        self.company.owner = self.user
+        self.company.save()
+        fresh = self._mail(Activity.Kind.REPLY, 2, "f1", "f1", outcome="Responded")
+        old = self._mail(Activity.Kind.REPLY, 24 * 8, "f2", "f2", outcome="Responded")
+        quiet = self._mail(Activity.Kind.EMAIL_SENT, 24 * 5, "f3", "f3")
+        recent_send = self._mail(Activity.Kind.EMAIL_SENT, 24, "f4", "f4")  # under 3 days: not a nudge yet
+        answered = self._mail(Activity.Kind.EMAIL_SENT, 24 * 6, "f5", "f5")
+        self._mail(Activity.Kind.REPLY, 24 * 5, "f5", "f5r", outcome="Responded")
+        found = pipeline.follow_ups(self.user)
+        by_pk = {e["act"].pk: e for e in found["all"]}
+        self.assertEqual(by_pk[fresh.pk]["tone"], "new")
+        self.assertEqual(by_pk[old.pk]["tone"], "red")
+        self.assertEqual(by_pk[quiet.pk]["side"], "them")
+        self.assertEqual(by_pk[quiet.pk]["tone"], "amber")
+        self.assertNotIn(recent_send.pk, by_pk)
+        self.assertNotIn(answered.pk, by_pk)
+        self.assertEqual(found["all"][0]["act"].pk, old.pk)  # the oldest, reddest one is first
+
+    def test_follow_ups_become_tasks_once_and_close_when_answered(self):
+        self.company.owner = self.user
+        self.company.save()
+        reply = self._mail(Activity.Kind.REPLY, 24 * 4, "g1", "g1", outcome="Responded", body="Send me the draft")
+        self.assertEqual(pipeline.sync_follow_up_tasks(self.user), 1)
+        self.assertEqual(pipeline.sync_follow_up_tasks(self.user), 0)  # not made twice
+        from crm.models import Task
+        task = Task.objects.get(source_activity=reply)
+        self.assertTrue(task.title.startswith("Reply to"))
+        self.assertEqual(task.assignee, self.user)
+        self.assertTrue(task.is_overdue)
+        self._mail(Activity.Kind.EMAIL_SENT, 1, "g1", "g1s")  # we answered
+        pipeline.sync_follow_up_tasks(self.user)
+        task.refresh_from_db()
+        self.assertTrue(task.done)
+
+    def test_follow_ups_page_lists_them_and_links_to_the_thread(self):
+        self.company.owner = self.user
+        self.company.save()
+        self._mail(Activity.Kind.REPLY, 24 * 9, "1234567890", "h1", outcome="Responded", message_id="<h@x>")
+        self.client.force_login(self.user)
+        r = self.client.get(reverse("crm:follow_ups"))
+        self.assertContains(r, "fu-red")
+        self.assertContains(r, "t=%x" % 1234567890)
+        self.assertContains(r, "Waiting on us")
+        self.assertContains(self.client.get(reverse("crm:follow_ups") + "?side=them"), "All caught up")
+
+    def test_search_words_are_highlighted_but_operators_are_not(self):
+        from crm.templatetags.crm_tags import mark_terms
+        self.assertEqual(mark_terms("Draft <PSA> v2", "psa from:bob has:attachment"), "Draft &lt;<mark>PSA</mark>&gt; v2")
+        self.assertEqual(mark_terms("plain", "from:bob"), "plain")
+
+
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp())
 class PipelinePageTests(TestCase):
     def setUp(self):

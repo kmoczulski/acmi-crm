@@ -1,0 +1,25 @@
+{% extends "crm/base.html" %}
+{% load crm_tags %}
+{% block title %}Follow-ups · Mail · ACMI Hub{% endblock %}
+{% block content %}
+<nav class="crumbs" aria-label="Breadcrumb"><a href="{% url 'crm:inbox' %}">Mail</a> › <span>Follow-ups</span></nav>
+<div class="page-head"><h1>Follow-ups</h1>
+  <span class="muted">{% if red %}{{ red }} overdue for a long time · {% endif %}every thread where the ball sits still. Each one is also a task, and ticks itself when the email is answered.</span></div>
+<div class="fu-tabs" role="tablist">
+  <a role="tab" href="?side=all" class="{% if side == 'all' %}on{% endif %}">All <span class="mail-count">{{ counts.all }}</span></a>
+  <a role="tab" href="?side=us" class="{% if side == 'us' %}on{% endif %}">Waiting on us <span class="mail-count">{{ counts.us }}</span></a>
+  <a role="tab" href="?side=them" class="{% if side == 'them' %}on{% endif %}">Waiting on them <span class="mail-count">{{ counts.them }}</span></a>
+</div>
+<div class="panel fu-list">
+  {% for e in rows %}{% include "crm/partials/follow_up_row.html" %}
+  {% empty %}<p class="muted" style="margin:8px 0">All caught up.</p>{% endfor %}
+</div>
+<p class="muted lc-small">Colour: waiting on us turns amber after 1 day, orange after 3, red after 7. Waiting on them shows after 3 days, orange after 7, red after 14. Campaign emails are left out.</p>
+<script>
+  document.querySelectorAll('[data-reply-dismiss]').forEach(f => f.addEventListener('submit', async e => {
+    e.preventDefault();
+    const r = await fetch(f.action, {method: 'POST', body: new FormData(f), headers: {'X-Requested-With': 'fetch'}});
+    if (r.ok) f.closest('.fu-row').remove(); else f.submit();
+  }));
+</script>
+{% endblock %}

@@ -415,3 +415,25 @@ def file_type_name(kind):
     from crm.mail.threads import TYPE_NAMES
 
     return TYPE_NAMES.get(kind, kind)
+
+
+_SEARCH_OP = re.compile(r'(?:^|\s)-?\w+:(?:"[^"]*"|\([^)]*\)|\S+)')
+
+
+@register.filter
+def mark_terms(text, query):
+    """Escape text and wrap the plain words of a mail search in <mark>, as Gmail does. Operators (from:, has:...),
+    negated words and Gmail's {} / OR syntax are not highlighted."""
+    from django.utils.html import escape
+    from django.utils.safestring import mark_safe
+
+    text = text or ""
+    q = _SEARCH_OP.sub(" ", query or "")
+    found = [quoted or bare for quoted, bare in re.findall(r'"([^"]+)"|(\S+)', q)]
+    words = sorted({w.strip("(){}") for w in found if not w.startswith("-") and w.upper() != "OR"} - {""},
+                   key=len, reverse=True)[:8]
+    if not words:
+        return text
+    pattern = re.compile("(" + "|".join(re.escape(w) for w in words) + ")", re.I)
+    return mark_safe("".join(f"<mark>{escape(part)}</mark>" if i % 2 else escape(part)
+                             for i, part in enumerate(pattern.split(text))))
