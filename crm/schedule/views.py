@@ -4,7 +4,9 @@ Every call goes through the signed-in person's own Google Calendar permission, s
 see in Google Calendar and a meeting is always made on their own calendar.
 """
 import logging
+import re
 import uuid
+from datetime import date
 
 import requests
 from django.conf import settings
@@ -51,7 +53,21 @@ def _prefill(request):
     except service.ScheduleError:
         extra = []
     emails += [e for e in extra if e not in emails]
-    return {"emails": emails, "title": title, "company": company, "contacts": contacts}
+    return {"emails": emails, "title": title, "company": company, "contacts": contacts, "pick": _pick(request),
+            "from_email": request.GET.get("from") == "email"}
+
+
+def _pick(request):
+    """A time to open the meeting form at, from ?when=YYYY-MM-DDTHH:MM (an email where someone settled on a time): the
+    person still confirms it. None for anything that is not a real date and time."""
+    match = re.fullmatch(r"(\d{4}-\d{2}-\d{2})T([01]\d|2[0-3]):([0-5]\d)", request.GET.get("when", ""))
+    if not match:
+        return None
+    try:
+        date.fromisoformat(match.group(1))
+    except ValueError:
+        return None
+    return {"date": match.group(1), "time": f"{match.group(2)}:{match.group(3)}"}
 
 
 @team_only
@@ -71,7 +87,9 @@ def home(request):
                 "company": pre["company"].name if pre["company"] else "",
                 "minutes": service.minutes_from(request.GET.get("minutes")), "durations": list(slots.DURATIONS),
                 "hours": list(slots.DEFAULT_HOURS), "canSchedule": ctx["can_schedule"],
-                "today": timezone.localdate().isoformat(), "start": service.week_start(request.GET.get("start")).isoformat(),
+                "today": timezone.localdate().isoformat(),
+                "start": service.week_start(request.GET.get("start") or (pre["pick"] or {}).get("date")).isoformat(),
+                "pick": pre["pick"], "fromEmail": pre["from_email"],
                 "urls": {"availability": reverse("crm:schedule_availability"), "people": reverse("crm:schedule_people"),
                          "create": reverse("crm:schedule_create"), "open": reverse("crm:schedule_open"),
                          "calendar": reverse("crm:meeting_list")},

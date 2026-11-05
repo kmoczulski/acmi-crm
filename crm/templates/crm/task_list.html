@@ -54,6 +54,7 @@
   <ul class="tasklist">
     {% for t in page %}{% ifchanged t.grp t.sub %}<li class="task-group">{% if t.grp == 1 %}Deals · {{ t.sub }}{% elif t.grp == 2 %}Land sites · {{ t.sub }}{% elif t.grp == 3 %}Prospecting{% else %}General{% endif %}</li>{% endifchanged %}{% include "crm/partials/task_row.html" with selectable=True %}{% empty %}<li class="muted">No tasks.</li>{% endfor %}
   </ul>
+  {% if folded_prospecting %}<p class="muted lc-small" style="margin:8px 0 0">{{ folded_prospecting }} more prospecting task{{ folded_prospecting|pluralize }} hidden. <a href="{% qs_set prospecting='all' page='' %}">Show all</a></p>{% endif %}
   {% if page.has_other_pages %}<div class="pager">
     {% if page.has_previous %}<a href="{% qs_set page=page.previous_page_number %}">‹ Prev</a>{% endif %}
     <span>Page {{ page.number }} of {{ page.paginator.num_pages }}</span>

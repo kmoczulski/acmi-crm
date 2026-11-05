@@ -4,7 +4,7 @@
 {% block content %}
 <div class="page-head">
   <h1>Possible duplicate companies</h1>
-  <span class="muted">{{ groups|length }} group{{ groups|length|pluralize }}</span>
+  <span class="muted">{{ total }} group{{ total|pluralize }}</span>
   <span class="spacer"></span>
   <a class="btn" href="{% url 'crm:company_list' %}">Back to companies</a>
 </div>
@@ -53,6 +53,7 @@
   </table>
 </form>
 {% empty %}<div class="panel"><p class="muted" style="margin:0">No likely duplicates left.</p></div>{% endfor %}
+{% if more %}<p><a class="btn" href="?show={{ next_show }}">Show {{ more }} more group{{ more|pluralize }}</a></p>{% endif %}
 {% endblock %}
 {% block scripts %}
 <script>

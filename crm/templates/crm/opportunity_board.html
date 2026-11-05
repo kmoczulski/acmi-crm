@@ -58,7 +58,7 @@
       {% if o.name != o.company.name %}<a class="kdeal" href="{{ o.get_absolute_url }}">{{ o.name }}</a>{% else %}<a class="kdeal" href="{{ o.get_absolute_url }}">Deal</a>{% endif %}
       <div class="sub">{% if o.value %}{{ o.value|money }} · {% endif %}{% if o.sq_ft_need %}{{ o.sq_ft_need|intcomma }} sf · {% endif %}{% if o.acreage_need %}{{ o.acreage_need|floatformat:"-2" }} ac · {% endif %}{{ o.owner|username|default:"No owner" }}</div>
       {% if o.next_step %}<div class="next">→ {{ o.next_step|truncatechars:70 }}{% if o.next_step_due %} <span class="muted">{{ o.next_step_due|date:"M j" }}</span>{% endif %}</div>{% endif %}
-      {% if o.risk %}<div class="risk">{{ o.risk|join:" · " }}</div>{% endif %}
+      {% if o.risk %}<div class="risk">{{ o.risk.0 }}{% if o.risk|length > 1 %}<span class="risk-more"> · {{ o.risk|slice:"1:"|join:" · " }}</span>{% endif %}</div>{% endif %}
     </div>
     {% endfor %}
     {% endif %}
