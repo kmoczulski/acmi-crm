@@ -134,6 +134,7 @@ urlpatterns = [
     path("projects/<int:pk>/build/", build_views.project_build, name="project_build"),
     path("projects/bids/<int:pk>/file/", build_views.bid_file, name="bid_file"),
     path("tasks/", views.task_list, name="task_list"),
+    path("tasks/bulk/", views.task_bulk, name="task_bulk"),
     path("tasks/add/", views.task_add, name="task_add"),
     path("tasks/<int:pk>/toggle/", views.task_toggle, name="task_toggle"),
     path("tasks/<int:pk>/", views.task_detail, name="task_detail"),

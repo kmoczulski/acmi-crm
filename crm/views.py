@@ -6,7 +6,7 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib import messages
 from django.core.paginator import Paginator
-from django.db.models import Case, CharField, Count, F, IntegerField, Max, Q, Value, When
+from django.db.models import Case, CharField, Count, F, IntegerField, Max, OuterRef, Q, Subquery, Value, When
 from django.db.models.functions import Coalesce
 from django.http import FileResponse, Http404, HttpResponse, HttpResponseBadRequest, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -948,19 +948,41 @@ def task_list(request):
     qs = qs.filter(done=(state == "done"))
     # Group by what the task is about: deals / projects (by campus or site), land sites, prospecting (a company or
     # person with no deal), then general tasks. Due date order holds inside each group.
+    # A task on a company (or someone at it) that has a live deal or project, like ARA Facility, belongs with that deal,
+    # not under Prospecting (Kellen, 2026-11-05): it takes the group of the company's newest deal that isn't lost.
+    company_deal = (Opportunity.objects.filter(company_id=OuterRef("cid")).exclude(stage=OpportunityStage.LOST)
+                    .annotate(label=Coalesce(F("campus__code"), F("site"), Value("TBD"), output_field=CharField()))
+                    .order_by("-id").values("label")[:1])
+    qs = qs.annotate(cid=Coalesce(F("company_id"), F("person__company_id"))).annotate(deal_label=Subquery(company_deal))
     qs = qs.annotate(
         grp=Case(When(opportunity__isnull=False, then=Value(1)), When(site__isnull=False, then=Value(2)),
+                 When(deal_label__isnull=False, then=Value(1)),
                  When(Q(company__isnull=False) | Q(person__isnull=False), then=Value(3)),
                  default=Value(4), output_field=IntegerField()),
         sub=Case(When(opportunity__isnull=False,
                       then=Coalesce(F("opportunity__campus__code"), F("opportunity__site"), Value("TBD"))),
                  When(site__isnull=False, then=F("site__name")),
+                 When(deal_label__isnull=False, then=F("deal_label")),
                  default=Value(""), output_field=CharField()),
     ).order_by("grp", "sub", *TASK_ORDER)
-    page = Paginator(qs, 100).get_page(request.GET.get("page"))
-    return render(request, "crm/task_list.html", {
-        "page": page, "scope": scope, "state": state, "task_form": TaskForm(initial={"assignee": request.user}),
-    })
+    view = "quadrants" if request.GET.get("view") == "quadrants" else "list"
+    ctx = {"scope": scope, "state": state, "view": view, "task_form": TaskForm(initial={"assignee": request.user})}
+    if view == "quadrants":
+        # Four boxes by task type: deals, land sites, prospecting, general. Each shows its first QUAD_CAP tasks.
+        QUAD_CAP = 40
+        titles = {1: "Deals", 2: "Land sites", 3: "Prospecting", 4: "General"}
+        boxes = {g: {"grp": g, "title": titles[g], "tasks": [], "count": 0} for g in titles}
+        for t in qs:
+            box = boxes[t.grp]
+            box["count"] += 1
+            if len(box["tasks"]) < QUAD_CAP:
+                box["tasks"].append(t)
+        for box in boxes.values():
+            box["more"] = box["count"] - len(box["tasks"])
+        ctx["quads"] = [boxes[g] for g in (1, 2, 3, 4)]
+    else:
+        ctx["page"] = Paginator(qs, 100).get_page(request.GET.get("page"))
+    return render(request, "crm/task_list.html", ctx)
 
 
 @require_POST
@@ -1023,26 +1045,61 @@ def task_text(request, pk):
     return redirect(_safe_next(request, task.get_absolute_url()))
 
 
+def _complete_task(user, task):
+    """Tick a task done: log it on the timeline and make the next one when it repeats. Returns the next due date or
+    None. Shared by the single checkbox and the bulk "Mark done"."""
+    task.done = True
+    task.done_at = timezone.now()
+    task.save()
+    Activity.objects.create(
+        kind=Activity.Kind.TASK, occurred_at=timezone.now(), actor=user, company=task.company,
+        person=task.person, opportunity=task.opportunity, summary=f"Completed task: {task.title}",
+        is_background=True,
+    )
+    nxt = task.next_due()
+    if nxt:
+        Task.objects.create(
+            title=task.title, notes=task.notes, due_date=nxt, due_time=task.due_time, assignee=task.assignee, company=task.company,
+            person=task.person, opportunity=task.opportunity, repeat=task.repeat, repeat_until=task.repeat_until,
+            created_by=task.created_by,
+        )
+    return nxt
+
+
 @require_POST
 def task_toggle(request, pk):
     task = get_object_or_404(Task, pk=pk)
-    task.done = not task.done
-    task.done_at = timezone.now() if task.done else None
-    task.save()
     if task.done:
-        Activity.objects.create(
-            kind=Activity.Kind.TASK, occurred_at=timezone.now(), actor=request.user, company=task.company,
-            person=task.person, opportunity=task.opportunity, summary=f"Completed task: {task.title}",
-            is_background=True,
-        )
-        nxt = task.next_due()
+        task.done = False
+        task.done_at = None
+        task.save()
+    else:
+        nxt = _complete_task(request.user, task)
         if nxt:
-            Task.objects.create(
-                title=task.title, notes=task.notes, due_date=nxt, due_time=task.due_time, assignee=task.assignee, company=task.company,
-                person=task.person, opportunity=task.opportunity, repeat=task.repeat, repeat_until=task.repeat_until,
-                created_by=task.created_by,
-            )
             messages.success(request, f"Done. Next one is due {nxt:%a %b} {nxt.day}.")
+    return redirect(_safe_next(request, reverse("crm:task_list")))
+
+
+@require_POST
+def task_bulk(request):
+    """Mark many tasks done (or open again) at once from the Tasks page's Select mode."""
+    ids = [int(i) for i in request.POST.getlist("ids") if i.isdigit()][:500]
+    action = request.POST.get("action", "done")
+    tasks = list(Task.objects.filter(pk__in=ids).select_related("company", "person", "opportunity"))
+    changed = 0
+    if action == "reopen":
+        for t in tasks:
+            if t.done:
+                t.done, t.done_at = False, None
+                t.save()
+                changed += 1
+        messages.success(request, f"{changed} task{'s' if changed != 1 else ''} opened again." if changed else "Nothing to reopen.")
+    else:
+        for t in tasks:
+            if not t.done:
+                _complete_task(request.user, t)
+                changed += 1
+        messages.success(request, f"Marked {changed} task{'s' if changed != 1 else ''} done." if changed else "Nothing selected to mark done.")
     return redirect(_safe_next(request, reverse("crm:task_list")))
 
 

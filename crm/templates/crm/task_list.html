@@ -5,6 +5,11 @@
 <div class="page-head">
   <h1>Tasks</h1>
   <span class="spacer"></span>
+  <span class="btn-row" role="group" aria-label="Layout">
+    <a class="btn btn-small{% if view == 'list' %} btn-primary{% endif %}" href="{% qs_set view='' page='' %}" title="One list, grouped by what the task is about">☰ List</a>
+    <a class="btn btn-small{% if view == 'quadrants' %} btn-primary{% endif %}" href="{% qs_set view='quadrants' page='' %}" title="Four boxes by task type: deals, land sites, prospecting, general">▦ Quadrants</a>
+  </span>
+  <button type="button" class="btn btn-small" data-select-toggle aria-pressed="false" title="Tick several tasks and mark them done together">☑ Select</button>
   <a class="btn {% if scope == 'mine' %}btn-primary{% endif %}" href="{% qs_set scope='mine' %}">Mine</a>
   <a class="btn {% if scope == 'all' %}btn-primary{% endif %}" href="{% qs_set scope='all' %}">Everyone</a>
   <a class="btn {% if state == 'open' %}btn-primary{% endif %}" href="{% qs_set state='open' %}">Open</a>
@@ -19,9 +24,35 @@
   </form>
   <p class="muted" style="font-size:12px;margin:6px 0 0">Tasks tied to a company or person are added from that record's page.</p>
 </div>
+
+{# Select mode: tick rows (the boxes belong to this form from anywhere on the page), then Mark done. #}
+<form method="post" action="{% url 'crm:task_bulk' %}" id="bulk-tasks" class="bulk-bar no-print" hidden>{% csrf_token %}
+  <input type="hidden" name="next" value="{{ request.get_full_path }}">
+  <strong data-bulk-count>0 selected</strong>
+  <button type="button" class="btn btn-small" data-bulk-all>Select all shown</button>
+  <button type="button" class="btn btn-small" data-bulk-none>Clear</button>
+  <span class="spacer"></span>
+  {% if state == 'done' %}<button class="btn btn-small" name="action" value="reopen" data-bulk-go disabled>Open again</button>
+  {% else %}<button class="btn btn-small btn-primary" name="action" value="done" data-bulk-go disabled>✓ Mark done</button>{% endif %}
+</form>
+
+<div class="tasks-wrap">
+{% if view == 'quadrants' %}
+<div class="quad-grid">
+  {% for q in quads %}
+  <section class="panel quad quad-{{ q.grp }}" aria-label="{{ q.title }}">
+    <h3 class="quad-head">{{ q.title }} <span class="muted">{{ q.count }}</span></h3>
+    <ul class="tasklist">
+      {% for t in q.tasks %}{% ifchanged t.sub %}{% if t.sub %}<li class="task-group">{{ t.sub }}</li>{% endif %}{% endifchanged %}{% include "crm/partials/task_row.html" with selectable=True %}{% empty %}<li class="muted">Nothing here.</li>{% endfor %}
+    </ul>
+    {% if q.more %}<p class="muted lc-small" style="margin:6px 0 0">+{{ q.more }} more. Use the List layout to see them all.</p>{% endif %}
+  </section>
+  {% endfor %}
+</div>
+{% else %}
 <div class="panel">
   <ul class="tasklist">
-    {% for t in page %}{% ifchanged t.grp t.sub %}<li class="task-group">{% if t.grp == 1 %}Deals · {{ t.sub }}{% elif t.grp == 2 %}Land sites · {{ t.sub }}{% elif t.grp == 3 %}Prospecting{% else %}General{% endif %}</li>{% endifchanged %}{% include "crm/partials/task_row.html" %}{% empty %}<li class="muted">No tasks.</li>{% endfor %}
+    {% for t in page %}{% ifchanged t.grp t.sub %}<li class="task-group">{% if t.grp == 1 %}Deals · {{ t.sub }}{% elif t.grp == 2 %}Land sites · {{ t.sub }}{% elif t.grp == 3 %}Prospecting{% else %}General{% endif %}</li>{% endifchanged %}{% include "crm/partials/task_row.html" with selectable=True %}{% empty %}<li class="muted">No tasks.</li>{% endfor %}
   </ul>
   {% if page.has_other_pages %}<div class="pager">
     {% if page.has_previous %}<a href="{% qs_set page=page.previous_page_number %}">‹ Prev</a>{% endif %}
@@ -29,4 +60,32 @@
     {% if page.has_next %}<a href="{% qs_set page=page.next_page_number %}">Next ›</a>{% endif %}
   </div>{% endif %}
 </div>
+{% endif %}
+</div>
+<script>
+  (function () {
+    const wrap = document.querySelector('.tasks-wrap'), bar = document.getElementById('bulk-tasks');
+    const toggle = document.querySelector('[data-select-toggle]');
+    if (!wrap || !bar || !toggle) return;
+    const boxes = () => [...wrap.querySelectorAll('.task-sel')];
+    const refresh = () => {
+      const n = boxes().filter(b => b.checked).length;
+      bar.querySelector('[data-bulk-count]').textContent = n + ' selected';
+      bar.querySelector('[data-bulk-go]').disabled = !n;
+    };
+    const set = on => {
+      wrap.classList.toggle('select-mode', on);
+      bar.hidden = !on;
+      toggle.setAttribute('aria-pressed', on ? 'true' : 'false');
+      toggle.classList.toggle('btn-primary', on);
+      if (!on) boxes().forEach(b => { b.checked = false; });
+      refresh();
+    };
+    toggle.addEventListener('click', () => set(!wrap.classList.contains('select-mode')));
+    wrap.addEventListener('change', e => { if (e.target.matches('.task-sel')) refresh(); });
+    bar.querySelector('[data-bulk-all]').addEventListener('click', () => { boxes().forEach(b => { b.checked = true; }); refresh(); });
+    bar.querySelector('[data-bulk-none]').addEventListener('click', () => { boxes().forEach(b => { b.checked = false; }); refresh(); });
+    if (location.hash === '#select') set(true);
+  })();
+</script>
 {% endblock %}

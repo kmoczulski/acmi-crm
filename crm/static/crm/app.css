@@ -2732,6 +2732,21 @@ body[data-chat-list] .dock-main > p, body[data-chat-list] .dock-main > a { margi
   background: var(--accent-soft); border: 1px solid var(--line); border-radius: var(--radius); font-size: 13px; }
 .chat-nudge[hidden] { display: none; }
 .chat-nudge > span { flex: 1 1 260px; min-width: 0; }
+/* Tasks: quadrants by task type, and Select mode with a bar to mark many done. */
+.quad-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; align-items: start; }
+@media (max-width: 800px) { .quad-grid { grid-template-columns: minmax(0, 1fr); } }
+.quad { margin: 0; min-height: 140px; }
+.quad-head { margin: 0 0 6px; display: flex; align-items: baseline; gap: 8px; font-size: 14px; }
+.quad-1 { border-top: 3px solid var(--accent); }
+.quad-2 { border-top: 3px solid #0e7490; }
+.quad-3 { border-top: 3px solid #b45309; }
+.quad-4 { border-top: 3px solid var(--muted-2, #8e8e93); }
+.task-sel { display: none; width: 18px; height: 18px; flex: none; margin: 2px 8px 0 0; }
+.select-mode .task-sel { display: inline-block; }
+.bulk-bar { position: sticky; top: 0; z-index: 30; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0 0 10px;
+  padding: 8px 12px; background: var(--accent-soft); border: 1px solid var(--line); border-radius: var(--radius); }
+.bulk-bar[hidden] { display: none; }
+.tasklist li:has(> .task-sel:checked) { background: var(--accent-soft); }
 /* Chat "Seen by" line under your latest message. */
 .chat-seen { grid-column: 2; font-size: 11px; text-align: right; margin: 1px 4px 0 0; }
 .chat-seen.seen { color: var(--accent); }

@@ -1,5 +1,6 @@
 {% load crm_tags %}
 <li class="task-{{ t.due_date|due_class:t.done }}">
+  {% if selectable %}<input type="checkbox" class="task-sel" form="bulk-tasks" name="ids" value="{{ t.pk }}" aria-label="Select {{ t.title }}">{% endif %}
   <form method="post" action="{% url 'crm:task_toggle' t.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><input type="checkbox" {% if t.done %}checked{% endif %} onchange="this.form.submit()" title="Toggle done"></form>
   <div style="flex:1">
     <a class="{% if t.done %}done{% endif %}" href="{{ t.get_absolute_url }}">{% if t.label %}<span class="tlabel tl-{{ t.label }}">{{ t.get_label_display }}</span> {% endif %}{{ t.title }}</a>{% if t.repeat %} <span class="muted" title="{{ t.get_repeat_display }}">↻</span>{% endif %}{% if t.n_comments %} <span class="muted">💬 {{ t.n_comments }}</span>{% endif %} <a class="te-row-edit" href="{{ t.get_absolute_url }}#edit" title="Edit name and details" aria-label="Edit {{ t.title }}">✎</a>
