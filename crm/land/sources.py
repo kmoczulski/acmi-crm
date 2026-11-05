@@ -245,7 +245,7 @@ REGIONS = {
     "crane_in": (-87.4, 38.4, -86.2, 39.3),
     # South Miami-Dade, FL: Homestead and Florida City south to Turkey Point, north to Kendall (Homestead ARB, the
     # Turnpike / US-1 corridor, the Everglades edge).
-    "south_fl": (-80.95, 25.1, -80.1, 25.75),
+    "south_fl": (-80.95, 25.1, -80.1, 26.0),
     # Emery County, UT around Cleveland, Huntington, Castle Dale and Ferron (the Hwy 10 / Hwy 6 corridor).
     "emery_ut": (-111.5, 38.8, -110.0, 39.7),
     # The island of Oahu (Honolulu County): Kapolei / Campbell Industrial Park, Pearl Harbor, Wheeler, Kalaeloa.
