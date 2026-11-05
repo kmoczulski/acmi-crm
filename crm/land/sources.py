@@ -114,7 +114,7 @@ STORED_LAYERS = {
     "substation": {
         "label": "Substation",
         "url": "https://services.arcgis.com/XG15cJAlne2vxtgt/arcgis/rest/services/Electric_Substations/FeatureServer/0",
-        "where": "STATE IN ('TX', 'MD', 'VA', 'DC', 'AL', 'TN', 'NC', 'AZ', 'IN')",
+        "where": "STATE IN ('TX', 'MD', 'VA', 'DC', 'AL', 'TN', 'NC', 'AZ', 'IN', 'FL', 'UT', 'HI')",
         "name": "NAME",
         "fields": ["MAX_VOLTAG", "MIN_VOLTAG", "LINES", "CITY"],
         "simplify": 0,
@@ -197,9 +197,36 @@ STORED_LAYERS = {
         "simplify": 0.0002,
         "regions": ["crane_in"],
     },
+    "town_fl": {
+        "label": "City limits",
+        "url": "https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/Places_CouSub_ConCity_SubMCD/MapServer/4",
+        "where": "STATE = '12'",  # Census incorporated places, Florida
+        "name": "BASENAME",
+        "fields": ["LSADC"],
+        "simplify": 0.0002,
+        "regions": ["south_fl"],
+    },
+    "town_ut": {
+        "label": "City limits",
+        "url": "https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/Places_CouSub_ConCity_SubMCD/MapServer/4",
+        "where": "STATE = '49'",  # Census incorporated places, Utah
+        "name": "BASENAME",
+        "fields": ["LSADC"],
+        "simplify": 0.0002,
+        "regions": ["emery_ut"],
+    },
+    "town_hi": {
+        "label": "City limits",
+        "url": "https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/Places_CouSub_ConCity_SubMCD/MapServer/4",
+        "where": "STATE = '15'",  # Census places, Hawaii (all census-designated places; Hawaii has no incorporated towns)
+        "name": "BASENAME",
+        "fields": ["LSADC"],
+        "simplify": 0.0002,
+        "regions": ["oahu_hi"],
+    },
 }
 # Layers that mark city/town limits rather than something to measure distance to.
-LIMIT_LAYERS = ("city", "town_md", "town_al", "town_nc", "town_az", "town_in")
+LIMIT_LAYERS = ("city", "town_md", "town_al", "town_nc", "town_az", "town_in", "town_fl", "town_ut", "town_hi")
 
 # Regions the stored layers cover (lon/lat west, south, east, north).
 REGIONS = {
@@ -216,6 +243,13 @@ REGIONS = {
     "central_az": (-113.1, 32.5, -111.2, 33.7),
     # Greene County, IN plus a margin (NSWC Crane, Bloomfield, Linton, the I-69 corridor).
     "crane_in": (-87.4, 38.4, -86.2, 39.3),
+    # South Miami-Dade, FL: Homestead and Florida City south to Turkey Point, north to Kendall (Homestead ARB, the
+    # Turnpike / US-1 corridor, the Everglades edge).
+    "south_fl": (-80.95, 25.1, -80.1, 25.75),
+    # Emery County, UT around Cleveland, Huntington, Castle Dale and Ferron (the Hwy 10 / Hwy 6 corridor).
+    "emery_ut": (-111.5, 38.8, -110.0, 39.7),
+    # The island of Oahu (Honolulu County): Kapolei / Campbell Industrial Park, Pearl Harbor, Wheeler, Kalaeloa.
+    "oahu_hi": (-158.35, 21.2, -157.6, 21.75),
 }
 TEXAS_TRIANGLE_BBOX = REGIONS["texas_triangle"]
 
@@ -322,6 +356,9 @@ STATE_COUNTY_REGIONS = {
     "MD": {"Southern Maryland": ["Charles", "St. Mary's", "Calvert", "Prince George's"]},
     "AL": {"North Alabama (Huntsville)": ["Limestone", "Madison", "Morgan"]},
     "IN": {"Southwest Indiana (Crane)": ["Greene"]},
+    "FL": {"South Florida (Homestead)": ["Miami-Dade"]},
+    "UT": {"Central Utah (Emery County)": ["Emery"]},
+    "HI": {"Oahu, Hawaii": ["Honolulu"]},
     "AZ": {"Central Arizona (I-10 corridor)": ["Maricopa", "Pinal"]},
     "NC": {"Fayetteville, NC": ["Cumberland", "Hoke", "Harnett", "Moore"]},
 }

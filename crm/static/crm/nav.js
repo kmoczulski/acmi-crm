@@ -165,7 +165,8 @@
 // Record cards ("peek"): a plain click on a company, deal or person link opens that record's card over the page
 // you're on (fetched from <record url>card/, crm/cards.py), with Open page for the full record. Modifier or middle
 // clicks, links in breadcrumbs, record headers, the record nav and search results, and links marked data-page go
-// straight to the page as before. A link inside a card opens the next card, with Back.
+// straight to the page as before, and so do links to the page you are already on (a company page's tabs).
+// A link inside a card opens the next card, with Back.
 (function () {
   const peek = document.getElementById('peek');
   if (!peek) return;
@@ -193,6 +194,9 @@
     let url;
     try { url = new URL(a.href, location.href); } catch (err) { return; }
     if (url.origin !== location.origin || !CARD.test(url.pathname) || url.hash) return;
+    // A link to the page you are already on (the company page's tabs, paging, filters) is plain navigation: the card is
+    // for other records. Inside a card, links still chain to the next card.
+    if (url.pathname === location.pathname && !a.closest('#peek')) return;
     e.preventDefault();
     show(url.pathname + 'card/' + url.search, !!a.closest('#peek'));
   });

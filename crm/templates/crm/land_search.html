@@ -62,6 +62,7 @@
       <button type="button" id="tb-drive" class="tb-btn" data-tool-key="drive" title="Drive times and drive-time maps">Drive time</button>
       <button type="button" id="tb-siteplan" class="tb-btn" data-tool-key="siteplan" title="Quick site plan: zoning, buildings, parking">Site plan</button>
       <button type="button" id="tb-qd" class="tb-btn" data-tool-key="qd" title="QD arc site plan">QD plan</button>
+      <button type="button" id="tb-autofit" class="tb-btn" data-tool-key="autofit" title="Auto-fit warehouses, flex and hazard buildings under zoning and quantity-distance limits">Auto-fit</button>
       <button type="button" id="locate" class="tb-btn" data-tool-key="locate" title="Show my location">◎</button>
       <span class="tb-spacer"></span>
       <details class="tb-menu tb-right" id="views-menu"><summary class="tb-btn">Views ▾</summary>
@@ -91,6 +92,7 @@
           <label><input type="checkbox" data-show="drive" checked> Drive time</label>
           <label><input type="checkbox" data-show="siteplan" checked> Site plan</label>
           <label><input type="checkbox" data-show="qd" checked> QD plan</label>
+          <label><input type="checkbox" data-show="autofit" checked> Auto-fit</label>
           <label><input type="checkbox" data-show="locate" checked> My location</label>
           <label><input type="checkbox" data-show="legend" checked> Map legend</label>
           <button type="button" class="btn btn-small" id="tools-reset">Show all</button>
@@ -315,6 +317,41 @@
           <div class="muted lc-small" id="sp-parking-note"></div>
         </div>
         <div class="sp-col sp-summary" id="sp-summary"><span class="muted">Lay out the site to see yield.</span></div>
+      </div>
+    </div>
+    <div id="af" class="qd-drawer sp-drawer" hidden>
+      <div class="qd-grip" title="Drag to resize"></div>
+      <div class="qd-head">
+        <b>Auto-fit</b>
+        <span class="muted lc-small" id="af-target">Open a parcel or an assemblage to plan it</span>
+        <span class="spacer"></span>
+        <label class="lc-small" title="Keep buildings out of FEMA flood zones and NWI wetlands"><input type="checkbox" id="af-exclude" checked> Keep out of floodplain &amp; wetlands</label>
+        <label class="lc-small" title="If a hazard building's IBD arc can't fit, lower its NEWQD to the most the site allows"><input type="checkbox" id="af-shrink"> Cut NEWQD to fit</label>
+        <button type="button" class="btn btn-small btn-primary" id="af-run">Auto-fit</button>
+        <button type="button" class="btn btn-small" id="af-save">Save program</button>
+        <button type="button" class="btn btn-small" id="af-clear">Clear</button>
+        <button type="button" class="btn-link" id="af-close" title="Hide auto-fit">✕</button>
+      </div>
+      <div class="sp-body">
+        <div class="sp-col sp-zone">
+          <div class="ml-h">Zoning</div>
+          <label>Zone <select id="af-zone"></select></label>
+          <label title="Applied all the way round: defaults to the largest yard">Perimeter setback (ft)<input id="af-setback" type="number" min="0" placeholder="largest yard"></label>
+          <div class="muted lc-small" id="af-std"></div>
+        </div>
+        <div class="sp-col sp-program">
+          <div class="ml-h">Program: flex-industrial and hazard buildings together</div>
+          <table class="qd-table sp-table">
+            <thead><tr><th>Type</th><th title="Blank = as many as fit (flex); hazard buildings default to 1">Bldgs</th><th title="Hazard: footprint sf. Flex: optional total sf for this type">SF</th>
+              <th>Hazard div.</th><th>NEWQD (lb)</th><th>PES</th><th>Barr.</th><th>MCE (lb)</th>
+              <th title="How far each flex building must stay from every hazard building: IBD = unrelated inhabited building">Exposed at</th><th></th></tr></thead>
+            <tbody id="af-rows"></tbody>
+          </table>
+          <button type="button" class="btn btn-small" id="af-add-flex">+ Flex-industrial</button>
+          <button type="button" class="btn btn-small" id="af-add-mag">+ Magazine</button>
+          <button type="button" class="btn btn-small" id="af-add-ops">+ Operating bldg</button>
+        </div>
+        <div class="sp-col sp-summary" id="af-summary"><span class="muted">Press Auto-fit to place the program.</span></div>
       </div>
     </div>
     <dialog id="site-dialog" class="site-dialog">
@@ -923,6 +960,7 @@
   function qdOpen(open) {
     QD.el.hidden = !open;
     if (open && typeof SP !== 'undefined' && !SP.el.hidden) spOpen(false);
+    if (open && typeof AF !== 'undefined' && !AF.el.hidden) afOpen(false);
     QD.btn.classList.toggle('on', open);
     if (open) qdLoadSaved();
     if (typeof remember === 'function') remember();
@@ -1103,7 +1141,7 @@
   // The map's box changes when panels open or close: keep Leaflet's size in step.
   new ResizeObserver(() => map.invalidateSize({pan: false})).observe(document.getElementById('map-wrap'));
 
-  const TOOL_KEYS = ['filters', 'search', 'basemap', 'layers', 'sites', 'assemble', 'measure', 'drive', 'siteplan', 'qd', 'locate', 'legend'];
+  const TOOL_KEYS = ['filters', 'search', 'basemap', 'layers', 'sites', 'assemble', 'measure', 'drive', 'siteplan', 'qd', 'autofit', 'locate', 'legend'];
   const shown = Object.fromEntries(TOOL_KEYS.map(k => [k, true]));
   function applyTools(next) {
     Object.assign(shown, next || {});
@@ -1116,6 +1154,7 @@
     if (!shown.filters) setSide(false);
     if (!shown.qd && !QD.el.hidden) qdOpen(false);
     if (!shown.siteplan && !SP.el.hidden) spOpen(false);
+    if (!shown.autofit && !AF.el.hidden) afOpen(false);
     if (!shown.measure && !shown.drive && !tools.hidden) openTools(false);
     if (!shown.assemble && ASM.mode) document.getElementById('assemble').click();
     remember();
@@ -1250,6 +1289,7 @@
     SP.el.hidden = !open;
     SP.btn.classList.toggle('on', open);
     if (open && !QD.el.hidden) qdOpen(false);  // one drawer at a time
+    if (open && typeof AF !== 'undefined' && !AF.el.hidden) afOpen(false);
     if (open) spLoad();
     if (typeof remember === 'function') remember();
   }
@@ -1428,6 +1468,176 @@
       + (s.max_gfa_by_far ? `<div class="muted lc-small">Zone FAR allows up to ${n(s.max_gfa_by_far)} sf on this site.</div>` : '')
       + (s.note ? `<div class="overdue lc-small">${escapeHtml(s.note)}</div>` : '')
       + '<div class="muted lc-small">Screening layout: bufferyards, forest conservation, stormwater and road rules still apply.</div>';
+  }
+
+  // ---- Auto-fit (bottom drawer): flex-industrial + hazard buildings on one program, zoning AND QD ----------------
+  const AF = {el: document.getElementById('af'), btn: document.getElementById('tb-autofit'), layer: L.layerGroup().addTo(map),
+    rows: [{type: 'magazine', count: 1, hd: 'HD 1.1', newqd: 5000, sqft: 1000, pes: 'ECM Front', k: 6},
+           {type: 'operating', count: 1, hd: 'HD 1.1', newqd: 500, sqft: 10000, pes: 'Aboveground structure', barricaded: true, k: 11},
+           {type: 'warehouse', count: 1}, {type: 'flex', count: 3}],
+    types: {warehouse: 'Warehouse / distribution', manufacturing: 'Manufacturing', flex: 'Flex / R&D', office: 'Office',
+            lab: 'Lab / energetics process', magazine: 'Magazine / storage (IMD)', operating: 'Operating building (ILD)'},
+    hd: ['HD 1.1', 'HD 1.2.1', 'HD 1.2.2', 'HD 1.2.3', 'HD 1.3', 'HD 1.4'],
+    pes: ['Open (no structure)', 'Aboveground structure', 'ECM Front', 'ECM Side', 'ECM Rear'],
+    exposures: {ibd: 'IBD (unrelated)', ptrd: 'PTRD', ild: 'ILD (in operation)', none: 'No QD distance'}, seq: 0, loadedFor: null};
+  const afRows = document.getElementById('af-rows'), afSummary = document.getElementById('af-summary');
+  const afHazard = t => t === 'magazine' || t === 'operating';
+  function afOpen(open) {
+    AF.el.hidden = !open;
+    AF.btn.classList.toggle('on', open);
+    if (open) { if (!QD.el.hidden) qdOpen(false); if (!SP.el.hidden) spOpen(false); afLoad(); }
+  }
+  AF.btn.addEventListener('click', () => afOpen(AF.el.hidden));
+  document.getElementById('af-close').addEventListener('click', () => afOpen(false));
+  document.getElementById('af-clear').addEventListener('click', () => { AF.seq++; AF.layer.clearLayers(); afSummary.innerHTML = '<span class="muted">Cleared.</span>'; });
+  (function () {
+    const grip = AF.el.querySelector('.qd-grip');
+    let startY = 0, startH = 0;
+    const move = e => { AF.el.style.height = Math.max(160, Math.min(window.innerHeight * 0.7, startH + startY - e.clientY)) + 'px'; };
+    const up = () => { document.removeEventListener('mousemove', move); document.removeEventListener('mouseup', up); };
+    grip.addEventListener('mousedown', e => { e.preventDefault(); startY = e.clientY; startH = AF.el.offsetHeight;
+      document.addEventListener('mousemove', move); document.addEventListener('mouseup', up); });
+  })();
+  function afLabel() {
+    const t = planTarget();
+    document.getElementById('af-target').textContent = t.kind === 'parcel' ? 'Planning the open parcel'
+      : t.kind ? `Planning the ${t.kind} (${ASM.ids.length} parcel${ASM.ids.length === 1 ? '' : 's'})`
+      : 'Open a parcel or an assemblage to plan it';
+  }
+  function afRender() {
+    afRows.innerHTML = AF.rows.map((r, i) => {
+      const hz = afHazard(r.type);
+      const sel = (f, list, cur) => `<select data-f="${f}">${list.map(v => `<option${v === cur ? ' selected' : ''}>${v}</option>`).join('')}</select>`;
+      const opt = Object.entries(AF.types).map(([k, v]) => `<option value="${k}"${k === r.type ? ' selected' : ''}>${escapeHtml(v)}</option>`).join('');
+      const exp = Object.entries(AF.exposures).map(([k, v]) => `<option value="${k}"${k === (r.exposure || (r.type === 'lab' ? 'ild' : 'ibd')) ? ' selected' : ''}>${v}</option>`).join('');
+      return `<tr data-i="${i}"><td><select data-f="type">${opt}</select></td>
+        <td><input data-f="count" type="number" min="0" style="width:56px" value="${r.count ?? ''}" placeholder="${hz ? 1 : 'fill'}"></td>
+        <td><input data-f="sf" inputmode="decimal" data-commas style="width:84px" value="${r.sqft != null && hz ? acmiNum.format(r.sqft) : (r.sf != null && !hz ? acmiNum.format(r.sf) : '')}" placeholder="${hz ? '' : 'any'}"></td>
+        ${hz ? `<td>${sel('hd', AF.hd, r.hd)}</td><td><input data-f="newqd" inputmode="decimal" data-commas style="width:84px" value="${acmiNum.format(r.newqd || 0)}"></td>
+          <td>${sel('pes', AF.pes, r.pes)}</td><td><input data-f="barricaded" type="checkbox"${r.barricaded ? ' checked' : ''}></td>
+          <td><input data-f="mce" inputmode="decimal" data-commas style="width:76px" value="${acmiNum.format(r.mce || 0)}"></td><td class="muted">–</td>`
+        : `<td></td><td></td><td></td><td></td><td></td><td><select data-f="exposure">${exp}</select></td>`}
+        <td><button type="button" class="btn-link" data-del title="Remove">✕</button></td></tr>`;
+    }).join('');
+  }
+  afRows.addEventListener('change', e => {
+    const tr = e.target.closest('tr[data-i]'); if (!tr) return;
+    const r = AF.rows[+tr.dataset.i], f = e.target.dataset.f;
+    const num = e.target.hasAttribute('data-commas') ? (acmiNum.parse(e.target.value) ?? undefined) : (e.target.value === '' ? undefined : +e.target.value);
+    if (f === 'type') {
+      const t = e.target.value;
+      Object.keys(r).forEach(k => delete r[k]);
+      Object.assign(r, t === 'magazine' ? {type: t, count: 1, hd: 'HD 1.1', newqd: 5000, sqft: 1000, pes: 'ECM Front', k: 6}
+        : t === 'operating' ? {type: t, count: 1, hd: 'HD 1.1', newqd: 500, sqft: 10000, pes: 'Aboveground structure', barricaded: true, k: 11} : {type: t});
+      afRender();
+    } else if (f === 'sf') { r[afHazard(r.type) ? 'sqft' : 'sf'] = num; }
+    else if (f === 'barricaded') r.barricaded = e.target.checked;
+    else r[f] = e.target.tagName === 'SELECT' ? e.target.value : num;
+  });
+  afRows.addEventListener('click', e => { if (e.target.closest('[data-del]')) { AF.rows.splice(+e.target.closest('tr').dataset.i, 1); afRender(); } });
+  document.getElementById('af-add-flex').addEventListener('click', () => { AF.rows.push({type: 'manufacturing'}); afRender(); });
+  document.getElementById('af-add-mag').addEventListener('click', () => { AF.rows.push({type: 'magazine', count: 1, hd: 'HD 1.1', newqd: 5000, sqft: 1000, pes: 'ECM Front', k: 6}); afRender(); });
+  document.getElementById('af-add-ops').addEventListener('click', () => { AF.rows.push({type: 'operating', count: 1, hd: 'HD 1.1', newqd: 500, sqft: 10000, pes: 'Aboveground structure', barricaded: true, k: 11}); afRender(); });
+  document.getElementById('af-run').addEventListener('click', () => afCalc('calc'));
+  document.getElementById('af-save').addEventListener('click', () => afCalc('save'));
+
+  async function afLoad() {
+    afLabel(); afRender();
+    const t = planTarget();
+    const key = t.kind === 'parcel' ? 'p' + QD.target : ASM.siteId ? 's' + ASM.siteId : 'a' + ASM.ids.join(',');
+    if (AF.loadedFor === key) return;
+    if (!t.kind) { afSummary.innerHTML = '<span class="muted">Open a parcel or build an assemblage, then press Auto-fit.</span>'; return; }
+    AF.loadedFor = key;
+    await afCalc('calc', {useSaved: true});
+  }
+
+  async function afCalc(action, {useSaved = false} = {}) {
+    afLabel();
+    const seq = ++AF.seq;
+    const zoneSel = document.getElementById('af-zone');
+    const body = {...planTarget().body, action, program: AF.rows, exclude: document.getElementById('af-exclude').checked,
+      shrink: document.getElementById('af-shrink').checked, setback: document.getElementById('af-setback').value};
+    if (!useSaved && zoneSel.value && zoneSel.value !== '__current') body.zone = zoneSel.value === '__none' ? '' : zoneSel.value;
+    afSummary.innerHTML = '<span class="muted">Fitting the program…</span>';
+    const post = b => fetch("{% url 'crm:land_autofit' %}", {method: 'POST', body: JSON.stringify(b), headers: {'X-CSRFToken': csrf(), 'Content-Type': 'application/json'}});
+    let resp = await post(body);
+    if (resp.status >= 500) { afSummary.innerHTML = '<span class="overdue">Auto-fit failed on the server.</span>'; return; }
+    let d = await resp.json();
+    if (seq !== AF.seq) return;
+    if (d.error) { afSummary.innerHTML = `<span class="overdue">${escapeHtml(d.error)}</span>`; return; }
+    if (useSaved && d.saved && d.saved.program) {  // first open of a site with a saved program: run that
+      const s = d.saved;
+      AF.rows = s.program;
+      document.getElementById('af-exclude').checked = !!s.exclude;
+      document.getElementById('af-shrink').checked = !!s.shrink;
+      document.getElementById('af-setback').value = s.setback ?? '';
+      resp = await post({...planTarget().body, action: 'calc', program: s.program, exclude: s.exclude, shrink: s.shrink, setback: s.setback,
+        overrides: s.overrides || {}, ...(s.zone !== undefined && s.zone !== null ? {zone: s.zone} : {})});
+      d = await resp.json();
+      if (d.error) { afSummary.innerHTML = `<span class="overdue">${escapeHtml(d.error)}</span>`; return; }
+    }
+    const cur = d.current_zone || '';
+    zoneSel.innerHTML = `<option value="__current">As zoned now${cur ? ' (' + escapeHtml(cur) + ')' : ' (no zoning)'}</option>`
+      + d.zones.map(z => `<option value="${z.code}"${z.code === d.standards.code && z.code !== cur ? ' selected' : ''}>Rezone to ${escapeHtml(z.label)}</option>`).join('')
+      + `<option value="__none"${!d.standards.code && cur ? ' selected' : ''}>No zoning / custom</option>`;
+    if (d.standards.code === cur || (!cur && !d.standards.code)) zoneSel.value = '__current';
+    const s = d.standards, v = x => x == null ? 'none' : x;
+    document.getElementById('af-std').innerHTML = `Front ${s.front} / side ${s.side} / rear ${s.rear} ft · height ${v(s.height)} ft · FAR ${v(s.far)} · impervious ${v(s.isr)} · coverage ${v(s.coverage)}`
+      + (s.generic && s.generic.length ? `<br><b>Generic default (no number in the zoning file): ${s.generic.join(', ')}</b>` : '')
+      + `<br>${escapeHtml(s.source || '')}${s.note ? '<br>' + escapeHtml(s.note) : ''}`;
+    afRender(); afDraw(d.features); afResults(d);
+    if (action === 'save') afSummary.insertAdjacentHTML('beforeend', `<div class="muted lc-small">${d.saved_to ? 'Saved to the ' + d.saved_to + '.' : 'Not saved: save the assemblage as a site first.'}</div>`);
+    if (action !== 'save' && !useSaved) { const b = AF.layer.getLayers()[0]; if (b && b.getBounds) map.fitBounds(b.getBounds(), viewPad()); }
+  }
+
+  function afDraw(fc) {
+    AF.layer.clearLayers();
+    const arcStyle = {ibd: ['#d7301f', 0.06, 1.5], ptrd: ['#e08a1e', 0.03, 1], ild: ['#3a7bd5', 0.03, 1], imd: ['#7b4fd6', 0.03, 1]};
+    L.geoJSON(fc, {
+      style: f => {
+        const p = f.properties;
+        if (p.kind === 'envelope') return {color: '#ffd400', weight: 2, dashArray: '6 5', fill: false};
+        if (p.kind === 'excluded') return {color: '#d7301f', weight: 1, fillColor: '#d7301f', fillOpacity: 0.25};
+        if (p.kind === 'parking') return {color: '#9aa3ad', weight: 0.5, fillColor: '#c7ccd4', fillOpacity: 0.55};
+        if (p.kind === 'arc') { const a = arcStyle[p.arc] || arcStyle.ibd; return {color: a[0], weight: a[2], fillColor: a[0], fillOpacity: a[1], dashArray: p.arc === 'ibd' ? null : '4 4'}; }
+        if (p.kind === 'hazard') return {color: '#fff', weight: 1.5, fillColor: '#e8a07a', fillOpacity: 0.95};
+        return {color: '#fff', weight: 1, fillColor: p.color, fillOpacity: 0.9};
+      },
+      onEachFeature: (f, l) => {
+        const p = f.properties;
+        if (p.kind === 'building') l.bindTooltip(`<b>${escapeHtml(p.label)}</b><br>${p.gfa.toLocaleString()} sf · exposed at ${p.exposure.toUpperCase()}`, {sticky: true});
+        else if (p.kind === 'hazard') l.bindTooltip(`<b>${escapeHtml(p.name)}</b><br>${escapeHtml(p.hd)} · ${Math.round(p.newqd).toLocaleString()} lb`, {sticky: true});
+        else if (p.kind === 'arc') l.bindTooltip(`${escapeHtml(p.name)}: ${p.arc.toUpperCase()} arc`, {sticky: true});
+        else if (p.kind === 'envelope') l.bindTooltip('Buildable envelope (after zoning setbacks)', {sticky: true});
+        else if (p.kind === 'excluded') l.bindTooltip('Floodplain / wetlands kept clear', {sticky: true});
+      },
+      interactive: true,
+    }).addTo(AF.layer);
+  }
+
+  function afResults(d) {
+    const s = d.summary, n = v => Math.round(v).toLocaleString();
+    const pct = v => (v * 100).toFixed(1) + '%';
+    const lim = ls => (ls || []).map(l => `<div class="lc-small ${l.kind === 'qd' ? '' : 'muted'}"><b>${{qd: 'QD arc', zoning: 'Zoning', exclusion: 'Flood / wetland'}[l.kind] || ''}:</b> ${escapeHtml(l.text)}</div>`).join('');
+    const hz = d.hazard.map(h => `<tr><td>${escapeHtml(h.name)}</td><td class="num">${Math.round(h.newqd).toLocaleString()}</td>
+      <td class="num">${h.max_newqd == null ? '–' : h.max_newqd.toLocaleString() + (h.max_by === 'table limit' ? '+' : '')}</td>
+      <td class="num">${n(h.ibd_ft)}</td><td class="num">${h.edge_ft == null ? '–' : h.edge_ft.toLocaleString()}</td>
+      <td>${!h.placed ? '<span class="pill pill-bad">No room</span>' : h.ibd_clear && !(h.conflicts || []).length ? '<span class="pill">Clear</span>' : '<span class="pill pill-bad">Off site / too close</span>'}</td>
+      <td>${lim(h.limits)}${h.max_by ? `<div class="lc-small muted">Max NEWQD limited by ${escapeHtml(h.max_by)}</div>` : ''}</td></tr>`).join('');
+    const fx = d.flex.map(f => `<tr><td>${escapeHtml(f.label)}</td><td class="num">${f.placed}${f.asked ? ' / ' + f.asked : ''}</td><td class="num">${n(f.gfa_sf)}</td>
+      <td>${f.exposure.toUpperCase()}</td><td>${f.height_ft ? f.height_ft + ' ft' : ''}</td><td>${lim(f.limits) || '<span class="muted lc-small">as asked</span>'}</td></tr>`).join('');
+    const checks = s.checks.map(c => `<div class="qd-kv"><span>${c.label}</span><b class="${c.ok ? '' : 'overdue'}">${c.key === 'far' ? c.value.toFixed(2) : pct(c.value)}${c.limit != null ? (c.min ? ' / min ' : ' / ') + (c.key === 'far' ? c.limit : pct(c.limit)) : ''}</b></div>`).join('');
+    afSummary.innerHTML = `<div class="qd-verdict ${s.all_clear ? 'ok' : 'bad'}">${s.all_clear ? 'Layout clears: zoning and every QD arc' : 'Layout has problems: see the limits below'}</div>`
+      + (d.hazard.length ? `<table class="qd-table"><thead><tr><th>Hazard bldg</th><th>NEWQD</th><th title="Most this building can hold where it stands, given the final layout">Max NEWQD</th><th>IBD ft</th><th title="Footprint to property line">Room ft</th><th>Status</th><th>What limits it</th></tr></thead><tbody>${hz}</tbody></table>` : '')
+      + (d.flex.length ? `<table class="qd-table"><thead><tr><th>Flex-industrial</th><th>Placed</th><th>GFA sf</th><th>Exposed at</th><th>Clear ht</th><th>What limits it</th></tr></thead><tbody>${fx}</tbody></table>` : '')
+      + `<div class="qd-kv"><span>Site / buildable envelope</span><b>${s.site_acres} / ${s.envelope_acres} ac</b></div>`
+      + `<div class="qd-kv"><span>Zoning setback / flood-wetland removed</span><b>${s.losses.zoning_setback_acres} / ${s.losses.exclusion_acres} ac</b></div>`
+      + (s.qd ? `<div class="qd-kv"><span>QD arcs on the property</span><b>${s.qd.encumbered_acres} ac (${s.qd.encumbered_pct}%)</b></div><div class="qd-kv"><span>Arc acres off the property</span><b class="${s.qd.off_site_acres > 0.9 ? 'overdue' : ''}">${s.qd.off_site_acres}</b></div>` : '')
+      + `<div class="qd-kv"><span>Total GFA incl. hazard buildings</span><b>${n(s.gfa_sf)} sf</b></div>` + checks
+      + (s.exposure_conflicts.length ? `<div class="overdue lc-small">Too close to a hazard building: ${s.exposure_conflicts.map(c => `${escapeHtml(c.building)} (${c.have_ft} of ${c.need_ft} ft from ${escapeHtml(c.hazard)})`).join('; ')}</div>` : '')
+      + d.notes.map(t => `<div class="lc-small muted">${escapeHtml(t)}</div>`).join('')
+      + (s.note ? `<div class="overdue lc-small">${escapeHtml(s.note)}</div>` : '')
+      + `<div class="muted lc-small">${escapeHtml(d.disclaimer)}</div>`;
   }
 
   // ---- Locate me ----------------------------------------------------------------

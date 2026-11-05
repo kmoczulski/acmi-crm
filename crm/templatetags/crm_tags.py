@@ -233,6 +233,29 @@ def mentions(text):
     return mark_safe(linebreaks(html, autoescape=False))
 
 
+EXTENSION = re.compile(r"\s*(?:x|ext\.?|extension)\s*\d+\s*$", re.I)
+
+
+@register.filter
+def phone_numbers(phones):
+    """A person's saved numbers as rows for a card or table: {text, label, href}. "301-555-0100 x204 (office)" shows as
+    "301-555-0100 x204" with "office" beside it, and taps through to tel:3015550100 (a dialler can't take the label or
+    the extension). A saved value with no digits in it has no link."""
+    from crm.forms import PHONE_LABEL
+
+    rows = []
+    for saved in phones or []:
+        saved = str(saved).strip()
+        m = PHONE_LABEL.search(saved)
+        text, label = (saved[:m.start()].strip(), m.group(1)) if m else (saved, "")
+        if not text:
+            continue
+        number = EXTENSION.sub("", text)
+        dial = ("+" if number.lstrip().startswith("+") else "") + re.sub(r"\D", "", number)
+        rows.append({"text": text, "label": label, "href": f"tel:{dial}" if dial.strip("+") else ""})
+    return rows
+
+
 @register.filter
 def prose(text):
     """Plain text with light markdown (blank-line paragraphs, # headings, - bullets, **bold**) as safe HTML: the
@@ -392,3 +415,25 @@ def file_type_name(kind):
     from crm.mail.threads import TYPE_NAMES
 
     return TYPE_NAMES.get(kind, kind)
+
+
+_SEARCH_OP = re.compile(r'(?:^|\s)-?\w+:(?:"[^"]*"|\([^)]*\)|\S+)')
+
+
+@register.filter
+def mark_terms(text, query):
+    """Escape text and wrap the plain words of a mail search in <mark>, as Gmail does. Operators (from:, has:...),
+    negated words and Gmail's {} / OR syntax are not highlighted."""
+    from django.utils.html import escape
+    from django.utils.safestring import mark_safe
+
+    text = text or ""
+    q = _SEARCH_OP.sub(" ", query or "")
+    found = [quoted or bare for quoted, bare in re.findall(r'"([^"]+)"|(\S+)', q)]
+    words = sorted({w.strip("(){}") for w in found if not w.startswith("-") and w.upper() != "OR"} - {""},
+                   key=len, reverse=True)[:8]
+    if not words:
+        return text
+    pattern = re.compile("(" + "|".join(re.escape(w) for w in words) + ")", re.I)
+    return mark_safe("".join(f"<mark>{escape(part)}</mark>" if i % 2 else escape(part)
+                             for i, part in enumerate(pattern.split(text))))

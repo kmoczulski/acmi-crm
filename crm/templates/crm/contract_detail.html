@@ -15,6 +15,7 @@
   <div class="record-nav">
     {% if compare_pair|length == 2 %}<a class="btn" href="{% url 'crm:contract_compare' contract.pk %}?a={{ compare_pair.0.pk }}&b={{ compare_pair.1.pk }}">Redline</a>{% endif %}
     <a class="btn" href="{% url 'crm:contract_timeline' contract.pk %}">Timeline</a>
+    {% if terms %}<a class="btn" href="{% url 'crm:contract_terms' contract.pk %}">Terms</a>{% endif %}
     <a class="btn" href="#details">Edit details</a>
   </div>
 </div>
@@ -44,6 +45,16 @@
   {% if timeline.upcoming %}<ul class="ct-upnext">{% for r in timeline.upcoming %}
     <li class="tl-k-{{ r.kind }}"><b>{{ r.when|date:"M j, Y" }}</b><span>{{ r.label }}{% if r.amount %} · {{ r.amount|money }}{% endif %}</span>
       <span class="lc-small {% if r.left <= 14 %}soon{% else %}muted{% endif %}">{% if r.left == 0 %}today{% else %}in {{ r.left }} day{{ r.left|pluralize }}{% endif %}</span></li>{% endfor %}</ul>{% endif %}
+</section>
+{% endif %}
+
+{% if terms %}
+<section class="panel lt-strip" id="terms">
+  <h3>LOI / PSA terms <a href="{% url 'crm:contract_terms' contract.pk %}" style="float:right;text-transform:none;letter-spacing:0">{% if terms.count %}Open the tracker ({{ terms.count }} round{{ terms.count|pluralize }}){% else %}Start the tracker{% endif %}</a></h3>
+  {% if terms.round %}
+  <div class="lt-line"><b>{{ terms.round.label }}</b>{% if terms.agreed %} <span class="pill pill-good">✓ Agreed</span>{% else %} <span class="muted">· latest round</span>{% endif %}
+    · {{ terms.head.price|dollars }} · {{ terms.head.deposits|dollars }} in deposits ({{ terms.head.nonrefundable|dollars }} non-refundable) · closing {{ terms.head.closing|date:"M j, Y"|default:"not dated" }}</div>
+  {% else %}<p class="muted" style="margin:0">Track each offer and counter: the closing timeline and the deposit schedule each one implies, side by side, to agree on terms before the PSA is signed.</p>{% endif %}
 </section>
 {% endif %}
 

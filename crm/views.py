@@ -6,7 +6,8 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib import messages
 from django.core.paginator import Paginator
-from django.db.models import Count, F, Max, Q
+from django.db.models import Case, CharField, Count, F, IntegerField, Max, Q, Value, When
+from django.db.models.functions import Coalesce
 from django.http import FileResponse, Http404, HttpResponse, HttpResponseBadRequest, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -15,7 +16,7 @@ from django.utils.dateparse import parse_date
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
-from . import ai, company_page, documents, gcal, meetings, merge, notify, pipeline, prefs
+from . import ai, comment_photos, company_page, documents, gcal, meetings, merge, notify, pipeline, prefs
 from . import projects as project_tagging
 from .company_pdf import tenant_rows
 from .boards import logic as board_logic
@@ -439,12 +440,12 @@ def home(request):
     shown = grid["shown"]
     ctx = {"grid": grid, "layout": grid["layout"], "customize": grid["customize"]}
     if "my_day" in shown:
+        ctx["day"] = day = pipeline.my_day(request.user)  # first: it makes the follow-up tasks the list below shows
         my_tasks = Task.objects.filter(assignee=request.user, done=False).select_related("company", "person", "assignee", "opportunity")
         ctx["overdue"] = [t for t in my_tasks if t.due_date and t.due_date < today]
         ctx["upcoming"] = [t for t in my_tasks if not t.due_date or t.due_date >= today][:15]
-        ctx["day"] = day = pipeline.my_day(request.user)
-        for r in day["replies"]:
-            r.gist = reply_gist(r.body, r.person, limit=120)
+        ctx["follow_ups"] = _follow_up_rows(day["waiting"]["all"], limit=8)
+        ctx["follow_up_counts"] = {k: len(day["waiting"][k]) for k in ("us", "them")}
     if "replies" in shown:
         ctx["replies"] = replies = list(
             Activity.objects.filter(kind=Activity.Kind.REPLY, outcome__in=POSITIVE_OUTCOMES, person__isnull=False)
@@ -776,10 +777,34 @@ def suggestion_create(request, company_id):
     return redirect(opp)
 
 
+def _follow_up_rows(entries, limit=None):
+    """Follow-up entries ready to draw: the gist of the email and where it opens in Mail."""
+    rows = []
+    for e in entries[:limit]:
+        a = e["act"]
+        e["gist"] = reply_gist(a.body, a.person, limit=140)
+        e["thread"] = pipeline.thread_hex(a.thread_id)
+        rows.append(e)
+    return rows
+
+
+def follow_ups(request):
+    """Mail > Follow-ups: every thread where the ball sits, redder and higher the longer it waits."""
+    found = pipeline.follow_ups(request.user)
+    pipeline.sync_follow_up_tasks(request.user, found)
+    side = request.GET.get("side", "all")
+    side = side if side in ("us", "them") else "all"
+    return render(request, "crm/follow_ups.html", {
+        "rows": _follow_up_rows(found[side]), "side": side,
+        "counts": {"all": len(found["all"]), "us": len(found["us"]), "them": len(found["them"])},
+        "red": sum(1 for e in found["all"] if e["level"] == 3),
+    })
+
+
 @require_POST
 def reply_dismiss(request, pk):
-    """My day: this reply needs no answer from me, so take it off my list (only mine)."""
-    act = get_object_or_404(Activity, pk=pk, kind=Activity.Kind.REPLY)
+    """Follow-ups: this one needs no answer or nudge from me, so take it off my list (only mine)."""
+    act = get_object_or_404(Activity, pk=pk, kind__in=[Activity.Kind.REPLY, Activity.Kind.EMAIL_SENT])
     kept = [i for i in prefs.get_prefs(request.user).get(pipeline.REPLIES_DISMISSED, []) if i != act.pk]
     prefs.set_pref(request.user, pipeline.REPLIES_DISMISSED, (kept + [act.pk])[-500:])
     if request.headers.get("X-Requested-With") == "fetch":
@@ -919,6 +944,17 @@ def task_list(request):
     if scope == "mine":
         qs = qs.filter(assignee=request.user)
     qs = qs.filter(done=(state == "done"))
+    # Group by what the task is about: deals / projects (by campus or site), land sites, prospecting (a company or
+    # person with no deal), then general tasks. Due date order holds inside each group.
+    qs = qs.annotate(
+        grp=Case(When(opportunity__isnull=False, then=Value(1)), When(site__isnull=False, then=Value(2)),
+                 When(Q(company__isnull=False) | Q(person__isnull=False), then=Value(3)),
+                 default=Value(4), output_field=IntegerField()),
+        sub=Case(When(opportunity__isnull=False,
+                      then=Coalesce(F("opportunity__campus__code"), F("opportunity__site"), Value("TBD"))),
+                 When(site__isnull=False, then=F("site__name")),
+                 default=Value(""), output_field=CharField()),
+    ).order_by("grp", "sub", *TASK_ORDER)
     page = Paginator(qs, 100).get_page(request.GET.get("page"))
     return render(request, "crm/task_list.html", {
         "page": page, "scope": scope, "state": state, "task_form": TaskForm(initial={"assignee": request.user}),
@@ -1030,7 +1066,15 @@ def comment_add(request):
         target.setdefault("opportunity", target["card"].opportunity)
     if "opportunity" in target and target["opportunity"]:
         target.setdefault("company", target["opportunity"].company)
-    comment = Comment.objects.create(body=body, author=request.user, **{k: v for k, v in target.items() if v})
+    photo = None
+    if upload := request.FILES.get("photo"):  # optional: one picture, checked and stored under a name of our own
+        try:
+            photo = comment_photos.prepare(upload)
+        except comment_photos.BadPhoto as e:
+            messages.error(request, f"Nothing was posted. {e}")
+            return redirect(_safe_next(request, "/"))
+    comment = Comment.objects.create(body=body, author=request.user, photo=photo,
+                                     **{k: v for k, v in target.items() if v})
     notify.comment_added(comment)
     return redirect(_safe_next(request, "/") + "#comments")
 
@@ -1038,8 +1082,27 @@ def comment_add(request):
 @require_POST
 def comment_delete(request, pk):
     comment = get_object_or_404(Comment, pk=pk, author=request.user)
+    if comment.photo:
+        comment.photo.delete(save=False)  # the picture goes too, not just the row
     comment.delete()
     return redirect(_safe_next(request, "/") + "#comments")
+
+
+def comment_photo(request, pk):
+    """A comment's picture, streamed to signed-in users (crm.models.Comment.photo_url). Served by the app, like
+    documents, so it works with DEBUG off and with the private Cloud Storage bucket."""
+    comment = get_object_or_404(Comment, pk=pk)
+    if not comment.photo:
+        raise Http404
+    try:
+        fh = comment.photo.open("rb")
+    except (FileNotFoundError, OSError):
+        raise Http404("That picture is no longer on the server.")
+    name = comment.photo.name.rsplit("/", 1)[-1]
+    kind = comment_photos.CONTENT_TYPES.get(name.rsplit(".", 1)[-1].lower())  # only types comment_add stores open inline
+    response = FileResponse(fh, content_type=kind or "application/octet-stream", as_attachment=not kind, filename=name)
+    response["Cache-Control"] = "private, max-age=86400"  # a stored picture never changes
+    return response
 
 
 def notification_list(request):

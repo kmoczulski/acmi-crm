@@ -740,6 +740,8 @@ class Task(models.Model):
     meetings = models.ManyToManyField("Meeting", blank=True, related_name="tasks",
                                       help_text="The meetings whose action item this came from (the same item on two "
                                                 "meetings is one task)")
+    source_activity = models.ForeignKey("Activity", null=True, blank=True, on_delete=models.SET_NULL, related_name="+",
+                                        help_text="The email this task follows up on (made by the follow-ups list)")
     created_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -963,6 +965,9 @@ class Comment(models.Model):
     resolved = models.BooleanField(default=False)
     by_claude = models.BooleanField(default=False, help_text="Claude's note on a change in a redline")
     mentions = models.ManyToManyField(User, blank=True, related_name="mentioned_in")
+    # One picture per comment (comment_add checks it is a real image). NULL, not "", so code from before this column
+    # existed can still insert comments after a rollback (a NOT NULL column would make its INSERTs fail).
+    photo = models.ImageField(upload_to="comments/%Y/%m/", null=True, blank=True, help_text="A picture on the comment")
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -970,6 +975,11 @@ class Comment(models.Model):
 
     def __str__(self):
         return self.body[:60]
+
+    def photo_url(self):
+        """Where the picture is served: through the app (crm.views.comment_photo), as documents are, so it works with
+        DEBUG off and with the private Cloud Storage bucket (a direct file link would not)."""
+        return reverse("crm:comment_photo", args=[self.pk]) if self.photo else ""
 
     def record(self):
         return self.card or self.task or self.opportunity or self.site or self.contract or self.company
@@ -1924,7 +1934,7 @@ class LandCounty(models.Model):
 
     @property
     def state_name(self):
-        return {"TX": "Texas", "MD": "Maryland", "VA": "Virginia", "AL": "Alabama", "NC": "North Carolina", "AZ": "Arizona", "IN": "Indiana"}.get(self.state, self.state)
+        return {"TX": "Texas", "MD": "Maryland", "VA": "Virginia", "AL": "Alabama", "NC": "North Carolina", "AZ": "Arizona", "IN": "Indiana", "FL": "Florida", "UT": "Utah", "HI": "Hawaii"}.get(self.state, self.state)
 
 
 class Parcel(models.Model):
@@ -2652,6 +2662,44 @@ class ContractDate(models.Model):
 
     def days_left(self, today=None):
         return (self.date - (today or timezone.localdate())).days if self.date else None
+
+
+class TermsRound(models.Model):
+    """One round of a purchase negotiation's terms: ACMI's offer, the seller's redline, ACMI's counter. Kept beside the
+    drafts so the team can line up on a closing timeline and deposit schedule before a PSA is signed. The terms are
+    plain JSON (crm/contracts/terms.py); the dates and deposits they produce are worked out from them, never stored."""
+
+    class Side(models.TextChoices):
+        US = "us", "ACMI"
+        THEM = "them", "Seller"
+
+    contract = models.ForeignKey(Contract, on_delete=models.CASCADE, related_name="term_rounds")
+    label = models.CharField(max_length=120, help_text="e.g. ACMI initial offer, Seller redline, ACMI counter")
+    sent_by = models.CharField(max_length=4, choices=Side.choices, blank=True, help_text="Whose proposal it is")
+    dated = models.DateField(null=True, blank=True, help_text="The day it was sent or received")
+    terms = models.JSONField(default=dict, blank=True, help_text="See crm/contracts/terms.py (ROUND_FIELDS, PHASE_FIELDS)")
+    document = models.ForeignKey(ContractDocument, null=True, blank=True, on_delete=models.SET_NULL, related_name="+",
+                                 help_text="The draft or letter these terms summarize")
+    agreed = models.BooleanField(default=False, help_text="The terms both sides settled on (one round per contract)")
+    notes = models.TextField(blank=True)
+    position = models.PositiveSmallIntegerField(default=0, help_text="Order among rounds on the same day")
+    created_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = [models.F("dated").asc(nulls_last=True), "position", "id"]
+
+    def __str__(self):
+        return f"{self.contract} · {self.label}"
+
+    def schedule(self):
+        from .contracts import terms
+
+        # Once the PSA is signed, the agreed round counts from the day it really took effect.
+        c = self.contract
+        signed = c.effective_date if self.agreed and c.status in (Contract.Status.SIGNED, Contract.Status.CLOSED) else None
+        return terms.schedule(self.terms, self.dated, signed_on=signed)
 
 
 class DiligenceItem(models.Model):

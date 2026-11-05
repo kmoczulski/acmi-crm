@@ -1,7 +1,235 @@
-# ACMI CRM: Handoff (as of 2026-11-04)
+# ACMI CRM: Handoff (as of 2026-11-05)
 
 Read this first when picking the project up in a new chat, along with
 `attio_spec.md` in this folder. Start with "Pick up here"; the dated sections after it are the history.
+
+**Update, 2026-11-05 (Claude on the laptop; Kellen pasted a code review and a redesign note for the tenant pipeline / peek cards / record pages, then "yes", "Merge to main", "deploy", "Push it", "Push to main"): the investor report's company and deal links now open the page in ONE click (commit `70b1e35`, on `main`, and LIVE: `02a8e2b`, revision `acmi-crm-00036-l6r`, is a descendant of it; no migration).** Cause: `nav.js` turns a plain click on any company / deal / person link into a card ("peek") with "Open page" inside it, so a link in the report cost two clicks. Fix: `data-no-peek` on the report table in `crm/templates/crm/report_pipeline.html` (nav.js's `SKIP` list already honours it; Ctrl / middle click unchanged); test `test_investor_report_links_skip_the_card_and_open_the_page_in_one_click` in `crm/tests/test_cards.py`. Checked in the browser on a scratch database at desktop and phone width.
+- **What the redesign note asked for and where it stands.** Done earlier (PR 19, `6f3e919`): pipeline cards link the company name to the company and the deal name to the deal; company card has "View in pipeline"; deal card has a stage selector. **Back to where you came from already exists** (`crm/static/crm/back.js`, "← Back to <page>" at the top of every page; I built a duplicate and removed it). **Not done:** quick email / add task / new deal buttons on the company card; the company page's Overview reusing the card's compact facts and activity; the same one-click fix on other lists that link to companies or deals (Capital, Directory, the Companies / Deals tabs, the weekly report: only the investor report was checked; the cheap fix is `data-no-peek` on those tables, but decide per list whether a quick look is wanted there).
+- **Not done from the pasted review:** the whole-site walkthrough on a browser and a phone (navigation, Back behaviour, clicking into a record and returning); splitting `crm/models.py` by domain (land, contracts, mail, core) behind a clean import surface; the Worklist accessibility quick wins (contrast, aria labels, focus rings, page titles, setup notices for non-staff); measuring query counts on the campus summary and dashboard with real data; a test-coverage / CI gap review.
+- **Process notes.** Local `main` in the `mail-booking` worktree is stale (it lacked live `5ed007f`); I fast-forwarded it by one commit by mistake before noticing, so do not push or deploy from it: fetch and use `origin/main`. The fix was rebuilt on `origin/main` as branch `report-direct-links-on-origin` (worktree `.claude/worktrees/report-links-origin`), CI green (run 41968799024), fast-forwarded into `main`. The deploy itself was done by another session (build `836077ba`, tag `02a8e2b`, 2026-11-05 14:12 UTC); I started none. Before that I stopped because another build (`4e5f5ac`) was running: check `gcloud builds list --ongoing` before any deploy. The old worktree `report-direct-links` and its branch can be deleted.
+
+**Update, 2026-11-04 (late; side session started from the county-adding session; Kellen: "I want to be able to put in a warehouse,
+magazine, and other hazard buildings that can all be autofited based on the site constraints and zoning etc."): one Auto-fit planner
+for flex-industrial AND hazard buildings is built, tested and **LIVE as revision `acmi-crm-00035-5hh` (image `0c079ee`, deployed 2026-11-04 ~11 pm Central; rollback `acmi-crm-00034-2mh` / `4e5f5ac`)**. `main` is `0c079ee`: it holds Auto-fit, the LOI / PSA tracker (migration 0079, already applied by the 00033 deploy), the recalculation and the Granola cloudbuild fix. Fingerprints of the service and 3 jobs identical before / after except the image; migrate "No migrations to apply"; no WARNING logs.**
+Before, `qd.py` (QD) and `siteplan.py` (zoning layout) were separate tools that did not know each other.
+- **Engine: `crm/land/autofit.py`, `plan()`.** One program list: flex types (`warehouse`, `manufacturing`, `flex`, `office`, `lab`) and
+  hazard types (`magazine` = IMD spacing, `operating` = ILD) with HD, NEWQD, PES, barricade, MCE, K, footprint sf. Order: (1) hazard
+  buildings first, inside the zoning envelope (setback, flood / wetland exclusion, via `siteplan.envelope`), each at a spot whose IBD arc
+  stays on the property (largest IBD first, `qd.footprint`, spacing to the other hazard buildings); (2) each flex line then runs
+  `siteplan.layout` with the hazard arcs, earlier buildings and courts carved out. The carve-out distance is the line's **Exposed at**:
+  default IBD (an unrelated inhabited building), `lab` defaults to ILD, or PTRD / ILD / none per line. Hazard buildings count toward
+  FAR / coverage / ISR (`layout(start=...)`, new) and the zone's open space is checked as the pervious share; (3) every hazard building
+  gets **Max NEWQD given the final layout** (IBD to the property line, spacing to the other hazard buildings, and the distance each flex
+  building needs from it; `qd.max_newqd` now takes `(name, ft, key)` gaps). Zone height / stories cap each line (notes say so).
+- **What limited each building** is reported per line: `zoning` (FAR / coverage / ISR from `layout`'s new `stops`, or setback), `qd`
+  (arc runs N ac off the property, spacing, or the arcs took X ac of the envelope), `exclusion` (flood / wetland: deepest spot with vs
+  without it). "Cut NEWQD to fit" lowers a hazard building's NEWQD to what its spot allows when the arc won't fit.
+- **UI:** an **Auto-fit** button in the land toolbar opens a drawer (same family as QD plan / Site plan; one drawer at a time): zone
+  picker (rezone scenarios), setback, program table with hazard columns, results (verdict, hazard table with Max NEWQD, flex table,
+  limits, acres lost to setback / exclusion / arcs), arcs and footprints on the map. Endpoint `POST /land/autofit/`
+  (`views.auto_fit`); "Save program" keeps it on the site / parcel in `site_plan["autofit"]` (a normal Site plan save keeps it; no
+  migration). `site_plan` now shares `_std_with_overrides` and `_flood_wetland_exclusion` with it. The old QD plan and Site plan
+  drawers are unchanged and still work.
+- **New zoning standards in `siteplan.STANDARDS`** (from `crm/land/zoning_ref/`, same sources, "check source" caveats kept, no numbers
+  invented; a field the file leaves null keeps the generic 50 / 25 / 25 ft, 45 ft / 2 story default and is listed in `generic`, which
+  the drawer shows): **Miami-Dade 12086** AU (also Homestead's AU), GU (all generic: the article has no numbers), IU-1 / IU-2 / IU-3
+  (front 20, side 15 and rear 20 as the conservative end of the 33-51 ranges, open space 10%, no height), BU-2 (FAR / coverage 0.40),
+  Homestead I-1 / I-2 (front 20, side 10, **rear generic**, 70 ft / 6 stories, 90% impervious as ISR), PUD (setbacks generic, 150 ft
+  cap, 35% open space). **Emery 49015** Cleveland A-1 / R-1 / C-1 / I-1 (I-1: 25 ft all round, 30 ft / 2 stories) and Green River
+  I-1 / I-2 / I-3 (25 ft from the easement line, no height) coded **`GR I-1`..`GR I-3`** because Cleveland's I-1 shares the zoning
+  layer's plain "I-1": a Green River parcel opens as Cleveland's I-1 until you pick the GR zone in the drawer (the layer doesn't say
+  which town; a better fix would carry the authority into `_dominant_zone`). Not added: Florida City, the other Utah towns, Miami-Dade
+  residential / business districts other than BU-2. `BUILDING_TYPES` gained a `height` (clear height, ft) for the zone-height check.
+- **Limits to know:** screening only, never a DDESB submission (wording kept in the drawer and the API); 360-degree arcs; hazard
+  buildings get no access road or apron; the 15 ft margin `siteplan.envelope` puts around exclusions also pads the arcs; a flex line
+  with no count fills what is left (the default program sets counts); flex lines are laid out one after another in program order, so
+  the first greedy line takes the room.
+- **Tests:** `AutoFitTests` in `crm/tests/test_land.py` (standards, `layout(start)` / stops, big site clears every arc, hazard sf
+  counts toward FAR, small site reports the arc limit and "cut to fit" repairs it, exclusion, zone height cap, endpoint + save);
+  97 land tests pass. Checked in the browser on a scratch database (`ACMI_SQLITE_PATH` in the scratchpad): the real Miami-Dade flood
+  layer answered, the program fitted and the limits read correctly. Not deployed: no hosted-service, migration or `db.sqlite3` change.
+
+**Update, 2026-11-04 (evening; Claude on the laptop; Kellen: "Can we add this LOI/PSA trackline capability? It should be used to
+align on proposed closing timelines and deposits etc.", with the Lewis Place "LOI Tracker" workbook, then "Merge"): the LOI / PSA
+terms tracker is built, tested and merged into `main` (commit `c9edb51`, fast-forwarded after CI on Postgres went green), NOT
+deployed.** Branch `loi-tracker` (worktree `.claude/worktrees/loi-tracker`), cut from `6d597b7` and rebased onto `origin/main`
+`4eb5f5e`, then `main` (`fc7b0ec`) merged in. Per the entry below, live is `acmi-crm-00032-hlr` (`5ed007f`, photos / phones); `main` is
+ahead of it by the effective-date recalculation (`b705c40`, no migration) and this tracker, **neither deployed**: check the live
+image before any deploy. One new table, **migration `0079_termsround`** (it was `0078` until
+`0078_comment_photo` reached `main` first; it now depends on that one): a plain CREATE TABLE, no change to existing tables, so
+older code can run against it.
+- **What Kellen gets.** A **Terms** page on every contract (`/contracts/<id>/terms/`): a button and a panel on the contract page,
+  and "Terms (n)" beside the contract on the land site page. A *round* is one proposal (ACMI initial offer, Seller redline, ACMI
+  counter, ...). It holds the terms the workbook held: per phase the acres and price per acre, the feasibility period and its
+  extensions (days, options available, options used, deposit per extension), the initial deposit and its non-refundable part,
+  the deposit after feasibility and its non-refundable part, 30 / 60 / 90-day deposits, days to close counted from final zoning
+  approval or from the end of feasibility, closing extensions (days, options, used, deposit, non-refundable part); and for the
+  deal the days to PSA signing (or a fixed date), months to final zoning approval, outside date (months) and subdivision.
+  The page shows, side by side (up to four rounds, chips pick which): a card per round (price, deposits, what is lost if ACMI
+  walks away when feasibility ends, PSA / feasibility / closing dates, cash to close); **where ACMI and the seller stand** (the
+  latest round from each side, the gap = seller less ACMI, "Aligned" where equal); the timeline lanes (the contract timeline's
+  partial, ticks thinned on long spans); **the schedule** (each event's date, the deposit and its non-refundable part, the
+  cumulative "walk away here: lose $X, get back $Y", cash to close, extension rows say where the date moves to); the inputs
+  grid with differing rows tinted; print / save as PDF (logo prints; the on-screen logo is hidden). Adding or editing a round is
+  one vertical form with a **live preview** (the server does the arithmetic: `terms.js` posts the form to `.../terms/preview/`
+  as you type). A new round starts from the previous round's terms and is named for the other side. **Mark agreed** (one per
+  contract); once the contract is signed with an effective date the agreed round counts from the real date, labelled "PSA
+  signed". **Import** a team LOI Tracker workbook (.xlsx): one round per column under "LOI INFO", rows read by their wording.
+- **Where the code is.** Engine `crm/contracts/terms.py` (pure functions; `ROUND_FIELDS` / `PHASE_FIELDS` drive the form, the
+  stored JSON, both grids and the importer, so adding a term is one line there), `terms_views.py`, `terms_import.py`,
+  `forms.py` (`TermsRoundForm`, `TermsImportForm`), model `TermsRound` in `crm/models.py`, templates `contract_terms.html`,
+  `contract_terms_edit.html`, `partials/terms_preview.html`, `partials/terms_field.html`, the `lt-*` CSS at the end of
+  `app.css`, `static/crm/terms.js`; hooks in `contracts/views.py` (`terms_panel`), `land/views.py` (`_site_contracts`),
+  `contract_detail.html`, `land_site_detail.html`, `urls.py`. Tests: `test_terms.py` (engine), `test_terms_views.py` (pages,
+  form, permissions, import).
+- **How it was checked.** The engine reproduces the Lewis Place workbook to the dollar and the day for all three rounds (PSA,
+  feasibility end, zoning approval, closing, outside date, deposits, the refundable / non-refundable aggregates, cash to close);
+  the expected values in the tests are the workbook's own cached values. The importer read the real workbook
+  (`G:\Shared drives\1 ACMI Properties\1 Projects\MD\MEIH\01. Land Acquisition\Lewis Place\LOI Tracker - MD - Lewis Place.xlsx`)
+  with nothing skipped, and the imported rounds gave the same numbers. In the browser pane on a scratch database (never the
+  real one): the tracker with those three rounds, the edit form and its live preview recalculating, saving a round, validation
+  errors, the empty state, the contract page, light and dark, and a 375 px phone with no sideways scroll. **Tests:** the whole
+  suite on SQLite before the rebase (1,272 tests, 8 minutes) was green, 1 skipped; the tracker, contract, land, diligence,
+  static-integrity and phone-layout modules (239 tests) again after four small cleanups; `makemigrations --check` clean, also
+  after the rebase and the renumbering. The combination with `4eb5f5e` (comment photos, effective-date recalculation) was
+  checked by CI on Postgres before `main` moved. **Not checked:** a real phone, printing to a real PDF (the print CSS is small
+  and was read, not rendered), anyone but one test user on a scratch copy.
+- **Where it differs from the workbook, on purpose.** (1) A deposit for an extension is dated the day the extension has to be
+  exercised (the end of the period it extends), not the extended date; amounts, the aggregates, closing date and cash to close
+  are identical, only the dates of the two closing-extension deposits move (Apr 30 and Jun 29, 2028, not Jun 29 and Aug 28).
+  (2) Feasibility extension deposits are one row per extension (the workbook adds them up on the first date). (3) The
+  workbook's "Deposits Check" is true by construction here, so the page warns instead: deposits over the price, an extended
+  closing past the outside date (closing is held at the outside date), more extensions used than available. (4) The labels'
+  spelling slips are fixed. (5) Phase II and later start `start_days` after the previous phase closes and close after their own
+  feasibility, like the workbook's blocks; the workbook's Phase II / III aggregate formulas pointed at the wrong rows (they were
+  zero, so nobody saw it).
+- **Not built, ask Kellen.** Pushing the agreed round's dates into Critical dates (reminders, calendar, site timeline): left out
+  on purpose, since a signed PSA's dates are read from the document and two sources would duplicate. Claude reading the terms
+  out of an LOI draft. A view across all deals. An Excel export (print to PDF is there). Whether he wants extension deposits
+  dated the workbook's way.
+- **To ship.** Kellen's go-ahead right before, then the usual deploy steps (read the deploy note in memory first). The migrate
+  job will apply `0079_termsround` (one new table; 00032 already applied `0078_comment_photo`). It only adds, so rolling the
+  image back is safe. Shipping `main` ships the effective-date recalculation too. **Merge note:** the uncommitted land work
+  in the main folder (branch `task-groups`) edits `crm/models.py`; if it adds a migration it has to be numbered after `0079`
+  and depend on it.
+
+**Update, 2026-11-04 (evening; Claude on the laptop; Kellen: "I thought I added the ability to upload photos to comments on
+company cards? also within the company cards, people needs to add phone numbers if we have them", then "deploy"): both are
+built, checked and DEPLOYED: live is revision `acmi-crm-00032-hlr`, image `5ed007f`, since 4:21 pm Central.** Branch
+`card-photos-phones` (worktree `.claude/worktrees/card-photos-phones`, cut from `origin/main` `6d597b7`), commit `5ed007f`, CI
+green on it (run 41921163980). **`main` now holds `5ed007f` AND another session's critical-dates fix (`b705c40`, the next
+entry), which reached `main` while I waited for CI. I deployed only `5ed007f` (that fix was not part of what Kellen asked for
+here), so live has the photos and the phone numbers and NOT the effective-date recalculation. The next entry was written when
+live was 00031 / `a3048b0`; its fix is still not deployed.**
+- **The deploy (4:16-4:22 pm Central).** `main` moved under me (that other session's merge), so I merged `main` into the branch
+  (`4eb5f5e`; only this file conflicted, both entries kept), got CI green on the merge (run 41922613914), fast-forwarded `main`
+  to it, then built exactly `5ed007f` from a clean `git archive` with `cloudbuild.yaml` (`_TAG=5ed007f`; before building, the
+  file's settings matched the live env for all four resources). Cloud Build `30ee45b8-afb9-421c-aaba-da45acae9ca8`, 5 min 38 s;
+  a manual Cloud SQL backup first (id `1793829914222`, "before card-photos-phones 5ed007f"). After: the migrate job ran
+  `crm.0078_comment_photo... OK`; the service and the three jobs have **identical env / command / args / resources / Cloud SQL
+  / account** before and after (only the image changed); no WARNING and no 5xx on the new revision; the login page is 200,
+  `/companies/1/` and `/comments/1/photo/` answer 302 to sign-in, and the served `app.css` carries the new rules. **Rollback:**
+  `gcloud run services update-traffic acmi-crm --to-revisions=acmi-crm-00031-ptp=100 --region us-central1 --project
+  sincere-passage-511621-j3` (safe on the schema: the new column is nullable and old code ignores it). **Not checked on the live
+  copy:** anything behind sign-in (Claude cannot sign in as Kellen): attaching a real photo (its first upload goes through the
+  Cloud Storage bucket, the path documents use) and the people's numbers on the company card. Ask Kellen to try both.
+- **Why the photos were not there.** The upload had been built on 2026-11-03 as commit `7cf25af` on `origin/photo-comments`
+  (cut from `960e79c`, 67 commits behind `main`) and never merged, and no note here mentioned it. It could not have shipped as
+  it stood: its migration `0077_comment_photo` and main's `0077_deal_lease_roc` both depend on `0076`, so the migrations would
+  have two leaf nodes (`makemigrations --check` in CI fails and `migrate` refuses); it linked the file with `photo.url`, but
+  production runs DEBUG off (Django serves no media) with a private Cloud Storage bucket, which is why documents go through
+  an app view; and it never checked what was uploaded. That branch is left alone (not merged, not deleted); this one redoes
+  the work.
+- **Photos.** `Comment.photo` (a nullable `ImageField`, so code from before it can still insert comments after a rollback;
+  migration `0078_comment_photo`, one nullable column, no backfill). `crm/comment_photos.py` checks the upload is a real
+  JPG / PNG / GIF / WebP (the type the browser claims means nothing), at most 15 MB and 64 megapixels, stores it under a name
+  of its own, and scales anything over 2400 px down once (camera rotation baked in; animated GIFs untouched).
+  `views.comment_add` takes the optional `photo`; a bad file posts nothing and says why (the typed text is not kept).
+  `views.comment_photo` (`comments/<pk>/photo/`) streams the file to signed-in users, as `document_file` does, with a private
+  one-day cache; `comment_delete` removes the file too. "Add a photo" is on both comment forms (the company page's Activity
+  box and the comments panel on deals, tasks and sites); the picture shows in the feed, the panels and "Latest comments" on
+  the **company and deal cards** (`partials/comment_photo.html`, `comment_attach.html`). One photo per comment; the text is
+  still required. Not supported: iPhone HEIC files sent from a computer (a phone's own picker converts them to JPG).
+- **Phone numbers.** `phone_numbers` filter (`crm_tags.py`) and `partials/person_phones.html`: each saved number shows as a
+  tap-to-call `tel:` link with its office / mobile label beside it (`tel:` carries no label or extension; a saved value with no
+  digits, like "call the main line", shows as plain text). On the **company card** the People rows keep opening the person
+  (the name link is stretched over the row) while the numbers stay their own links; also a **Phone column on the company page's
+  People tab** and the numbers under each name in the Overview's "Who we know" widget. Nobody without a number gets an empty line.
+- **Checked.** `test_comment_photos.py` (16 tests: upload, serving, sign-in, delete, bad / huge / cut-off / SVG files,
+  rotation, GIF, the filter, the card, tab and widget); the whole suite 1203 OK (1 skipped) before a CSS-only tweak, and the 62
+  related tests again after it; `makemigrations --check` clean. In the browser pane on a scratch copy (own database, fake
+  data): a real upload through the form (3200 x 2400 stored as 2400 x 1800 and shown), a refused text file, the card popup,
+  the People tab, the deal page, dark mode and a phone width (no sideways scroll; the photo control drops under the button).
+  **Not checked:** the real Cloud Storage bucket (the same `open` / `FileResponse` path documents use), a real phone camera.
+- **Possible follow-ups, none asked:** several photos per comment (a second model), HEIC (needs `pillow-heif` in the image),
+  editing a comment, the numbers on the deal card's People list. The person card (`cards/person.html`) and
+  `person_details.html` still put the whole saved text, label included, in their `tel:` link; the new filter fixes that in
+  two lines if wanted.
+
+**Update, 2026-11-04 (evening; Claude on the laptop; Kellen: "I uploaded a contract then updated the effective date but the
+dates that Claude calculated didn't update. Was this fix deployed?"): the effective-date recalculation is fixed, tested and
+merged into `main` (`b705c40`, fast-forwarded after CI went green), NOT deployed. Live is still `acmi-crm-00031-ptp`, image `a3048b0`.** The fix was commit `b363621`
+(2026-11-03, branch `contract-dates-recompute`, one commit). It was never merged or deployed, and nothing in this file
+mentioned it, so it sat on its branch for a day. **It would not have worked if deployed:** `_post` in
+`crm/contracts/views.py` read `old_effective` after `form.is_valid()`, and `is_valid()` already copies the posted values
+onto the contract, so "the effective date changed" was never true. A test that posts a new effective date through the real
+page failed on the original (feasibility stayed May 1) and passed once the old date was read before the form is built.
+- **What it does now:** saving a contract's details with a new effective date calls
+  `timeline.recompute_dates(contract, old_effective, user)` (in `crm/contracts/timeline.py`; before `dates.sync_site`, so
+  the land site's timeline gets the new dates). It moves every stored critical date that has a rule (anchor + offset),
+  including Claude's suggestions nobody has kept and dates that were blank waiting for the effective date; chains follow
+  (closing = feasibility + 30). Fixed dates stay. A date that is done, or that a person moved (a push or an exercised
+  extension: a history entry not marked `auto`), stays where it is, and the dates that count from it work from where it
+  stands. A suggestion that shares a key with a kept date cannot move the kept date. Each move is in the date's history
+  (the "Moved N×" fold on the contract page) with the reason, marked `auto` so the next change of the effective date still
+  moves it. "Saved." says how many were recalculated and how many stayed. No model change, no migration.
+- **Not changed:** a date a person edited by hand that still carries a rule follows the next effective-date change (clear
+  its rule to pin it); old hand-added dates with no parsed rule (Trello imports) do not move.
+- **Tests:** `crm/tests/test_contract_recalc.py` (9 tests: the move and the chain, a second change, same-date save leaves
+  hand-set dates, blank dates fill in, done / pushed dates, key clash, site timeline, no effective date, idempotence).
+  Against `b363621` alone 6 of the 9 fail (the page test among them); with the fix all 9 pass. Full suite on the laptop:
+  1196 tests OK (1 skipped, 470 s). CI on Postgres green on PR 21 (https://github.com/kmoczulski/acmi-crm/pull/21, runs
+  41920844132 push and 41920890112 pull_request, head `b705c40`). Clicked through on a scratch copy (a contract with a done
+  date, a pushed date, a fixed date and one unkept Claude suggestion; effective date Mar 2 to Apr 1): the Saved message, the
+  new dates and the "Moved 1×" reason all showed. Not tried against real Google or the live data.
+- **To ship:** Kellen's go-ahead right before, then the usual deploy steps (live image and ancestor check, fingerprint
+  before / after, migrate job finds nothing, curl, logs). Rollback target `acmi-crm-00031-ptp`. Local `main` (checked out in
+  `.claude/worktrees/mail-booking`) is behind `origin/main`: do not deploy from it.
+- **Branches:** PR 21 (`contract-dates-fix`, merged by fast-forward) holds the work. `contract-dates-recompute` (the original
+  commit) is an ancestor of `main` through merge `6cc28ce` and can be deleted. The worktree
+  `.claude/worktrees/contract-dates-fix` can go once this is deployed.
+
+**Update, 2026-11-04 (afternoon, after 00030; Claude on the laptop; Kellen: "ok deploy", then "Yes, task groups"): task groups
+(PR 20, the Tasks page grouped by deal / campus, land site, prospecting, general) is merged into `main` and DEPLOYED: live is
+revision `acmi-crm-00031-ptp`, image `a3048b0` (= `main` `a3048b0`).** PR 20 was another session's work: 4 files (`views.py`
+`task_list`, `task_list.html`, a few lines of `app.css`, `test_task_groups.py`), no model or migration change, CI green on its
+own head `434a3b2`. **Its branch did not contain the tabs and top bar fixes (live 00030 was not an ancestor of it), so a deploy
+of the PR head as it stood would have dropped them**: I merged `main` and the PR on a fresh branch (`deploy-task-groups`, merge
+`a3048b0`), CI green on Postgres (run 41909238297), fast-forwarded `main`, and deployed from a clean export. After: the
+migrate job found nothing to apply; the service and the three jobs fingerprint **identical** to before (the News folder
+default in `cloudbuild.yaml` did its job), only the image changed; no WARNING or 5xx logs; the served CSS has the task-group
+rule and the solid top bar. Rollback: traffic to `acmi-crm-00030-hb8` (`902944a`). **Not checked on the live copy:** the Tasks
+page itself (behind sign-in). **Leave alone:** the detached worktree `.claude/worktrees/task-groups-deploy` (at `434a3b2`, a
+checkout prepared for deploying the PR head without the fixes: do not deploy from it) and the uncommitted land-layers edits in
+the main folder (on branch `task-groups`, not part of any PR; not touched).
+
+**Update, 2026-11-04 (afternoon, after 00028; Claude on the laptop; Kellen: "merge and deploy"): the company-tabs fix and the
+solid top bar are merged into `main` and DEPLOYED: live is revision `acmi-crm-00030-hb8`, image `902944a` (= `main`
+`902944a`, with a config-only commit on `main` after it).** Branch `ux-fixes-2026-11-04` (`f3b9c7b` tabs, `e35f344` top bar)
+plus `main` at `c8e3208`; CI green on Postgres (run 41904995749, 6 min); `main` fast-forwarded to `902944a`; no migrations;
+no backup (nothing to migrate); the migrate job found nothing to apply; the new CSS and `nav.js` are served; no WARNING logs.
+Rollback: traffic to `acmi-crm-00028-mzv` (`97be770`, has everything but these two fixes).
+- **A slip, put right in about six minutes (revision 00029 → 00030).** I built from `main`'s `cloudbuild.yaml`, whose
+  `_NEWS_FOLDER` default was blank, so revision 00029 had `ACMI_NEWS_DRIVE_FOLDER` empty and the News page lost its Drive
+  folder. The before / after fingerprint caught it (the service's hash changed, the three jobs' did not); I read the value
+  from revision 00028 and set it back with `gcloud run services update --update-env-vars` (00030), and the fingerprint is
+  identical to before my deploy again. The entry below says the default lived "on the laptop branch only"; I had not read it.
+  **Kept on `main`: `_NEWS_FOLDER` now defaults to the folder id** (`cloudbuild.yaml`, one line), so a plain pipeline run keeps it.
+- **Rule for the next deploy:** the pipeline file's defaults are not always what is live. Before building, compare the live
+  service's env with what the file would set, and read the top of this file for deploy notes from other sessions; after
+  building, the fingerprint (env, command, args, resources, Cloud SQL, account) must be identical except the image. If it is not,
+  find the variable by comparing the two revisions' env (names and value hashes, not values) before anything else.
+- Still open from this session: the proposed-task edit / delete (design below, not built), and the questions to Kellen below.
 
 **Update, 2026-11-04 (night, later): merged into `main` and DEPLOYED: live is revision `acmi-crm-00028-mzv`, image `97be770` (= `main` locally, NOT pushed to origin yet).** Main now holds the mail Times panel work, the Schedule page colours (one colour per person, busy cells split into stripes), and the Granola .txt branch (`393ee4f`, which was live as 00027 but never in `main`). Before: 00027 / 393ee4f. Rollback target: `acmi-crm-00027-8dw`. Full suite 1186 tests OK; manual Cloud SQL backup taken first; env/command fingerprints of the service and 3 jobs identical before and after; no migrations; no WARNING logs after.
 
@@ -16,8 +244,9 @@ isn't reachable. Fixed: a scan whose second line was a "Prepared for ..." senten
 from the title; every imported text value is cut to its field limit). Kellen runs the Google Cloud project himself.
 Open: `/chat/poll/` returns 502 in the logs (not looked at). The `ux-fixes` and other branches below are still not deployed.
 
-**Pick up here, 2026-11-04 after the deploy (Claude on the laptop; Kellen asked for this handoff so work can resume later).
-Live is still revision `acmi-crm-00022-fbx`, image `a799272` (the entry below is that deploy). Since then Kellen reported
+**[Update: the two fixes below shipped in revision 00030, see the first entry above; the proposed-task edit / delete is
+still NOT built.]** **Pick up here, 2026-11-04 after the deploy (Claude on the laptop; Kellen asked for this handoff so work can resume later).
+Live was then revision `acmi-crm-00022-fbx`, image `a799272` (the entry below is that deploy). Since then Kellen reported
 three things from using the live app: two are fixed on a branch and NOT deployed, one is not built.** Resume in this
 order: read CI on the branch, ship the two fixes (Kellen's OK to deploy), build the proposed-task edit / delete from the
 design below, then one more deploy.
@@ -108,9 +337,10 @@ since 11:24 am Central.** Branch `merge-chat-calendar` (worktree `.claude/worktr
   💬 button in the top bar for anyone who has turned it on) and Scheduling (Calendar menu and the Meetings header) are back;
   add-a-person-from-an-email, inbox times and the phone fixes are back; the buy-box score is gone from the brief PDFs;
   pipeline cards link to company and deal cards; the Meet / Teams choice in scheduling. **Chat and scheduling still need
-  Mel's Google steps** (`docs/FOR_MEL_GOOGLE_CHAT.md`, `docs/FOR_MEL_SCHEDULING.md`: the `calendar.events` scope on the
-  consent screen, then each person presses Allow scheduling once; until then "Open in Google Calendar" works). Whether Mel
-  did them is not known here; neither has been run against real Google as far as these notes say.
+  the Google steps in the Cloud console** (Kellen runs it: `docs/FOR_MEL_GOOGLE_CHAT.md`, `docs/FOR_MEL_SCHEDULING.md`, the
+  file names are old: the `calendar.events` scope on the consent screen, then each person presses Allow scheduling once;
+  until then "Open in Google Calendar" works). Whether they were done is not known here; neither has been run against
+  real Google as far as these notes say.
 - **Before it, live from 10:21 am Central: revision `acmi-crm-00021-86x`, image `5742155`** (just after the entries below
   were written; they still say 00020 / `ea95d55`). That is `calendar-fixes-v2` at `5742155`: calendar
   views, lease / ROC, phone land-search filters, data room pipeline. **It had no Chat, no Scheduling, no "add a person from
@@ -172,7 +402,7 @@ since 11:24 am Central.** Branch `merge-chat-calendar` (worktree `.claude/worktr
   1. **Have Kellen click through the hosted copy** (Chat, Scheduling, the Apple look in light and dark, the add-to-directory
      card, the compose Times panel) and watch the logs for a day: Chat and scheduling were off from the afternoon of
      2026-11-03, and the Apple look has never run on the hosted copy.
-  2. **Mel's Google steps** for scheduling and Chat (above), if not done. A person pressing Allow scheduling before the
+  2. **The Google steps** for scheduling and Chat (above; Kellen's, in the Cloud console), if not done. A person pressing Allow scheduling before the
      `calendar.events` scope is on the consent screen gets Google's "app blocked" screen.
   3. **A latent problem this deploy ends (inferred from how Django adds columns, not seen failing):** while 00019–00021 ran,
      the code did not know `CalendarSync.can_schedule`, which migration 0075 had already added to the database. Django adds
@@ -3019,3 +3249,15 @@ Branch `sheet-import`, migration `0071_import_batch` (the `ImportBatch` table). 
 - Tests: `crm/tests/test_import_sheet.py` (16); 805 pass. Checked in the browser on a scratch database with a made-up CSV:
   upload, mapping, preview flags, the close-name pick, import, the timeline line, Undo.
 - **To run on the real database (Kellen's OK first; back up as "How to work in this repo" says):** `migrate crm`.
+
+## Built 2026-11-04: Miami-Dade, FL and Emery, UT added to land search (Kellen: "counties for south Florida like Homestead, and whatever county Cleveland, Utah is in")
+- **Miami-Dade, FL (12086):** parcels from the county GIS `MD_LandInformation/MapServer/26` (Property Appraiser roll: owner, mailing, lot size, values, DOR code). 3,528 parcels of 20+ ac loaded; owner, mailing, value and land use 100%. Rows with LOT_SIZE = 0 (~16k, mostly condo / exempt) are skipped. Zoning on 58% (the rest is federal Everglades land with none). County layer 18 = unincorporated; Homestead and Florida City use layer 19 (MUNICNAME) and fill the gaps via the new `fill_gaps` overlay option in `counties.stamp`. The Florida City layer carries county names (AU, GU, EU-M) that are not in its own code. Layers: `town_fl`, region `south_fl`.
+- **Emery, UT (49015; Cleveland is here):** parcels from UGRC `Parcels_Emery_LIR`. 2,886 parcels of 20+ ac. **No owner or mailing data**: Utah publishes none in any public layer, so owners stay blank until a Recorder list or Regrid file is loaded with `load_owners` (open question to Kellen). Value on 64%. The layer appears to leave out federal / state land (largest parcel 838 ac). Zoning only for towns (UGRC `planning_generalized_zoning`), 142 parcels; unincorporated land has none (`NO_LAYER["UT"]`). Layers: `town_ut`, region `emery_ut`.
+- **Zoning definitions** (`crm/land/zoning_ref/`): miami_dade_county, homestead_fl, florida_city_fl, green_river_ut, cleveland_ut, huntington_ut, ferron_ut, elmo_ut, plus names-only stubs for castle_dale_ut, emery_town_ut, orangeville_ut, clawson_ut (no ordinance text found). All Florida files and Green River, Huntington, Ferron come from the Zoneomics mirror (Municode / eCode360 / American Legal blocked fetching) and show "check source". Cleveland is from an undated PDF on a third-party host. Green River O-1 was mapped to the code's OS-1 (assumption); SP-1 (expansive soils) and RDA (redevelopment overlay) are overlays with no base district and deliberately have no scoring bucket.
+- Tests: `FloridaUtahCountyTests` (3); full suite 1,175 pass. Loaded into the local `db.sqlite3` only; nothing committed or deployed. To go live: run `load_parcels 12086 49015`, `load_land_layers --region south_fl --region emery_ut`, `score_parcels --remeasure` on the hosted database (Kellen first).
+- **Utilities (same day, Kellen: "I need the zoning and utilities etc. for both"):** `lookup.OTHER_PROVIDERS` + `other_utility_check`. Miami-Dade water / sewer = WASD's official service-area layers (`Wasd/WaterAndSewerServiceAreas_3_v1` 0 / 1; codes mapped to names, HOMSTD = City of Homestead, MDWS = WASD); no mapped line distances. Emery water = Utah Division of Water Resources `CulinaryWaterServiceAreas` (active systems; Cleveland = Castle Valley SSD); **Emery sewer has no public layer** (check says so; septic is common). Electric for both = HIFLD (FPL, plus the City of Homestead municipal; PacifiCorp in Emery). Flood, wetlands, HUBZone, EPA, incentives run as everywhere. Checked live on a Homestead PUD parcel, a Miami-Dade AU parcel, Cleveland and Green River parcels. Test: `FloridaUtahUtilityTests`.
+- **Not done (asked 11-04):** the QD planner (`qd.py`: magazines / operating buildings, Max NEWQD, auto-fit on IBD arcs) and the flex-industrial site plan (`siteplan.py`: warehouse / manufacturing / flex / office / lab, zoning setbacks, FAR, parking) are two separate tools. No single auto-fit places warehouses and hazard buildings together under zoning and QD limits. `siteplan.STANDARDS` holds zoning numbers for Charles County only, so Miami-Dade and Emery fall back to the generic default (50 / 25 / 25 ft setbacks).
+
+- **Oahu, HI (Honolulu County, 15003), added 2026-11-05 (Kellen: "Can we add oahu, HI?"):** parcels from the City tax layer `Cadastral_2020/FeatureServer/1` (TMK key; `rec_area_ac` is blank on 95% so acres come from the polygon, Shape__Area in sq ft). 1,149 parcels of 20+ ac. Owners are NOT in the polygon layer: the City's owner table `CadastralTables/FeatureServer/5` (OWNALL) is fetched for the stored TMKs and joined with `load_owners Honolulu_HI <csv> --map key=tmk --commit` (the fetch script was a scratchpad one-off; rebuild it: POST `tmk IN (...)` in batches of 100, keep suffix 0000 and the lowest ownseq, `paddr3` = "CITY ST ZIP"). Owner 99%, mailing 58% (federal land has none), zoning 100%, **assessed value and land use blank** (not in the owner table). Zoning = DPP layer via the State Geoportal (`ParcelsZoning/MapServer/3`); definitions in `zoning_ref/honolulu_hi.json` (Zoneomics mirror for Article 3, the enacted Ordinance 25-2 PDF for the use table; Pub, Kak, WI and Waikiki Resort are special districts and not read; data centers "not addressed" after Ord. 25-2 removed the old use). Utilities: electric HECO (HIFLD), sewer = City sewer mains (distance), water = Board of Water Supply named as the island utility (no public layer). Layers: `town_hi` (returns nothing, Hawaii has only CDPs), region `oahu_hi`; no substations exist for HI in the HIFLD layer. Many of the biggest parcels are federal / military or Bishop Estate preservation land (F-1, P-1, P-2), where nothing industrial is allowed. Tests: `HonoluluCountyTests`; full suite 1,177 pass. Local database only; not committed or deployed.
+
+**Deploy 2026-11-05 (Claude on the laptop; Kellen: "Push and commit and deploy"): live is revision `acmi-crm-00036-l6r`, image `02a8e2b` = origin/main `ea5102d` + the land commit (Miami-Dade FL, Emery UT, Honolulu HI: code, zoning files, tests; no migration).** `origin/main` is `5dd5140`, a merge of `02a8e2b` and the Follow-ups commit `f30da0f`, which is on main but **NOT live** (it landed while CI ran; I deployed the CI-green `02a8e2b` instead). Backup taken before (`before land counties 02a8e2b`); the service and the three jobs have identical fingerprints before / after except the image; migrate: no migrations; login 200, /land/ 302, land_layers.js 200, no WARNING+ logs. Rollback target `acmi-crm-00035-5hh`. **The hosted database has NO parcels for the three counties yet:** the new counties show in the code but need `load_parcels 12086 49015 15003`, `load_land_layers --region south_fl --region emery_ut --region oahu_hi` and `score_parcels --remeasure` run on the hosted database (through the `acmi-crm-migrate` job with `--args`), plus the Honolulu owner join (the fetch script is not in the repo; rebuild it from the Oahu entry above). Local `main` in the mail-booking worktree is stale (2632a85, diverged); use origin/main.

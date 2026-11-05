@@ -1,0 +1,33 @@
+{% load crm_tags %}
+{% if problems %}
+<div class="lt-warn"><b>Fix these to see the schedule:</b>
+  <ul>{% for p in problems %}<li>{{ p }}</li>{% endfor %}</ul></div>
+{% else %}
+{% for w in res.warnings %}<div class="lt-warn">{{ w }}</div>{% endfor %}
+{% with head=res.head %}
+{% if res.phases %}
+<dl class="lt-stats lt-stats-wide">
+  <div><dt>Price</dt><dd>{{ head.price|dollars|default:"–" }}{% if head.ppa %}<small>{{ head.ppa|dollars }}/acre</small>{% endif %}</dd></div>
+  <div><dt>All deposits</dt><dd>{{ head.deposits|dollars }}<small>{{ head.nonrefundable|dollars }} non-refundable</small></dd></div>
+  <div><dt>Lost if we walk when feasibility ends</dt><dd>{{ head.at_risk_feas|dollars }}</dd></div>
+  <div><dt>Closing</dt><dd>{{ head.closing|date:"M j, Y"|default:"–" }}{% if head.months_to_close %}<small>{{ head.months_to_close|floatformat:"-1" }} months after PSA</small>{% endif %}</dd></div>
+  <div><dt>Cash to close</dt><dd>{{ head.cash_to_close|dollars }}</dd></div>
+</dl>
+{% endif %}
+{% endwith %}
+{% for ph in res.phases %}
+<h4 class="lt-phase-title">{{ ph.name }}{% if res.phases|length > 1 %} <span class="muted lc-small">· {{ ph.price|dollars }}</span>{% endif %}</h4>
+<table class="data compact lt-sched">
+  <thead><tr><th>Date</th><th>What</th><th>Deposit</th><th>Walk away: lose / back</th></tr></thead>
+  <tbody>{% for e in ph.events %}
+    <tr class="{% if e.milestone %}lt-milestone{% endif %}">
+      <td>{% if e.date %}<b>{{ e.date|date:"M j, Y" }}</b>{% else %}<span class="muted">–</span>{% endif %}</td>
+      <td class="wrap"><span class="tl-k tl-k-{{ e.kind }}"></span>{{ e.label }}{% if e.to %}<div class="muted lc-small">{% if e.base|slice:":5" == "close" %}closing moves to{% else %}feasibility runs to{% endif %} {{ e.to|date:"M j, Y" }}</div>{% endif %}</td>
+      <td>{% if e.money %}{{ e.amount|dollars }}{% if e.nonref and e.nonref != e.amount %}<div class="muted lc-small">{{ e.nonref|dollars }} non-refundable</div>{% elif e.nonref %}<div class="muted lc-small">non-refundable</div>{% endif %}{% elif e.cash is not None %}<b>{{ e.cash|dollars }}</b><div class="muted lc-small">cash to close</div>{% endif %}</td>
+      <td>{% if e.money or e.cash is not None %}{{ e.cum_nonref|dollars }} / {{ e.cum_ref|dollars }}{% endif %}</td>
+    </tr>{% endfor %}</tbody>
+</table>
+{% empty %}
+<p class="muted">Fill in the acres, price per acre and deposits and the schedule appears here.</p>
+{% endfor %}
+{% endif %}

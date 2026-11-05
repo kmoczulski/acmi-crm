@@ -258,15 +258,16 @@ def max_newqd(b, edge_ft, gaps):
     """Largest NEWQD (lb) for building b where it stands: its IBD arc stays on the property (edge_ft from the
     footprint to the property line; None = no parcel) and its own separation fits each neighbour.
 
-    gaps: [(name, edge-to-edge ft)]. Returns (pounds, what limits it). Distances grow with weight, so this scans
+    gaps: [(name, edge-to-edge ft)] or [(name, ft, key)] where key is the distance that neighbour needs from this
+    building ("ibd", "ptrd", "ild", "imd"; default its own separation). Returns (pounds, what limits it). Distances grow with weight, so this scans
     up a log scale and then narrows the last step down; 0 means even 1 lb doesn't fit.
     """
     def limit(w):
         d = building_distances({**b, "newqd": w})
         if edge_ft is not None and d["ibd"] > edge_ft:
             return "IBD to the property line"
-        for name, have in gaps:
-            if d["separation"] > have:
+        for name, have, *key in gaps:
+            if d[key[0] if key else "separation"] > have:
                 return f"spacing to {name}"
         return None
 

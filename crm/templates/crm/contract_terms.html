@@ -1,0 +1,136 @@
+{% extends "crm/base.html" %}
+{% load crm_tags %}
+{% block title %}LOI / PSA terms · {{ contract.title }} · ACMI Hub{% endblock %}
+{% block content %}
+<div class="lt-logo">{% include "crm/partials/report_logo.html" %}</div>
+<div class="record-head">
+  <div>
+    <div class="muted lc-small no-print"><a href="{% url 'crm:contract_list' %}">Contracts</a> › <a href="{{ contract.get_absolute_url }}">{{ contract.title }}</a></div>
+    <h1>LOI / PSA terms</h1>
+    <div class="muted lc-small">{{ contract.title }} · {{ contract.get_kind_display }}{% if contract.counterparty %} with {{ contract.counterparty }}{% endif %}{% if contract.site %} · {{ contract.site.name }}{% endif %} · prepared {{ today|date:"M j, Y" }}</div>
+  </div>
+  <div class="record-nav no-print">
+    <a class="btn btn-primary" href="{% url 'crm:contract_terms_new' contract.pk %}">Add a round</a>
+    {% if rounds %}<button type="button" class="btn" onclick="window.print()">Print / save as PDF</button>{% endif %}
+  </div>
+</div>
+
+{% if not rounds %}
+<section class="panel lt-empty">
+  <h3>No rounds yet</h3>
+  <p>Add each offer as it comes in: ACMI's first offer, the seller's redline, our counter. This page then lays out the closing timeline and the deposit schedule each one produces, side by side, so you can see where you differ and settle on terms.</p>
+  <p class="muted lc-small">Each round holds the land and price, the feasibility period and its extensions, the deposits (and how much of each is non-refundable), and the days to close. Phases are for deals that close in more than one piece.</p>
+  <div class="inline-form"><a class="btn btn-primary" href="{% url 'crm:contract_terms_new' contract.pk %}">Add the first round</a></div>
+</section>
+{% else %}
+
+{% if rounds|length > 1 %}
+<form method="get" class="lt-picker no-print"><span class="muted lc-small">Compare:</span>
+  {% for r in rounds %}<label class="chip-check{% if r.agreed %} chip-exec{% endif %}"><input type="checkbox" name="r" value="{{ r.pk }}"{% if r.pk in picked %} checked{% endif %} onchange="this.form.submit()"> {{ r.label }}{% if r.dated %} <span class="muted">· {{ r.dated|date:"M j" }}</span>{% endif %}</label>{% endfor %}
+  <noscript><button class="btn btn-small">Show</button></noscript>
+</form>
+{% endif %}
+
+{% for r, w in warnings %}<div class="lt-warn">{{ r.label }}: {{ w }}</div>{% endfor %}
+
+<div class="lt-cards">
+  {% for c in cols %}{% with r=c.round head=c.head %}
+  <article class="lt-card{% if r.agreed %} lt-agreed{% endif %}">
+    <div class="lt-card-head">
+      {% if r.sent_by %}<span class="tag lt-side-{{ r.sent_by }}">{{ r.get_sent_by_display }}</span>{% endif %}
+      {% if r.agreed %}<span class="pill pill-good">✓ Agreed</span>{% endif %}
+      <h3>{{ r.label }}</h3>
+    </div>
+    <div class="muted lc-small">{% if r.dated %}{{ r.dated|date:"M j, Y" }}{% else %}No date{% endif %}{% if r.document %} · {% if r.document.text %}<a href="{% url 'crm:contract_reader' contract.pk r.document.pk %}">{{ r.document.title|truncatechars:40 }}</a>{% elif r.document.href %}<a href="{{ r.document.href }}" target="_blank" rel="noopener">{{ r.document.title|truncatechars:40 }}</a>{% else %}{{ r.document.title|truncatechars:40 }}{% endif %}{% endif %}</div>
+    <dl class="lt-stats">
+      <div><dt>Price</dt><dd>{{ head.price|dollars|default:"–" }}{% if head.ppa %}<small>{{ head.ppa|dollars }}/acre · {{ head.acres|floatformat:"-2" }} acres</small>{% endif %}</dd></div>
+      <div><dt>All deposits</dt><dd>{{ head.deposits|dollars }}<small>{{ head.nonrefundable|dollars }} non-refundable</small></dd></div>
+      <div><dt>Lost if we walk when feasibility ends</dt><dd>{{ head.at_risk_feas|dollars }}<small>of {{ head.committed_feas|dollars }} deposited by then</small></dd></div>
+      <div><dt>PSA signed</dt><dd>{{ head.psa|date:"M j, Y"|default:"–" }}</dd></div>
+      <div><dt>Feasibility ends</dt><dd>{{ head.feasibility_end|date:"M j, Y"|default:"–" }}</dd></div>
+      <div><dt>Closing</dt><dd>{{ head.closing|date:"M j, Y"|default:"–" }}{% if head.months_to_close %}<small>{{ head.months_to_close|floatformat:"-1" }} months after PSA</small>{% endif %}</dd></div>
+      <div><dt>Cash to close</dt><dd>{{ head.cash_to_close|dollars }}</dd></div>
+    </dl>
+    {% if r.notes %}<div class="lc-small muted lt-notes">{{ r.notes|linebreaksbr }}</div>{% endif %}
+    <div class="lt-actions no-print">
+      <a class="btn btn-small" href="{% url 'crm:contract_terms_edit' contract.pk r.pk %}">Edit</a>
+      <a class="btn btn-small" href="{% url 'crm:contract_terms_new' contract.pk %}?from={{ r.pk }}" title="Start the next round from these terms">Next round from this</a>
+      <form method="post" action="{% url 'crm:contract_terms_agree' contract.pk r.pk %}">{% csrf_token %}<button class="btn btn-small">{% if r.agreed %}Not agreed{% else %}Mark agreed{% endif %}</button></form>
+      {% if can_manage or r.created_by_id == request.user.pk %}<form method="post" action="{% url 'crm:contract_terms_delete' contract.pk r.pk %}" onsubmit="return confirm('Delete {{ r.label|escapejs }}?')">{% csrf_token %}<button class="btn btn-small">Delete</button></form>{% endif %}
+    </div>
+  </article>
+  {% endwith %}{% endfor %}
+</div>
+
+{% if gap %}
+<section class="panel" id="gap">
+  <h3>Where ACMI and the seller stand <span class="muted lc-small">· {{ us.round.label }} against {{ them.round.label }}; the gap is the seller's number less ours</span></h3>
+  <div class="tl-scroll"><table class="data compact lt-gap">
+    <thead><tr><th></th><th>ACMI</th><th>Seller</th><th>Gap</th></tr></thead>
+    <tbody>{% for g in gap %}
+      <tr class="{% if g.same %}lt-same{% endif %}"><td>{{ g.label }}</td><td>{{ g.a_text }}</td><td>{{ g.b_text }}</td>
+        <td>{% if g.same %}<span class="pill pill-good">Aligned</span>{% else %}<b>{{ g.delta_text|default:"–" }}</b>{% endif %}</td></tr>
+    {% endfor %}</tbody>
+  </table></div>
+</section>
+{% endif %}
+
+{% if lanes %}
+<section class="panel">
+  {% include "crm/partials/contract_lanes.html" %}
+  <div class="tl-key lc-small muted"><span class="tl-k tl-k-deposit"></span>Deposits <span class="tl-k tl-k-feasibility"></span>Feasibility / zoning <span class="tl-k tl-k-closing"></span>Closing <span class="tl-k tl-k-expiration"></span>Outside date <span class="tl-k tl-k-extension"></span>Extensions · hover a dot for what it is</div>
+</section>
+{% endif %}
+
+<section class="panel" id="schedule">
+  <h3>Closing timeline and deposits</h3>
+  <div class="tl-scroll"><table class="data lt-table">
+    <thead><tr><th>When it happens</th>{% for c in cols %}<th>{{ c.round.label }}<div class="muted lc-small">{{ c.round.get_sent_by_display|default:"" }}{% if c.round.dated %}{% if c.round.sent_by %} · {% endif %}{{ c.round.dated|date:"M j" }}{% endif %}</div></th>{% endfor %}</tr></thead>
+    <tbody>{% for row in events %}
+      {% ifchanged row.phase %}{% if phase_names|length > 1 %}<tr class="lt-phase"><td colspan="{{ cols|length|add:1 }}">{{ phase_names|get_item:row.phase }}</td></tr>{% endif %}{% endifchanged %}
+      <tr id="tl-{{ row.key }}" class="{% if row.changed and cols|length > 1 %}tl-changed{% endif %}{% if row.milestone %} lt-milestone{% endif %}">
+        <td><span class="tl-k tl-k-{{ row.kind }}"></span><b>{{ row.label }}</b>{% if row.changed and cols|length > 1 %} <span class="pill tl-diff">Differs</span>{% endif %}</td>
+        {% for e in row.cells %}<td>{% if e %}
+          <div class="lt-date">{% if e.date %}<b>{{ e.date|date:"M j, Y" }}</b>{% else %}<span class="muted">no date yet</span>{% endif %}</div>
+          {% if e.to %}<div class="muted lc-small">{% if e.base|slice:":5" == "close" %}closing moves to{% else %}feasibility runs to{% endif %} {{ e.to|date:"M j, Y" }}</div>{% endif %}
+          {% if e.money %}<div class="lt-money">+{{ e.amount|dollars }} <span class="muted lc-small">{% if e.nonref == e.amount %}non-refundable{% elif e.nonref %}{{ e.nonref|dollars }} non-refundable{% else %}refundable{% endif %}</span></div>
+            <div class="muted lc-small">Walk away here: lose {{ e.cum_nonref|dollars }}{% if e.cum_ref %}, get back {{ e.cum_ref|dollars }}{% endif %}</div>{% endif %}
+          {% if e.cash is not None %}<div class="lt-money">Cash to close {{ e.cash|dollars }}</div>
+            <div class="muted lc-small">after {{ e.cum|dollars }} of deposits{% if e.cum_ref %} ({{ e.cum_ref|dollars }} refundable){% endif %}</div>{% endif %}
+        {% else %}<span class="muted">–</span>{% endif %}</td>{% endfor %}
+      </tr>{% endfor %}</tbody>
+  </table></div>
+</section>
+
+<section class="panel" id="terms-grid">
+  <h3>The terms</h3>
+  <div class="tl-scroll"><table class="data compact lt-table">
+    <thead><tr><th>Term</th>{% for c in cols %}<th>{{ c.round.label }}</th>{% endfor %}</tr></thead>
+    <tbody>{% for s in grid %}
+      <tr class="lt-phase"><td colspan="{{ cols|length|add:1 }}">{{ s.title }}</td></tr>
+      {% for row in s.rows %}<tr class="{% if row.changed and cols|length > 1 %}tl-changed{% endif %}"><td>{{ row.label }}</td>{% for cell in row.cells %}<td>{{ cell|default:"–" }}</td>{% endfor %}</tr>{% endfor %}
+    {% endfor %}</tbody>
+  </table></div>
+</section>
+
+<details class="panel lt-how no-print">
+  <summary class="muted">How the dates and dollars are worked out</summary>
+  <ul class="lc-small muted">
+    <li>Everything counts from the PSA signing date: the round's date plus the days it allows to get a PSA signed (or a date you set).</li>
+    <li>Final zoning approval and the outside date are the end of the month that many months after PSA signing. Closing is the days after final zoning approval (or after feasibility, for a phase that doesn't wait on zoning).</li>
+    <li>A deposit for an extension is paid on the day the extension has to be exercised, the end of the period it extends. Extensions "used" are the ones this schedule assumes are exercised.</li>
+    <li>"Walk away here" is cumulative: what ACMI would lose (the non-refundable deposits so far) and what it would get back. Deposits are credited to the price, so cash to close is the price less every deposit.</li>
+    <li>Phase II and later start the number of days you set after the previous phase closes, and run their own feasibility, deposits and closing.</li>
+  </ul>
+</details>
+{% endif %}
+
+<details class="lt-import no-print"{% if not rounds %} open{% endif %}>
+  <summary class="muted lc-small">Import rounds from a team LOI Tracker workbook</summary>
+  <form method="post" action="{% url 'crm:contract_terms_import' contract.pk %}" enctype="multipart/form-data" class="inline-form" style="margin-top:8px">{% csrf_token %}
+    {{ import_form.file }}
+    <button class="btn btn-small">Import</button>
+  </form>
+  <p class="muted lc-small">Each column under "LOI INFO" (ACMI initial offer, Seller redline, ACMI counter…) becomes a round, added after the ones here. Check the numbers against the workbook.</p>
+</details>
+{% endblock %}

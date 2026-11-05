@@ -5,6 +5,7 @@ from . import campus_views, cards, company_pdf, prefs, push_views, search, views
 from .boards import views as board_views
 from .build import views as build_views
 from .capital import views as capital_views
+from .contracts import terms_views
 from .contracts import views as contract_views
 from .dataroom import drive_views
 from .dataroom import views as room_views
@@ -67,6 +68,7 @@ urlpatterns = [
     path("opportunities/contacts/<int:pk>/remove/", views.opportunity_contact_remove, name="opportunity_contact_remove"),
     path("opportunities/suggested/<int:company_id>/create/", views.suggestion_create, name="suggestion_create"),
     path("opportunities/suggested/<int:company_id>/dismiss/", views.suggestion_dismiss, name="suggestion_dismiss"),
+    path("inbox/follow-ups/", views.follow_ups, name="follow_ups"),
     path("my-day/replies/<int:pk>/dismiss/", views.reply_dismiss, name="reply_dismiss"),
     path("documents/add/", views.document_add, name="document_add"),
     path("documents/<int:pk>/delete/", views.document_delete, name="document_delete"),
@@ -114,6 +116,13 @@ urlpatterns = [
     path("contracts/<int:pk>/delete/", contract_views.contract_delete, name="contract_delete"),
     path("contracts/<int:pk>/compare/", contract_views.contract_compare, name="contract_compare"),
     path("contracts/<int:pk>/timeline/", contract_views.contract_timeline, name="contract_timeline"),
+    path("contracts/<int:pk>/terms/", terms_views.contract_terms, name="contract_terms"),
+    path("contracts/<int:pk>/terms/new/", terms_views.contract_terms_edit, name="contract_terms_new"),
+    path("contracts/<int:pk>/terms/import/", terms_views.contract_terms_import, name="contract_terms_import"),
+    path("contracts/<int:pk>/terms/preview/", terms_views.contract_terms_preview, name="contract_terms_preview"),
+    path("contracts/<int:pk>/terms/<int:rid>/", terms_views.contract_terms_edit, name="contract_terms_edit"),
+    path("contracts/<int:pk>/terms/<int:rid>/delete/", terms_views.contract_terms_delete, name="contract_terms_delete"),
+    path("contracts/<int:pk>/terms/<int:rid>/agree/", terms_views.contract_terms_agree, name="contract_terms_agree"),
     path("contracts/<int:pk>/drop/", contract_views.contract_drop, name="contract_drop"),
     path("contracts/<int:pk>/comments/", contract_views.contract_comment, name="contract_comment"),
     path("contracts/<int:pk>/answers/<int:answer_pk>/", contract_views.contract_answer, name="contract_answer"),
@@ -131,6 +140,7 @@ urlpatterns = [
     path("tasks/<int:pk>/text/", views.task_text, name="task_text"),
     path("comments/add/", views.comment_add, name="comment_add"),
     path("comments/<int:pk>/delete/", views.comment_delete, name="comment_delete"),
+    path("comments/<int:pk>/photo/", views.comment_photo, name="comment_photo"),
     path("settings/", settings_views.settings_home, name="settings_home"),
     path("settings/dropdowns/<str:key>/", settings_views.dropdown_edit, name="dropdown_edit"),
     path("notifications/", views.notification_list, name="notification_list"),
@@ -263,6 +273,7 @@ urlpatterns = [
     path("land/drive/isochrone/", land_views.drive_isochrone, name="land_drive_isochrone"),
     path("land/qd/", land_views.qd_layout, name="land_qd"),
     path("land/siteplan/", land_views.site_plan, name="land_site_plan"),
+    path("land/autofit/", land_views.auto_fit, name="land_autofit"),
     path("land/views.json", land_views.views_json, name="land_views"),
     path("land/views/save/", land_views.view_save, name="land_view_save"),
     path("land/views/<int:pk>/delete/", land_views.view_delete, name="land_view_delete"),

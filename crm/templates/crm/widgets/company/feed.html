@@ -2,13 +2,13 @@
 {% comment %}Trello-style activity: what happened with this company, newest first, with comments and notes alongside the
 meeting notes (and their action items) and the email. feed = company_page.feed(...): {when, kind, obj}.{% endcomment %}
 <div class="feed" id="comments">
-  <form method="post" action="{% url 'crm:comment_add' %}" class="feed-compose">{% csrf_token %}
+  <form method="post" action="{% url 'crm:comment_add' %}" class="feed-compose" enctype="multipart/form-data">{% csrf_token %}
     <input type="hidden" name="company" value="{{ company.pk }}">
     <input type="hidden" name="next" value="{{ request.get_full_path }}">
     <span class="feed-avatar" aria-hidden="true">{{ user.first_name|default:user.username|slice:":1"|upper }}</span>
     <div class="feed-main">
       <textarea name="body" rows="2" placeholder="Write a comment… @ and a name notifies someone (e.g. @Simon)" aria-label="Comment" required></textarea>
-      <div class="feed-compose-actions"><button class="btn-small btn-primary">Comment</button></div>
+      <div class="feed-compose-actions"><button class="btn-small btn-primary">Comment</button>{% include "crm/partials/comment_attach.html" %}</div>
     </div>
   </form>
   <details class="feed-note">
@@ -35,7 +35,7 @@ meeting notes (and their action items) and the email. feed = company_page.feed(.
           <span class="muted">· {{ c.created_at|date:"M j, Y, g:i A" }}</span>
           {% if c.author == user %}<form method="post" action="{% url 'crm:comment_delete' c.pk %}" class="feed-delete" onsubmit="return confirm('Delete this comment?')">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button class="btn-link">Delete</button></form>{% endif %}
         </div>
-        <div class="feed-body">{{ c.body|mentions }}</div>
+        <div class="feed-body">{{ c.body|mentions }}{% include "crm/partials/comment_photo.html" %}</div>
       </div>
     </article>{% endwith %}
     {% elif e.kind == 'note' %}{% with n=e.obj %}

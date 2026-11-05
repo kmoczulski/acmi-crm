@@ -1,0 +1,2 @@
+{% comment %}The optional picture on a comment form (the form needs enctype="multipart/form-data"). crm.comment_photos
+checks it on the server; the size check here only saves typing the comment again when the picture is too big.{% endcomment %}<label class="comment-attach lc-small muted">📷 Add a photo <input type="file" name="photo" accept="image/*" onchange="if (this.files[0] &amp;&amp; this.files[0].size &gt; 15728640) { alert('That picture is over 15 MB. Choose a smaller one.'); this.value = ''; }"></label>

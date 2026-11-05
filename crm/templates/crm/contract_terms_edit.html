@@ -1,0 +1,66 @@
+{% extends "crm/base.html" %}
+{% load static %}
+{% block title %}{% if round %}Edit {{ round.label }}{% else %}Add a round{% endif %} · {{ contract.title }} · ACMI Hub{% endblock %}
+{% block content %}
+<div class="record-head">
+  <div>
+    <div class="muted lc-small"><a href="{% url 'crm:contract_list' %}">Contracts</a> › <a href="{{ contract.get_absolute_url }}">{{ contract.title }}</a> › <a href="{% url 'crm:contract_terms' contract.pk %}">LOI / PSA terms</a></div>
+    <h1>{% if round %}Edit {{ round.label }}{% else %}Add a round{% endif %}</h1>
+    {% if source %}<div class="muted lc-small">Started from the terms of {{ source.label }}. Change what the new round changes.</div>{% endif %}
+  </div>
+</div>
+
+<div class="lt-edit">
+  <form method="post" class="lt-form" id="terms-form" data-preview="{% url 'crm:contract_terms_preview' contract.pk %}" novalidate>{% csrf_token %}
+    {{ form.slots }}
+    {% if form.non_field_errors %}<div class="lt-warn">{{ form.non_field_errors }}</div>{% endif %}
+    {% if form.errors and not form.non_field_errors %}<div class="lt-warn">Some boxes need a look: they are marked below.</div>{% endif %}
+
+    <section class="panel">
+      <h3>The round</h3>
+      <div class="lt-grid">
+        {% include "crm/partials/terms_field.html" with f=form.label %}
+        {% include "crm/partials/terms_field.html" with f=form.sent_by %}
+        {% include "crm/partials/terms_field.html" with f=form.dated %}
+        {% include "crm/partials/terms_field.html" with f=form.document %}
+      </div>
+    </section>
+
+    <section class="panel">
+      <h3>The deal</h3>
+      <div class="lt-grid">{% for f in form.deal_fields %}{% include "crm/partials/terms_field.html" %}{% endfor %}</div>
+    </section>
+
+    {% for b in form.phase_blocks %}
+    <details class="panel lt-phase-box"{% if b.open %} open{% endif %}>
+      <summary><b>{{ b.name_field.value|default:"Phase" }}{% if not b.name_field.value %} {{ b.n }}{% endif %}</b>{% if not b.open %} <span class="muted lc-small">· add another phase</span>{% endif %}</summary>
+      <div class="lt-grid" style="margin-top:10px">{% include "crm/partials/terms_field.html" with f=b.name_field %}</div>
+      {% for g in b.groups %}
+      <fieldset><legend>{{ g.title }}</legend>
+        <div class="lt-grid">{% for f in g.fields %}{% include "crm/partials/terms_field.html" %}{% endfor %}</div>
+      </fieldset>
+      {% endfor %}
+    </details>
+    {% endfor %}
+    <p class="muted lc-small">Leave a phase empty and it isn't saved. A blank box means "not in the offer"; a zero means zero.</p>
+
+    <section class="panel">
+      <h3>Notes</h3>
+      {% include "crm/partials/terms_field.html" with f=form.notes %}
+    </section>
+
+    <div class="lt-actions">
+      <button class="btn btn-primary">Save round</button>
+      <a class="btn" href="{% url 'crm:contract_terms' contract.pk %}">Cancel</a>
+    </div>
+  </form>
+
+  <aside class="panel lt-preview">
+    <h3>What these terms produce</h3>
+    <div id="terms-preview" aria-live="polite"><p class="muted">Working it out…</p></div>
+  </aside>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="{% static 'crm/terms.js' %}?v={{ ASSET_VERSION }}"></script>
+{% endblock %}

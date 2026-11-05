@@ -296,6 +296,52 @@ def compute(terms, effective, prefer_rules=True, today=None):
     return rows
 
 
+def _held(d):
+    """A date the effective date doesn't move: it's done, or a person moved it (a deadline pushed out, an extension
+    exercised: see push). The moves the app makes when the effective date changes are marked "auto" and don't count."""
+    return d.done or any((h.get("to") or h.get("exercised")) and not h.get("auto") for h in d.history or [])
+
+
+def _on(d):
+    return f"{d:%b} {d.day}, {d.year}"
+
+
+@transaction.atomic
+def recompute_dates(contract, old_effective=None, user=None, today=None):
+    """Move the stored dates that count from the Effective Date (straight from it, or through other dates) to where
+    their rules put them now that it has changed. Returns ([(date, old, new)], left): the moves made, and how many
+    dates stayed where they stand though their rules would have moved them.
+
+    A fixed date has no rule and stays. So does a date that's done or that a person moved (see _held): nobody can say
+    what they'd want, and the dates that count from it are worked out from where it stands. Claude's suggestions that
+    nobody has kept yet move like the rest. Every move goes in the date's history, marked "auto"."""
+    effective = contract.effective_date
+    dates = list(contract.dates.all())
+    if not effective or not dates:
+        return [], 0
+    today = today or timezone.localdate()
+    held = {d.pk for d in dates if _held(d)}
+    full, seen = [], set()
+    # Kept dates first: when a suggestion has a kept date's key, the kept date is the one other dates count from.
+    for d in sorted(dates, key=lambda d: (not d.confirmed, d.pk)):
+        t = term(d)
+        if t["key"] in seen:
+            t["key"] = f"{t['key']}~{d.pk}"
+        seen.add(t["key"])
+        full.append(t)
+    stand = [{**t, "anchor": "", "offset": None} if t["pk"] in held else t for t in full]  # held: fixed where it is
+    now = {r["pk"]: r for r in compute(stand, effective, prefer_rules=True, today=today)}
+    why = "Effective date changed " + (f"from {_on(old_effective)} to " if old_effective else "to ") + _on(effective)
+    moved = []
+    for d in dates:
+        row = now[d.pk]
+        if d.pk not in held and row["computed"] and row["when"] != d.date:
+            moved.append(_move(d, row["when"], why, user, today, auto=True))
+    by_rule = {r["pk"]: r for r in compute(full, effective, prefer_rules=True, today=today)} if held else {}
+    left = sum(1 for d in dates if d.pk in held and by_rule[d.pk]["computed"] and by_rule[d.pk]["when"] != d.date)
+    return moved, left
+
+
 def compare(versions):
     """(rows, (first, last)) for the side-by-side table: [{"key", "label", "kind", "cells": [row or None per
     version], "changed"}] in date order, and the span of dates shown. `versions` is [{"rows": compute(...)}, ...]."""
@@ -403,12 +449,15 @@ def proposal(ext_or_target, today=None, target_pk=None):
     return {"ext": d, "target": target, "new": new, "follow": follow, "also": also, "choices": choices}
 
 
-def _move(d, new, why, user, today):
+def _move(d, new, why, user, today, auto=False):
     old = d.date
     if new == old:
         return None
-    d.history = [*(d.history or []), {"from": old.isoformat() if old else None, "to": new.isoformat(), "why": why,
-                                      "by": (user.get_full_name() or user.username) if user else "", "on": today.isoformat()}]
+    entry = {"from": old.isoformat() if old else None, "to": new.isoformat(), "why": why,
+             "by": (user.get_full_name() or user.username) if user else "", "on": today.isoformat()}
+    if auto:  # the app moved it (recompute_dates), not a person: a later change of the effective date still moves it
+        entry["auto"] = True
+    d.history = [*(d.history or []), entry]
     d.date = new
     d.done, d.done_at, d.done_by = False, None, None  # a deadline pushed out is open again
     d.save(update_fields=["date", "history", "done", "done_at", "done_by"])
