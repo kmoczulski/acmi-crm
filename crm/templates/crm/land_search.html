@@ -1185,7 +1185,20 @@
 
   // Menus in the toolbar: only one open at a time; a click elsewhere closes them.
   const menus = [...document.querySelectorAll('.tb-menu')];
-  menus.forEach(m => m.addEventListener('toggle', () => { if (m.open) menus.forEach(o => { if (o !== m) o.open = false; }); }));
+  // A menu's panel opens under its button, but when the toolbar wraps a right-aligned menu (Views, Tools) sits at the
+  // left edge and its panel would run off the screen. Slide the panel back inside the window.
+  function fitPop(m) {
+    const pop = m.querySelector('.tb-pop');
+    if (!pop) return;
+    pop.style.transform = '';
+    const r = pop.getBoundingClientRect(), pad = 8;
+    const dx = r.left < pad ? pad - r.left : (r.right > window.innerWidth - pad ? window.innerWidth - pad - r.right : 0);
+    if (dx) pop.style.transform = `translateX(${Math.round(dx)}px)`;
+  }
+  menus.forEach(m => m.addEventListener('toggle', () => {
+    if (m.open) { menus.forEach(o => { if (o !== m) o.open = false; }); fitPop(m); }
+  }));
+  window.addEventListener('resize', () => menus.forEach(m => { if (m.open) fitPop(m); }));
   document.addEventListener('click', e => { if (!e.target.closest('.tb-menu')) menus.forEach(m => { m.open = false; }); });
 
   // Current state, for saved views and for reopening the page where you left it.
