@@ -176,6 +176,7 @@ def my_companies(user):
 
 
 REPLIES_DISMISSED = "my_day_replies_dismissed"  # UserPrefs key: reply Activity ids this person said need no answer
+TASKS_DECLINED = "follow_up_tasks_declined"  # UserPrefs key: emails whose Follow-ups task this person deleted by hand
 
 
 def awaiting_reply(user, days=21):
@@ -300,15 +301,18 @@ def sync_follow_up_tasks(user, found=None):
     from .models import Task
     from .views import reply_gist
 
+    from . import prefs
+
     found = found or follow_ups(user)
     open_ids = {e["act"].pk for e in found["all"]}
+    declined = set(prefs.get_prefs(user).get(TASKS_DECLINED, []))  # a task deleted by hand stays deleted
     existing = set(Task.objects.filter(assignee=user, source_activity__in=open_ids).values_list("source_activity_id", flat=True))
     # Anything ever made for these emails counts as made, so a task someone ticked is not brought back.
     made = set(Task.objects.filter(source_activity__in=open_ids).values_list("source_activity_id", flat=True))
     n = 0
     for e in found["all"]:
         a = e["act"]
-        if a.pk in made or a.pk in existing:
+        if a.pk in made or a.pk in existing or a.pk in declined:
             continue
         due = timezone.localtime(a.occurred_at).date() + timedelta(days=1 if e["side"] == "us" else THEM_QUIET)
         Task.objects.create(
@@ -320,6 +324,31 @@ def sync_follow_up_tasks(user, found=None):
     stale = Task.objects.filter(assignee=user, done=False, source_activity__isnull=False).exclude(source_activity__in=open_ids)
     stale.update(done=True, done_at=timezone.now())
     return n
+
+
+def close_answered_tasks(activity):
+    """A follow-up task ticks itself the moment its email is answered (Kellen, 2026-11-05: "if I respond the email it
+    should autocomplete"), not the next time someone opens Follow-ups. Called for every newly logged email:
+    - something we sent answers the tasks made for what they wrote to us (kind reply / email received);
+    - something they wrote answers the tasks made for what we sent (a reply, an email received, an auto-reply).
+    The same thread, and for a source with no thread the same company; only an email newer than the task's own."""
+    from .models import Task
+
+    sent = activity.kind == Activity.Kind.EMAIL_SENT
+    heard = activity.kind in (Activity.Kind.REPLY, Activity.Kind.EMAIL_RECEIVED, Activity.Kind.AUTO_REPLY)
+    if not (sent or heard):
+        return 0
+    source_kinds = (Activity.Kind.REPLY, Activity.Kind.EMAIL_RECEIVED) if sent else (Activity.Kind.EMAIL_SENT,)
+    where = Q()
+    if activity.thread_id:
+        where |= Q(source_activity__thread_id=activity.thread_id)
+    if activity.company_id:
+        where |= Q(source_activity__thread_id="", source_activity__company_id=activity.company_id)
+    if not where:
+        return 0
+    return (Task.objects.filter(done=False, source_activity__isnull=False, source_activity__kind__in=source_kinds,
+                                source_activity__occurred_at__lt=activity.occurred_at).filter(where)
+            .update(done=True, done_at=timezone.now()))
 
 
 def my_day(user):

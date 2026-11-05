@@ -227,6 +227,72 @@ class PipelineLogicTests(TestCase):
         task.refresh_from_db()
         self.assertTrue(task.done)
 
+    def test_answering_the_email_ticks_its_task_at_once(self):
+        """Kellen, 2026-11-05: "if I respond the email it should autocomplete" (no need to open Follow-ups first)."""
+        from crm.models import Task
+        self.company.owner = self.user
+        self.company.save()
+        reply = self._mail(Activity.Kind.REPLY, 24 * 4, "k1", "k1", outcome="Responded", body="Send me the draft")
+        nudge = self._mail(Activity.Kind.EMAIL_SENT, 24 * 5, "k2", "k2", body="Any news?")
+        pipeline.sync_follow_up_tasks(self.user)
+        reply_task, nudge_task = Task.objects.get(source_activity=reply), Task.objects.get(source_activity=nudge)
+        self._mail(Activity.Kind.EMAIL_SENT, 1, "other-thread", "k9")  # a different conversation: nothing ticks
+        reply_task.refresh_from_db()
+        self.assertFalse(reply_task.done)
+        self._mail(Activity.Kind.EMAIL_SENT, 1, "k1", "k1s")  # we answered their reply
+        reply_task.refresh_from_db()
+        nudge_task.refresh_from_db()
+        self.assertTrue(reply_task.done)
+        self.assertIsNotNone(reply_task.done_at)
+        self.assertFalse(nudge_task.done)  # our own new send doesn't answer a "waiting on them"
+        self._mail(Activity.Kind.REPLY, 1, "k2", "k2r", outcome="Responded")  # they answered our nudge
+        nudge_task.refresh_from_db()
+        self.assertTrue(nudge_task.done)
+
+    def test_an_email_older_than_the_task_does_not_close_it(self):
+        from crm.models import Task
+        self.company.owner = self.user
+        self.company.save()
+        reply = self._mail(Activity.Kind.REPLY, 24 * 4, "m1", "m1", outcome="Responded")
+        pipeline.sync_follow_up_tasks(self.user)
+        self._mail(Activity.Kind.EMAIL_SENT, 24 * 6, "m1", "m1old")  # sent before their reply: not an answer
+        self.assertFalse(Task.objects.get(source_activity=reply).done)
+
+    def test_dismissing_a_follow_up_deletes_its_task(self):
+        """Kellen, 2026-11-05: "if I delete the followup from the list it should auto delete" (the task)."""
+        from crm.models import Task
+        self.company.owner = self.user
+        self.company.save()
+        reply = self._mail(Activity.Kind.REPLY, 24 * 4, "d1", "d1", outcome="Responded", body="Send me the draft")
+        self.client.force_login(self.user)
+        pipeline.sync_follow_up_tasks(self.user)
+        self.assertEqual(Task.objects.filter(source_activity=reply).count(), 1)
+        self.client.post(reverse("crm:reply_dismiss", args=[reply.pk]), HTTP_X_REQUESTED_WITH="fetch")
+        self.assertEqual(Task.objects.filter(source_activity=reply).count(), 0)
+        self.assertEqual(pipeline.sync_follow_up_tasks(self.user), 0)  # and it isn't made again
+        self.assertEqual(Task.objects.filter(source_activity=reply).count(), 0)
+
+    def test_dismissing_keeps_a_task_that_was_already_ticked(self):
+        from crm.models import Task
+        self.company.owner = self.user
+        self.company.save()
+        reply = self._mail(Activity.Kind.REPLY, 24 * 4, "e1", "e1", outcome="Responded")
+        pipeline.sync_follow_up_tasks(self.user)
+        Task.objects.filter(source_activity=reply).update(done=True)
+        self.client.force_login(self.user)
+        self.client.post(reverse("crm:reply_dismiss", args=[reply.pk]), HTTP_X_REQUESTED_WITH="fetch")
+        self.assertEqual(Task.objects.filter(source_activity=reply, done=True).count(), 1)
+
+    def test_a_task_deleted_by_hand_is_not_made_again(self):
+        from crm.models import Task
+        self.company.owner = self.user
+        self.company.save()
+        reply = self._mail(Activity.Kind.REPLY, 24 * 4, "x1", "x1", outcome="Responded")
+        pipeline.sync_follow_up_tasks(self.user)
+        Task.objects.get(source_activity=reply).delete()
+        self.assertEqual(pipeline.sync_follow_up_tasks(self.user), 0)
+        self.assertFalse(Task.objects.filter(source_activity=reply).exists())
+
     def test_follow_ups_page_lists_them_and_links_to_the_thread(self):
         self.company.owner = self.user
         self.company.save()

@@ -24,6 +24,31 @@ def reply_notification(sender, instance, created, **kwargs):
         reply_received(instance)
 
 
+@receiver(post_save, sender=Activity)
+def follow_up_answered(sender, instance, created, raw=False, **kwargs):
+    """An email just logged (sent from the hub, or read by the mail sync): tick the Follow-ups tasks it answers."""
+    if created and not raw and instance.kind in (Activity.Kind.EMAIL_SENT, Activity.Kind.EMAIL_RECEIVED,
+                                                 Activity.Kind.REPLY, Activity.Kind.AUTO_REPLY):
+        from .pipeline import close_answered_tasks
+
+        close_answered_tasks(instance)
+
+
+@receiver(post_delete, sender="crm.Task")
+def follow_up_task_deleted(sender, instance, **kwargs):
+    """A Follow-ups task deleted by hand is not made again the next time the list loads."""
+    if instance.source_activity_id and instance.assignee_id:
+        from . import pipeline, prefs
+
+        try:
+            owner = instance.assignee
+            gone = prefs.get_prefs(owner).get(pipeline.TASKS_DECLINED, [])
+            if instance.source_activity_id not in gone:
+                prefs.set_pref(owner, pipeline.TASKS_DECLINED, [*gone, instance.source_activity_id][-500:])
+        except Exception:  # the person is being deleted too: nothing to remember
+            pass
+
+
 @receiver(post_save, sender="crm.Opportunity")
 @receiver(post_save, sender="crm.LandSite")
 @receiver(post_save, sender="crm.CapitalSource")
