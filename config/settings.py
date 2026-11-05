@@ -65,10 +65,14 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "allauth.account.middleware.AccountMiddleware",
+    "crm.middleware.RollingSessionMiddleware",
     "crm.middleware.LoginRequiredMiddleware",
     "crm.middleware.PartnerOnlyMiddleware",
     "crm.middleware.CurrentUserMiddleware",
 ]
+
+# Stay signed in for 60 days of use (crm.middleware.RollingSessionMiddleware pushes it out once a day).
+SESSION_COOKIE_AGE = int(env("DJANGO_SESSION_DAYS", "60")) * 86400
 
 ROOT_URLCONF = "config.urls"
 

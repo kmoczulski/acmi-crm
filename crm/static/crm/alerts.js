@@ -65,10 +65,33 @@
     tag.textContent = n;
   }
 
+  // Signed out (the session ended) or the server wants a sign-in: the poll is answered with the sign-in page. Say so, once,
+  // with a way back, instead of the page quietly going stale (a phone that "disconnects").
+  let signedOut = false;
+  function showSignedOut() {
+    if (signedOut) return;
+    signedOut = true;
+    const bar = document.createElement('div');
+    bar.className = 'signed-out-bar no-print';
+    bar.setAttribute('role', 'alert');
+    const text = document.createElement('span');
+    text.textContent = 'You were signed out, so this page has stopped updating.';
+    const a = document.createElement('a');
+    a.className = 'btn btn-small btn-primary';
+    a.href = '/accounts/login/?next=' + encodeURIComponent(location.pathname + location.search);
+    a.target = '_top';
+    a.textContent = 'Sign in again';
+    bar.append(text, a);
+    document.body.prepend(bar);
+  }
+
   async function poll(first) {
+    if (signedOut) return;
     try {
       const r = await fetch(pollUrl + '?after=' + lastSeen(), {headers: {'X-Requested-With': 'fetch'}, credentials: 'same-origin'});
+      if (r.status === 401 || r.status === 403 || (r.redirected && /\/accounts\/login/.test(r.url))) { showSignedOut(); return; }
       if (!r.ok) return;
+      if (!/json/.test(r.headers.get('content-type') || '')) { showSignedOut(); return; }
       const d = await r.json();
       setBadge(d.unread);
       if (first && !lastSeen()) { setLastSeen(d.latest); return; }  // first visit: don't replay old alerts
@@ -94,4 +117,7 @@
   poll(true);
   setInterval(() => poll(false), POLL_MS);
   document.addEventListener('visibilitychange', () => { if (!document.hidden) poll(false); });
+  // A phone wakes a frozen app, restores it from its page cache, or gets its connection back: ask again right away.
+  window.addEventListener('pageshow', e => { if (e.persisted) poll(false); });
+  window.addEventListener('online', () => poll(false));
 })();

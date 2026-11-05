@@ -2678,6 +2678,8 @@ body[data-chat-list] .dock-main > p, body[data-chat-list] .dock-main > a { margi
     left: 0; right: 0; top: var(--vv-top, 0px); bottom: auto; width: 100%; max-width: 100vw; height: var(--vv-h, 100dvh); z-index: 1; }
   .dock-win.dock-chats:not(.min) { z-index: 0; }
 }
+.signed-out-bar { position: sticky; top: 0; z-index: 1100; display: flex; flex-wrap: wrap; align-items: center; justify-content: center;
+  gap: 8px 12px; padding: 10px 14px; background: var(--bad-bg); color: var(--bad); font-weight: 600; font-size: 13px; }
 /* Meetings: week and day views, and the People picker (checkboxes). */
 .cal-view-week .cal-day { min-height: 260px; }
 .cal-view-day .cal-week { grid-template-columns: minmax(0, 1fr); }

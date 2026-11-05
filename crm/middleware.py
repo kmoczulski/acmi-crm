@@ -37,6 +37,26 @@ class CurrentUserMiddleware:
             _current_user.reset(token)
 
 
+class RollingSessionMiddleware:
+    """Keep people signed in while they use the hub. Django's session lasts a fixed time from sign-in; on a phone that
+    meant being signed out every couple of weeks even if the app was used daily, and the page just stopped updating.
+    Once a day, a signed-in request rewrites the session so its expiry moves out again (SESSION_COOKIE_AGE). Runs
+    after AuthenticationMiddleware; costs one session write a day per person, not one per request."""
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        user = getattr(request, "user", None)
+        if user is not None and user.is_authenticated and hasattr(request, "session"):
+            from django.utils import timezone
+
+            today = timezone.localdate().isoformat()
+            if request.session.get("_touched") != today:
+                request.session["_touched"] = today  # a changed session is saved, with a fresh expiry
+        return self.get_response(request)
+
+
 class LoginRequiredMiddleware:
     """Every page except sign-in requires an authenticated user."""
 
