@@ -263,7 +263,7 @@ OTHER_PROVIDERS = {
         # sewer mains, measured to the nearest main within 2 miles.
         "water": {"static": ["Honolulu Board of Water Supply (island-wide; confirm availability and capacity)"],
                   "note": "No public service-area layer for Oahu water; the Board of Water Supply serves most of the island, military installations have their own systems"},
-        "sewer": {"line": (f"https://services.arcgis.com/tNJpAOha4mODLkXz/arcgis/rest/services/Utilities/FeatureServer/1",
+        "sewer": {"line": ("https://services.arcgis.com/tNJpAOha4mODLkXz/arcgis/rest/services/Utilities/FeatureServer/1",
                            "City and County of Honolulu sewer main"),
                   "note": "City and County sewer mains (distance to the nearest); parcels beyond the mains use cesspools / septic"},
     },

@@ -175,8 +175,8 @@ NO_COUNTY_ZONING = ("TX", "AL")
 _ZONE_WORDS = [("industr", "industrial"), ("employment", "business_park"), ("business park", "business_park"),
                ("mixed", "mixed_use"), ("planned unit", "planned"), ("commerc", "commercial"),
                ("business", "commercial"), ("agri", "agricultural"), ("rural", "agricultural"),
-               ("conserv", "conservation"), ("open space", "conservation"), ("public", "public"),
-               ("resid", "residential"), ("town of", "town")]
+               ("conserv", "conservation"), ("resid", "residential"), ("town of", "town"),
+               ("open space", "conservation"), ("public", "public")]  # last: only when nothing else matched
 
 
 def zoning_class(p):

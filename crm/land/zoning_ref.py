@@ -43,6 +43,7 @@ NO_LAYER = {
     "TX": "Texas counties have no zoning authority; a city zones only land inside its limits, and no city zoning layer is loaded here.",
     "NC": "No zoning layer is loaded for this North Carolina county, so the district is not shown. Ask the county or city planning office.",
     "IN": "No zoning layer is loaded for this Indiana county, so the district is not shown. Ask the county or city planning office.",
+    "FL": "Zoning is loaded only for unincorporated Miami-Dade, Homestead and Florida City. Land in other cities shows no district; ask that city's planning office.",
     "UT": "Utah publishes zoning only for incorporated towns; unincorporated Emery County land has no public zoning layer, so the district is not shown. Ask the county planning office.",
 }
 
