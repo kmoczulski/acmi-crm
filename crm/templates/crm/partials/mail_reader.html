@@ -68,6 +68,13 @@
         {% if reader.filings %}<div class="lc-small mail-filed">Filed to
           {% for f in reader.filings %}<span class="mail-filed-item"><span class="mail-chip chip-{% if f.project_id %}project{% elif f.opportunity_id %}deal{% elif f.firm_id %}firm{% else %}company{% endif %}">{{ f.target }}</span><form method="post" action="{% url 'crm:inbox_unfile' f.pk %}" class="inline-form">{% csrf_token %}<input type="hidden" name="next" value="{{ here }}"><button class="btn-link" title="Take it off {{ f.target }}" aria-label="Take it off {{ f.target }}">×</button></form></span>{% endfor %}</div>{% endif %}
         {% if reader.snoozed_until %}<p class="lc-small"><span class="tag">⏰ Snoozed until {{ reader.snoozed_until|date:"D M j, g:i A" }}</span></p>{% endif %}
+        {% if reader.schedule %}{% with s=reader.schedule %}
+        <div class="mail-schedule" role="note">
+          <span class="mail-schedule-text">📅 <strong>{{ s.by }}</strong>
+            {% if s.kind == "agreed" %}settled on <strong>{{ s.label }}</strong>{% elif s.kind == "offer" %}offered <strong>{{ s.label }}</strong>{% else %}asked for a meeting invite{% endif %}.
+            <span class="muted">With {{ s.people|join:", " }}{% if not s.people %}no one else yet{% endif %}.</span></span>
+          <a class="btn btn-small btn-primary" href="{{ s.url }}" title="Open the scheduler with the people on this email already added{% if s.kind == 'agreed' %} and the time ready to confirm{% endif %}">Schedule…</a>
+        </div>{% endwith %}{% endif %}
         {% if reader.chips %}<div class="mail-chips">{% for kind, name, url in reader.chips %}<a class="mail-chip chip-{{ kind }}" href="{{ url }}">{{ name }}</a>{% endfor %}</div>{% endif %}
         <p class="muted lc-small">{{ reader.messages|length }} message{{ reader.messages|length|pluralize }} ·
           {% if reader.order == "newest" %}<strong>Newest first</strong> · <a href="{{ thread_base }}&order=oldest">Oldest first</a>{% else %}<a href="{{ thread_base }}&order=newest">Newest first</a> · <strong>Oldest first</strong>{% endif %}
