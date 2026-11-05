@@ -1192,6 +1192,12 @@ def notification_poll(request):
     from . import notify
 
     notify.timed_sweep(request.user)  # tasks whose time has come
+    try:  # an email whose Undo time ran out on a page that has since closed (crm/mail/outbox.py)
+        from .mail import outbox
+
+        outbox.flush_due(request.user)
+    except Exception:  # never let a send problem break the alerts
+        pass
     unread = Notification.objects.filter(user=request.user, in_hub=True, read_at__isnull=True)
     try:
         after = int(request.GET.get("after") or 0)

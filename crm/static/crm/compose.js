@@ -728,59 +728,52 @@
       ed.area.dispatchEvent(new Event('input', {bubbles: true}));
     });
 
-    const sendNow = async () => {
-      if (!inline) {
-        confirmed = true;
-        sendBtn.disabled = false;
-        sendBtn.textContent = 'Sending…';
-        form.requestSubmit(sendBtn);
-        sendBtn.disabled = true;
-        return;
-      }
-      confirmed = true;
+    // Send: the finished message is queued on the server (queue=1) and this page is free at once. A notification in the
+    // bottom left counts down with Undo, on whichever page is open (static/crm/outbox.js, crm/mail/outbox.py). Nothing
+    // is held in this page, so leaving it never cancels or loses the message. Without script the form still posts and
+    // sends directly.
+    const top = () => { try { return window.top.hubOutbox ? window.top : window; } catch (e) { return window; } };
+    const queueSend = async () => {
+      confirmed = true;  // no more autosaves
+      clearTimeout(saveTimer);
+      sendBtn.disabled = true;
+      const label = sendBtn.textContent;
       sendBtn.textContent = 'Sending…';
+      if (error) error.hidden = true;
       try {
-        const r = await fetch(form.action, {method: 'POST', body: new FormData(form), headers: {'X-CSRFToken': csrf(form)}});
+        const data = new FormData(form);
+        data.set('queue', '1');
+        data.set('inline', '1');  // errors come back as words, not a whole page
+        const r = await fetch(form.action, {method: 'POST', body: data, headers: {'X-CSRFToken': csrf(form)}});
         const d = await r.json();
-        if (!r.ok || !d.ok) throw new Error(d.error || 'Not sent. Try again.');
-        forget();  // it went: nothing to pick up again
-        if (windowed && dock()) { dock().sent(winId, d); return; }  // the box closes and the page says "Message sent"
-        location.href = d.url;
+        if (!r.ok || !d.ok || !d.queued) throw new Error(d.error || 'Not sent. Try again.');
+        forget();  // it is on its way: nothing to pick up again unless Undo brings it back
+        const out = top().hubOutbox;
+        if (out) out.add(d.queued);
+        if (windowed && dock()) { dock().close(winId, {force: true}); return; }  // the box closes; the notification takes over
+        if (inline) {  // the reading pane's reply box: close it and carry on reading
+          form.hidden = true;
+          ed.clear();
+          sendBtn.disabled = false;
+          sendBtn.textContent = label;
+          confirmed = false;
+          return;
+        }
+        const back = form.querySelector('[name=back]');
+        location.href = (back && back.value && back.value[0] === '/' && !back.value.startsWith('//')) ? back.value : '/inbox/';
       } catch (err) {
         confirmed = false;
-        countdown.hidden = true;
         sendBtn.disabled = false;
-        sendBtn.textContent = 'Send';
+        sendBtn.textContent = label;
         if (error) { error.textContent = err.message; error.hidden = false; }
       }
     };
 
-    // Undo send: Send waits ten seconds, and Undo (or leaving the page) stops it.
     form.addEventListener('submit', e => {
       if (e.submitter && e.submitter.hasAttribute('data-discard')) return;
-      if (confirmed && !inline) return;
       e.preventDefault();
       if (confirmed) return;
-      if (error) error.hidden = true;
-      let left = 10;
-      seconds.textContent = left;
-      countdown.hidden = false;
-      sendBtn.disabled = true;
-      timer = setInterval(() => {
-        left -= 1;
-        seconds.textContent = left;
-        if (left <= 0) { clearInterval(timer); timer = null; sendNow(); }
-      }, 1000);
-    });
-    form.querySelector('[data-undo-send]').addEventListener('click', () => {
-      clearInterval(timer);
-      timer = null;
-      countdown.hidden = true;
-      sendBtn.disabled = false;
-      say('Not sent.');
-    });
-    window.addEventListener('beforeunload', e => {
-      if (timer) { e.preventDefault(); e.returnValue = ''; }
+      queueSend();
     });
 
     if (windowed) {

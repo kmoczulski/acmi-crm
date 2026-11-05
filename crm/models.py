@@ -1375,6 +1375,42 @@ class MailThread(models.Model):
             return ""
 
 
+class PendingSend(models.Model):
+    """An email the person pressed Send on, waiting out the short Undo window before it goes (crm/mail/outbox.py).
+    Held on the server so the person can carry on in the hub while the "Undo" notification counts down, even on
+    another page. Claimed atomically (queued -> sending), so it can never go twice. The finished message is dropped
+    once it is sent or cancelled."""
+
+    class Status(models.TextChoices):
+        QUEUED = "queued", "Waiting"
+        SENDING = "sending", "Sending"
+        SENT = "sent", "Sent"
+        CANCELLED = "cancelled", "Undone"
+        FAILED = "failed", "Not sent"
+
+    mailbox = models.ForeignKey("Mailbox", on_delete=models.CASCADE, related_name="pending_sends")
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="pending_sends")
+    raw = models.BinaryField(default=b"", editable=False)  # the finished message, as Gmail takes it
+    thread_id = models.CharField(max_length=100, blank=True)
+    draft_id = models.CharField(max_length=100, blank=True)
+    subject = models.CharField(max_length=500, blank=True)
+    to_text = models.CharField(max_length=500, blank=True)
+    fields = models.JSONField(default=dict, blank=True)  # what was typed, so Undo can put it back in the composer
+    back = models.CharField(max_length=500, blank=True)
+    result_url = models.CharField(max_length=500, blank=True)
+    send_at = models.DateTimeField(db_index=True)
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.QUEUED, db_index=True)
+    error = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        indexes = [models.Index(fields=["status", "send_at"])]
+
+    def __str__(self):
+        return f"{self.get_status_display()}: {self.subject or '(no subject)'}"
+
+
 class MailSnooze(models.Model):
     """A thread someone snoozed in the hub (crm/mail/actions.py): out of the inbox under the "ACMI/Snoozed" Gmail
     label until `until`, when the sync puts it back in the inbox, unread. Gmail's own snooze isn't open to apps."""

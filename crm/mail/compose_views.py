@@ -1,6 +1,7 @@
 """The compose page (docs/EMAIL_CLIENT.md, step 5): new message, reply, reply all, forward; drafts; signature."""
 import logging
 import re
+from email.utils import getaddresses
 
 import requests
 from django.contrib import messages
@@ -10,9 +11,9 @@ from django.urls import reverse
 from django.views.decorators.http import require_POST
 
 from crm import prefs
-from crm.models import EmailTemplate, Person
+from crm.models import EmailTemplate, PendingSend, Person
 
-from . import compose, index, render as mail_render
+from . import compose, index, outbox, render as mail_render
 from .gmail_api import NotFound
 from .imap import MailboxError
 from . import shared
@@ -96,6 +97,12 @@ def compose_page(request, mailbox, client):
         return _notice(request, mailbox, win, READ_ONLY)
     if not may_change(request, mailbox):
         return redirect("crm:inbox")
+    undo_id = request.GET.get("undo", "")
+    if undo_id.isdigit() and not win:  # Undo send, or a send that failed: the message as it was typed
+        pending = PendingSend.objects.filter(pk=int(undo_id), user=request.user,
+                                             status__in=[PendingSend.Status.CANCELLED, PendingSend.Status.FAILED]).first()
+        if pending:
+            return _reopen(request, mailbox, client, pending)
     fields = {"to": request.GET.get("to", ""), "cc": "", "subject": request.GET.get("subject", ""), "thread_id": "",
               "in_reply_to": "", "references": "", "reply_to_id": "", "mode": mode, "forward_files": []}
     if original:
@@ -124,6 +131,20 @@ def _send(request, mailbox, client, original, mode):
         raw, _ = compose.build(mailbox, request.user, f["to"], f["cc"], f["bcc"], f["subject"], f["body"], quote=quote,
                                in_reply_to=f["in_reply_to"], references=f["references"], files=files,
                                sig=compose.signature_parts(request.user, mailbox, client), body_html=f["body_html"])
+        if request.POST.get("queue"):
+            # Undo send: hold the finished message for a few seconds on the server; the page is free at once and a
+            # notification counts down (crm/mail/outbox.py). Everything is checked above, so a bad address or a
+            # switched-off hub still answers right here. Without this flag (no script) the old direct send runs below.
+            post = request.POST
+            names = [n or a for n, a in getaddresses([post.get("to", "")]) if n or a]
+            to_text = ", ".join(names[:3]) + (f" +{len(names) - 3}" if len(names) > 3 else "")
+            typed = {k: post.get(k, "") for k in ("to", "cc", "bcc", "subject", "body", "body_html", "thread_id",
+                                                  "in_reply_to", "references", "reply_to_id", "mode", "draft_id")}
+            typed["forward_part"] = post.getlist("forward_part")
+            pending = outbox.queue(mailbox, request.user, raw, thread_id=f["thread_id"] if mode in ("reply", "all") else "",
+                                   draft_id=post.get("draft_id", ""), subject=f["subject"], to_text=to_text,
+                                   fields=typed, back=back)
+            return JsonResponse({"ok": True, "queued": outbox.as_item(pending)})
         result = compose.send(mailbox, client, raw, thread_id=f["thread_id"] if mode in ("reply", "all") else "",
                               draft_id=request.POST.get("draft_id", ""), user=request.user)
         shared.log(mailbox, request.user, "send", result.get("threadId", ""), f["subject"])
@@ -146,6 +167,58 @@ def _send(request, mailbox, client, original, mode):
     if request.POST.get("inline"):  # the reading pane's own reply box: it reloads the thread itself
         return JsonResponse({"ok": True, "url": url})
     return redirect(url)
+
+
+def _reopen(request, mailbox, client, pending):
+    """The composer with a message that was undone (or failed to send) exactly as it was typed. Files have to be
+    attached again: only the finished message was held, and it is dropped once undone."""
+    typed = pending.fields or {}
+    try:
+        original = _original(mailbox, client, typed.get("reply_to_id", ""))
+    except (MailboxError, Http404):
+        original = None
+    mode = typed.get("mode") or "new"
+    fields = {k: typed.get(k, "") for k in ("to", "cc", "bcc", "subject", "thread_id", "in_reply_to", "references",
+                                            "reply_to_id")}
+    fields.update({"mode": mode, "forward_files": mail_render.attachments(original) if original and mode == "forward" else []})
+    if pending.status == PendingSend.Status.FAILED:
+        error = f"This wasn't sent: {pending.error or 'Gmail refused it.'} It is back here so you can try again."
+    else:
+        error = ""
+        messages.info(request, "Not sent. Your message is back here to edit. Attach any files again.")
+    return render(request, "crm/compose.html", {
+        "f": fields, "body": typed.get("body", ""), "body_html": compose.formatted(typed.get("body_html", "")),
+        "error": error, "draft_id": typed.get("draft_id", ""), "kept_parts": typed.get("forward_part", []),
+        "original": mail_render.summary(original) if original else None,
+        "signature_html": compose.signature_parts(request.user, mailbox, client)[1], "mailbox": mailbox,
+        "templates": [], "first_name": "", "sending_on": compose.settings.MAIL_SEND_ENABLED, "back": pending.back,
+        "window": "", "layout": "crm/base.html",
+    })
+
+
+@team_only
+def outbox_pending(request):
+    """The person's messages still waiting out the Undo window (the notification draws these on every page)."""
+    return JsonResponse({"items": outbox.waiting(request.user)})
+
+
+@team_only
+@require_POST
+def outbox_undo(request, pk):
+    ok, item = outbox.undo(request.user, pk)
+    if item is None:
+        raise Http404()
+    return JsonResponse({"ok": ok, "item": item})
+
+
+@team_only
+@require_POST
+def outbox_commit(request, pk):
+    """The notification's timer ran out: send it now (if it is due and nobody else has)."""
+    item = outbox.deliver(pk, user=request.user)
+    if item is None:
+        raise Http404()
+    return JsonResponse({"item": item})
 
 
 def _form_again(request, mailbox, client, original, mode, error):

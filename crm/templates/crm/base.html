@@ -231,6 +231,7 @@
 <div id="nav-config" hidden data-search="{% url 'crm:search' %}" data-prefs="{% url 'crm:prefs_save' %}"></div>
 <script src="{% static 'crm/nav.js' %}?v={{ ASSET_VERSION }}"></script>
 <script src="{% static 'crm/views.js' %}?v={{ ASSET_VERSION }}"></script>
+{% if user.is_authenticated and MAIL_ON and not EMBED %}<div id="outbox-config" hidden data-pending="{% url 'crm:outbox_pending' %}" data-undo="{% url 'crm:outbox_undo' 0 %}" data-send="{% url 'crm:outbox_commit' 0 %}"></div><script src="{% static 'crm/outbox.js' %}?v={{ ASSET_VERSION }}"></script>{% endif %}
 <script src="{% static 'crm/back.js' %}?v={{ ASSET_VERSION }}"></script>
 {% if user.is_authenticated %}<script src="{% static 'crm/split.js' %}?v={{ ASSET_VERSION }}"></script>{% endif %}
 {% if user.is_authenticated and MAIL_ON or user.is_authenticated and CHAT_ON %}<script src="{% static 'crm/dock.js' %}?v={{ ASSET_VERSION }}"{% if MAIL_ON %} data-compose-url="{% url 'crm:inbox_compose' %}" data-thread-url="{% url 'crm:inbox_window' %}"{% endif %}{% if CHAT_ON %} data-chat-url="{% url 'crm:chat_window' %}" data-chat-list-url="{% url 'crm:chat_list' %}" data-chat-poll-url="{% url 'crm:chat_poll' %}" data-chat-page-url="{% url 'crm:chat' %}"{% endif %}></script>{% endif %}

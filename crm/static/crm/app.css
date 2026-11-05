@@ -2732,6 +2732,22 @@ body[data-chat-list] .dock-main > p, body[data-chat-list] .dock-main > a { margi
   background: var(--accent-soft); border: 1px solid var(--line); border-radius: var(--radius); font-size: 13px; }
 .chat-nudge[hidden] { display: none; }
 .chat-nudge > span { flex: 1 1 260px; min-width: 0; }
+/* Undo send: a teal notification in the bottom left, unlike the navy dock and the other alerts (static/crm/outbox.js). */
+.outbox-toasts { position: fixed; left: 16px; bottom: 16px; z-index: 2100; display: flex; flex-direction: column; gap: 8px;
+  max-width: min(420px, calc(100vw - 32px)); pointer-events: none; }
+.outbox-toast { pointer-events: auto; display: flex; align-items: center; gap: 8px 10px; flex-wrap: wrap; padding: 10px 12px;
+  background: #0f766e; color: #fff; border-radius: 12px; box-shadow: 0 8px 28px rgba(0, 0, 0, .28); font-size: 13px; line-height: 1.35; }
+.outbox-toast.outbox-failed { background: #a3271f; }
+.outbox-toast.outbox-undone, .outbox-toast.outbox-late { background: #334155; }
+.outbox-msg { flex: 1 1 180px; min-width: 0; overflow-wrap: anywhere; }
+.outbox-btn { border: 0; border-radius: 8px; padding: 6px 12px; background: rgba(255, 255, 255, .18); color: #fff; font: inherit;
+  font-weight: 600; cursor: pointer; text-decoration: none; min-height: 32px; }
+.outbox-btn:hover { background: rgba(255, 255, 255, .3); text-decoration: none; }
+.outbox-undo { background: #fff; color: #0f766e; }
+.outbox-undo:hover { background: #e6fffb; }
+.outbox-x { padding: 6px 9px; }
+@media (max-width: 700px) { .outbox-toasts { left: 10px; right: 10px; max-width: none; bottom: 12px; }
+  body.has-dock .outbox-toasts { bottom: 52px; } }
 /* Tasks: quadrants by task type, and Select mode with a bar to mark many done. */
 .quad-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; align-items: start; }
 @media (max-width: 800px) { .quad-grid { grid-template-columns: minmax(0, 1fr); } }

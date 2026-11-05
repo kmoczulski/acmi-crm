@@ -13,6 +13,15 @@ class Command(BaseCommand):
     help = "Sync every enabled mailbox, then every connected Google Calendar."
 
     def handle(self, *args, **opts):
+        from crm.mail import outbox
+
+        try:  # first: any email whose Undo time ran out while every page was closed
+            sent = outbox.flush_due()
+            outbox.tidy()
+            if sent:
+                self.stdout.write(f"outbox: sent {sent} waiting email(s)")
+        except Exception as exc:  # noqa: BLE001 - never blocks the sync
+            self.stderr.write(f"outbox failed: {exc}")
         for mailbox, stats in sync.sync_all().items():
             self.stdout.write(f"{mailbox}: " + ", ".join(f"{k} {v}" for k, v in dict(stats).items()))
         try:

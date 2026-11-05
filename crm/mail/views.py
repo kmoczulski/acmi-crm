@@ -236,8 +236,16 @@ def cron_sync(request):
     given = request.headers.get("X-Cron-Secret", "")
     if not secret or not hmac.compare_digest(secret, given):
         return HttpResponseForbidden("bad secret")
+    out = {}
+    try:  # first: any email whose Undo time ran out while every page was closed (crm/mail/outbox.py)
+        from . import outbox
+
+        out["outbox_sent"] = outbox.flush_due()
+        outbox.tidy()
+    except Exception as exc:  # noqa: BLE001 - never blocks the sync
+        out["outbox_error"] = str(exc)
     results = sync.sync_all()
-    out = {k: dict(v) for k, v in results.items()}
+    out.update({k: dict(v) for k, v in results.items()})
     from crm import gcal  # calendar rides along, as in scripts/sync_mail.cmd
 
     try:
