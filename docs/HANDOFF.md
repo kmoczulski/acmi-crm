@@ -526,7 +526,7 @@ backup was taken (`1793324941228`, 8:49 pm Central). Rollback is traffic back to
 a table and a column, so the old code runs on the new schema). What e-signature would take is in `docs/ESIGN_AND_CHAT.md`
 (nothing built).
 
-## Usability pass 2026-11-05 (branch `worktree-ux-polish-2026-11`, committed, NOT pushed, NOT deployed, no migration)
+## Usability pass 2026-11-05 (merged into `main` at `d26d988` after `origin/main` (c1e0a3e, live 00036) was merged in cleanly; CI green on Postgres; NOT deployed; no migration of its own)
 
 Kellen: "review the entire website... functionality and navigation tested and improved". Worktree `.claude/worktrees/ux-polish-2026-11`,
 built on `calendar-fixes-v2` (Kellen's pick) with `main` merged in (4 CSS conflicts in `app.css`, resolved to main's theme). Tested on a
