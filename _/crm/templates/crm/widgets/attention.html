@@ -1,8 +1,0 @@
-{% load crm_tags humanize %}{# Dashboard widget: deals that need attention (at_risk) #}
-<a class="widget-link" href="{% url 'crm:opportunity_board' %}?risk=1">All {{ at_risk_count }}</a>
-<div class="clist" data-limit="10">
-      {% for r in at_risk %}
-        <div class="row-line"><span><a href="{{ r.opp.get_absolute_url }}">{{ r.opp.name }}</a> <span class="stage stage-{{ r.opp.stage }}">{{ r.opp.get_stage_display }}</span>{% if r.opp.value %} <span class="muted">{{ r.opp.value|money }}</span>{% endif %}</span>
-          <span class="muted" style="font-size:12px;text-align:right">{{ r.reasons|join:" · " }}{% if r.opp.owner %} · {{ r.opp.owner|username }}{% endif %}</span></div>
-      {% empty %}<p class="muted" style="margin:0">Nothing stalled.</p>{% endfor %}
-      </div>

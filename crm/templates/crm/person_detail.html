@@ -7,6 +7,7 @@
   <h1>{{ person }}</h1>
   {% if person.company %}<a href="{{ person.company.get_absolute_url }}">{{ person.company.name }}</a>{% endif %}
   {% if MAIL_ON and person.email %}<a class="btn btn-small" href="{% url 'crm:inbox_compose' %}?to={{ person.email|urlencode }}">✉ Email</a>{% endif %}
+  {% if person.email %}<a class="btn btn-small" href="{% url 'crm:schedule' %}?person={{ person.pk }}" title="See when you and {{ person }} are free and put a meeting on the calendar">📅 Schedule</a>{% endif %}
   {{ person.priority|pill }}
   {% for f in person.flags %}<span class="tag">{{ f }}</span>{% endfor %}
   {% url 'crm:person_list' as back_url %}

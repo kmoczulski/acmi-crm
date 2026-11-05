@@ -16,7 +16,7 @@ SECTIONS = [  # (key, label, page)
 COVER_ROWS = [  # rows of the comparison table
     ("where", "Where"), ("acres", "Acres"), ("zoning", "Zoning"), ("power", "Transmission / substation"),
     ("roads", "Highway / rail"), ("electric", "Electric provider(s)"), ("water", "Water / sewer"),
-    ("flood", "FEMA floodplain"), ("score", "Buy-box score"), ("flags", "Flags"), ("concerns", "Biggest concerns"),
+    ("flood", "FEMA floodplain"), ("flags", "Flags"), ("concerns", "Biggest concerns"),
 ]
 PAGES = [("cover", "Comparison page"), ("zoning", "Zoning districts pages"), ("definitions", "Notes & definitions page")]
 SECTION_KEYS = {k for k, _, _ in SECTIONS}

@@ -5,6 +5,7 @@ from django.db.models import Q
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
 from ..capital import logic as capital_logic
@@ -192,3 +193,47 @@ def sort_action(request, pk):
         s.status, s.decided_by, s.decided_at = DomainSort.Status.DISMISSED, request.user, timezone.now()
         s.save()
     return redirect(back)
+
+
+# ---------------------------------------------------------------------------
+# A name in an email (crm/static/crm/who.js): who it is, and adding them to the directory
+# ---------------------------------------------------------------------------
+
+
+def who(request):
+    """The small card a name in an email opens: who the address is in the hub, else a form to add them here."""
+    info = logic.who(request.GET.get("email", ""), request.GET.get("name", ""))
+    return render(request, "crm/partials/who_card.html", {
+        "w": info, "kinds": Firm.Kind.choices, "firm_names": logic.names() if not info["team"] else [],
+        "picked_kind": info["domain_firm"].kind if info["domain_firm"] else ""})
+
+
+def _phone_text(post):
+    """Office and cell numbers as "number (office), number (mobile)", the labels a person's phones are saved with."""
+    return ", ".join(f"{post[key].strip()} ({label})" for key, label in (("office_phone", "office"), ("cell_phone", "mobile"))
+                     if post.get(key, "").strip())
+
+
+@require_POST
+def who_add(request):
+    """Add the person to the directory as a contact at a firm (logic.add_contact)."""
+    fetched = request.headers.get("X-Requested-With") == "fetch"
+    try:
+        firm, created, domain_added, moved = logic.add_contact(
+            request.POST.get("email", ""), request.POST.get("name", ""), request.POST.get("kind", ""),
+            request.POST.get("firm", ""), request.POST.get("title", ""), _phone_text(request.POST), request.user)
+    except logic.ContactError as exc:
+        if fetched:
+            return JsonResponse({"error": str(exc)}, status=400)
+        messages.error(request, str(exc))
+    else:
+        text = f"Added to {firm.name}{' (new in the directory)' if created else ''}."
+        if domain_added:
+            text += f" Email from {firm.domains[-1]} files there from now on"
+            text += f"; {moved} waiting email{'s' if moved != 1 else ''} moved." if moved else "."
+        if fetched:
+            return JsonResponse({"ok": True, "message": text, "firm": firm.name, "url": firm.get_absolute_url()})
+        messages.success(request, text)
+    nxt = request.POST.get("next", "")
+    ok = nxt.startswith("/") and url_has_allowed_host_and_scheme(nxt, allowed_hosts={request.get_host()})
+    return redirect(nxt if ok else "crm:directory")

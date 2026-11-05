@@ -114,6 +114,10 @@
           <li data-type="{{ g.type }}" data-name="{{ g.latest.name|lower }}">
             <a href="{% url 'crm:inbox_part' g.latest.message g.latest.part %}" class="mail-filename">📎 {{ g.latest.name }}</a>
             <span class="muted lc-small">{{ g.latest.size|filesizeformat }} · {{ g.latest.from_name }} · {{ g.latest.date|date:"M j, g:i a" }}</span>
+            <form method="post" action="{% url 'crm:inbox_save_drive' g.latest.message g.latest.part %}" class="inline-form">{% csrf_token %}
+              <input type="hidden" name="t" value="{{ reader.id }}"><input type="hidden" name="next" value="{{ here }}">
+              <button class="btn-link lc-small" title="Save this file into the company's Drive folder">Save to Drive</button>
+            </form>
             <a href="#m-{{ g.latest.message }}" class="lc-small" data-goto="{{ g.latest.message }}">Go to message</a>
             {% if g.older %}
             <details class="mail-versions"><summary class="lc-small">{{ g.older|length }} earlier version{{ g.older|length|pluralize }}</summary>
@@ -153,11 +157,11 @@
       {% if reader.order == "oldest" and m.id == reader.first_unread and reader.messages|length > 1 %}<div class="mail-new-line" id="new-since">New since you last read</div>{% endif %}
       <details class="mail-msg" id="m-{{ m.id }}"{% if m.open %} open{% endif %}>
         <summary>
-          <span class="mail-msg-from"><strong>{% if m.from_addr == mailbox.email %}me{% else %}{{ m.from_name }}{% endif %}</strong>{% if m.draft %} <span class="tag">Draft</span>{% endif %}{% if m.unread %} <span class="tag">New</span>{% endif %}{% if m.files %} <span class="muted" title="{{ m.files|length }} attachment{{ m.files|length|pluralize }}">📎</span>{% endif %} <span class="muted lc-small">{{ m.from_addr }}</span></span>
+          <span class="mail-msg-from"><strong>{% if m.from_addr == mailbox.email|lower %}me{% else %}<button type="button" class="mail-who" data-who="{{ m.from_addr }}" data-name="{{ m.from_name }}" title="Who is {{ m.from_name }}?">{{ m.from_name }}</button>{% endif %}</strong>{% if m.draft %} <span class="tag">Draft</span>{% endif %}{% if m.unread %} <span class="tag">New</span>{% endif %}{% if m.files %} <span class="muted" title="{{ m.files|length }} attachment{{ m.files|length|pluralize }}">📎</span>{% endif %} <span class="muted lc-small">{{ m.from_addr }}</span></span>
           <span class="mail-msg-date muted lc-small">{{ m.date|date:"M j, Y g:i a" }}</span>
           <span class="mail-msg-snippet muted">{{ m.snippet }}</span>
         </summary>
-        <p class="mail-msg-to muted lc-small">To {{ m.to|join:", " }}{% if m.cc %} · Cc {{ m.cc|join:", " }}{% endif %}</p>
+        {% include "crm/partials/mail_to_line.html" %}
         <iframe class="mail-frame" title="Message from {{ m.from_name }}" sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox" loading="lazy"
                 src="{% url 'crm:inbox_body' m.id %}" data-mail-frame data-message="{{ m.id }}"></iframe>
         <p class="mail-images" hidden><button type="button" class="btn btn-small" data-show-images>Show images</button> <span class="muted lc-small">Images from the sender are blocked so they can't tell you opened this.</span></p>
@@ -180,7 +184,9 @@
     {% if can_change %}
       <form class="mail-inline panel compose" method="post" enctype="multipart/form-data" action="{% url 'crm:inbox_compose' %}"
             data-inline hidden data-fields-url="{% url 'crm:inbox_reply_fields' %}" data-draft-url="{% url 'crm:inbox_draft' %}"
-            data-calendar-url="{% url 'crm:inbox_calendar' %}">
+            data-calendar-url="{% url 'crm:inbox_calendar' %}"
+            data-avail-url="{% url 'crm:schedule_availability' %}" data-people-url="{% url 'crm:schedule_people' %}"
+            data-create-url="{% url 'crm:schedule_create' %}">
         {% csrf_token %}
         <input type="hidden" name="inline" value="1">
         <input type="hidden" name="mode"><input type="hidden" name="reply_to_id"><input type="hidden" name="thread_id">

@@ -1,27 +1,87 @@
 {% extends "crm/room/base.html" %}
+{% load static humanize %}
 {% block title %}{{ room.name }} data room{% endblock %}
 {% block body %}
-<div class="r-card">
-  <h1>Tenant pipeline</h1>
-  {% if room.intro %}<p class="r-note">{{ room.intro }}</p>{% endif %}
-  <p class="muted">{{ rows|length }} deal{{ rows|length|pluralize }}. Open a tenant for its company card and documents.</p>
-  <nav class="r-tabs" aria-label="View">
-    <a href="{% url 'crm:room_home' %}{{ q }}" {% if view == 'table' %}aria-current="page"{% endif %}>Table</a>
-    <a href="{% url 'crm:room_home' %}{% if q %}{{ q }}&amp;{% else %}?{% endif %}view=board" {% if view == 'board' %}aria-current="page"{% endif %}>Board</a>
-  </nav>
-  {% if view == 'board' %}
-  <div class="r-board">
-    {% for s in stages %}<section class="r-col" aria-label="{{ s.label }}"><h2><span>{{ s.label }}</span><span class="muted">{{ s.rows|length }}</span></h2>
-      {% for r in s.rows %}<a class="r-tile" href="{{ r.url }}{{ q }}"><b>{{ r.deal.company.name }}</b><span>{{ r.deal.site_label }}{% if r.deal.sq_ft_need %} · {{ r.deal.sq_ft_need|floatformat:"0g" }} sf{% endif %}</span></a>{% empty %}<p class="muted" style="font-size:12px">None</p>{% endfor %}
-    </section>{% endfor %}
+{# Laid out exactly like the hub's investor report (crm/report_pipeline.html), from the room's allow-listed fields only. #}
+<style>
+  .rp { --text: #1d2330; --muted: #6b7280; --line: #e3e6eb; --accent: #1f3a5f; --accent-soft: #e8eef6; color: var(--text); font-size: 14px; line-height: 1.45; }
+  .rp a { color: var(--accent); text-decoration: none; } .rp a:hover { text-decoration: underline; }
+  .rp .muted { color: var(--muted); }
+  .rp-bar { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+  .rp-bar .spacer { flex: 1; }
+  .rp-btn { display: inline-block; border: 1px solid var(--line); background: #fff; color: var(--text) !important; padding: 6px 12px; border-radius: 6px; cursor: pointer; font: inherit; font-size: 14px; text-decoration: none !important; }
+  .rp .report-logo { display: block; height: auto; margin: 0 0 12px; }
+  .rp h1 { font-size: 20px; margin: 0 0 16px; }
+  .rp .panel { background: #fff; border: 1px solid var(--line); border-radius: 6px; padding: 14px; margin-bottom: 16px; }
+  .rp .panel h3 { margin: 0 0 10px; font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+  .rp .table-wrap { background: #fff; border: 1px solid var(--line); border-radius: 6px; overflow-x: auto; }
+  .rp table.data { width: 100%; border-collapse: collapse; font-size: 14px; }
+  .rp table.data th, .rp table.data td { padding: 5px 8px; border-bottom: 1px solid var(--line); text-align: left; white-space: nowrap; vertical-align: top; }
+  .rp table.data th { background: #fafbfc; font-weight: 600; font-size: 12px; color: var(--muted); }
+  .rp table.data tr:hover td { background: #fafcff; }
+  .rp .stage { display: inline-block; padding: 1px 8px; border-radius: 99px; font-size: 12px; background: var(--accent-soft); color: var(--accent); white-space: nowrap; }
+  .rp .stage-prospect { background: #eef0f3; color: #5b6475; }
+  .rp .stage-qualified { background: #e3ebfd; color: #1d4ed8; }
+  .rp .stage-loi_neg, .rp .stage-loi_signed { background: #efe8fd; color: #6d28d9; }
+  .rp .stage-loi_signed { box-shadow: inset 0 0 0 1px #6d28d9; }
+  .rp .stage-lease_neg { background: #ddf3f8; color: #0e7490; }
+  .rp .stage-signed { background: #dcf3e4; color: #15803d; font-weight: 600; }
+  .rp-sheet { background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 18px 20px 6px; }
+  .rp-sheet .panel { border-radius: 8px; }
+  .rp table.data .rp-title th { background: none; color: var(--muted); font-size: 13px; text-transform: uppercase; letter-spacing: .04em; padding: 18px 10px 6px; border-bottom: 0; }
+  .rp table.data.rp-sections tbody:first-child .rp-title th { padding-top: 4px; }
+  .rp .rp-totals { float: right; text-transform: none; letter-spacing: 0; font-weight: 400; }
+  .rp table.data .rp-head th { background: #002060; color: #fff; }
+  @media (max-width: 600px) { .rp .rp-totals { float: none; display: block; } }
+  @media print {
+    .r-top, .r-preview, .r-foot, .no-print { display: none !important; }
+    body { background: #fff; } .r-wrap { max-width: none; padding: 0; }
+    .rp .panel { break-inside: avoid; border: 0; padding: 0; }
+    .rp-sheet { border: 0; padding: 0; }
+    .rp .table-wrap { border: 0; overflow: visible; }
+    .rp-sections tbody { break-inside: avoid-page; }
+    .rp .rp-head th, .rp .report-logo { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+    .rp table.data { table-layout: fixed; width: 100%; }
+    .rp table.data th, .rp table.data td { overflow-wrap: anywhere; white-space: normal; }
+  }
+</style>
+<div class="rp">
+  <div class="rp-bar no-print">
+    <span class="muted">{{ count }} deal{{ count|pluralize }}. Open a tenant for its company card and documents.</span>
+    <span class="spacer"></span>
+    <a class="rp-btn" href="{% url 'crm:room_xlsx' %}{{ q }}" download title="Fortress tracker layout, with the columns shown here">Download Excel</a>
+    <button class="rp-btn" onclick="window.print()">Print / PDF</button>
   </div>
-  {% else %}
-  <div class="r-scroll"><table>
-    <thead><tr>{% for c in columns %}<th scope="col"{% if c.key in numeric %} class="num"{% endif %}>{{ c.label }}</th>{% endfor %}</tr></thead>
-    <tbody>{% for r in rows %}<tr>{% for c, value in r.cells %}<td{% if c.key in numeric %} class="num"{% endif %}>{% if c.key == 'tenant' %}<a href="{{ r.url }}{{ q }}">{{ value }}</a>{% else %}{{ value }}{% endif %}</td>{% endfor %}</tr>
-    {% empty %}<tr><td colspan="{{ columns|length }}" class="muted">No deals are shared yet.</td></tr>{% endfor %}</tbody>
-  </table></div>
-  {% endif %}
+  {% if room.intro %}<p class="r-note no-print">{{ room.intro }}</p>{% endif %}
+  <div class="rp-sheet">
+  <img class="report-logo" src="{% static 'crm/logo_blue.png' %}" alt="ACMI Properties" width="120">
+  <h1>ACMI Properties pipeline <span class="muted" style="font-weight:400;font-size:14px">as of {{ as_of|date:"F j, Y" }}</span></h1>
+
+  {# One table for all three sections, so their columns line up. #}
+  <div class="panel">
+    <div class="table-wrap"><table class="data rp-sections">
+      {% for s in sections %}<tbody>
+        <tr class="rp-title"><th colspan="{{ columns|length }}">{{ s.title }} <span class="rp-totals">{{ s.rows|length }} tenant{{ s.rows|length|pluralize }}{% if s.sf is not None %} · {{ s.sf|intcomma }} sf{% endif %}{% if s.cost is not None %} · {% if s.cost %}${{ s.cost|floatformat:0|intcomma }}{% else %}$0{% endif %}{% endif %}{% if s.weighted %} · weighted ${{ s.weighted|floatformat:0|intcomma }}{% endif %}</span></th></tr>
+        <tr class="rp-head">{% for c in columns %}<th{% if c.key in numeric %} class="num"{% endif %}>{{ c.label }}</th>{% endfor %}</tr>
+        {% for r in s.room_rows %}<tr>{% for c, value in r.cells %}<td{% if c.key in numeric %} class="num"{% endif %}>{% if c.key == 'tenant' %}<a href="{{ r.url }}{{ q }}"><b>{{ value }}</b></a>{% elif c.key == 'stage' %}<span class="stage stage-{{ r.deal.stage }}">{{ value }}</span>{% else %}{{ value }}{% endif %}</td>{% endfor %}</tr>
+        {% empty %}<tr><td colspan="{{ columns|length }}" class="muted">None.</td></tr>{% endfor %}
+      </tbody>{% endfor %}
+    </table></div>
+  </div>
+
+  <div class="panel">
+    <h3>Development sites</h3>
+    <div class="table-wrap"><table class="data">
+      <thead><tr class="rp-head"><th>Site</th><th class="num">Tenants</th><th class="num">Acres</th><th class="num">Total sf</th>
+        {% if "cost" in column_keys %}<th class="num">Project cost</th>{% endif %}{% if "psf" in column_keys %}<th class="num">Avg $ PSF</th>{% endif %}{% if "weighted" in column_keys and "cost" in column_keys %}<th class="num">Weighted</th>{% endif %}</tr></thead>
+      <tbody>{% for r in sites %}
+        <tr><td>{{ r.site }}{% if r.campus %} <span class="muted">{{ r.campus.name }}</span>{% endif %}</td><td class="num">{{ r.tenants }}</td><td class="num">{% if r.acres %}{{ r.acres|floatformat:"-2"|intcomma }}{% endif %}</td>
+          <td class="num">{{ r.sf|intcomma }}</td>
+          {% if "cost" in column_keys %}<td class="num">${{ r.cost|floatformat:0|intcomma }}</td>{% endif %}{% if "psf" in column_keys %}<td class="num">{% if r.psf %}${{ r.psf|floatformat:0|intcomma }}{% endif %}</td>{% endif %}{% if "weighted" in column_keys and "cost" in column_keys %}<td class="num">${{ r.weighted|floatformat:0|intcomma }}</td>{% endif %}</tr>
+      {% empty %}<tr><td colspan="7" class="muted">None.</td></tr>{% endfor %}</tbody>
+    </table></div>
+  </div>
+  </div>
 </div>
-{% if files %}<div class="r-card"><h2>Documents</h2>{% include "crm/room/files.html" %}</div>{% endif %}
+{% if files %}<div class="r-card no-print"><h2>Documents</h2>{% include "crm/room/files.html" %}</div>{% endif %}
 {% endblock %}

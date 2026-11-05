@@ -13,6 +13,7 @@ from django.core.exceptions import ValidationError
 from django.http import FileResponse, Http404, HttpResponseRedirect
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from ..models import (
@@ -140,19 +141,34 @@ def room_invite(request, token):
 
 
 def room_home(request):
+    """The pipeline in the investor report's layout: Signed agreements, Active discussions and Prospects, each with
+    its totals, then the development sites. One view only (Kellen, 2026-11-04), with an Excel download."""
     room, member = _room(request)
-    deals = list(logic.visible_deals(room).order_by("campus__code", "company__name"))
-    view = request.GET.get("view", "table")
-    stages = [{"label": label, "deals": [o for o in deals if o.stage == value]}
-              for value, label in Opportunity._meta.get_field("stage").choices if value in logic.ROOM_STAGES]
-    for s in stages:
-        s["rows"] = logic.rows(room, s["deals"])
+    deals = list(logic.visible_deals(room))
+    columns = logic.columns(room)
     logic.log(room, member, "home")
     return render(request, "crm/room/home.html", {
-        "room": room, "member": member, "columns": logic.columns(room), "rows": logic.rows(room, deals),
-        "stages": stages, "view": "board" if view == "board" else "table", "files": logic.files_for(room),
+        "room": room, "member": member, "columns": columns, "column_keys": {c.key for c in columns},
+        "sections": logic.sections(room, deals), "sites": logic.sites(room, deals), "count": len(deals),
+        "files": logic.files_for(room), "as_of": timezone.localdate(),
         "q": _preview_q(member, room), "preview": member is None, "numeric": logic.NUMERIC,
     })
+
+
+def room_xlsx(request):
+    """The same pipeline as an Excel workbook in the Fortress tracker layout, with only the room's columns."""
+    from django.http import HttpResponse
+
+    from ..reports import pipeline_workbook
+
+    room, member = _room(request)
+    deals = list(logic.visible_deals(room))
+    data = {"sections": logic.sections(room, deals), "sites": logic.sites(room, deals), "as_of": timezone.localdate()}
+    content = pipeline_workbook(data, logic.columns(room), partner=True)
+    logic.log(room, member, "excel")
+    response = HttpResponse(content, content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    response["Content-Disposition"] = f'attachment; filename="ACMI_Properties_Pipeline_{data["as_of"]:%Y.%m.%d}.xlsx"'
+    return response
 
 
 def room_deal(request, pk):

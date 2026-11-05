@@ -14,7 +14,7 @@
       if (!dragged || dragged.parentElement === col) return;
       const from = dragged.parentElement;
       col.appendChild(dragged);
-      const res = await csrfPost(dragged.dataset.url, {stage: col.dataset.stage});
+      const res = await csrfPost(dragged.dataset.url, {stage: col.dataset.stage, json: 1});
       if (!res.ok) { from.appendChild(dragged); alert('Could not move the card.'); }
     });
   });

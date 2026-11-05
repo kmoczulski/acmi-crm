@@ -12,7 +12,7 @@
 <p class="muted">Capital partners sign in at <code>{{ request.scheme }}://{{ request.get_host }}{% url 'crm:room_login' %}</code> with their own account, and see only this room: the deals below that are switched on, each with a company card (company, website, sector, campus, stage, deal and asset type, acres, size{% if room.show_costs %}, cost and $ PSF{% endif %}{% if room.show_win %}, win %{% endif %}, target close, est. delivery and the deal's "note for capital partners") and the files you share. Never emails, meetings, notes, contacts, owners or comments.</p>
 
 {% if new_link %}
-<div class="panel" role="status" style="border-color:#f0d58c;background:#fffaf0">
+<div class="panel" role="status" style="border-color:rgba(222, 162, 0, 0.451);background:rgba(255, 170, 0, 0.059)">
   <h3>Sign-in link</h3>
   <p>Send this to them yourself (it isn't emailed). It works once, for {{ invite_days }} days, and is shown only now.</p>
   <p><input value="{{ new_link }}" readonly style="width:100%" onclick="this.select()" aria-label="Sign-in link"></p>
@@ -82,7 +82,7 @@
 
   <div class="panel">
     <h3>What they looked at</h3>
-    {% for v in views %}<div class="role-row" style="font-size:13px"><span>{{ v.member.name }} · {% if v.page == 'deal' %}opened {{ v.opportunity.company.name }}{% elif v.page == 'file' %}downloaded {{ v.file.title|default:"a file since taken out" }}{% elif v.page == 'sign-in' %}signed in{% else %}opened the pipeline{% endif %}</span><span class="muted">{{ v.when|date:"M j, g:i A" }}</span></div>
+    {% for v in views %}<div class="role-row" style="font-size:13px"><span>{{ v.member.name }} · {% if v.page == 'deal' %}opened {{ v.opportunity.company.name }}{% elif v.page == 'file' %}downloaded {{ v.file.title|default:"a file since taken out" }}{% elif v.page == 'sign-in' %}signed in{% elif v.page == 'excel' %}downloaded the pipeline as Excel{% else %}opened the pipeline{% endif %}</span><span class="muted">{{ v.when|date:"M j, g:i A" }}</span></div>
     {% empty %}<p class="muted">No visits yet.</p>{% endfor %}
   </div>
 </div>

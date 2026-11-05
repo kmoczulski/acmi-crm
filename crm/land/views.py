@@ -1065,20 +1065,23 @@ def site_detail(request, pk):
         "letters_logged": site.letters.count(), "last_letter": site.letters.first(),
         "approvals": entitlement_logic.annotate(list(entitlement_logic.with_related(site.approvals.all()))),
         "matrix": entitlement_logic.MATRIX, "new_approval_url": reverse("crm:approval_create") + f"?site={site.pk}",
-        **_site_sales(site, parcels),
+        **_site_sales(site, parcels, same_zoning=request.GET.get("zoning") == "same"),
     })
 
 
-def _site_sales(site, parcels):
+def _site_sales(site, parcels, same_zoning=False):
     """Sale comps around the site and its team-only value range."""
     from . import comps
 
     center = comps.site_center(site) if parcels else None
     if not center:
         return {}
+    zonings = sorted({p.zoning for p in parcels if p.zoning}) if same_zoning else None
     return {"site_comps": comps.nearby(lat=center[0], lon=center[1], county=center[3], limit=6,
-                                       exclude_parcels=[p.pk for p in parcels]),
-            "site_range": comps.site_value_range(site)}
+                                       exclude_parcels=[p.pk for p in parcels], zonings=zonings),
+            "site_range": comps.site_value_range(site),
+            "site_zonings": sorted({p.zoning for p in parcels if p.zoning}),
+            "same_zoning": same_zoning}
 
 
 def _tenant_context(site):

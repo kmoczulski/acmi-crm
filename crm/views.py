@@ -17,6 +17,7 @@ from django.views.decorators.http import require_POST
 
 from . import ai, company_page, documents, gcal, meetings, merge, notify, pipeline, prefs
 from . import projects as project_tagging
+from .company_pdf import tenant_rows
 from .boards import logic as board_logic
 from .build import logic as build_logic
 from .capital import logic as capital_logic
@@ -554,6 +555,11 @@ def company_detail(request, pk):
         "team": team_connections(company=company),
         "documents": documents_for(company=company),
         "added_documents": company.documents.select_related("added_by", "opportunity"),
+        "tenant_facts": tenant_rows(
+            company,
+            list(company.contracts.select_related("lease_terms")),
+            list(Document.objects.filter(Q(company=company) | Q(opportunity__company=company)).distinct()),
+        ),
         "comments": company.comments.select_related("author", "opportunity", "task")[:50],
         "comment_target": ("company", company.pk),
         "document_categories": DOCUMENT_CATEGORIES,
@@ -862,7 +868,10 @@ def opportunity_set_stage(request, pk):
     opp.save()
     if old_label != opp.get_stage_display():
         notify.deal_stage_changed(opp, old_label, request.user)
-    return JsonResponse({"ok": True, "stage": stage})
+    # Board drag-and-drop expects JSON; a plain form post (from the deal card) reloads the card.
+    if request.headers.get("X-Requested-With") == "fetch" or request.POST.get("json"):
+        return JsonResponse({"ok": True, "stage": stage})
+    return redirect(_safe_next(request, opp.get_absolute_url() + "card/"))
 
 
 # ---------------------------------------------------------------------------

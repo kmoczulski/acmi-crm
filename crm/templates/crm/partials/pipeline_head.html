@@ -26,6 +26,7 @@
       </form>
     </details>
     <a class="btn" href="{% url 'crm:pipeline_report_xlsx' %}{% if show_all %}?all=1{% endif %}" title="Fortress tracker layout, with the columns shown here">Download Excel</a>
+    <a class="btn" href="{% url 'crm:data_rooms' %}" title="What Fortress and other capital partners can sign in and see">Data room</a>
     <button class="btn" onclick="window.print()">Print / PDF</button>
   {% endif %}
   <a class="btn btn-primary" href="{% url 'crm:opportunity_create' %}">+ New tenant deal</a>

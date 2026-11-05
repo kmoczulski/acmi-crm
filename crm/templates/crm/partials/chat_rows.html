@@ -1,0 +1,3 @@
+{# The conversation list's rows (crm/chat/views.py: home, list_box, rows). #}
+{% for r in rows %}<a class="chat-row{% if r.unread and not r.muted %} unread{% endif %}{% if r.id == current %} on{% endif %}" href="{% url 'crm:chat' %}?s={{ r.id }}" data-space="{{ r.id }}" data-title="{{ r.title }}" data-find="{{ r.title|lower }}"><span class="chat-ico" aria-hidden="true">{{ r.icon }}</span><span class="chat-name">{{ r.title }}</span>{% if r.muted %}<span class="chat-quiet" title="Alerts are off for this conversation">🔕</span>{% endif %}<span class="chat-when">{{ r.when }}</span></a>
+{% empty %}<p class="muted chat-empty lc-small">No conversations yet. Group chats and direct messages show up here once someone has written in them.</p>{% endfor %}

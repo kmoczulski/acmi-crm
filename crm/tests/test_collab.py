@@ -185,6 +185,37 @@ class TaskAndCommentTests(TestCase):
                                 summary="old", source=Activity.Source.GMAIL, source_id="r2")
         self.assertEqual(Notification.objects.filter(user=self.simon, kind="reply").count(), 1)
 
+    def test_stage_endpoint_json_for_the_board_and_safe_redirect_for_the_card(self):
+        opp = Opportunity.objects.create(name="Firehawk · TBD", company=self.company, owner=self.simon,
+                                         stage=OpportunityStage.QUALIFIED)
+        url = reverse("crm:opportunity_set_stage", args=[opp.pk])
+        # the board's drag-and-drop asks for JSON
+        r = self.client.post(url, {"stage": OpportunityStage.LOI_NEGOTIATION, "json": "1"})
+        self.assertEqual(r.json(), {"ok": True, "stage": OpportunityStage.LOI_NEGOTIATION})
+        # the deal card's background save says so with the fetch header
+        r = self.client.post(url, {"stage": OpportunityStage.QUALIFIED}, headers={"X-Requested-With": "fetch"})
+        self.assertEqual(r.json()["stage"], OpportunityStage.QUALIFIED)
+        # a plain form post goes back to the card, or to a same-site path it names, never off the site
+        r = self.client.post(url, {"stage": OpportunityStage.LOI_NEGOTIATION})
+        self.assertRedirects(r, opp.get_absolute_url() + "card/", fetch_redirect_response=False)
+        r = self.client.post(url, {"stage": OpportunityStage.QUALIFIED, "next": "https://evil.example/x"})
+        self.assertRedirects(r, opp.get_absolute_url() + "card/", fetch_redirect_response=False)
+        r = self.client.post(url, {"stage": OpportunityStage.QUALIFIED, "next": "//evil.example/x"})
+        self.assertRedirects(r, opp.get_absolute_url() + "card/", fetch_redirect_response=False)
+        r = self.client.post(url, {"stage": OpportunityStage.QUALIFIED, "next": "/opportunities/"})
+        self.assertRedirects(r, "/opportunities/", fetch_redirect_response=False)
+        self.assertEqual(self.client.post(url, {"stage": "nope"}).status_code, 400)
+
+    def test_deal_card_has_the_stage_form_and_the_board_links_company_and_deal_separately(self):
+        opp = Opportunity.objects.create(name="Phase 2", company=self.company, owner=self.simon,
+                                         stage=OpportunityStage.QUALIFIED)
+        card = self.client.get(opp.get_absolute_url() + "card/")
+        self.assertContains(card, "data-stage-form")
+        self.assertNotContains(card, "<script>")   # scripts in fetched cards never run; the handler lives in nav.js
+        board = self.client.get(reverse("crm:opportunity_board"))
+        self.assertContains(board, f'class="kco" href="{self.company.get_absolute_url()}"')
+        self.assertContains(board, f'class="kdeal" href="{opp.get_absolute_url()}"')
+
     def test_top_menus(self):
         r = self.client.get(reverse("crm:home"))
         for label in (">Home<", "Possible duplicates", ">Tenant pipeline<", ">Calendar<", "Needs filing", ">Sites<", ">Map<",

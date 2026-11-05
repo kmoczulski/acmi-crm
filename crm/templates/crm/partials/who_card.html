@@ -1,0 +1,34 @@
+{# The card a name in an email opens (crm/static/crm/who.js, directory_views.who). #}
+<div class="who-card">
+  <div class="who-head">
+    <div><strong>{{ w.name }}</strong><div class="muted lc-small">{{ w.email }}</div></div>
+    <button type="button" class="btn-link who-x" data-who-close aria-label="Close">✕</button>
+  </div>
+  {% if w.team %}
+    <p class="muted" style="margin:0">An ACMI address.</p>
+  {% else %}
+    {% if w.person %}<p class="who-known">In the CRM: <a href="{{ w.person.get_absolute_url }}" target="_top">{{ w.person }}</a>{% if w.person.company %} at <a href="{{ w.person.company.get_absolute_url }}" target="_top">{{ w.person.company.name }}</a>{% endif %}.</p>{% endif %}
+    {% if w.contact_of %}
+      <p class="who-known">In the directory: a contact at <a href="{{ w.contact_of.get_absolute_url }}" target="_top">{{ w.contact_of.name }}</a> ({{ w.contact_of.get_kind_display|lower }}).</p>
+    {% else %}
+      <form class="who-add" method="post" action="{% url 'crm:who_add' %}" data-who-add>{% csrf_token %}
+        <input type="hidden" name="email" value="{{ w.email }}">
+        <input type="hidden" name="next" value="{{ request.GET.next|default:'' }}">
+        <h4>Add to the directory</h4>
+        <label>Name <input name="name" value="{{ w.name }}" required maxlength="200" autocomplete="off"></label>
+        <label>Firm <input name="firm" value="{{ w.guess }}" list="who-firms" maxlength="200" autocomplete="off"{% if w.free %} required placeholder="The firm they work for"{% endif %}></label>
+        <datalist id="who-firms">{% for n in firm_names %}<option value="{{ n }}">{% endfor %}</datalist>
+        <label>Type of firm <select name="kind">
+          <option value="">{% if w.domain_firm %}As it is{% else %}Choose…{% endif %}</option>
+          {% for value, label in kinds %}<option value="{{ value }}"{% if value == picked_kind %} selected{% endif %}>{{ label }}</option>{% endfor %}
+        </select></label>
+        <label>Title <input name="title" maxlength="200" placeholder="e.g. Land broker" autocomplete="off"></label>
+        <label>Office phone <input name="office_phone" type="tel" maxlength="200" autocomplete="off"></label>
+        <label>Cell phone <input name="cell_phone" type="tel" maxlength="200" autocomplete="off"></label>
+        <p class="who-note muted lc-small">{% if w.domain_firm %}{{ w.domain }} is {{ w.domain_firm.name }}'s, so they're added there unless you name another firm.{% elif w.domain_company %}{{ w.domain }} is the company {{ w.domain_company.name }}'s; its email stays filed there.{% elif w.free %}{{ w.domain }} is personal email, so it isn't tied to the firm.{% else %}A new firm gets {{ w.domain }}, so its email files there from now on.{% endif %}</p>
+        <p class="who-error" role="alert" hidden></p>
+        <button class="btn btn-primary">Add to the directory</button>
+      </form>
+    {% endif %}
+  {% endif %}
+</div>

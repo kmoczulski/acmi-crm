@@ -1,9 +1,0 @@
-<script>
-  // Fill <datalist id="company-names"> lazily from the companies table.
-  (function () {
-    const dl = document.getElementById('company-names');
-    if (dl) fetch('{% url "crm:company_names" %}').then(r => r.json()).then(names => {
-      dl.innerHTML = names.map(n => `<option value="${n.replace(/&/g, '&amp;').replace(/"/g, '&quot;')}">`).join('');
-    });
-  })();
-</script>

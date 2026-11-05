@@ -27,6 +27,7 @@ log = logging.getLogger(__name__)
 # The kinds a person can switch, in the order the settings page shows them, with what each one covers.
 KINDS = [
     (Notification.Kind.MAIL, "New email in your inbox (once the email client is on for you)."),
+    (Notification.Kind.CHAT, "A new Google Chat message from someone else (once Chat is on for you), except in conversations you mute."),
     (Notification.Kind.MENTION, "Someone @mentions you in a comment."),
     (Notification.Kind.COMMENT, "A comment on a task, deal, company, site, card or contract you own or follow."),
     (Notification.Kind.ASSIGNED, "Someone gives you a task."),

@@ -12,18 +12,27 @@ import requests
 from allauth.socialaccount.models import SocialToken
 from django.conf import settings
 from django.utils import timezone
+from django.utils.dateparse import parse_datetime
 
 from . import meetings
 from .models import Activity, CalendarSync, Meeting
 
 TOKEN_URL = "https://oauth2.googleapis.com/token"
+TOKENINFO_URL = "https://oauth2.googleapis.com/tokeninfo"
 EVENTS_URL = "https://www.googleapis.com/calendar/v3/calendars/primary/events"
+FREEBUSY_URL = "https://www.googleapis.com/calendar/v3/freeBusy"
 SCOPE = "https://www.googleapis.com/auth/calendar.readonly"
+SCHEDULE_SCOPE = "https://www.googleapis.com/auth/calendar.events"  # put meetings on the person's own calendar
+FREEBUSY_CALENDARS = 50  # Google's cap on calendars in one free/busy question
 TIMEOUT = 30
 
 
 class CalendarError(Exception):
     """Something the person has to fix (usually: reconnect Google)."""
+
+
+class ScopeMissing(CalendarError):
+    """Google says the hub may not write to this person's calendar yet (they haven't allowed scheduling)."""
 
 
 def token_for(user):
@@ -106,6 +115,140 @@ def week(user, start, days=7, session=requests):
         out.append({"start": s.get("dateTime") or s.get("date"), "end": en.get("dateTime") or en.get("date"),
                     "title": e.get("summary", "") or "Busy", "all_day": "dateTime" not in s})
     return out
+
+
+def granted_scopes(user, session=None):
+    """The permissions Google says the person's token holds right now (a set of scope addresses)."""
+    session = session or requests
+    token = token_for(user)
+    if token is None:
+        return set()
+    r = session.get(TOKENINFO_URL, params={"access_token": access_token(token, session)}, timeout=TIMEOUT)
+    if r.status_code != 200:
+        raise CalendarError("Google wouldn't say which permissions the hub has. Try again.")
+    return set((r.json().get("scope") or "").split())
+
+
+def _problem(r):
+    """(message, reasons) Google gave for a failed call."""
+    try:
+        error = (r.json() or {}).get("error") or {}
+    except ValueError:
+        error = {}
+    if not isinstance(error, dict):
+        return "", ""
+    reasons = " ".join(str(e.get("reason", "")) for e in error.get("errors") or [] if isinstance(e, dict))
+    return str(error.get("message", "")), f"{reasons} {error.get('status', '')}"
+
+
+def _check(r, what):
+    """Turn Google's refusals into words the person can act on; anything else that failed raises for the caller."""
+    if r.status_code < 400:
+        return
+    message, reasons = _problem(r)
+    low = f"{message} {reasons}".lower()
+    if r.status_code == 429 or (r.status_code == 403 and ("ratelimit" in low or "quota" in low)):
+        raise CalendarError("Google Calendar is busy right now. Try again in a minute.")
+    if r.status_code == 403 and ("insufficient" in low or "scope" in low):
+        raise ScopeMissing(f"The hub isn't allowed to {what} yet.")
+    if r.status_code in (401, 403):
+        raise CalendarError("Google Calendar access was not granted. Reconnect Google Calendar.")
+    if r.status_code in (400, 404):
+        raise CalendarError(f"Google wouldn't {what}: {message or r.status_code}.")
+    r.raise_for_status()
+
+
+def freebusy(user, emails, start, end, session=None):
+    """When these calendars are busy between two times (aware datetimes), asked of Google with the signed-in person's
+    own permission and never stored: {email: {"busy": [(start, end), ...], "problem": ""}}. A calendar Google won't show
+    this person (not shared with them, not a Google calendar) comes back with no busy times and a "problem" in words.
+    Events marked free and declined ones don't count as busy; Google decides that."""
+    session = session or requests
+    token = token_for(user)
+    if token is None:
+        raise CalendarError("Connect Google Calendar on the Calendar page to see people's availability.")
+    wanted = list(dict.fromkeys(e.strip().lower() for e in emails if e and e.strip()))
+    out = {}
+    for i in range(0, len(wanted), FREEBUSY_CALENDARS):
+        chunk = wanted[i:i + FREEBUSY_CALENDARS]
+        r = session.post(FREEBUSY_URL, json={"timeMin": start.isoformat(), "timeMax": end.isoformat(),
+                                             "items": [{"id": e} for e in chunk]},
+                         headers={"Authorization": f"Bearer {access_token(token, session)}"}, timeout=TIMEOUT)
+        _check(r, "read calendars")
+        calendars = {str(k).lower(): v for k, v in (r.json().get("calendars") or {}).items()}
+        for email in chunk:
+            cal = calendars.get(email) or {}
+            problem = ""
+            if cal.get("errors") or email not in calendars:
+                reasons = " ".join(str(e.get("reason", "")) for e in cal.get("errors") or [])
+                problem = ("Their calendar isn't shared with you, or isn't a Google calendar."
+                           if "notFound" in reasons or email not in calendars else "Google couldn't read their calendar.")
+            busy = []
+            for b in cal.get("busy") or []:
+                s, e = parse_datetime(b.get("start", "")), parse_datetime(b.get("end", ""))
+                if s and e and e > s:
+                    busy.append((s, e))
+            out[email] = {"busy": busy, "problem": problem}
+    return out
+
+
+def create_event(user, *, event_id, title, start, end, attendees, description="", location="", meet=True,
+                 video="", optional=(), session=None):
+    """Put a meeting on the person's own calendar and invite the attendees (Google emails the invitations). `event_id`
+    is chosen by the caller (letters a-v and digits), so asking twice for the same meeting finds the first instead of
+    inviting everyone again. Returns (event, created): created is False when Google already had that id.
+
+    video: "meet" adds a Google Meet link, "teams" asks the Teams add-on on this person's Google Calendar to make
+    the meeting (the same add-on the Calendar app uses), "" is in person. `meet=True` still means Meet."""
+    session = session or requests
+    token = token_for(user)
+    if token is None:
+        raise CalendarError("Connect Google Calendar on the Calendar page first.")
+    kind = video or ("meet" if meet else "")
+    body = {
+        "id": event_id, "summary": title, "description": description, "location": location,
+        "start": {"dateTime": start.isoformat(), "timeZone": settings.TIME_ZONE},
+        "end": {"dateTime": end.isoformat(), "timeZone": settings.TIME_ZONE},
+        "attendees": [{"email": a, **({"optional": True} if a in optional else {})} for a in attendees],
+    }
+    if kind == "meet":
+        body["conferenceData"] = {"createRequest": {"requestId": event_id,
+                                                    "conferenceSolutionKey": {"type": "hangoutsMeet"}}}
+    elif kind == "teams":
+        body["conferenceData"] = {"createRequest": {"requestId": event_id,
+                                                    "conferenceSolutionKey": {"type": "addOn"}}}
+    headers = {"Authorization": f"Bearer {access_token(token, session)}"}
+    r = session.post(EVENTS_URL, params={"sendUpdates": "all", "conferenceDataVersion": "1"}, json=body,
+                     headers=headers, timeout=TIMEOUT)
+    if r.status_code == 409:  # that meeting was already created (a double click, a retry)
+        existing = session.get(f"{EVENTS_URL}/{event_id}", headers=headers, timeout=TIMEOUT)
+        _check(existing, "find that meeting")
+        found = existing.json()
+        if found.get("status") == "cancelled":  # deleted in Google since: the id stays taken, so it can't be made again
+            raise CalendarError("That meeting was cancelled in Google Calendar. Reload the page to schedule it again.")
+        return found, False
+    _check(r, "put a meeting on your calendar")
+    event = r.json()
+    if kind == "teams":
+        event = _wait_for_conference(event_id, headers, session) or event
+    return event, True
+
+
+def _wait_for_conference(event_id, headers, session, tries=4):
+    """The Teams add-on fills the link in after the event is made. A few short waits, then give up."""
+    import time
+    for _ in range(tries):
+        time.sleep(1.5)
+        r = session.get(f"{EVENTS_URL}/{event_id}", headers=headers, timeout=TIMEOUT)
+        if r.status_code != 200:
+            return None
+        event = r.json()
+        status = ((event.get("conferenceData") or {}).get("createRequest") or {}).get("status") or {}
+        if status.get("statusCode") == "success" or (event.get("conferenceData") or {}).get("entryPoints"):
+            return event
+        if status.get("statusCode") == "failure":
+            return event
+    return None
 
 
 def to_meeting(event):

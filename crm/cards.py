@@ -10,7 +10,7 @@ from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
 
 from . import company_page
-from .models import AISummary, Activity, Company, Opportunity, Person
+from .models import AISummary, Activity, Company, Opportunity, OpportunityStage, Person
 from .pipeline import risk_reasons
 from .views import recent_activity, task_rows
 
@@ -56,6 +56,7 @@ def opportunity_card(request, pk):
         "comments": opp.comments.select_related("author")[:3],
         "risk": risk_reasons(opp) if opp.is_open else [],
         "days_in_stage": (timezone.now() - opp.stage_changed_at).days,
+        "stages": OpportunityStage.choices,
     })
 
 

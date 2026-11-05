@@ -48,7 +48,7 @@
       const n = new Notification(item.kind, {body: item.text, tag: 'acmi-' + item.id, icon: root.dataset.icon || undefined});
       n.onclick = () => {
         window.focus();
-        if (item.window && window.acmiDock) window.acmiDock.thread(item.window, item.url); else location.href = item.url;
+        if (item.window && window.acmiDock) window.acmiDock.openUrl(item.window, item.url); else location.href = item.url;
         n.close();
       };
       return true;

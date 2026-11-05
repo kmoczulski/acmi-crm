@@ -21,6 +21,21 @@
       <div><b>{{ opp.target_close|date:"M j"|default:"–" }}</b><span>Target close</span></div>
       <div><b>{{ days_in_stage }}d</b><span>in stage</span></div>
     </div>
+    <div class="scard-sec" style="margin:0 0 12px;padding:8px 12px;background:#f8f9fa;border-radius:6px">
+      <form method="post" action="{% url 'crm:opportunity_set_stage' opp.pk %}" class="inline-form" data-stage-form style="display:flex;gap:8px;align-items:center;flex-wrap:wrap" data-card="{{ opp.get_absolute_url }}card/">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ opp.get_absolute_url }}card/">
+        <label style="font-size:13px;margin:0">Stage
+          <select name="stage" style="margin-left:6px;font-size:13px">
+            {% for value, label in stages %}
+              <option value="{{ value }}" {% if value == opp.stage %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <button class="btn btn-small" type="submit">Update stage</button>
+        <span class="muted lc-small" data-stage-msg role="status" aria-live="polite">Stays on this card</span>
+      </form>
+    </div>
     <div class="pk-cols">
       <div class="pk-main">
         {% if risk %}<div class="scard-sec"><h3>Needs attention</h3><ul class="scard-risks">{% for r in risk %}<li>{{ r }}</li>{% endfor %}</ul></div>{% endif %}

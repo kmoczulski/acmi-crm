@@ -1,6 +1,0 @@
-{% comment %}A meeting with outside attendees no record knows (Meeting.unfiled): "2 outside attendees, no record" and a
-File link to the Needs filing card for their domain. compact: the calendar cell and week widget.{% endcomment %}<div class="unfiled{% if compact %} unfiled-compact{% endif %}">
-  <span>{{ m.unfiled|length }} outside attendee{{ m.unfiled|length|pluralize }}, no record</span>
-  <a class="btn btn-small" href="{% url 'crm:needs_filing' %}{% if m.unfiled_domains|length == 1 %}?domain={{ m.unfiled_domains.0|urlencode }}{% endif %}">File</a>
-  {% if not compact %}<span class="muted">{% for a in m.unfiled|slice:":3" %}{{ a.name|default:a.email }}{% if not forloop.last %}, {% endif %}{% endfor %}</span>{% endif %}
-</div>

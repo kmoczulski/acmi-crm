@@ -179,13 +179,17 @@ DRIVE_TENANCY_FOLDER = env("ACMI_DRIVE_TENANCY_FOLDER", "")
 # "manage.py import_meetings <files>" on the laptop.
 NEWS_DRIVE_FOLDER = env("ACMI_NEWS_DRIVE_FOLDER", "")
 GRANOLA_DRIVE_FOLDER = env("ACMI_GRANOLA_DRIVE_FOLDER", "")
+# Email of the team member whose Google sign-in reads that folder (their My Drive), instead of the service account.
+# Setting it adds Drive read-only to the Google sign-in, so each person is asked once at their next sign-in.
+GRANOLA_DRIVE_USER = env("ACMI_GRANOLA_DRIVE_USER", "")
 
 GOOGLE_SIGNIN_ENABLED = bool(env("GOOGLE_CLIENT_ID"))
 if GOOGLE_SIGNIN_ENABLED:
     SOCIALACCOUNT_PROVIDERS["google"] = {
         "APP": {"client_id": env("GOOGLE_CLIENT_ID"), "secret": env("GOOGLE_CLIENT_SECRET", "")},
         # Calendar read access lets the CRM put everyone's meetings on the Meetings calendar.
-        "SCOPE": ["profile", "email", "https://www.googleapis.com/auth/calendar.readonly"],
+        "SCOPE": ["profile", "email", "https://www.googleapis.com/auth/calendar.readonly"]
+        + (["https://www.googleapis.com/auth/drive.readonly"] if GRANOLA_DRIVE_USER else []),
         # offline = Google returns a refresh token, so the scheduled sync works while nobody is signed in.
         # include_granted_scopes keeps permissions given earlier (Gmail, for people who turned Mail on) when someone
         # signs in or reconnects the calendar, instead of swapping the grant for this request's scopes only.
@@ -198,6 +202,10 @@ SOCIALACCOUNT_STORE_TOKENS = True
 TOKEN_KEYS = [k for k in env("ACMI_TOKEN_KEY", "").split(",") if k.strip()]
 # Mail in the hub (docs/EMAIL_CLIENT.md). Each person turns it on for themselves; false hides it for everyone.
 MAIL_CLIENT_ENABLED = env_bool("ACMI_MAIL_CLIENT", True)
+# Chat in the hub (docs/CHAT.md). Each person turns it on for themselves; false hides it for everyone.
+CHAT_ENABLED = env_bool("ACMI_CHAT", True)
+# The biggest file the hub passes to Google Chat (Chat itself takes 200 MB; Cloud Run takes 32 MiB in one request).
+CHAT_MAX_UPLOAD_MB = int(env("ACMI_CHAT_MAX_UPLOAD_MB", "25"))
 # Sending from the hub (crm/mail/compose.py). false blocks every Send; off while the tests run, so no test can send.
 MAIL_SEND_ENABLED = env_bool("ACMI_MAIL_SEND", True) and "test" not in sys.argv[1:2]
 # Meeting transcripts are also written as .txt files here, one folder per campus (crm/transcripts.py). Point it at a

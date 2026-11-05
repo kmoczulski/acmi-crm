@@ -74,6 +74,10 @@ class RecordCardTests(TestCase):
         r = self.client.get(self.co.get_absolute_url())
         self.assertContains(r, f'href="{reverse("crm:campus_summary", args=["MEIH"])}"')  # the deal's campus is a link now
 
+    def test_investor_report_links_skip_the_card_and_open_the_page_in_one_click(self):
+        r = self.client.get(reverse("crm:pipeline_report"))
+        self.assertContains(r, 'pipeline-table rp-sections" data-no-peek')  # nav.js leaves links inside it alone
+
     def test_the_deal_page_links_its_campus_and_land_sites(self):
         r = self.client.get(self.deal.get_absolute_url())
         self.assertContains(r, f'href="{reverse("crm:campus_summary", args=["MEIH"])}"')

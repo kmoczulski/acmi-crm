@@ -30,6 +30,9 @@
 # weekly news scans (the News page reads it), _GRANOLA_FOLDER the one the daily Granola task uploads its JSON to (the
 # sync job imports each new file once). Blank = off. Once, before relying on them: turn on the Google Drive API in the
 # project, and share both folders with the runtime service account's email as Viewer.
+# _GRANOLA_USER (an email) reads the Granola folder with that person's own Google sign-in instead (their My Drive, no
+# sharing); it adds Drive read-only to the Google sign-in, so the Drive scope must be on the OAuth consent screen and
+# that person signs in again once. The folder can hold the .json files or the .txt export (crm/granola_text.py).
 #
 # Gmail push (crm/mail/push.py): _PUSH_TOPIC is the Pub/Sub topic (projects/<project>/topics/<name>) Gmail publishes
 # to, _PUSH_SA the service account its push subscription signs requests as, _PUSH_AUDIENCE the audience set on that
@@ -52,6 +55,7 @@ substitutions:
   _BUCKET: acmi-uploads-sincere-passage-511621-j3
   _NEWS_FOLDER: ""
   _GRANOLA_FOLDER: ""
+  _GRANOLA_USER: ""
   _PUSH_TOPIC: projects/sincere-passage-511621-j3/topics/acmi-gmail-push
   _PUSH_SA: acmi-pubsub-push@sincere-passage-511621-j3.iam.gserviceaccount.com
   _PUSH_AUDIENCE: https://hub.acmiproperties.com/internal/gmail-push/
@@ -96,7 +100,7 @@ steps:
     args: ["run", "jobs", "deploy", "${_SERVICE}-sync",
            "--image=${_REGION}-docker.pkg.dev/$PROJECT_ID/acmi/${_SERVICE}:${_TAG}", "--region=${_REGION}",
            "--set-cloudsql-instances=${_SQL_INSTANCE}", "--task-timeout=1800", "--max-retries=0",
-           "--set-env-vars=^|^DJANGO_DEBUG=false|DJANGO_ALLOWED_HOSTS=${_HOSTS}|POSTGRES_DB=${_DB_NAME}|POSTGRES_USER=${_DB_USER}|POSTGRES_HOST=/cloudsql/${_SQL_INSTANCE}|GOOGLE_CLIENT_ID=${_GOOGLE_CLIENT_ID}|ACMI_DRIVE_ADC=true|ACMI_GRANOLA_DRIVE_FOLDER=${_GRANOLA_FOLDER}|ACMI_GMAIL_PUSH_TOPIC=${_PUSH_TOPIC}",
+           "--set-env-vars=^|^DJANGO_DEBUG=false|DJANGO_ALLOWED_HOSTS=${_HOSTS}|POSTGRES_DB=${_DB_NAME}|POSTGRES_USER=${_DB_USER}|POSTGRES_HOST=/cloudsql/${_SQL_INSTANCE}|GOOGLE_CLIENT_ID=${_GOOGLE_CLIENT_ID}|ACMI_DRIVE_ADC=true|ACMI_GRANOLA_DRIVE_FOLDER=${_GRANOLA_FOLDER}|ACMI_GRANOLA_DRIVE_USER=${_GRANOLA_USER}|ACMI_GMAIL_PUSH_TOPIC=${_PUSH_TOPIC}",
            "--set-secrets=DJANGO_SECRET_KEY=acmi-django-secret-key:latest,POSTGRES_PASSWORD=acmi-postgres-password:latest,GOOGLE_CLIENT_SECRET=acmi-google-client-secret:latest,ACMI_TOKEN_KEY=acmi-token-key:latest,ANTHROPIC_API_KEY=acmi-anthropic-api-key:latest,ACMI_VAPID_PUBLIC_KEY=acmi-vapid-public-key:latest,ACMI_VAPID_PRIVATE_KEY=acmi-vapid-private-key:latest",
            "--command=python", "--args=manage.py,sync_all"]
   - id: deploy
