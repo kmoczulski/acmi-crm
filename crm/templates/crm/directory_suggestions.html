@@ -39,7 +39,7 @@
     {% empty %}<tr><td colspan="4" class="muted">None flagged.</td></tr>{% endfor %}</tbody>
   </table>
   {% if can_manage %}{% if left %}
-    <form method="post" style="margin-top:8px">{% csrf_token %}<button class="btn btn-small btn-primary"{% if not ai_ready %} disabled title="Add ANTHROPIC_API_KEY to .env"{% endif %}>Check {% if left > 20 %}20 of {{ left }}{% else %}{{ left }}{% endif %} more Compan{{ left|pluralize:"y,ies" }} with Claude</button>
+    <form method="post" style="margin-top:8px">{% csrf_token %}<button class="btn btn-small btn-primary"{% if not ai_ready %} disabled title="Claude isn't switched on. Ask an admin."{% endif %}>Check {% if left > 20 %}20 of {{ left }}{% else %}{{ left }}{% endif %} more Compan{{ left|pluralize:"y,ies" }} with Claude</button>
       <span class="muted lc-small">Companies with no tenant deal and a service-like sector or name, or flagged Exclude.</span></form>
   {% else %}<p class="muted lc-small">Every candidate Company has been checked.</p>{% endif %}{% endif %}
 </section>

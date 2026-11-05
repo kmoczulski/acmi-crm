@@ -19,7 +19,7 @@
     <input type="file" name="flyer" accept=".pdf,.png,.jpg,.jpeg,.webp" required>
     <button class="btn btn-primary btn-small">{% if ai_ready %}Upload and read with Claude{% else %}Upload{% endif %}</button>
   </form>
-  <p class="muted lc-small" style="margin-bottom:0">{% if ai_ready %}Claude fills the blank fields below from the flyer and checks each of its claims (acres, zoning, floodplain, utilities, distances) against what the app found. Nothing you've typed is overwritten.{% else %}Add ANTHROPIC_API_KEY to .env to have Claude read flyers.{% endif %}</p>
+  <p class="muted lc-small" style="margin-bottom:0">{% if ai_ready %}Claude fills the blank fields below from the flyer and checks each of its claims (acres, zoning, floodplain, utilities, distances) against what the app found. Nothing you've typed is overwritten.{% else %}Claude isn't switched on, so it can't read flyers. Ask an admin.{% endif %}</p>
 </section>
 <form method="post" class="listing-form">{% csrf_token %}
 <section class="panel">

@@ -66,6 +66,7 @@
   </script>
 </head>
 <body>
+<a class="skip-link" href="#main">Skip to content</a>
 <div class="shell">
   {% with p=request.path %}
   {% if not EMBED %}
@@ -179,7 +180,7 @@
   {% endif %}
   {% endwith %}
   <div class="main-col">
-  <main>
+  <main id="main" tabindex="-1">
     {% if request.user.is_authenticated %}<div id="hub-back" class="hub-back no-print" hidden></div>{% endif %}
     {% if messages %}<ul class="messages">{% for m in messages %}<li class="{{ m.tags }}">{{ m }}</li>{% endfor %}</ul>{% endif %}
     {% block content %}{% endblock %}

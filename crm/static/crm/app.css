@@ -1,5 +1,5 @@
 :root {
-  --bg: #f6f7f9; --panel: #fff; --text: #1d2330; --muted: #6b7280; --line: #e3e6eb;
+  --bg: #f6f7f9; --panel: #fff; --text: #1d2330; --muted: #5b6270; --line: #e3e6eb;
   --accent: #1f3a5f; --accent-soft: #e8eef6; --good: #1e7a46; --good-bg: #e3f4ea;
   --bad: #a3271f; --bad-bg: #fbe5e3; --warn: #8a5a00; --warn-bg: #fff2d6;
   --radius: 6px; font-size: 14px;
@@ -580,7 +580,8 @@ main:has(.land) { padding: 0; max-width: none; }
 .deal-clock b { font-size: 15px; }
 .milestone-form label { display: grid; grid-template-columns: 1fr 150px 40px; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 13px; }
 .note-add { display: flex; gap: 6px; margin-bottom: 10px; }
-.note-add input { flex: 1; }
+.note-add input { flex: 1; min-width: 0; }
+@media (max-width: 700px) { .note-add { flex-wrap: wrap; } .note-add input { flex-basis: 100%; } }
 .site-events { list-style: none; margin: 0; padding: 0; max-height: 520px; overflow-y: auto; }
 .site-events li { padding: 6px 0; border-top: 1px solid #f0f2f5; font-size: 13px; }
 .site-events li.ev-status div { font-weight: 600; }
@@ -993,7 +994,7 @@ a.cite:hover { background: var(--accent); color: #fff; text-decoration: none; }
   border-bottom: 1px solid var(--line); background: #fafbfc; }
 .cc-day { min-height: 92px; padding: 3px 4px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); min-width: 0; }
 .cc-day.out { background: #fafbfc; }
-.cc-day.out .cc-num { color: #b6bcc5; }
+.cc-day.out .cc-num { color: #8a919c; }
 .cc-day.today { background: #f2f7ff; }
 .cc-day.today .cc-num { background: var(--accent); color: #fff; border-radius: 10px; padding: 0 6px; display: inline-block; }
 .cc-num { font-size: 12px; font-weight: 600; margin-bottom: 2px; }
@@ -1458,8 +1459,8 @@ tr.bd-total td { font-weight: 700; border-top: 2px solid var(--line); }
   --st-qualified: #1d4ed8; --st-qualified-bg: #e3ebfd;
   --st-loi: #6d28d9; --st-loi-bg: #efe8fd;
   --st-lease: #0e7490; --st-lease-bg: #ddf3f8;
-  --st-signed: #15803d; --st-signed-bg: #dcf3e4;
-  --st-hold: #a16207; --st-hold-bg: #fdf3d8;
+  --st-signed: #0f6a32; --st-signed-bg: #dcf3e4;
+  --st-hold: #854d06; --st-hold-bg: #fdf3d8;
   --st-lost: #9f1239; --st-lost-bg: #fbe4ea;
   --today: #b45309; --today-bg: #fff3df;
   --topbar-h: 52px;
@@ -2005,7 +2006,7 @@ span.mail-twisty { cursor: default; }
 .mail-chip { font-size: 11px; padding: 1px 6px; border-radius: 9px; background: var(--accent-soft); color: var(--accent);
   max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mail-chip.chip-project { background: #efe8fd; color: #6d28d9; }
-.mail-chip.chip-deal { background: #dcf3e4; color: #15803d; }
+.mail-chip.chip-deal { background: #dcf3e4; color: #0f6a32; }
 .mail-chip.chip-firm { background: #fdf3d8; color: #8a5a00; }
 .mail-chip.chip-new { background: var(--bad-bg); color: var(--bad); }
 a.mail-chip:hover { text-decoration: none; filter: brightness(.95); }
@@ -2559,3 +2560,9 @@ body.has-dock #alert-toasts { right: auto; left: 18px; bottom: 76px; }  /* the b
 .dock-thread-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .dock-thread-bar .spacer { flex: 1; }
 .dock-thread-head p { margin: 6px 0 0; }
+
+/* Keyboard users: a skip link and one clear focus ring everywhere (UI review 2026-10-28). */
+.skip-link { position: absolute; left: 8px; top: -48px; z-index: 1000; background: var(--accent, #124b87); color: #fff; padding: 8px 14px; border-radius: 6px; font-weight: 600; }
+.skip-link:focus { top: 8px; }
+main:focus { outline: none; }
+a:focus-visible, button:focus-visible, summary:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent, #1e6bff); outline-offset: 2px; }

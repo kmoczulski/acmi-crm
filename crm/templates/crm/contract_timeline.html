@@ -139,7 +139,7 @@
   <ul class="clist">{% for d in unread %}<li><form method="post" class="inline-form" data-busy="Reading… about a minute">{% csrf_token %}<input type="hidden" name="action" value="read"><input type="hidden" name="doc" value="{{ d.pk }}"><input type="hidden" name="query" value="?{{ request.GET.urlencode }}">
     <span>{{ d.title }} <span class="muted lc-small">· {{ d.get_kind_display }}{% if d.dated %} · {{ d.dated|date:"M j, Y" }}{% endif %}</span></span>
     <button class="btn btn-small">Read timeline</button></form></li>{% endfor %}</ul>
-  {% else %}<p class="muted lc-small">Add ANTHROPIC_API_KEY to .env to have Claude read each version's dates.</p>{% endif %}
+  {% else %}<p class="muted lc-small">Claude isn't switched on (ask an admin) so it can't read each version's dates.</p>{% endif %}
 </section>
 {% endif %}
 {% endblock %}
