@@ -200,8 +200,12 @@ class FakeGmail:
             threads = self._threads()
             if params and params.get("labelIds"):
                 threads = [t for t in threads if any(params["labelIds"] in m["labelIds"] for m in t["messages"])]
-            if params and params.get("q"):
-                word = params["q"].lower().removeprefix("subject:").strip('"')
+            query = (params or {}).get("q", "")
+            if "is:unread" in query:  # Gmail's operator: some message in the thread is unread
+                threads = [t for t in threads if any("UNREAD" in m["labelIds"] for m in t["messages"])]
+                query = query.replace("is:unread", "").strip()
+            if query:
+                word = query.lower().removeprefix("subject:").strip('"')
                 threads = [t for t in threads if any(word in str(m).lower() for m in t["messages"])]
             return FakeResponse({"threads": [{"id": t["id"], "historyId": t["historyId"],
                                               "snippet": t["messages"][-1]["snippet"]} for t in threads],

@@ -112,6 +112,7 @@ def may_change(request, mailbox):
 def inbox(request, mailbox, client):
     label = request.GET.get("label", "INBOX")
     query = request.GET.get("q", "").strip()[:500]
+    unread_only = request.GET.get("unread") == "1"  # the list head's Unread button: only conversations with mail not read yet
     tab = request.GET.get("tab", "all") if label == "INBOX" and not query else "all"
     token = request.GET.get("p", "")
     offset = int(request.GET.get("o", "0")) if request.GET.get("o", "0").isdigit() else 0
@@ -121,17 +122,26 @@ def inbox(request, mailbox, client):
     if within and within != "ALL":
         label = within
     gmail_query, widened = (query, []) if exact else mail_search.expand(query)
+    if unread_only:
+        gmail_query = f"{gmail_query} is:unread".strip()
     thread_base = "?" + urlencode({k: v for k, v in [("label", label), ("q", query), ("exact", "1" if exact else ""),
                                                      ("in", within), ("tab", tab if tab != "all" else ""),
-                                                     ("t", open_id)] if v})
+                                                     ("unread", "1" if unread_only else ""), ("t", open_id)] if v})
+    toggle = request.GET.copy()  # the Unread button: this same list with the filter flipped, from the first page, nothing open
+    if unread_only:
+        toggle.pop("unread", None)
+    else:
+        toggle["unread"] = "1"
+    for key in ("t", "p", "o", "order"):
+        toggle.pop(key, None)
     if open_id and request.headers.get("X-Mail-Pane"):
         return _pane(request, mailbox, client, open_id, label, query, tab, thread_base)
     error, threads, next_token, total, next_offset = "", [], "", 0, None
     try:
         system, user_labels = index.labels(mailbox, client)
         if tab in TAB_FILTERS:
-            qs = MailThread.objects.filter(mailbox=mailbox, in_inbox=True, **TAB_FILTERS[tab]) \
-                .order_by("-last_message_at")
+            qs = MailThread.objects.filter(mailbox=mailbox, in_inbox=True, **TAB_FILTERS[tab],
+                                           **({"unread": True} if unread_only else {})).order_by("-last_message_at")
             threads = list(qs[offset:offset + PAGE + 1])
             if len(threads) > PAGE:
                 threads, next_offset = threads[:PAGE], offset + PAGE
@@ -169,6 +179,7 @@ def inbox(request, mailbox, client):
                         .values_list("gmail_id", "until")),
         "here": request.get_full_path(),
         "thread_base": thread_base,
+        "unread_only": unread_only, "unread_toggle": "?" + toggle.urlencode(),
         "follow_up_count": _follow_up_count(request.user),
     })
 
