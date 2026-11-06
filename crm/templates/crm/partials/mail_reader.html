@@ -76,6 +76,11 @@
         {% if reader.filings %}<div class="lc-small mail-filed">Filed to
           {% for f in reader.filings %}<span class="mail-filed-item"><span class="mail-chip chip-{% if f.project_id %}project{% elif f.opportunity_id %}deal{% elif f.firm_id %}firm{% else %}company{% endif %}">{{ f.target }}</span><form method="post" action="{% url 'crm:inbox_unfile' f.pk %}" class="inline-form">{% csrf_token %}<input type="hidden" name="next" value="{{ here }}"><button class="btn-link" title="Take it off {{ f.target }}" aria-label="Take it off {{ f.target }}">×</button></form></span>{% endfor %}</div>{% endif %}
         {% if reader.snoozed_until %}<p class="lc-small"><span class="tag">⏰ Snoozed until {{ reader.snoozed_until|date:"D M j, g:i A" }}</span></p>{% endif %}
+        {% if reader.draft and can_change %}
+        <div class="mail-draftbar" role="note">
+          <span>✎ You have an unsent draft in this conversation{% if reader.draft.snippet %}: <span class="muted">“{{ reader.draft.snippet|truncatechars:70 }}”</span>{% endif %}</span>
+          <a class="btn btn-small btn-primary" href="{% url 'crm:inbox_compose' %}?draft={{ reader.draft.draft_id|urlencode }}&back={{ here|urlencode }}">Edit draft</a>
+        </div>{% endif %}
         {% if reader.schedule %}{% with s=reader.schedule %}
         <div class="mail-schedule" role="note">
           <span class="mail-schedule-text">📅 <strong>{{ s.by }}</strong>
@@ -185,7 +190,7 @@
       {% if reader.order == "oldest" and m.id == reader.first_unread and reader.messages|length > 1 %}<div class="mail-new-line" id="new-since">New since you last read</div>{% endif %}
       <details class="mail-msg" id="m-{{ m.id }}"{% if m.open %} open{% endif %}>
         <summary>
-          <span class="mail-msg-from"><strong>{% if m.from_addr == mailbox.email|lower %}me{% else %}<button type="button" class="mail-who" data-who="{{ m.from_addr }}" data-name="{{ m.from_name }}" title="Who is {{ m.from_name }}?">{{ m.from_name }}</button>{% endif %}</strong>{% if m.draft %} <span class="tag">Draft</span>{% endif %}{% if m.unread %} <span class="tag">New</span>{% endif %}{% if m.files %} <span class="muted" title="{{ m.files|length }} attachment{{ m.files|length|pluralize }}">📎</span>{% endif %} {% if m.from_addr|lower != m.from_name|lower %}<span class="muted lc-small">{{ m.from_addr }}</span>{% endif %}</span>
+          <span class="mail-msg-from"><strong>{% if m.from_addr == mailbox.email|lower %}me{% else %}<button type="button" class="mail-who" data-who="{{ m.from_addr }}" data-name="{{ m.from_name }}" title="Who is {{ m.from_name }}?">{{ m.from_name }}</button>{% endif %}</strong>{% if m.draft %} <span class="tag">Draft</span>{% if m.draft_id and can_change %} <a class="btn btn-small" href="{% url 'crm:inbox_compose' %}?draft={{ m.draft_id|urlencode }}&back={{ here|urlencode }}" title="Keep writing this draft">✎ Edit draft</a>{% endif %}{% endif %}{% if m.unread %} <span class="tag">New</span>{% endif %}{% if m.files %} <span class="muted" title="{{ m.files|length }} attachment{{ m.files|length|pluralize }}">📎</span>{% endif %} {% if m.from_addr|lower != m.from_name|lower %}<span class="muted lc-small">{{ m.from_addr }}</span>{% endif %}</span>
           <span class="mail-msg-date muted lc-small">{{ m.date|date:"M j, Y g:i a" }}</span>
           <span class="mail-msg-snippet muted">{{ m.snippet }}</span>
         </summary>

@@ -2732,6 +2732,9 @@ body[data-chat-list] .dock-main > p, body[data-chat-list] .dock-main > a { margi
   background: var(--accent-soft); border: 1px solid var(--line); border-radius: var(--radius); font-size: 13px; }
 .chat-nudge[hidden] { display: none; }
 .chat-nudge > span { flex: 1 1 260px; min-width: 0; }
+/* "Edit draft": an unsent draft in this conversation (crm/mail/compose_views.py `_edit_draft`). */
+.mail-draftbar { display: flex; align-items: center; justify-content: space-between; gap: 8px 12px; flex-wrap: wrap; margin: 8px 0;
+  padding: 8px 12px; background: var(--warn-bg); border: 1px solid var(--line); border-left: 3px solid var(--warn); border-radius: var(--radius); font-size: 13px; }
 /* "Schedule…" on an email where someone settled on a meeting time (crm/mail/schedule_link.py). */
 .mail-schedule { display: flex; align-items: center; justify-content: space-between; gap: 8px 12px; flex-wrap: wrap; margin: 8px 0;
   padding: 8px 12px; background: var(--accent-soft); border: 1px solid var(--line); border-left: 3px solid var(--accent);
