@@ -2034,6 +2034,11 @@ span.mail-twisty { cursor: default; }
 .mail-folders-toggle { display: none; }
 .mail-list-head { display: flex; align-items: center; gap: 8px; padding: 8px 12px; }
 .mail-list-head .spacer { flex: 1; }
+/* The list head's Unread button: only the conversations with something unread (inbox_views.inbox, ?unread=1). The dot is the
+   same one the unread rows carry; on the pressed (navy) button it takes the button's own white. */
+.mail-unread-toggle { display: inline-flex; align-items: center; gap: 6px; }
+.mail-unread-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--link); }
+.mail-unread-toggle.btn-primary .mail-unread-dot { background: currentColor; }
 .mail-tabs { display: flex; gap: 2px; padding: 0 8px; border-bottom: 1px solid var(--line); overflow-x: auto;
   scrollbar-width: none; }
 .mail-tabs::-webkit-scrollbar { display: none; }
@@ -2625,6 +2630,11 @@ body.has-dock #alert-toasts { right: auto; left: 18px; bottom: 76px; }  /* the b
 .compose-window .compose-actions { position: sticky; bottom: 0; z-index: 2; background: var(--panel); padding: 8px 0 10px;
   border-top: 1px solid var(--line); }
 .compose-window .compose-original, .compose-window .compose-sig, .compose-window .compose-files { font-size: 12px; }
+/* The compose box keeps To, Subject and the formatting tools in view at the top and Send at the bottom; only the message scrolls,
+   inside its own area. Without this the message grew with the text, the whole page scrolled, and the top went out of sight. */
+body[data-dock-compose] .dock-main { height: 100vh; min-height: 0; overflow: hidden; }
+body[data-dock-compose] .compose-window { min-height: 0; overflow-y: auto; }
+body[data-dock-compose] .compose-window .compose-editor { flex: 1 1 0px; min-height: 90px; }
 .dock-thread-head { padding-bottom: 6px; border-bottom: 1px solid var(--line); margin-bottom: 4px; }
 .dock-thread-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .dock-thread-bar .spacer { flex: 1; }
