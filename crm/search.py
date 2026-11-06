@@ -5,17 +5,27 @@ letters of a tenant's name finds it without knowing which list it lives on.
 
 People and organizations nobody has filed yet are found too, labelled "Not filed yet": senders waiting in Needs
 filing and meeting attendees no record knows. So are the contacts kept on directory firms.
+
+Emails come up the way meetings do (Kellen, 2026-11-06: "if I search a company their emails should pop up like their
+meetings"): the mail logged on the companies and people the search found, mail whose subject has the words, and mail
+filed on the directory firms it found.
 """
+from urllib.parse import quote
+
 from django.db.models import Exists, OuterRef, Q
 from django.http import JsonResponse
 from django.urls import reverse
 from django.utils.timezone import localtime
 
 from .models import (
-    OPEN_STAGES, Campus, Card, Company, Contract, Firm, LandSite, Meeting, Opportunity, Person, Project, UnmatchedEmail,
+    OPEN_STAGES, Activity, Campus, Card, Company, Contract, Firm, FirmEmail, LandSite, Meeting, Opportunity, Person,
+    Project, UnmatchedEmail,
 )
 
 PER_GROUP = 6
+EMAIL_HITS = 5
+EMAIL_KINDS = (Activity.Kind.EMAIL_SENT, Activity.Kind.EMAIL_RECEIVED, Activity.Kind.REPLY)
+EMAIL_BADGES = {"email_sent": "Sent", "email_received": "Received", "reply": "Reply"}
 
 # Pages people jump to: (label, url name, query, extra words to match, section).
 PAGES = [
@@ -79,7 +89,7 @@ def _hit(title, url, sub="", badge="", tone=""):
     return {"title": title, "url": url, "sub": sub, "badge": badge, "tone": tone}
 
 
-def results(text):
+def results(text, user=None):
     text = text.strip()
     if len(text) < 2:
         return []
@@ -132,10 +142,8 @@ def results(text):
                                          | Q(company__name__icontains=text)
                                          | Q(opportunity__company__name__icontains=text))[:PER_GROUP]
     ])
-    add("Directory", [
-        _hit(f.name, f.get_absolute_url(), f.get_kind_display())
-        for f in Firm.objects.filter(Q(name__icontains=text) | Q(domains__icontains=text))[:PER_GROUP]
-    ])
+    firms = list(Firm.objects.filter(Q(name__icontains=text) | Q(domains__icontains=text))[:PER_GROUP])
+    add("Directory", [_hit(f.name, f.get_absolute_url(), f.get_kind_display()) for f in firms])
     contacts = []
     low = text.lower()
     for f in Firm.objects.filter(contacts__icontains=text)[:PER_GROUP]:
@@ -145,6 +153,7 @@ def results(text):
                                      " · ".join(x for x in (c.get("title"), f.name) if x), "Directory contact"))
     add("Directory contacts", contacts[:PER_GROUP])
     add("Not filed yet", unfiled(text))
+    add("Emails", email_hits(text, companies, people, firms, user))
     add("Meetings", [
         _hit(m.title, m.get_absolute_url(), f"{localtime(m.start):%b} {localtime(m.start).day}, {m.start.year}")
         for m in Meeting.objects.filter(title__icontains=text).order_by("-start")[:4]
@@ -155,6 +164,77 @@ def results(text):
         .select_related("list__board").order_by("-updated_at")[:PER_GROUP]
     ])
     return groups
+
+
+def _date(when):
+    when = localtime(when)
+    return f"{when:%b} {when.day}, {when.year}"
+
+
+def _mail_on(user):
+    """Mail in the hub is on for this person (their own mailbox or a shared one), as the top bar decides it."""
+    if user is None or not getattr(user, "is_authenticated", False):
+        return False
+    from .mail import connect, shared
+
+    return connect.is_on(user) or bool(shared.shared_for(user))
+
+
+def _mail_link(activity, user, mail_on):
+    """Where an email hit opens: its conversation in Mail when it sits in this person's mailbox and Mail is on for them
+    (the links the Follow-ups list uses), else where it is logged, the company's Activity tab or the person's page."""
+    if mail_on and any(u.pk == user.pk for u in activity.team_members.all()):
+        if activity.thread_id and str(activity.thread_id).isdigit():
+            return f"{reverse('crm:inbox')}?label=ALL&t={int(activity.thread_id):x}"
+        if activity.message_id:
+            return f"{reverse('crm:inbox_open')}?m={quote(activity.message_id, safe='')}"
+    if activity.company_id:
+        return activity.company.get_absolute_url() + "?tab=activity"
+    if activity.person_id:
+        return activity.person.get_absolute_url()
+    return reverse("crm:home")
+
+
+def email_hits(text, companies, people, firms, user=None):
+    """The Emails group, newest first and one row per conversation: mail logged on the companies and people the search
+    found, mail whose subject has the words, and mail filed on the directory firms it found. Real conversation only,
+    as the record pages show it (no calendar replies, bounces or out-of-office)."""
+    from .views import recent_activity
+
+    match = Q(summary__icontains=text)  # "Email from Ben Allen: Lease draft": the subject and the name
+    if companies:
+        match |= Q(company_id__in=[c.pk for c in companies])
+    if people:
+        match |= Q(person_id__in=[p.pk for p in people])
+    rows = [(a.occurred_at, ("a", str(a.thread_id or a.message_id or a.pk)), a)
+            for a in recent_activity(Activity.objects.filter(match, kind__in=EMAIL_KINDS), limit=EMAIL_HITS * 4,
+                                     include_sent=True)]
+    on_firm = Q(subject__icontains=text)
+    if firms:
+        on_firm |= Q(provider_id__in=[f.pk for f in firms])
+    filed = FirmEmail.objects.filter(on_firm, kind__in=EMAIL_KINDS)
+    rows += [(e.occurred_at, ("f", str(e.thread_id or e.message_id)), e)
+             for e in filed.select_related("provider").order_by("-occurred_at")[:EMAIL_HITS * 4]]
+    rows.sort(key=lambda r: r[0], reverse=True)
+    hits, seen, mail_on = [], set(), None
+    for when, key, row in rows:
+        if key in seen:
+            continue
+        seen.add(key)
+        if isinstance(row, FirmEmail):
+            who = " · ".join(x for x in (row.provider.name, row.name or row.address, _date(when)) if x)
+            hits.append(_hit((row.subject or "(no subject)").strip()[:140], row.provider.get_absolute_url(), who,
+                             EMAIL_BADGES.get(row.kind, "")))
+        else:
+            if mail_on is None:
+                mail_on = _mail_on(user)
+            who = " · ".join(x for x in (row.company.name if row.company_id else "", str(row.person) if row.person_id else "",
+                                         _date(when)) if x)
+            hits.append(_hit((row.summary.split(": ", 1)[-1] or "(no subject)").strip()[:140],
+                             _mail_link(row, user, mail_on), who, EMAIL_BADGES.get(row.kind, "")))
+        if len(hits) == EMAIL_HITS:
+            break
+    return hits
 
 
 def unfiled(text):
@@ -182,4 +262,4 @@ def unfiled(text):
 
 
 def search(request):
-    return JsonResponse({"groups": results(request.GET.get("q", ""))})
+    return JsonResponse({"groups": results(request.GET.get("q", ""), request.user)})
