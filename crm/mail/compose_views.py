@@ -97,6 +97,8 @@ def compose_page(request, mailbox, client):
         return _notice(request, mailbox, win, READ_ONLY)
     if not may_change(request, mailbox):
         return redirect("crm:inbox")
+    if request.GET.get("draft") and not win:  # keep writing a draft saved in Gmail
+        return _edit_draft(request, mailbox, client, request.GET.get("draft", "")[:100])
     undo_id = request.GET.get("undo", "")
     if undo_id.isdigit() and not win:  # Undo send, or a send that failed: the message as it was typed
         pending = PendingSend.objects.filter(pk=int(undo_id), user=request.user,
@@ -167,6 +169,44 @@ def _send(request, mailbox, client, original, mode):
     if request.POST.get("inline"):  # the reading pane's own reply box: it reloads the thread itself
         return JsonResponse({"ok": True, "url": url})
     return redirect(url)
+
+
+def _edit_draft(request, mailbox, client, draft_id):
+    """The composer with a draft from Gmail (the person's, started here or in Gmail) ready to keep writing. The draft id
+    stays on the form, so autosave updates the same draft and sending it removes it. Files on the draft aren't carried
+    over (autosave never held them either): the form says which to attach again."""
+    try:
+        data = client.draft(draft_id)
+    except NotFound:
+        messages.info(request, "That draft is gone: it was sent or deleted.")
+        return redirect("crm:inbox")
+    except (MailboxError, requests.RequestException) as exc:
+        messages.error(request, str(exc) if isinstance(exc, MailboxError) else GMAIL_DOWN)
+        return redirect("crm:inbox")
+    msg = data.get("message") or {}
+    typed = compose.draft_fields(msg)
+    original = None  # the message the draft answers, for the quote and the "replying to" strip
+    if typed["in_reply_to"] and typed["thread_id"]:
+        try:
+            for raw in reversed(mail_render.get_thread(mailbox, client, typed["thread_id"]).get("messages", [])):
+                if "DRAFT" not in (raw.get("labelIds") or []):
+                    original = raw
+                    break
+        except (NotFound, MailboxError, requests.RequestException):
+            original = None
+    mode = "reply" if original else "new"
+    fields = {k: typed[k] for k in ("to", "cc", "bcc", "subject", "thread_id", "in_reply_to", "references")}
+    fields.update({"reply_to_id": original["id"] if original else "", "mode": mode, "forward_files": []})
+    if typed["files"]:
+        messages.info(request, "This draft had " + ", ".join(typed["files"][:4]) + (" and more" if len(typed["files"]) > 4 else "")
+                      + " attached. Files aren't carried into the editor: attach them again before you send.")
+    return render(request, "crm/compose.html", {
+        "f": fields, "body": typed["body"], "body_html": typed["body_html"], "draft_id": draft_id, "kept_parts": [],
+        "original": mail_render.summary(original) if original else None,
+        "signature_html": compose.signature_parts(request.user, mailbox, client)[1], "mailbox": mailbox,
+        "templates": [], "first_name": _first_name(fields["to"]), "sending_on": compose.settings.MAIL_SEND_ENABLED,
+        "back": request.GET.get("back", ""), "window": "", "layout": "crm/base.html",
+    })
 
 
 def _reopen(request, mailbox, client, pending):

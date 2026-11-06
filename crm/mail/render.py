@@ -119,6 +119,14 @@ def thread_view(mailbox, client, gmail_id):
     msgs.reverse()
     for i, m in enumerate(msgs):
         m["open"] = i == 0 or m["unread"]
+    if any(m["draft"] for m in msgs):  # a draft message is edited by its draft id (Gmail keeps the two apart)
+        try:
+            ids = {d["message"]["id"]: d["id"] for d in client.drafts() if d.get("message")}
+        except Exception:  # noqa: BLE001 - the thread still reads; the draft just can't be opened for editing now
+            ids = {}
+        for m in msgs:
+            if m["draft"]:
+                m["draft_id"] = ids.get(m["id"], "")
     return subject, msgs
 
 

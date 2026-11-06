@@ -209,6 +209,44 @@ def build(mailbox, user, to, cc=(), bcc=(), subject="", body="", quote=("", ""),
     return msg.as_bytes(), msg["Message-ID"]
 
 
+_SIG_OR_QUOTE = re.compile(r'<[^>]*class="[^"]*\bgmail_(?:signature|quote)\b', re.I)
+
+
+def draft_fields(msg):
+    """What a Gmail draft (one message, format=full) gives back to the composer, to keep writing it (Kellen, 2026-11-06:
+    "how am I supposed to edit a draft email?"). `build` adds the signature and the quoted original when it sends or
+    saves, so they are cut off here; only what was typed comes back, or the draft would carry them twice.
+    Returns {"to", "cc", "bcc", "subject", "in_reply_to", "references", "thread_id", "body_html", "body", "files"}."""
+    h = _headers(msg)
+    rich = plain = ""
+    for part in render._walk(msg.get("payload") or {}):
+        data = (part.get("body") or {}).get("data")
+        if not data or part.get("filename"):
+            continue
+        mime = part.get("mimeType", "")
+        if mime == "text/html" and not rich:
+            rich = render._decode(data, part)
+        elif mime == "text/plain" and not plain:
+            plain = render._decode(data, part)
+    typed_html = ""
+    if rich:
+        cut = _SIG_OR_QUOTE.search(rich)
+        typed = rich[:cut.start()] if cut else rich
+        typed = re.sub(r'^\s*<div\b[^>]*dir="ltr"[^>]*>', "", typed, count=1, flags=re.I)
+        if not cut:  # no signature or quote after it: the wrapper's closing tag is still on the end
+            typed = re.sub(r"</div>\s*$", "", typed, flags=re.I)
+        typed = re.sub(r"(?:<br\s*/?>\s*)+$", "", typed.strip(), flags=re.I)
+        typed_html = formatted(typed)
+    from .parse import new_text
+
+    return {
+        "to": h.get("to", ""), "cc": h.get("cc", ""), "bcc": h.get("bcc", ""), "subject": h.get("subject", ""),
+        "in_reply_to": h.get("in-reply-to", ""), "references": h.get("references", ""), "thread_id": msg.get("threadId", ""),
+        "body_html": typed_html, "body": plain_text(typed_html) if typed_html else new_text(plain).rstrip(),
+        "files": [a["name"] for a in render.attachments(msg)],
+    }
+
+
 def formatted(body_html):
     """The editor's HTML, cleaned (only formatting tags and safe links), or "" when it has no text in it."""
     clean = sanitize_html(body_html or "")

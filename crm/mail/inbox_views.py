@@ -246,6 +246,7 @@ def reader_for(request, mailbox, client, gmail_id, threads=()):
         schedule = None
     return {
         "schedule": schedule,
+        "draft": next((m for m in msgs if m.get("draft_id")), None),  # an unsent draft in this conversation: Edit draft
         "filings": mail_filing.filings_for(mailbox, gmail_id),
         "queued_domains": sorted(set(UnmatchedEmail.objects.filter(domain__in=sender_domains)
                                      .values_list("domain", flat=True))),
