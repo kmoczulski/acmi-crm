@@ -32,6 +32,8 @@
     let what = bits.filter(Boolean).join(' · ');
     if (r.filled && r.filled.length) what += ' — Claude filled in ' + r.filled.join(' and ') + '.';
     else if (r.note) what += ' — ' + r.note;
+    if (r.filed) what += ' Filed to ' + r.filed + '.';
+    else if (r.missing && r.missing.length && zone.dataset.mode === 'new') what += ' Not filed to a ' + r.missing.join(' or ') + ' yet: pick it on the next page.';
     if (r.scan) what += ' Scan with no text layer: Claude can read it, the page view can’t.';
     li.querySelector('.dz-what').textContent = what;
   }
@@ -45,7 +47,10 @@
       const li = row(file.name);
       const body = new FormData();
       body.append('file', file);
-      if (zone.dataset.site) body.append('site', zone.dataset.site);
+      // Where it is filed: the page the zone sits on (a company's, a project's, a site's) and whatever the File to
+      // picker beside it holds.
+      for (const k of ['site', 'company', 'opportunity', 'project', 'campus']) if (zone.dataset[k]) body.append(k, zone.dataset[k]);
+      document.querySelectorAll('[data-filepick][data-drop] input[type=hidden][data-field]').forEach(i => { if (i.value) body.append(i.name, i.value); });
       let r;
       try {
         const res = await fetch(url, {method: 'POST', headers: {'X-CSRFToken': token}, body});
@@ -67,7 +72,7 @@
     const next = document.createElement('a');
     next.className = 'btn btn-primary btn-small dz-next';
     next.href = go;
-    next.textContent = target ? 'Open the contract' : 'Show them in the file';
+    next.textContent = target ? 'Open it' : 'Show them in the file';
     list.appendChild(next);
     // Give a moment to read what Claude found, then go there.
     setTimeout(() => { if (target) location.href = target; else { location.hash = 'documents'; location.reload(); } }, 2500);

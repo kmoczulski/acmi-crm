@@ -1,0 +1,8 @@
+{% load crm_tags %}
+<a href="{% qs_set tab='legal' %}" class="widget-link">{% if legal %}All {{ legal|length }}{% else %}File one{% endif %}</a>
+{% for c in legal|slice:":5" %}
+  <div class="row-line"><span><a href="{{ c.get_absolute_url }}">{{ c.title }}</a> <span class="pill ct-{{ c.status }}">{{ c.get_status_display }}</span>
+    <div class="muted" style="font-size:12px">{{ c.get_kind_display }}{% if c.filed.project_name %} · {{ c.filed.project_name }}{% endif %}</div></span>
+    <span class="muted lc-small" style="text-align:right">{% if c.next %}{{ c.next.label|truncatechars:26 }}<br>{{ c.next.date|date:"M j, Y" }}{% endif %}</span></div>
+{% empty %}<p class="muted" style="margin:0">Nothing filed yet. <a href="{% qs_set tab='legal' %}">File the signed lease</a></p>{% endfor %}
+{% if legal_suggestions %}<p class="lc-small" style="margin:6px 0 0"><span class="lg-need">{{ legal_suggestions|length }} unfiled</span> <a href="{% qs_set tab='legal' %}">may be {{ company.name|truncatechars:24 }}'s</a></p>{% endif %}

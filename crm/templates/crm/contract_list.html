@@ -1,25 +1,57 @@
 {% extends "crm/base.html" %}
 {% load crm_tags static %}
-{% block title %}Contracts · ACMI Hub{% endblock %}
+{% block title %}Legal · ACMI Hub{% endblock %}
 {% block content %}
 <div class="page-head">
-  <h1>Contracts</h1>
+  <h1>Legal</h1>
   <form method="get" class="inline-form">
-    <select name="group" onchange="this.form.submit()" aria-label="Group contracts by"><option value="type"{% if group != "project" %} selected{% endif %}>Group by type, then project</option><option value="project"{% if group == "project" %} selected{% endif %}>Group by project, then type</option></select>
+    {% if tenant %}<input type="hidden" name="company" value="{{ tenant.pk }}">{% endif %}{% if in_project %}<input type="hidden" name="project" value="{{ in_project.pk }}">{% endif %}
+    <select name="group" onchange="this.form.submit()" aria-label="Group by"><option value="type"{% if group != "project" %} selected{% endif %}>Group by type, then project</option><option value="project"{% if group == "project" %} selected{% endif %}>Group by project, then type</option></select>
     <select name="show" onchange="this.form.submit()"><option value="open">Open</option><option value="all"{% if show == "all" %} selected{% endif %}>All, incl. closed</option></select>
     <select name="kind" onchange="this.form.submit()"><option value="">Every kind</option>{% for v, l in kinds|offer:kind %}<option value="{{ v }}"{% if v == kind %} selected{% endif %}>{{ l }}</option>{% endfor %}</select>
     <select name="campus" onchange="this.form.submit()"><option value="">Every campus</option>{% for c in campuses %}<option value="{{ c.code }}"{% if c.code|lower == campus|lower %} selected{% endif %}>{{ c.code }}</option>{% endfor %}</select>
   </form>
   <span class="spacer"></span>
   <a class="btn" href="{% url 'crm:contract_templates' %}">Abstract templates</a>
-  <a class="btn btn-primary" href="{% url 'crm:contract_create' %}">New contract</a>
+  <a class="btn" href="{% url 'crm:contract_create' %}{% if tenant %}?company={{ tenant.pk }}{% elif in_project %}?project={{ in_project.pk }}{% endif %}">New record</a>
+  <a class="btn btn-primary" href="#file">File a document</a>
 </div>
 {% view_bar "contracts" %}
-<p class="muted" style="margin-top:0">Every LOI, purchase agreement, option, lease and development agreement with its documents in order, who has the ball,
-  and the dates that matter. Claude answers questions about any of them and cites the exact language.</p>
+<p class="muted" style="margin-top:0">Leases, purchase agreements, LOIs, NDAs and every signed document, each filed to a tenant and a project so it is a click from the company card and the project page. Claude answers questions about any of them and cites the exact language.</p>
 
-{% url 'crm:contract_drop_new' as drop_url %}
-{% include "crm/partials/contract_dropzone.html" with url=drop_url mode="new" heading="Drop an agreement here to start a contract" hint="The executed agreement or the latest draft; drop its redlines and amendments with it." %}
+{% if tenant or in_project %}
+<div class="lg-filter">Showing what is filed to
+  {% if tenant %}<span class="lg-chip"><span class="lg-k">Tenant </span><b>{{ tenant.name }}</b><a href="{% url 'crm:contract_list' %}{% if in_project %}?project={{ in_project.pk }}{% endif %}" aria-label="Show everything">×</a></span>{% endif %}
+  {% if in_project %}<span class="lg-chip"><span class="lg-k">Project </span><b>{{ in_project.name }}</b><a href="{% url 'crm:contract_list' %}{% if tenant %}?company={{ tenant.pk }}{% endif %}" aria-label="Show everything">×</a></span>{% endif %}
+</div>
+{% endif %}
+
+{% if unfiled %}
+<section class="panel lg-unfiled" id="unfiled">
+  <h3>Not filed yet <span class="count">{{ unfiled|length }}</span></h3>
+  <p class="muted lc-small" style="margin:0 0 4px">No tenant or no project. File one and it shows on that company's card and that project's page.</p>
+  {% for c in unfiled %}
+  <div class="lg-row">
+    <div class="lg-what"><a href="{{ c.get_absolute_url }}"><b>{{ c.title }}</b></a>
+      <span class="muted lc-small">{{ c.get_kind_display }}{% if c.counterparty %} · {{ c.counterparty }}{% endif %}</span>
+      {% for m in c.missing %}<span class="lg-need">needs a {{ m }}</span>{% endfor %}</div>
+    {% include "crm/partials/legal_file_picker.html" with contract=c next=request.get_full_path %}
+  </div>
+  {% endfor %}
+</section>
+{% endif %}
+
+<section class="lg-file" id="file">
+  <span class="lg-lead">File a document</span>
+  <div class="lg-filing lg-pick" data-filepick data-drop data-options="{% url 'crm:contract_file_options' %}">
+    <span class="lg-lead">File it to</span>
+    <span class="lg-chips"></span>
+    <input type="search" class="lg-q" placeholder="A tenant, deal or project (or skip: Claude matches the tenant)" autocomplete="off" aria-label="File the next documents to">
+    <ul class="lg-opts" role="listbox" hidden></ul>
+  </div>
+  {% url 'crm:contract_drop_new' as drop_url %}
+  {% include "crm/partials/contract_dropzone.html" with url=drop_url mode="new" heading="Drop a signed lease, PSA, LOI, NDA or any legal document here" hint="The executed copy or the latest draft; drop its redlines and amendments with it." drop_company=drop_company drop_project=drop_project %}
+</section>
 
 <div class="campus-layout">
   <div>
@@ -31,8 +63,8 @@
       {% for g in section.groups %}<tbody>{% if g.project %}<tr class="ct-project-row"><th colspan="8">{{ g.project }} <span class="muted" style="font-weight:400">{{ g.contracts|length }}</span></th></tr>{% endif %}{% for c in g.contracts %}
         <tr>
           <td class="wrap"><a href="{{ c.get_absolute_url }}"><b>{{ c.title }}</b></a><div class="muted lc-small">{{ c.get_kind_display }}{% if c.owner %} · {{ c.owner|username }}{% endif %}</div></td>
-          <td class="wrap">{{ c.counterparty|default:"–" }}</td>
-          <td class="wrap lc-small">{% if c.site %}<a href="{% url 'crm:land_site_detail' c.site.pk %}">{{ c.site.name }}</a>{% elif c.opportunity %}<a href="{{ c.opportunity.get_absolute_url }}">{{ c.opportunity.company.name }}</a>{% endif %}{% if c.campus %} <span class="muted">{{ c.campus.code }}</span>{% endif %}</td>
+          <td class="wrap">{% if c.filed.tenant %}<a href="{{ c.filed.tenant.get_absolute_url }}" title="Open {{ c.filed.tenant.name }}">{{ c.counterparty|default:c.filed.tenant.name }}</a>{% else %}{{ c.counterparty|default:"–" }}{% endif %}{% if "tenant" in c.missing %}<div><span class="lg-need">no tenant</span></div>{% endif %}</td>
+          <td class="wrap lc-small">{% if c.site %}<a href="{% url 'crm:land_site_detail' c.site.pk %}">{{ c.site.name }}</a>{% elif c.opportunity %}<a href="{{ c.opportunity.get_absolute_url }}">{{ c.opportunity.company.name }}</a>{% endif %}{% if c.campus %} <span class="muted">{{ c.campus.code }}</span>{% endif %}{% if c.project and not c.site %} <a href="{{ c.project.get_absolute_url }}">{{ c.project.name }}</a>{% endif %}{% if "project" in c.missing %}<span class="lg-need">no project</span>{% endif %}</td>
           <td><span class="pill ct-{{ c.status }}">{{ c.get_status_display }}</span></td>
           <td class="lc-small">{% if c.waiting_on %}{{ c.get_waiting_on_display }}{% if c.waiting_days is not None %}<div class="{% if c.waiting_days >= 14 %}overdue{% else %}muted{% endif %}">{{ c.waiting_days }} day{{ c.waiting_days|pluralize }}</div>{% endif %}{% else %}–{% endif %}</td>
           <td class="wrap lc-small">{% if c.next %}<span class="{% if c.next.left < 0 %}overdue{% elif c.next.left <= 7 %}soon{% endif %}">{{ c.next.date|date:"M j" }}</span> {{ c.next.label }}{% else %}–{% endif %}</td>
@@ -43,15 +75,15 @@
       </tbody>{% endfor %}
     </table>
     </div>
-    {% empty %}<p class="muted">No contracts {% if show == "open" %}open {% endif %}yet. Add one here, or from a land site's page.</p>{% endfor %}
+    {% empty %}<p class="muted">Nothing {% if show == "open" %}open {% endif %}in Legal yet{% if tenant or in_project %} for this filter{% endif %}. Drop a document above, or add one from a land site's page.</p>{% endfor %}
   </div>
   <aside>
     <section class="panel">
       <h3>Deadlines · next {{ deadlines.days }} days</h3>
       {% include "crm/partials/contract_deadlines.html" with d=deadlines %}
-      <p class="muted lc-small" style="margin-bottom:0">Whoever runs a contract gets a bell reminder 30, 14, 7 and 1 days before each date.</p>
+      <p class="muted lc-small" style="margin-bottom:0">Whoever runs an agreement gets a bell reminder 30, 14, 7 and 1 days before each date.</p>
     </section>
   </aside>
 </div>
 {% endblock %}
-{% block scripts %}<script src="{% static 'crm/dropzone.js' %}?v={{ ASSET_VERSION }}"></script>{% endblock %}
+{% block scripts %}<script src="{% static 'crm/dropzone.js' %}?v={{ ASSET_VERSION }}"></script><script src="{% static 'crm/legal_file.js' %}?v={{ ASSET_VERSION }}"></script>{% endblock %}

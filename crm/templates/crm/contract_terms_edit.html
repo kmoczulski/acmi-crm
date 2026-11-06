@@ -4,7 +4,7 @@
 {% block content %}
 <div class="record-head">
   <div>
-    <div class="muted lc-small"><a href="{% url 'crm:contract_list' %}">Contracts</a> › <a href="{{ contract.get_absolute_url }}">{{ contract.title }}</a> › <a href="{% url 'crm:contract_terms' contract.pk %}">LOI / PSA terms</a></div>
+    <div class="muted lc-small"><a href="{% url 'crm:contract_list' %}">Legal</a> › <a href="{{ contract.get_absolute_url }}">{{ contract.title }}</a> › <a href="{% url 'crm:contract_terms' contract.pk %}">LOI / PSA terms</a></div>
     <h1>{% if round %}Edit {{ round.label }}{% else %}Add a round{% endif %}</h1>
     {% if source %}<div class="muted lc-small">Started from the terms of {{ source.label }}. Change what the new round changes.</div>{% endif %}
   </div>

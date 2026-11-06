@@ -4,7 +4,7 @@
 {% block content %}
 <div class="record-head">
   <div>
-    <div class="muted lc-small"><a href="{% url 'crm:contract_list' %}">Contracts</a> › <a href="{{ contract.get_absolute_url }}">{{ contract.title }}</a></div>
+    <div class="muted lc-small"><a href="{% url 'crm:contract_list' %}">Legal</a> › <a href="{{ contract.get_absolute_url }}">{{ contract.title }}</a></div>
     <h1>Redline</h1>
     {% if a and b %}<div class="muted">{{ a.title }} → <b>{{ b.title }}</b>{% if b.dated %} · {{ b.dated|date:"M j, Y" }}{% endif %}</div>{% endif %}
   </div>

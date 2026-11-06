@@ -23,6 +23,7 @@ from .boards import logic as board_logic
 from .build import logic as build_logic
 from .capital import logic as capital_logic
 from .contracts import dates as contract_dates
+from .contracts import filing as legal_filing
 from .entitlements import logic as entitlement_logic
 from .tenants import fit as tenant_fit
 from .forms import (
@@ -30,7 +31,7 @@ from .forms import (
     TaskForm, active_users,
 )
 from .models import (
-    DOCUMENT_CATEGORIES, OPEN_STAGES, STAGE_ORDER, AISummary, Activity, Assignment, Attachment, Board, Campus, Comment, Company, CompanyStatus, DealSuggestionDismissal, Document,
+    DOCUMENT_CATEGORIES, OPEN_STAGES, STAGE_ORDER, AISummary, Activity, Assignment, Attachment, Board, Campus, Comment, Company, CompanyStatus, Contract, DealSuggestionDismissal, Document,
     List, ListEntry, Note, ObjectType, Opportunity, OpportunityContact, OpportunityStage, Person, Project, SavedView,
     CalendarSync, LandSite, Meeting, Notification, Task, TenantNeeds,
 )
@@ -361,6 +362,7 @@ def project_detail(request, pk):
         "capital": capital_logic.project_rollup(project),
         "land_sites": project.land_sites.prefetch_related("parcels").exclude(status="dropped"),
         "other_sites": LandSite.objects.exclude(project=project).exclude(status="dropped").order_by("name"),
+        "legal": legal_filing.project_agreements(project), "ai_ready": ai.enabled(),
     })
 
 
@@ -584,6 +586,12 @@ def company_detail(request, pk):
         "boards": Board.objects.filter(archived=False), "record_cards": board_logic.record_cards(company),
     }
     ctx["open_deals"] = [o for o in ctx["opportunities"] if o.is_open]
+    # Legal: what is filed to this company (its lease first), and unfiled agreements whose counterparty reads like it.
+    ctx["legal_count"] = Contract.objects.filter(legal_filing.company_q(company)).count()
+    if tab in ("overview", "legal"):
+        ctx["legal"] = legal_filing.company_agreements(company)
+        ctx["legal_suggestions"] = legal_filing.company_suggestions(company)
+        ctx["ai_ready"] = ai.enabled()
     # Client land searches for this company; older ones only carry the client's name, so match that too.
     ctx["land_searches"] = Assignment.objects.filter(
         Q(company=company) | Q(company__isnull=True, client__iexact=company.name)).prefetch_related("entries__site")
@@ -861,12 +869,9 @@ def opportunity_detail(request, pk):
     activities = Activity.objects.filter(Q(opportunity=opp) | Q(company=opp.company))
     contacts = opp.contacts.select_related("person")
     needs = TenantNeeds.objects.filter(opportunity=opp).first()
-    agreements = list(opp.contracts.all())
-    nxt = contract_dates.next_dates(agreements)
-    for c in agreements:
-        c.next = nxt.get(c.pk)
+    agreements = legal_filing.deal_agreements(opp)  # each with its next date and where it is filed
     return render(request, "crm/opportunity_detail.html", {
-        "needs": needs, "qd_buildings": tenant_fit.buildings(needs), "agreements": agreements,
+        "needs": needs, "qd_buildings": tenant_fit.buildings(needs), "agreements": agreements, "ai_ready": ai.enabled(),
         # The deal lives in its company card: the company header and tabs, and the company's other deals.
         "other_deals": opp.company.opportunities.exclude(pk=opp.pk).order_by("name"),
         "deal_count": opp.company.opportunities.count(),

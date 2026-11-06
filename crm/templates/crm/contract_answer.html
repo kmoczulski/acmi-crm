@@ -5,7 +5,7 @@
 {% include "crm/partials/report_logo.html" %}
 <div class="page-head">
   <div>
-    <div class="muted lc-small no-print"><a href="{% url 'crm:contract_list' %}">Contracts</a> › <a href="{{ contract.get_absolute_url }}">{{ contract.title }}</a></div>
+    <div class="muted lc-small no-print"><a href="{% url 'crm:contract_list' %}">Legal</a> › <a href="{{ contract.get_absolute_url }}">{{ contract.title }}</a></div>
     <h1>{% if answer.template %}{{ answer.template.name }}{% else %}{{ answer.question }}{% endif %}</h1>
     <div class="muted lc-small">{{ contract.title }} · {{ contract.get_kind_display }}{% if contract.counterparty %} with {{ contract.counterparty }}{% endif %} ·
       written by Claude {{ answer.created_at|date:"M j, Y g:i a" }}{% if answer.asked_by %} for {{ answer.asked_by|username }}{% endif %} from

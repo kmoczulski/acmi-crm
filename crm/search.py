@@ -36,7 +36,7 @@ PAGES = [
     ("Entitlements", "crm:approval_list", "", "approvals zoning permits", "Land"),
     ("Campus summary", "crm:campus_index", "", "campus updates", "Campuses"),
     ("Projects", "crm:project_list", "", "campuses", "Campuses"),
-    ("Contracts", "crm:contract_list", "", "psa loi lease critical dates", "Campuses"),
+    ("Legal", "crm:contract_list", "", "contracts leases psa loi nda critical dates documents", "Campuses"),
     ("Capital", "crm:capital_index", "", "financing debt equity stack", "Campuses"),
     ("Directory", "crm:directory", "", "lenders investors vendors consultants firms", "Directory"),
     ("Lists", "crm:list_index", "", "", "Directory"),
@@ -57,7 +57,7 @@ NEW_ITEMS = [
     ("Import from a spreadsheet", "crm:sheet_import", "Companies and contacts from Excel or CSV"),
     ("Task", "crm:task_list", "Opens My tasks with the new-task box"),
     ("Card", "crm:boards", "On a board of your choice"),
-    ("Contract", "crm:contract_create", "Upload or start one"),
+    ("Legal record", "crm:contract_create", "A lease, PSA, LOI or NDA: upload or start one"),
     ("Site", "crm:land_search", "Build one on the map"),
     ("Entitlement", "crm:approval_create", ""),
     ("Capital source", "crm:capital_source_create", ""),
@@ -126,9 +126,11 @@ def results(text):
         _hit(f"{c.code} · {c.name}", reverse("crm:campus_index") + f"#campus-{c.pk}", c.location)
         for c in Campus.objects.filter(Q(code__icontains=text) | Q(name__icontains=text))[:3]
     ])
-    add("Contracts", [
+    add("Legal", [
         _hit(c.title, c.get_absolute_url(), c.counterparty, c.get_status_display())
-        for c in Contract.objects.filter(Q(title__icontains=text) | Q(counterparty__icontains=text))[:PER_GROUP]
+        for c in Contract.objects.filter(Q(title__icontains=text) | Q(counterparty__icontains=text)
+                                         | Q(company__name__icontains=text)
+                                         | Q(opportunity__company__name__icontains=text))[:PER_GROUP]
     ])
     add("Directory", [
         _hit(f.name, f.get_absolute_url(), f.get_kind_display())

@@ -114,7 +114,7 @@
         <div class="tn-drop">
           <a href="{% url 'crm:campus_index' %}" class="{% if '/campuses/' in p %}on{% endif %}"><strong>Campus summary</strong><span>What happened at each campus this week</span></a>
           <a href="{% url 'crm:project_list' %}" class="{% if '/projects/' in p %}on{% endif %}"><strong>Projects</strong><span>Campuses, sites and their records</span></a>
-          <a href="{% url 'crm:contract_list' %}" class="{% if '/contracts/' in p and '/contracts/templates/' not in p %}on{% endif %}"><strong>Contracts</strong><span>PSAs, LOIs, leases and critical dates</span></a>
+          <a href="{% url 'crm:contract_list' %}" class="{% if '/contracts/' in p and '/contracts/templates/' not in p %}on{% endif %}"><strong>Legal</strong><span>Leases, PSAs, LOIs and NDAs, filed by tenant and project</span></a>
           <a href="{% url 'crm:capital_index' %}" class="{% if '/capital/' in p %}on{% endif %}"><strong>Capital</strong><span>Debt and equity for each project</span></a>
         </div>
       </details>

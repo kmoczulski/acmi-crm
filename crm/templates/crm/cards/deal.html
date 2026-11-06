@@ -51,7 +51,9 @@
         <div class="scard-sec"><h3>People</h3>
           {% for c in contacts %}<a class="scard-row" href="{{ c.person.get_absolute_url }}">{{ c.person }}<span class="pk-row-sub">{{ c.get_role_display }}{% if c.person.title %} · {{ c.person.title|truncatechars:40 }}{% endif %}</span></a>
           {% empty %}<p class="muted">No one on this deal yet.</p>{% endfor %}</div>
-        {% if agreements %}<div class="scard-sec"><h3>Agreements</h3>{% for c in agreements %}<a class="scard-row" href="{{ c.get_absolute_url }}">{{ c.title }} <span class="pill ct-{{ c.status }}">{{ c.get_status_display }}</span></a>{% endfor %}</div>{% endif %}
+        <div class="scard-sec"><h3>Legal <a class="btn btn-small" href="{{ opp.get_absolute_url }}#agreements" data-page style="float:right;font-size:11px;padding:2px 8px">{% if agreements %}Open{% else %}File one{% endif %}</a></h3>
+          {% for c in agreements %}<a class="scard-row" href="{{ c.get_absolute_url }}">{{ c.title }} <span class="pill ct-{{ c.status }}">{{ c.get_status_display }}</span><span class="pk-row-sub">{{ c.get_kind_display }}{% if c.filed.project_name %} · {{ c.filed.project_name }}{% endif %}</span></a>
+          {% empty %}<p class="muted">Nothing filed yet.</p>{% endfor %}</div>
         {% if sites %}<div class="scard-sec"><h3>Sites</h3>{% for s in sites %}<a class="scard-row" href="{% url 'crm:land_site_detail' s.pk %}">{{ s.name }}<span class="pk-row-sub">{{ s.get_status_display }}</span></a>{% endfor %}</div>{% endif %}
         <div class="scard-sec"><h3>Open tasks</h3>
           {% for t in tasks %}<a class="scard-row" href="{{ t.get_absolute_url }}">{{ t.title }}{% if t.due_date %}<span class="pk-row-sub">{{ t.assignee|username }} · due {{ t.due_date|date:"M j" }}</span>{% endif %}</a>

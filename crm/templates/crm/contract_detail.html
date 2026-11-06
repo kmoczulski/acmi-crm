@@ -1,10 +1,10 @@
 {% extends "crm/base.html" %}
 {% load crm_tags humanize static %}
-{% block title %}{{ contract.title }} · Contracts · ACMI Hub{% endblock %}
+{% block title %}{{ contract.title }} · Legal · ACMI Hub{% endblock %}
 {% block content %}
 <div class="record-head">
   <div>
-    <div class="muted lc-small"><a href="{% url 'crm:contract_list' %}">Contracts</a>{% if contract.campus %} › {{ contract.campus.code }}{% endif %}</div>
+    <div class="muted lc-small"><a href="{% url 'crm:contract_list' %}">Legal</a>{% if contract.campus %} › {{ contract.campus.code }}{% endif %}</div>
     <h1>{{ contract.title }} <span class="pill ct-{{ contract.status }}">{{ contract.get_status_display }}</span></h1>
     <div class="muted ct-facts"><a href="{% url 'crm:contract_list' %}?kind={{ contract.kind }}">{{ contract.get_kind_display }}</a>{% if contract.counterparty %} with {% if contract.company %}<a href="{{ contract.company.get_absolute_url }}">{{ contract.counterparty }}</a>{% else %}<a href="#details">{{ contract.counterparty }}</a>{% endif %}{% endif %}{% if contract.our_entity %} · <a href="#details">{{ contract.our_entity }}</a>{% endif %}
       {% if contract.site %} · <a href="{% url 'crm:land_site_detail' contract.site.pk %}">{{ contract.site.name }}</a>{% endif %}
@@ -19,6 +19,8 @@
     <a class="btn" href="#details">Edit details</a>
   </div>
 </div>
+
+{% include "crm/partials/contract_filing.html" %}
 
 {% if executed %}
 <div class="ct-executed">
@@ -283,6 +285,7 @@
   }));
 </script>
 <script src="{% static 'crm/dropzone.js' %}?v={{ ASSET_VERSION }}"></script>
+<script src="{% static 'crm/legal_file.js' %}?v={{ ASSET_VERSION }}"></script>
 <script src="{% static 'crm/contract_review.js' %}?v={{ ASSET_VERSION }}"></script>
 <script>ContractReview.citable();</script>
 {% endblock %}

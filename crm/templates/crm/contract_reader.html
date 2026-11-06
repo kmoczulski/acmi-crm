@@ -4,7 +4,7 @@
 {% block content %}
 <div class="record-head">
   <div>
-    <div class="muted lc-small"><a href="{% url 'crm:contract_list' %}">Contracts</a> › <a href="{{ contract.get_absolute_url }}">{{ contract.title }}</a></div>
+    <div class="muted lc-small"><a href="{% url 'crm:contract_list' %}">Legal</a> › <a href="{{ contract.get_absolute_url }}">{{ contract.title }}</a></div>
     <h1>{{ doc.title }}</h1>
     <div class="muted">{{ doc.get_kind_display }}{% if doc.dated %} · {{ doc.dated|date:"M j, Y" }}{% endif %}{% if doc.pages %} · {{ doc.pages }} page{{ doc.pages|pluralize }}{% endif %}
       {% if doc.is_draft and doc.made_by %} · by {{ doc.made_by }}{% endif %}

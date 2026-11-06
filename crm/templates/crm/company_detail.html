@@ -25,6 +25,7 @@
   <a href="{% qs_set tab='activity' mpage='' %}" class="{% if tab == 'activity' %}active{% endif %}">Activity</a>
   <a href="{% qs_set tab='people' bg='' tpage='' mpage='' kind='' %}" class="{% if tab == 'people' %}active{% endif %}">People <span class="count">{{ people|length }}</span></a>
   <a href="{% qs_set tab='opportunities' bg='' tpage='' mpage='' kind='' %}" class="{% if tab == 'opportunities' %}active{% endif %}">Deals <span class="count">{{ opportunities|length }}</span></a>
+  <a href="{% qs_set tab='legal' bg='' tpage='' mpage='' kind='' %}" class="{% if tab == 'legal' %}active{% endif %}">Legal{% if legal_count %} <span class="count">{{ legal_count }}</span>{% endif %}</a>
   <a href="{% qs_set tab='sites' bg='' tpage='' mpage='' kind='' %}" class="{% if tab == 'sites' %}active{% endif %}">Site searches <span class="count">{{ land_searches|length }}</span></a>
   {% if tab == 'overview' %}<span class="spacer"></span><button type="button" class="btn btn-small co-customize" data-customize data-label="Customize page">{% if grid.customize %}Done customizing{% else %}Customize page{% endif %}</button>{% endif %}
 </nav>
@@ -89,6 +90,8 @@
           <td><form method="post" action="{% url 'crm:opportunity_toggle_report' o.pk %}" style="margin:0">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button class="btn btn-small">{% if o.investor_report %}✓ On report · Remove{% else %}Add to report{% endif %}</button></form></td></tr>
         {% empty %}<tr><td colspan="13" class="muted">No opportunities yet.</td></tr>{% endfor %}</tbody>
       </table></div>
+    {% elif tab == 'legal' %}
+      {% include "crm/partials/company_legal.html" %}
     {% elif tab == 'sites' %}
       <div class="page-head">
         <span class="muted lc-small">Land searches we've run for {{ company.name }}: the candidate sites, their reports and the client link.</span>
@@ -137,6 +140,7 @@
 {% endblock %}
 {% block scripts %}
 {% if tab == 'overview' %}<script src="{% static 'crm/dashboard.js' %}?v={{ ASSET_VERSION }}"></script>{% endif %}
+{% if tab == 'legal' %}<script src="{% static 'crm/dropzone.js' %}?v={{ ASSET_VERSION }}"></script>{% endif %}
 <script>
   // A meeting in the feed jumps to its card in the Meetings widget and lights it up (scroll-margin keeps it out from
   // under the sticky tabs). A card that isn't on this page opens on the Meetings tab instead.
