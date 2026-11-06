@@ -4,7 +4,7 @@
 {% block content %}
 <div class="record-head">
   <div>
-    <div class="muted lc-small"><a href="{% url 'crm:contract_list' %}">Contracts</a> › <a href="{{ contract.get_absolute_url }}">{{ contract.title }}</a></div>
+    <div class="muted lc-small"><a href="{% url 'crm:contract_list' %}">Legal</a> › <a href="{{ contract.get_absolute_url }}">{{ contract.title }}</a></div>
     <h1>Closing timeline</h1>
   </div>
   <div class="record-nav"><a class="btn" href="{{ contract.get_absolute_url }}#dates">Critical dates</a></div>

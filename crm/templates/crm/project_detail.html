@@ -65,6 +65,16 @@
         <select name="site" required style="flex:1"><option value="">Add an existing land site…</option>{% for s in other_sites %}<option value="{{ s.pk }}">{{ s.name }}{% if s.project %} (now in {{ s.project.name }}){% endif %}</option>{% endfor %}</select>
         <button name="action" value="add" class="btn btn-small">Add</button></form>{% endif %}
     </section>
+    <section class="panel" id="legal">
+      <h3>Legal{% if legal %} <span class="muted">{{ legal|length }}</span>{% endif %} <a href="{% url 'crm:contract_list' %}?project={{ project.pk }}" style="float:right;text-transform:none;letter-spacing:0">Open in Legal</a></h3>
+      {% for c in legal %}
+        <div class="row-line"><span><a href="{{ c.get_absolute_url }}">{{ c.title }}</a> <span class="pill ct-{{ c.status }}">{{ c.get_status_display }}</span>
+          <div class="muted lc-small">{{ c.get_kind_display }}{% if c.filed.tenant %} · <a href="{{ c.filed.tenant.get_absolute_url }}">{{ c.filed.tenant.name }}</a>{% elif c.counterparty %} · {{ c.counterparty }}{% endif %}</div></span>
+          <span class="lc-small">{% if c.next %}<span class="{% if c.next.left < 0 %}overdue{% elif c.next.left <= 7 %}soon{% endif %}">{{ c.next.label }} · {{ c.next.date|date:"M j" }}</span>{% endif %}</span></div>
+      {% empty %}<p class="muted lc-small" style="margin:0 0 8px">Nothing is filed to {{ project.name }} yet.</p>{% endfor %}
+      {% url 'crm:contract_drop_new' as drop_url %}
+      {% include "crm/partials/contract_dropzone.html" with url=drop_url mode="new" heading="Drop a signed lease, PSA or any legal document here" hint="It is filed to this project. Add the tenant on the next page." drop_project=project.pk %}
+    </section>
     {% with add_url=new_approval_url show_matrix=True for_project=project %}{% include "crm/partials/approval_panel.html" %}{% endwith %}
     <div class="panel">
       <h3>Correspondence</h3>
@@ -87,3 +97,4 @@
   </section>
 </div>
 {% endblock %}
+{% block scripts %}{% load static %}<script src="{% static 'crm/dropzone.js' %}?v={{ ASSET_VERSION }}"></script>{% endblock %}

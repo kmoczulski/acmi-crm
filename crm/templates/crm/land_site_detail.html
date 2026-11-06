@@ -10,7 +10,7 @@
     <div class="muted">{{ tracker.parcels }} parcel{{ tracker.parcels|pluralize }} · {{ acres|floatformat:1|intcomma }} ac{% if tracker.excluded %} <span class="lc-small">({{ tracker.excluded|length }} excluded)</span>{% endif %}{% if tracker.trimmed %} <span class="lc-small">({{ tracker.trimmed|length }} trimmed)</span>{% endif %} · {{ owners }} owner{{ owners|pluralize }}</div>
   </div>
   <div class="record-nav">
-    <a class="btn" href="#contracts">Contracts{% if contracts %} ({{ contracts|length }}){% endif %}</a>
+    <a class="btn" href="#contracts">Legal{% if contracts %} ({{ contracts|length }}){% endif %}</a>
     <a class="btn" href="{% url 'crm:land_site_listing' site.pk %}">Listing details</a>
     <a class="btn" href="{% url 'crm:land_site_brief' site.pk %}">Site brief (aerial, PDF)</a>
     <a class="btn" href="{{ site.map_url }}">Open on map</a>
@@ -48,7 +48,7 @@
 
 <section class="panel" id="timeline">
   <h3>Deal timeline
-    <a href="#contracts" style="float:right;text-transform:none;letter-spacing:0;font-weight:500">Contracts{% if contracts %} ({{ contracts|length }}){% endif %} ↓</a></h3>
+    <a href="#contracts" style="float:right;text-transform:none;letter-spacing:0;font-weight:500">Legal{% if contracts %} ({{ contracts|length }}){% endif %} ↓</a></h3>
   {% with ts=site.timeline_summary %}{% if ts %}
   <p class="deal-clock"><b>{{ ts.days }} day{{ ts.days|pluralize }}</b> {% if ts.closed %}from {{ ts.start_label }} ({{ ts.start|date:"M j, Y" }}) to close{% else %}since {{ ts.start_label }} ({{ ts.start|date:"M j, Y" }}){% endif %}
     · {% if not ts.closed %}last milestone: {{ ts.last_label }}, {% if ts.since_last < 0 %}set for {{ ts.ahead }} day{{ ts.ahead|pluralize }} from now{% elif ts.since_last == 0 %}today{% else %}{{ ts.since_last }} day{{ ts.since_last|pluralize }} ago{% endif %}{% else %}closed {{ ts.last_date|date:"M j, Y" }}{% endif %}</p>
@@ -174,7 +174,7 @@
 
   <div>
     <section class="panel" id="contracts">
-      <h3>Contracts <a href="{% url 'crm:contract_create' %}?site={{ site.pk }}" style="float:right;text-transform:none;letter-spacing:0">New contract</a></h3>
+      <h3>Legal <a href="{% url 'crm:contract_create' %}?site={{ site.pk }}" style="float:right;text-transform:none;letter-spacing:0">New record</a></h3>
       {% for c in contracts %}
         <div class="row-line"><span><a href="{{ c.get_absolute_url }}">{{ c.title }}</a> <span class="pill ct-{{ c.status }}">{{ c.get_status_display }}</span>{% if c.n_rounds %} <a class="lc-small" href="{% url 'crm:contract_terms' c.pk %}">Terms ({{ c.n_rounds }})</a>{% endif %}
           {% if c.waiting_on %}<span class="muted lc-small">{{ c.get_waiting_on_display }}</span>{% endif %}</span>

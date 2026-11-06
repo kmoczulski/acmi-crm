@@ -2461,6 +2461,8 @@ class Contract(models.Model):
     opportunity = models.ForeignKey(Opportunity, null=True, blank=True, on_delete=models.SET_NULL,
                                     related_name="contracts", verbose_name="tenant deal")
     campus = models.ForeignKey(Campus, null=True, blank=True, on_delete=models.SET_NULL, related_name="contracts")
+    project = models.ForeignKey(Project, null=True, blank=True, on_delete=models.SET_NULL, related_name="contracts",
+                                help_text="The project it is filed to: a campus, or a site's project")
     site = models.ForeignKey(LandSite, null=True, blank=True, on_delete=models.SET_NULL, related_name="contracts")
     parcel_deals = models.ManyToManyField(
         SiteParcelDeal, blank=True, related_name="contracts",

@@ -2,7 +2,8 @@ from django import forms
 
 from ..forms import CommaNumbersMixin, StyledForm, UserChoiceField, active_users
 from ..models import (
-    Campus, Contract, ContractDate, ContractDocument, ContractTemplate, LandSite, LeaseTerms, Opportunity, TermsRound,
+    Campus, Company, Contract, ContractDate, ContractDocument, ContractTemplate, LandSite, LeaseTerms, Opportunity,
+    Project, TermsRound,
 )
 from . import terms
 
@@ -21,12 +22,15 @@ class DealChoiceField(forms.ModelChoiceField):
 class ContractForm(StyledForm):
     owner = UserChoiceField(queryset=active_users(), required=False, label="Runs it")
     opportunity = DealChoiceField(queryset=Opportunity.objects.none(), required=False, label="Tenant deal")
+    # Not a visible field (a company list is thousands long): the "Filed to" picker sets the tenant. It only rides
+    # along when a page starts the form with one, like a company's "New record" link.
+    company = forms.ModelChoiceField(queryset=Company.objects.all(), required=False, widget=forms.HiddenInput)
 
     class Meta:
         model = Contract
         fields = [
-            "title", "kind", "status", "counterparty", "our_entity", "site", "campus", "opportunity", "price", "acres",
-            "effective_date", "waiting_on", "waiting_since", "next_step", "counsel", "owner", "notes",
+            "title", "kind", "status", "counterparty", "our_entity", "site", "campus", "project", "opportunity", "price",
+            "acres", "effective_date", "waiting_on", "waiting_since", "next_step", "counsel", "owner", "notes",
         ]
         widgets = {"effective_date": _date(), "waiting_since": _date(), "notes": forms.Textarea(attrs={"rows": 4})}
         labels = {"site": "Land site", "waiting_since": "Since"}
@@ -37,18 +41,24 @@ class ContractForm(StyledForm):
             "company__name", "name")
         self.fields["site"].queryset = LandSite.objects.select_related("campus").order_by("campus__code", "name")
         self.fields["campus"].queryset = Campus.objects.all()
+        self.fields["project"].queryset = Project.objects.filter(active=True).order_by("name")
 
     def clean(self):
         data = super().clean()
         if not data.get("campus"):
+            project = data.get("project")
             data["campus"] = ((data.get("site") and data["site"].campus)
-                              or (data.get("opportunity") and data["opportunity"].campus) or None)
+                              or (data.get("opportunity") and data["opportunity"].campus)
+                              or (project and (project.campus or (project.parent.campus if project.parent_id else None)))
+                              or None)
         return data
 
     def save(self, commit=True):
         contract = super().save(commit=False)
         if contract.opportunity_id:
             contract.company = contract.opportunity.company
+        elif self.cleaned_data.get("company"):
+            contract.company = self.cleaned_data["company"]
         if commit:
             contract.save()
             self.save_m2m()

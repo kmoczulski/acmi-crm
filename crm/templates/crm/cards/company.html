@@ -43,6 +43,20 @@
           </a>
           {% empty %}<p class="muted">No open deals.</p>{% endfor %}
         </div>
+        <div class="scard-sec pk-legal">
+          <h3>Legal{% if legal_count %} <span class="muted">{{ legal_count }}</span>{% endif %} <a class="btn btn-small" href="{{ legal_url }}" data-page style="float:right;font-size:11px;padding:2px 8px">{% if legal_count %}Open{% else %}File one{% endif %}</a></h3>
+          {% for c in legal %}
+          <a class="scard-row" href="{{ c.get_absolute_url }}">
+            <div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline">
+              <span>{{ c.title }}</span>
+              <span class="pill ct-{{ c.status }}" style="font-size:11px;padding:1px 6px">{{ c.get_status_display }}</span>
+            </div>
+            <span class="pk-row-sub">{{ c.get_kind_display }}{% if c.filed.project_name %} · {{ c.filed.project_name }}{% endif %}{% if c.next %} · {{ c.next.label|truncatechars:28 }} {{ c.next.date|date:"M j" }}{% endif %}</span>
+          </a>
+          {% empty %}<p class="muted">Nothing filed yet.</p>{% endfor %}
+          {% if legal_count > legal|length %}<a class="lc-small" href="{{ legal_url }}" data-page>All {{ legal_count }} ›</a>{% endif %}
+          {% if legal_maybe %}<div><a class="lc-small" href="{{ legal_url }}" data-page><span class="lg-need">{{ legal_maybe }} unfiled</span> may be {{ company.name|truncatechars:24 }}'s</a></div>{% endif %}
+        </div>
         <div class="scard-sec"><h3>People{% if people_count > people|length %} <span class="muted">{{ people|length }} of {{ people_count }}</span>{% endif %}</h3>
           {% for p in people %}<div class="scard-row pk-person"><a class="pk-person-link" href="{{ p.get_absolute_url }}">{{ p }}</a><span class="pk-row-sub">{% if p.title %}{{ p.title|truncatechars:40 }} · {% endif %}{{ p.last_interaction_at|ago|default:"no touch yet" }}</span>{% if p.phones %}<span class="pk-row-sub pk-phones">{% include "crm/partials/person_phones.html" with person=p %}</span>{% endif %}</div>
           {% empty %}<p class="muted">No people yet.</p>{% endfor %}</div>

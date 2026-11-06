@@ -4,7 +4,7 @@
 {% block content %}
 {% include "crm/partials/report_logo.html" %}
 <div class="page-head">
-  <div><div class="muted lc-small no-print"><a href="{% url 'crm:contract_list' %}">Contracts</a></div>
+  <div><div class="muted lc-small no-print"><a href="{% url 'crm:contract_list' %}">Legal</a></div>
     <h1>Rent roll{% if campus %} · {{ campus.code }}{% endif %}</h1>
     <div class="muted lc-small">Signed leases as of {{ roll.today|date:"M j, Y" }}</div></div>
   <form method="get" class="inline-form no-print"><select name="campus" onchange="this.form.submit()"><option value="">Every campus</option>{% for c in campuses %}<option value="{{ c.code }}"{% if campus and c.pk == campus.pk %} selected{% endif %}>{{ c.code }}</option>{% endfor %}</select></form>

@@ -10,11 +10,13 @@ from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
 
 from . import company_page
+from .contracts import filing as legal_filing
 from .models import AISummary, Activity, Company, Opportunity, OpportunityStage, Person
 from .pipeline import risk_reasons
 from .views import recent_activity, task_rows
 
 RECENT = 6
+LEGAL_ROWS = 5
 
 
 def _page(request, record):
@@ -29,8 +31,12 @@ def company_card(request, pk):
     open_deals = [o for o in deals if o.is_open]
     now = timezone.now()
     meetings = company.meetings.order_by("start")
+    legal = legal_filing.company_agreements(company)
     return render(request, "crm/cards/company.html", {
         "company": company, "page": _page(request, company),
+        # Legal: its lease and other agreements, a click from the card; the page's Legal tab files a new one.
+        "legal": legal[:LEGAL_ROWS], "legal_count": len(legal), "legal_url": company.get_absolute_url() + "?tab=legal",
+        "legal_maybe": len(legal_filing.company_suggestions(company)),
         "people": list(company.people.order_by("-last_interaction_at", "full_name")[:6]),
         "people_count": company.people.count(),
         "open_deals": open_deals, "pipeline": sum(o.value or 0 for o in open_deals),
@@ -49,7 +55,7 @@ def opportunity_card(request, pk):
     return render(request, "crm/cards/deal.html", {
         "opp": opp, "page": _page(request, opp),
         "contacts": opp.contacts.select_related("person"),
-        "agreements": opp.contracts.all(), "sites": opp.land_sites.all(),
+        "agreements": legal_filing.deal_agreements(opp), "sites": opp.land_sites.all(),
         "tasks": task_rows(opp.tasks.filter(done=False))[:5],
         "recent": recent_activity(Activity.objects.filter(Q(opportunity=opp) | Q(company=opp.company)), limit=RECENT,
                                   include_sent=True),

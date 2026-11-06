@@ -1,0 +1,20 @@
+{# Where this agreement is filed: tenant, deal, project, site, campus, each with an × to take it off, and the picker to file it somewhere. `contract`, `filed` (filing.places), `unfiled` (filing.missing). #}
+<section class="lg-strip{% if unfiled %} lg-todo{% endif %}" id="filed">
+  <span class="lg-lead">Filed to</span>
+  <div class="lg-places">
+    {% if filed.tenant %}<span class="lg-chip"><span class="lg-k">Tenant </span><a href="{{ filed.tenant.get_absolute_url }}"><b>{{ filed.tenant.name }}</b></a>
+      <form method="post" action="{% url 'crm:contract_file_to' contract.pk %}">{% csrf_token %}<input type="hidden" name="clear" value="company"><button aria-label="Take it off {{ filed.tenant.name }}" title="Take it off the tenant (and its deal)">×</button></form></span>{% endif %}
+    {% if filed.deal %}<span class="lg-chip"><span class="lg-k">Deal </span><a href="{{ filed.deal.get_absolute_url }}"><b>{{ filed.deal.name }}</b></a>
+      <form method="post" action="{% url 'crm:contract_file_to' contract.pk %}">{% csrf_token %}<input type="hidden" name="clear" value="opportunity"><button aria-label="Take it off the deal" title="Take it off the deal">×</button></form></span>{% endif %}
+    {% if filed.project_name %}<span class="lg-chip"><span class="lg-k">Project </span>{% if filed.project_url %}<a href="{{ filed.project_url }}"><b>{{ filed.project_name }}</b></a>{% else %}<b>{{ filed.project_name }}</b>{% endif %}
+      {% if contract.project_id %}<form method="post" action="{% url 'crm:contract_file_to' contract.pk %}">{% csrf_token %}<input type="hidden" name="clear" value="project"><button aria-label="Take it off the project" title="Take it off the project">×</button></form>{% endif %}</span>{% endif %}
+    {% if contract.site %}<span class="lg-chip"><span class="lg-k">Site </span><a href="{% url 'crm:land_site_detail' contract.site.pk %}"><b>{{ contract.site.name }}</b></a>
+      <form method="post" action="{% url 'crm:contract_file_to' contract.pk %}">{% csrf_token %}<input type="hidden" name="clear" value="site"><button aria-label="Take it off the site" title="Take it off the site">×</button></form></span>{% endif %}
+    {% if filed.campus %}<span class="lg-chip"><span class="lg-k">Campus </span><a href="{% url 'crm:campus_summary' filed.campus.code %}"><b>{{ filed.campus.code }}</b></a>
+      {% if contract.campus_id %}<form method="post" action="{% url 'crm:contract_file_to' contract.pk %}">{% csrf_token %}<input type="hidden" name="clear" value="campus"><button aria-label="Take it off the campus" title="Take it off the campus">×</button></form>{% endif %}</span>{% endif %}
+    {% if not filed.tenant and not filed.project_name and not filed.deal and not contract.site and not filed.campus %}<span class="muted lc-small">Nowhere yet.</span>{% endif %}
+  </div>
+  {% if unfiled %}<span class="lg-need">needs a {{ unfiled|join:" and a " }}</span>{% endif %}
+  <span class="spacer"></span>
+  {% include "crm/partials/legal_file_picker.html" with contract=contract next=contract.get_absolute_url label="File to a tenant, deal or project…" %}
+</section>

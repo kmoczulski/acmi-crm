@@ -5,7 +5,7 @@ from . import campus_views, cards, company_pdf, prefs, push_views, search, views
 from .boards import views as board_views
 from .build import views as build_views
 from .capital import views as capital_views
-from .contracts import terms_views
+from .contracts import filing_views, terms_views
 from .contracts import views as contract_views
 from .dataroom import drive_views
 from .dataroom import views as room_views
@@ -113,6 +113,8 @@ urlpatterns = [
     path("contracts/templates/new/", contract_views.template_edit, name="contract_template_new"),
     path("contracts/templates/<int:pk>/", contract_views.template_edit, name="contract_template_edit"),
     path("contracts/files/<int:doc_pk>/", contract_views.contract_file, name="contract_file"),
+    path("contracts/filing/options/", filing_views.file_options, name="contract_file_options"),
+    path("contracts/<int:pk>/filing/", filing_views.contract_file_to, name="contract_file_to"),
     path("contracts/<int:pk>/", contract_views.contract_detail, name="contract_detail"),
     path("contracts/<int:pk>/delete/", contract_views.contract_delete, name="contract_delete"),
     path("contracts/<int:pk>/compare/", contract_views.contract_compare, name="contract_compare"),

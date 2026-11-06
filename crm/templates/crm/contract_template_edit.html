@@ -2,7 +2,7 @@
 {% block title %}{% if copy_of %}Copy of {{ copy_of.name }}{% elif template.pk %}{{ template.name }}{% else %}New template{% endif %} · ACMI Hub{% endblock %}
 {% block content %}
 <div class="page-head">
-  <div><div class="muted lc-small"><a href="{% url 'crm:contract_list' %}">Contracts</a> › <a href="{% url 'crm:contract_templates' %}">Abstract templates</a></div>
+  <div><div class="muted lc-small"><a href="{% url 'crm:contract_list' %}">Legal</a> › <a href="{% url 'crm:contract_templates' %}">Abstract templates</a></div>
     <h1>{% if copy_of %}Copy of {{ copy_of.name }}{% elif template.pk %}{{ template.name }}{% else %}New template{% endif %}</h1></div>
 </div>
 <div class="panel" style="max-width:760px">

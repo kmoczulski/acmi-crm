@@ -50,13 +50,13 @@
       </section>{% endif %}
 
       <section class="scard-sec">
-        <h3>Contracts <span class="muted lc-small">{{ contracts|length }}</span></h3>
+        <h3>Legal <span class="muted lc-small">{{ contracts|length }}</span></h3>
         {% for c in contracts %}<a class="scard-row" href="{{ c.get_absolute_url }}">
           <div><b>{{ c.title }}</b> <span class="tag">{{ c.get_kind_display }}</span> <span class="tag">{{ c.get_status_display }}</span></div>
           <div class="muted lc-small">{% if c.counterparty %}{{ c.counterparty }} · {% endif %}{% if c.price %}${{ c.price|floatformat:0|intcomma }} · {% endif %}{% if c.acres %}{{ c.acres|floatformat:0 }} ac · {% endif %}{% if c.effective_date %}effective {{ c.effective_date|date:"M j, Y" }}{% else %}not signed{% endif %}{% if c.waiting_on %} · ball with {{ c.get_waiting_on_display|lower }}{% endif %}</div>
           {% if c.next %}<div class="lc-small {% if c.next.left <= 14 %}overdue{% endif %}">Next date: {{ c.next.label }}{% if c.next.date %}, {{ c.next.date|date:"M j, Y" }}{% endif %}</div>{% endif %}
           {% if c.next_step %}<div class="lc-small">Next step: {{ c.next_step }}</div>{% endif %}
-        </a>{% empty %}<p class="muted lc-small">No contracts on this site.</p>{% endfor %}
+        </a>{% empty %}<p class="muted lc-small">Nothing filed to this site.</p>{% endfor %}
       </section>
 
       <section class="scard-sec">

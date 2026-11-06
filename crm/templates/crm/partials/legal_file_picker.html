@@ -1,0 +1,6 @@
+{# The File to picker, as a form that files one agreement the moment you pick. `contract`, `next` (where to land), `label` (the box's placeholder). #}
+<form method="post" action="{% url 'crm:contract_file_to' contract.pk %}" class="lg-pick" data-filepick data-submit data-options="{% url 'crm:contract_file_options' %}">
+  {% csrf_token %}<input type="hidden" name="next" value="{{ next }}">
+  <input type="search" class="lg-q" placeholder="{{ label|default:'File to a tenant or project…' }}" autocomplete="off" aria-label="File {{ contract.title }} to a tenant, deal or project">
+  <ul class="lg-opts" role="listbox" hidden></ul>
+</form>

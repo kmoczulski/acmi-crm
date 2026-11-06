@@ -1,0 +1,37 @@
+{# The company page's Legal tab: what is filed to the company or one of its deals, agreements that may be theirs, and a drop zone that files straight to them. #}
+{% load crm_tags humanize %}
+<div class="lg-company">
+  {% if legal_suggestions %}
+  <div class="lg-suggest">
+    <h3>May be {{ company.name }}'s</h3>
+    <p class="muted lc-small" style="margin:0 0 4px">These name {{ company.name }} as the other party but are not filed to it. One click files each here.</p>
+    {% for c in legal_suggestions %}
+    <div class="lg-row">
+      <div class="lg-what"><a href="{{ c.get_absolute_url }}"><b>{{ c.title }}</b></a> <span class="muted lc-small">{{ c.get_kind_display }} · {{ c.counterparty }}</span></div>
+      <form method="post" action="{% url 'crm:contract_file_to' c.pk %}">{% csrf_token %}<input type="hidden" name="company" value="{{ company.pk }}"><input type="hidden" name="next" value="{{ request.get_full_path }}"><button class="btn btn-small btn-primary">File to {{ company.name|truncatechars:30 }}</button></form>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+  <div class="page-head">
+    <span class="muted lc-small">Leases, NDAs and every legal document filed to {{ company.name }}, or to one of its deals.</span>
+    <span class="spacer"></span>
+    <a class="btn btn-small" href="{% url 'crm:contract_list' %}?company={{ company.pk }}">Open in Legal</a>
+    <a class="btn btn-small" href="{% url 'crm:contract_create' %}?company={{ company.pk }}">New record</a>
+  </div>
+  <div class="table-wrap"><table class="data lg-legal-table">
+    <thead><tr><th>Agreement</th><th>Deal</th><th>Project</th><th>Status</th><th>Next date</th></tr></thead>
+    <tbody>{% for c in legal %}
+      <tr>
+        <td class="wrap"><a href="{{ c.get_absolute_url }}"><b>{{ c.title }}</b></a>
+          <div class="muted lc-small">{{ c.get_kind_display }}{% if c.lease_terms.premises_sf %} · {{ c.lease_terms.premises_sf|intcomma }} sf{% endif %}{% if c.effective_date %} · effective {{ c.effective_date|date:"M j, Y" }}{% endif %}{% if c.lease_terms.expiration %} · expires {{ c.lease_terms.expiration|date:"M j, Y" }}{% endif %}</div></td>
+        <td class="wrap lc-small">{% if c.opportunity %}<a href="{{ c.opportunity.get_absolute_url }}">{{ c.opportunity.name }}</a>{% else %}–{% endif %}</td>
+        <td class="wrap lc-small">{% if c.filed.project_name %}{% if c.filed.project_url %}<a href="{{ c.filed.project_url }}">{{ c.filed.project_name }}</a>{% else %}{{ c.filed.project_name }}{% endif %}{% else %}<a href="{{ c.get_absolute_url }}#filed"><span class="lg-need">needs a project</span></a>{% endif %}</td>
+        <td><span class="pill ct-{{ c.status }}">{{ c.get_status_display }}</span></td>
+        <td class="wrap lc-small">{% if c.next %}<span class="{% if c.next.left < 0 %}overdue{% elif c.next.left <= 7 %}soon{% endif %}">{{ c.next.date|date:"M j" }}</span> {{ c.next.label }}{% else %}–{% endif %}</td>
+      </tr>
+    {% empty %}<tr><td colspan="5" class="muted">Nothing is filed to {{ company.name }} yet. Drop the signed lease below.</td></tr>{% endfor %}</tbody>
+  </table></div>
+  {% url 'crm:contract_drop_new' as drop_url %}
+  {% include "crm/partials/contract_dropzone.html" with url=drop_url mode="new" heading="Drop a signed lease, NDA or any legal document here" hint="It is filed to this company. Add the project on the next page." drop_company=company.pk %}
+</div>

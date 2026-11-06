@@ -16,13 +16,14 @@ from ..ai import enabled as ai_enabled
 from ..entitlements import logic as entitlement_logic
 from ..land import diligence
 from ..models import (
-    Campus, ClosingItem, Contract, ContractAnswer, ContractDate, ContractDocument, ContractTemplate, LandSite,
-    LeaseTerms, Opportunity,
+    Campus, ClosingItem, Company, Contract, ContractAnswer, ContractDate, ContractDocument, ContractTemplate, LandSite,
+    LeaseTerms, Opportunity, Project,
 )
 from ..permissions import is_manager, manager_required, refuse
-from . import ai, closing, compare, dates, intake, methods, timeline
+from . import ai, closing, compare, dates, filing, intake, methods, timeline
 from . import text as textmod
 from ..tenants import leases
+from .filing import NO_PROJECT, project_label  # the same names the list and its tests have always imported from here
 from .forms import ContractForm, DateForm, DocumentForm, LeaseTermsForm, TemplateForm
 from .terms_views import terms_panel
 
@@ -40,30 +41,11 @@ _SECTIONS = (
     ("Land", ("loi", "psa", "option")),
     ("Leases", ("lease",)),
     ("PDAs / DMAs", ("pda",)),
+    ("Financing and JV", ("loan", "jv")),
+    ("Construction and design", ("services",)),
+    ("Easements", ("easement",)),
+    ("NDAs", ("nda",)),
 )
-
-
-NO_PROJECT = "No project"
-
-
-def project_label(c):
-    """The project a contract belongs to, the way the rest of the hub names one (Kellen, 2026-11-05: "it should also be
-    sorted by project"): the land site's project (ARA Facility), else the site itself, else the campus (MEIH), else the
-    campus or site of its deal, else "No project"."""
-    site = c.site
-    if site is not None:
-        if getattr(site, "project", None) is not None:
-            return site.project.name
-        return site.name
-    if c.campus is not None:
-        return c.campus.code
-    deal = c.opportunity
-    if deal is not None:
-        if deal.campus is not None:
-            return deal.campus.code
-        if deal.site:
-            return deal.site
-    return NO_PROJECT
 
 
 def _by_project(contracts):
@@ -98,25 +80,38 @@ def contract_list(request):
     kind = request.GET.get("kind", "")
     campus = request.GET.get("campus", "")
     group = "project" if request.GET.get("group") == "project" else "type"
-    qs = Contract.objects.select_related("site__project", "campus", "owner", "opportunity__company",
-                                         "opportunity__campus").annotate(docs=Count("documents", distinct=True))
+    tenant = Company.objects.filter(pk=request.GET.get("company") or 0).first()
+    in_project = Project.objects.filter(pk=request.GET.get("project") or 0).first()
+    qs = Contract.objects.select_related("site__project", "campus", "project", "company", "owner",
+                                         "opportunity__company", "opportunity__campus"
+                                         ).annotate(docs=Count("documents", distinct=True))
     if show == "open":
         qs = qs.filter(status__in=Contract.OPEN_STATUSES)
     if kind in Contract.Kind.values:
         qs = qs.filter(kind=kind)
     if campus:
         qs = qs.filter(campus__code__iexact=campus)
+    if tenant:
+        qs = qs.filter(filing.company_q(tenant))
+    if in_project:
+        qs = qs.filter(filing.project_q(in_project))
     contracts = list(qs)
     today = timezone.localdate()
     nxt = dates.next_dates(contracts, today)
     for c in contracts:
         c.next = nxt.get(c.pk)
         c.waiting_days = (today - c.waiting_since).days if c.waiting_on and c.waiting_since else None
+        c.filed = filing.places(c)
+        c.missing = filing.missing(c)
     contracts.sort(key=lambda c: (c.next is None, c.next.date if c.next else today, c.title.lower()))
     return render(request, "crm/contract_list.html", {
         "contracts": contracts, "sections": _contract_sections(contracts, group), "group": group,
         "deadlines": dates.upcoming(60, today), "show": show, "kind": kind,
         "kinds": Contract.Kind.choices, "campuses": Campus.objects.all(), "campus": campus,
+        "tenant": tenant, "in_project": in_project, "ai_ready": ai_enabled(),
+        # Agreements with no tenant (a lease, PDA or NDA) or no project: the ones to file.
+        "unfiled": [c for c in contracts if c.missing],
+        "drop_company": tenant.pk if tenant else "", "drop_project": in_project.pk if in_project else "",
     })
 
 
@@ -154,20 +149,30 @@ def contract_create(request):
     initial = {"owner": request.user}
     site = LandSite.objects.select_related("campus").filter(pk=request.GET.get("site") or 0).first()
     deal = Opportunity.objects.select_related("company").filter(pk=request.GET.get("opportunity") or 0).first()
+    company = Company.objects.filter(pk=request.GET.get("company") or 0).first()
+    project = Project.objects.select_related("campus", "parent__campus").filter(pk=request.GET.get("project") or 0).first()
     if site:
         initial.update(site=site, campus=site.campus, kind=Contract.Kind.PSA, title=f"{site.name} PSA")
     elif deal:
         initial.update(opportunity=deal, campus=deal.campus, kind=Contract.Kind.LOI, counterparty=deal.company.name,
                        title=f"{deal.company.name} LOI")
+    elif company:
+        initial.update(company=company.pk, kind=Contract.Kind.LEASE, counterparty=company.name,
+                       title=f"{company.name} lease")
+    if project:
+        initial.update(project=project, campus=initial.get("campus") or project.campus
+                       or (project.parent.campus if project.parent_id else None))
+    if request.GET.get("kind") in Contract.Kind.values:
+        initial["kind"] = request.GET["kind"]
     form = ContractForm(request.POST or None, initial=initial)
     if request.method == "POST" and form.is_valid():
         contract = form.save(commit=False)
         contract.created_by = request.user
         contract.save()
         form.save_m2m()
-        messages.success(request, "Contract added. Upload the agreement to read it with Claude.")
+        messages.success(request, "Added. Upload the signed document to read it with Claude.")
         return redirect(contract)
-    return render(request, "crm/form.html", {"form": form, "title": "New contract",
+    return render(request, "crm/form.html", {"form": form, "title": "New legal record",
                                              "cancel": reverse("crm:contract_list")})
 
 
@@ -195,6 +200,8 @@ def _drop_file(request, contract, new_contract=False):
         except ai.Unavailable as exc:
             note = str(exc)
     contract.save(update_fields=["updated_at"])
+    if new_contract:
+        filing.auto_file(contract)  # now that the document has named its parties: the tenant, its deal, the campus project
     dates.sync_site(contract, request.user)
     return JsonResponse({
         "ok": True, "doc": doc.pk, "title": doc.title, "kind": doc.get_kind_display(),
@@ -202,6 +209,7 @@ def _drop_file(request, contract, new_contract=False):
         "by": doc.made_by if doc.is_draft else "", "pages": doc.pages, "filled": filled, "note": note,
         "scan": doc.text_status == ContractDocument.TextStatus.SCAN, "url": contract.get_absolute_url(),
         "reader": reverse("crm:contract_reader", args=[contract.pk, doc.pk]) if doc.text else "",
+        "filed": filing.summary(contract), "missing": filing.missing(contract),
     })
 
 
@@ -213,14 +221,15 @@ def contract_drop(request, pk):
 
 @require_POST
 def contract_drop_new(request):
-    """An agreement dropped onto the contracts list: a new contract, named and filled in from the file."""
+    """A document dropped onto Legal (or a company's, project's or site's page): a new record, filed where the drop
+    said (company, deal, project, site, campus), then named and filled in from the file."""
     upload = request.FILES.get("file")
     if not upload:
         return JsonResponse({"ok": False, "error": "No file."}, status=400)
-    site = LandSite.objects.select_related("campus").filter(pk=request.POST.get("site") or 0).first()
     contract = Contract.objects.create(
         title=intake.guess(upload.name)["title"][:200], kind=Contract.Kind.OTHER, status=Contract.Status.NEGOTIATING,
-        owner=request.user, created_by=request.user, site=site, campus=site.campus if site else None)
+        owner=request.user, created_by=request.user)
+    filing.file_to(contract, **filing.picks(request.POST))
     response = _drop_file(request, contract, new_contract=True)
     if response.status_code != 200:
         contract.delete()
@@ -287,8 +296,8 @@ def _owners(contract):
 
 
 def contract_detail(request, pk):
-    contract = get_object_or_404(Contract.objects.select_related("site", "campus", "owner", "opportunity__company"),
-                                 pk=pk)
+    contract = get_object_or_404(Contract.objects.select_related("site__project", "campus", "project", "company", "owner",
+                                                                 "opportunity__company", "opportunity__campus"), pk=pk)
     if request.method == "POST":
         return _post(request, contract)
     docs = ai.chain(contract)
@@ -332,6 +341,7 @@ def contract_detail(request, pk):
         "compare_pair": drafts[-2:] if len(drafts) >= 2 else [d for d in docs if d.text][-2:],
         "timeline": timeline_strip(contract, today), "units": ContractDate.Unit.choices, "terms": terms_panel(contract),
         "executed": executed_doc(contract, docs),
+        "filed": filing.places(contract), "unfiled": filing.missing(contract),
         "comment_counts": dict(contract.comments.filter(parent__isnull=True, resolved=False).order_by()
                                .values_list("document").annotate(n=Count("id")).values_list("document", "n")),
     })

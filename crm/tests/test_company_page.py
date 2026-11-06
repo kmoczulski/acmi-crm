@@ -87,7 +87,9 @@ class CompanyPageTests(TestCase):
         self.assertContains(r, 'data-add-widget="feed" disabled')
         self.assertEqual(self.client.get(reverse("crm:home")).context["layout"][0]["id"], "kpis")  # untouched
         self.client.post(reverse("crm:prefs_save"), {"key": "company", "value": "null"})
-        self.assertEqual(len(self.client.get(self.url).context["grid"]["layout"]), 12)
+        from crm.prefs import COMPANY_WIDGETS
+
+        self.assertEqual(len(self.client.get(self.url).context["grid"]["layout"]), len(COMPANY_WIDGETS))
 
     def test_the_overview_widget_leads_the_page_and_formats_the_description(self):
         """Kellen, 2026-10-26: "the company overview section should be more apparent and have proper formatting"."""
