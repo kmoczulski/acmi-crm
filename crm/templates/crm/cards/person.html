@@ -33,6 +33,7 @@
           {% for ph in person.phones %}<a class="scard-row" href="tel:{{ ph }}">{{ ph }}</a>{% endfor %}
           {% if person.linkedin %}<a class="scard-row" href="{{ person.linkedin }}" target="_blank" rel="noopener">LinkedIn ↗</a>{% endif %}
           {% if not person.email and not person.phones and not person.linkedin %}<p class="muted">No email, phone or LinkedIn on file.</p>{% endif %}</div>
+        <div class="scard-sec"><h3>Email blasts</h3>{% include "crm/partials/person_outreach.html" with next=page %}</div>
         <div class="scard-sec"><h3>Deals</h3>
           {% for o in deals %}<a class="scard-row" href="{{ o.get_absolute_url }}">{{ o.name }}<span class="pk-row-sub">{{ o.get_stage_display }}</span></a>
           {% empty %}<p class="muted">Not on a deal yet.</p>{% endfor %}</div>

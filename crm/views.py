@@ -1387,6 +1387,35 @@ def person_delete(request, pk):
     return redirect(company or reverse("crm:person_list"))
 
 
+OUTREACH_ACTIONS = {
+    "exclude": "Excluded from email blasts",
+    "include": "Back in email blasts",
+    "bad_email": "Email marked bad",
+    "good_email": "Email marked good",
+}
+
+
+@require_POST
+def person_outreach(request, pk):
+    """One-click switches the outreach queue reads: the Exclude flag and a bad (bounced) email."""
+    person = get_object_or_404(Person, pk=pk)
+    action = request.POST.get("action", "")
+    if action not in OUTREACH_ACTIONS:
+        return HttpResponseBadRequest("Unknown action")
+    if action in ("exclude", "include"):
+        flags = [f for f in (person.flags or []) if f != "Exclude"]
+        person.flags = flags + ["Exclude"] if action == "exclude" else flags
+        person.save(update_fields=["flags"])
+    else:
+        person.email_valid = action == "good_email"
+        person.save(update_fields=["email_valid"])
+    summary = f"{OUTREACH_ACTIONS[action]}: {person}"
+    Activity.objects.create(kind=Activity.Kind.FIELD_CHANGE, occurred_at=timezone.now(), actor=request.user,
+                            person=person, company=person.company, summary=summary[:500], is_background=True)
+    messages.success(request, f"{OUTREACH_ACTIONS[action]}.")
+    return redirect(_safe_next(request, person.get_absolute_url()))
+
+
 @require_POST
 @manager_required
 def company_delete(request, pk):

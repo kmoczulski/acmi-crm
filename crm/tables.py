@@ -45,6 +45,7 @@ COMPANY_COLUMNS = [
 PERSON_COLUMNS = [
     Column("name", "Name", "full_name", True),
     Column("email", "Email", "email", True),
+    Column("blasts", "Email blasts", "", True),
     Column("title", "Title", "title", True),
     Column("company", "Company", "company__name", True),
     Column("priority", "Priority", "priority", True),
@@ -213,6 +214,15 @@ class PersonTable(Table):
         qs = super().filtered()
         if company := self.get("company"):
             qs = qs.filter(company__name__icontains=company)
+        # Email blasts: the same people the outreach queue skips for Exclude or a bad email.
+        excluded = Q(flags__icontains='"Exclude"') | Q(company__flags__icontains='"Exclude"')
+        blasts = self.get("blasts")
+        if blasts == "excluded":
+            qs = qs.filter(excluded)
+        elif blasts == "bad":
+            qs = qs.filter(email_valid=False)
+        elif blasts == "in":
+            qs = qs.exclude(excluded).exclude(email_valid=False).exclude(email__isnull=True).exclude(email="")
         return qs
 
 

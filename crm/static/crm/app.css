@@ -3606,3 +3606,6 @@ table.dup-table { min-width: 780px; }
 .mail-inline .compose-attach input[type=file] { font-size: 12px; }
 .mail-inline .compose-attach input[type=file]::file-selector-button { font: inherit; font-size: 12px; padding: 3px 10px; margin-right: 8px;
   border: 1px solid var(--line); border-radius: 999px; background: var(--panel); color: var(--text-2); cursor: pointer; }
+/* Person: Exclude / bad-email switches for email blasts */
+.outreach-switches { margin-top: 10px; }
+.outreach-switches form { display: flex; flex-wrap: wrap; gap: 6px; }

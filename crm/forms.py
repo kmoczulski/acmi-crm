@@ -209,6 +209,8 @@ class PersonForm(StyledForm):
     def save(self, commit=True):
         # full_name is derived from first/last when they change.
         self.instance.full_name = ""
+        if self.instance.pk and "email" in self.changed_data and "email_valid" not in self.changed_data:
+            self.instance.email_valid = None  # a new address hasn't bounced yet
         return super().save(commit)
 
 

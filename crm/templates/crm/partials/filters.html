@@ -33,6 +33,14 @@
   </label>
   {% else %}
   <label>Company<input name="company" value="{{ request.GET.company }}" size="14"></label>
+  <label>Email blasts
+    <select name="blasts">
+      <option value="">Any</option>
+      <option value="in" {% if request.GET.blasts == 'in' %}selected{% endif %}>In blasts</option>
+      <option value="excluded" {% if request.GET.blasts == 'excluded' %}selected{% endif %}>Excluded</option>
+      <option value="bad" {% if request.GET.blasts == 'bad' %}selected{% endif %}>Email bad</option>
+    </select>
+  </label>
   {% endif %}
   <label>Priority
     <details class="checks"><summary>{% if selected.priority %}{{ selected.priority|join:", " }}{% else %}Any{% endif %}</summary>

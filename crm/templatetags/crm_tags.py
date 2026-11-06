@@ -141,7 +141,22 @@ def cell(context, record, column):
     if key == "campus":
         return record.campus_label
     if key == "email":
+        if record.email and record.email_valid is False:
+            return format_html('{} <span class="pill pill-bad">Bounced</span>', record.email)
         return record.email or ""
+    if key == "blasts":
+        if not record.email:
+            return format_html('<span class="muted">No email</span>')
+        reasons = []
+        if record.is_excluded:
+            reasons.append("Excluded")
+        elif record.company_id and record.company.is_excluded:
+            reasons.append("Company excluded")
+        if record.email_valid is False:
+            reasons.append("Email bad")
+        if not reasons:
+            return format_html('<span class="muted">In blasts</span>')
+        return format_html_join(" ", '<span class="pill pill-bad">{}</span>', ((r,) for r in reasons))
     value = getattr(record, key, "")
     return "" if value is None else value
 

@@ -1,0 +1,16 @@
+{% comment %}One-click Exclude / bad-email switches for email blasts. Needs person; next is where to land after.{% endcomment %}
+<div class="outreach-switches">
+  <form method="post" action="{% url 'crm:person_outreach' person.pk %}">{% csrf_token %}
+    <input type="hidden" name="next" value="{{ next|default:request.get_full_path }}">
+    {% if person.is_excluded %}
+      <button class="btn btn-small" name="action" value="include" title="Let email blasts reach {{ person }} again">Include in blasts</button>
+    {% else %}
+      <button class="btn btn-small" name="action" value="exclude" title="Keep {{ person }} out of every email blast">Exclude from blasts</button>
+    {% endif %}
+    {% if person.email %}{% if person.email_valid is False %}
+      <button class="btn btn-small" name="action" value="good_email" title="The address works again: let blasts use it">Email is good</button>
+    {% else %}
+      <button class="btn btn-small" name="action" value="bad_email" title="The address bounces: skip it in blasts">Mark email bad</button>
+    {% endif %}{% endif %}
+  </form>
+</div>

@@ -55,6 +55,7 @@ urlpatterns = [
     path("people/<int:pk>/", views.person_detail, name="person_detail"),
     path("people/<int:pk>/card/", cards.person_card, name="person_card"),
     path("people/<int:pk>/delete/", views.person_delete, name="person_delete"),
+    path("people/<int:pk>/outreach/", views.person_outreach, name="person_outreach"),
     path("opportunities/", views.opportunity_board, name="opportunity_board"),
     path("opportunities/new/", views.opportunity_create, name="opportunity_create"),
     path("opportunities/<int:pk>/", views.opportunity_detail, name="opportunity_detail"),
