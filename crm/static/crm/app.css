@@ -302,6 +302,28 @@ details.checks label { display: flex !important; flex-direction: row !important;
 .notif.unread .notif-kind::before { content: "● "; color: color-mix(in srgb, #e5484d var(--ink-mix), var(--text)); }
 .notif-kind { font-size: 12px; color: var(--muted); }
 .notif-when { font-size: 12px; white-space: nowrap; font-weight: 400; }
+/* A row of the Notifications page: the alert's link, and the × that marks just that one read without opening it
+   (notifications.js). The link keeps room on the right for the ×, so read rows line up with unread ones. */
+.notif-row { position: relative; border-bottom: 1px solid var(--line); transition: opacity .18s var(--ease); }
+.notif-row .notif { border-bottom: 0; padding-right: 46px; }
+.notif-row:hover .notif { background: var(--fill); }
+.notif-row.leaving { opacity: 0; pointer-events: none; }
+.notif-dismiss { position: absolute; top: 50%; right: 8px; margin: 0; transform: translateY(-50%); }
+.notif:not(.unread) + .notif-dismiss { display: none; }  /* opened in a box of the mail dock: it is read already */
+.notif-x { display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0; border: 0;
+  border-radius: 50%; background: none; color: var(--muted); font-size: 20px; line-height: 1; cursor: pointer; }
+.notif-x:hover, .notif-x:focus-visible { background: var(--panel); color: var(--text); box-shadow: var(--shadow-1); }
+.notif-empty { margin: 0; }
+/* A phone: the kind and time share a line, the text gets the full width below, and the × is a full-size touch target. */
+@media (max-width: 700px) {
+  .notif { grid-template-columns: 1fr auto; grid-template-areas: "kind when" "text text"; gap: 2px 10px; padding: 10px 6px; }
+  .notif-kind { grid-area: kind; }
+  .notif-when { grid-area: when; }
+  .notif-text { grid-area: text; overflow-wrap: anywhere; }
+  .notif-row .notif { padding: 10px 52px 10px 6px; }
+  .notif-dismiss { right: 4px; }
+  .notif-x { width: 44px; height: 44px; font-size: 26px; }
+}
 
 /* Collapsible sidebar sections */
 .sidebar details > summary { list-style: none; cursor: pointer; position: relative; }
@@ -1208,9 +1230,16 @@ tr.bd-total td { font-weight: 700; border-top: 2px solid var(--line); }
 
 /* Live alerts */
 #alert-toasts { position: fixed; right: 18px; bottom: 18px; z-index: 3000; display: flex; flex-direction: column; gap: 8px; max-width: 360px; }
-.alert-toast { display: block; background: #1e2a3a; color: #fff; border-radius: 10px; padding: 10px 14px; box-shadow: 0 8px 24px rgba(0,0,0,.25);
+.alert-toast { display: flex; align-items: flex-start; background: #1e2a3a; color: #fff; border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.25);
   text-decoration: none; transition: opacity .5s, transform .5s; animation: toast-in .25s ease-out; }
 .alert-toast:hover { text-decoration: none; background: #26364b; }
+/* The pop-up's link and its × (alerts.js) sit side by side: a button can't live inside a link. */
+.alert-toast-link { display: block; flex: 1; min-width: 0; padding: 10px 14px; color: inherit; }
+.alert-toast-link:hover { text-decoration: none; }
+.alert-toast-x { flex: none; width: 32px; height: 32px; margin: 4px 6px 0 0; padding: 0; border: 0; border-radius: 50%; background: none;
+  color: inherit; opacity: .72; font-size: 20px; line-height: 1; cursor: pointer; }
+.alert-toast-x:hover, .alert-toast-x:focus-visible { opacity: 1; background: var(--accent-hover); }
+@media (max-width: 700px) { .alert-toast-x { width: 44px; height: 44px; margin: 0; font-size: 26px; } }
 .alert-toast b { display: block; font-size: 12px; text-transform: none; letter-spacing: 0; color: #9fc3ff; margin-bottom: 2px; }
 .alert-toast span { font-size: 13px; line-height: 1.35; }
 .alert-toast.gone { opacity: 0; transform: translateY(8px); }
@@ -2732,6 +2761,10 @@ body[data-chat-list] .dock-main > p, body[data-chat-list] .dock-main > a { margi
   background: var(--accent-soft); border: 1px solid var(--line); border-radius: var(--radius); font-size: 13px; }
 .chat-nudge[hidden] { display: none; }
 .chat-nudge > span { flex: 1 1 260px; min-width: 0; }
+/* The same for browser banners (static/crm/alerts.js offerBanners): a solid card, not a tint; "Not now" hides it for two weeks. */
+.notify-nudge { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 0 0 12px; padding: 10px 14px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-lg); box-shadow: var(--shadow-1); font-size: 13px; }
+.notify-nudge > span { flex: 1 1 260px; min-width: 0; }
 /* "Schedule…" on an email where someone settled on a meeting time (crm/mail/schedule_link.py). */
 .mail-schedule { display: flex; align-items: center; justify-content: space-between; gap: 8px 12px; flex-wrap: wrap; margin: 8px 0;
   padding: 8px 12px; background: var(--accent-soft); border: 1px solid var(--line); border-left: 3px solid var(--accent);

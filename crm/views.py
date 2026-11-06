@@ -1205,8 +1205,24 @@ def notification_open(request, pk):
     return redirect(n.url if ok else reverse("crm:notification_list"))
 
 
+@require_POST
+def notification_dismiss(request, pk):
+    """The × on an alert (the Notifications page, a live pop-up): mark just this one read without opening it. Only the
+    person's own (anyone else's id is a 404). A fetch (static/crm/notifications.js, alerts.js) gets the bell's new count as
+    JSON; a plain form post goes back to the page it came from."""
+    n = get_object_or_404(Notification, pk=pk, user=request.user)
+    if n.read_at is None:
+        n.read_at = timezone.now()
+        n.save(update_fields=["read_at"])
+    if request.headers.get("X-Requested-With") == "fetch":
+        return JsonResponse({"ok": True, "id": n.pk, "unread": notify.unread_count(request.user)})
+    return redirect(_safe_next(request, reverse("crm:notification_list")))
+
+
 def notification_poll(request):
-    """For the browser's live alerts (static/crm/alerts.js): unread count and anything newer than ?after=."""
+    """For the browser's live alerts (static/crm/alerts.js): unread count and anything newer than ?after=, the id of the newest
+    alert the browser has handled. ?after=0 is a real baseline (a browser that started with no alerts): it gets every unread one.
+    Without ?after=, or with something that is not a number, nothing is replayed: `latest` is the baseline to start from."""
     from django.http import JsonResponse
 
     from . import notify
@@ -1220,13 +1236,14 @@ def notification_poll(request):
         pass
     unread = Notification.objects.filter(user=request.user, in_hub=True, read_at__isnull=True)
     try:
-        after = int(request.GET.get("after") or 0)
-    except ValueError:
-        after = 0
+        after = int(request.GET["after"])
+    except (KeyError, ValueError):  # no baseline: replay nothing
+        after = None
     latest = Notification.objects.filter(user=request.user, in_hub=True).order_by("-id").values_list("id", flat=True).first() or 0
     items = [{"id": n.pk, "kind": n.get_kind_display(), "text": n.text,
-              "url": reverse("crm:notification_open", args=[n.pk]), "window": notify.window_url(n)}
-             for n in unread.filter(id__gt=after).order_by("id")[:10]] if after else []
+              "url": reverse("crm:notification_open", args=[n.pk]), "window": notify.window_url(n),
+              "dismiss": reverse("crm:notification_dismiss", args=[n.pk])}
+             for n in unread.filter(id__gt=after).order_by("id")[:10]] if after is not None else []
     return JsonResponse({"unread": unread.count(), "latest": latest, "items": items})
 
 

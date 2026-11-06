@@ -301,7 +301,7 @@
   document.querySelectorAll('dialog[data-open-on-load]').forEach(d => d.showModal());
 </script>
 {% block scripts %}{% endblock %}
-{% if request.user.is_authenticated and not EMBED %}<div id="alerts-config" hidden data-poll="{% url 'crm:notification_poll' %}" data-icon="{% static 'crm/logo_blue.png' %}"></div>
+{% if request.user.is_authenticated and not EMBED %}<div id="alerts-config" hidden data-poll="{% url 'crm:notification_poll' %}" data-settings="{% url 'crm:notification_settings' %}" data-icon="{% static 'crm/logo_blue.png' %}"></div>
 <script src="{% static 'crm/alerts.js' %}?v={{ ASSET_VERSION }}"></script>{% endif %}
 </body>
 </html>

@@ -160,6 +160,7 @@ urlpatterns = [
     path("settings/dropdowns/<str:key>/", settings_views.dropdown_edit, name="dropdown_edit"),
     path("notifications/", views.notification_list, name="notification_list"),
     path("notifications/<int:pk>/", views.notification_open, name="notification_open"),
+    path("notifications/<int:pk>/dismiss/", views.notification_dismiss, name="notification_dismiss"),
     path("notifications/poll/", views.notification_poll, name="notification_poll"),
     path("notifications/read-all/", views.notification_read_all, name="notification_read_all"),
     path("notifications/push/subscribe/", push_views.push_subscribe, name="push_subscribe"),
