@@ -1,5 +1,5 @@
 {% extends "crm/base.html" %}
-{% load crm_tags %}
+{% load crm_tags static %}
 {% block title %}Notifications · ACMI Hub{% endblock %}
 {% block content %}
 <div class="page-head">
@@ -10,21 +10,32 @@
   <a class="btn" href="{% url 'crm:notification_settings' %}">Settings</a>
   <form method="post" action="{% url 'crm:notification_read_all' %}">{% csrf_token %}<button class="btn">Mark all read</button></form>
 </div>
-<div class="panel">
+<div class="panel notif-list" data-notif-list data-show="{{ show }}">
   {% for n in page %}
-    <a class="notif {% if not n.read_at %}unread{% endif %}" href="{% url 'crm:notification_open' n.pk %}"{% if n.window %} data-window="{{ n.window }}"{% endif %}>
-      <span class="notif-kind">{{ n.get_kind_display }}</span>
-      <span class="notif-text">{{ n.text }}</span>
-      <span class="muted notif-when">{{ n.created_at|date:"M j, g:i A" }}</span>
-    </a>
-  {% empty %}<p class="muted" style="margin:0">{% if show == 'unread' %}You're all caught up.{% else %}No notifications yet.{% endif %}</p>{% endfor %}
+    {# The × is a sibling of the link, not inside it: a button can't live in a link. notifications.js takes the row away without a reload. #}
+    <div class="notif-row" data-notif-row>
+      <a class="notif {% if not n.read_at %}unread{% endif %}" href="{% url 'crm:notification_open' n.pk %}"{% if n.window %} data-window="{{ n.window }}"{% endif %}>
+        <span class="notif-kind">{{ n.get_kind_display }}</span>
+        <span class="notif-text">{{ n.text }}</span>
+        <span class="muted notif-when">{{ n.created_at|date:"M j, g:i A" }}</span>
+      </a>
+      {% if not n.read_at %}<form class="notif-dismiss" method="post" action="{% url 'crm:notification_dismiss' n.pk %}" data-notif-dismiss>
+        {% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}">
+        <button class="notif-x" title="Dismiss: mark as read" aria-label="Dismiss: {{ n.text|truncatechars:80 }}">×</button>
+      </form>{% endif %}
+    </div>
+  {% endfor %}
+  <p class="muted notif-empty" data-notif-empty tabindex="-1"{% if page %} hidden{% endif %}>{% if show == 'unread' %}You're all caught up.{% else %}No notifications yet.{% endif %}</p>
   {% if page.has_other_pages %}<div class="pager">
     {% if page.has_previous %}<a href="{% qs_set page=page.previous_page_number %}">‹ Prev</a>{% endif %}
     <span>Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
     {% if page.has_next %}<a href="{% qs_set page=page.next_page_number %}">Next ›</a>{% endif %}
   </div>{% endif %}
+  <div class="sr-only" role="status" aria-live="polite" data-notif-status></div>
 </div>
 <p class="muted" style="font-size:12px">You get a notification when someone gives you a task, @mentions you, comments on a task, deal or company you own,
   moves one of your deals, or a company you own replies by email; once a day for your tasks that are due or overdue; and 15 minutes before and at the time set on a task.
-  <a href="{% url 'crm:notification_settings' %}">Notification settings</a> picks which kinds reach you, here and as browser notifications.</p>
+  <a href="{% url 'crm:notification_settings' %}">Notification settings</a> picks which kinds reach you, here and as browser notifications.
+  The × on an unread one marks just that one read, without opening it.</p>
 {% endblock %}
+{% block scripts %}<script src="{% static 'crm/notifications.js' %}?v={{ ASSET_VERSION }}"></script>{% endblock %}
